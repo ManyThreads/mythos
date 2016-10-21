@@ -1,0 +1,37 @@
+/* ==========================================================================
+   Footer
+   ========================================================================== */
+
+.c-footer {
+  padding-top: 1rem;
+  padding-bottom: 1rem;
+  padding-left: 2.5rem;
+  padding-right: 2.5rem;
+  width: 100%;
+  
+  background: $c__light-grey;
+
+  p {
+    @include fs--meta;
+    color: $c__black;
+  }
+
+  a {
+    color: $c__blue !important;
+  }
+
+}
+
+.c-footer__container {
+  display: -webkit-box;
+  display: -webkit-flex;
+  display: -ms-flexbox;
+  -webkit-flex-wrap: wrap;
+      -ms-flex-wrap: wrap;
+          flex-wrap: wrap;
+  display: flex;
+  -webkit-box-pack: justify;
+  -webkit-justify-content: space-between;
+      -ms-flex-pack: justify;
+          justify-content: space-between;
+}

@@ -13,15 +13,30 @@
 # you will see them accessed via {{ site.title }}, {{ site.email }}, and so on.
 # You can create any custom variable you would like, and they will be accessible
 # in the templates via {{ site.myvariable }}.
-title: Many Threads Operating System (MyThOS)
-email: #your-email@domain.com
+title: MyThOS
+email: randolf.rotta@b-tu.de
 description: > # this means to ignore newlines until "baseurl:"
- Many Threads Operating System 
-baseurl: "" # the subpath of your site, e.g. /blog
-url: "" # the base hostname & protocol for your site
-#twitter_username: jekyllrb
-#github_username:  jekyll
+  MyThOS, the Many Threads Operating System, is a modular environment tailored to highly dynamic HPC applications on many-core processors.
+baseurl: "/mythos" # the subpath of your site, e.g. /blog
+url: "https://manythreads.github.io" # the base hostname & protocol for your site
+#baseurl: ""
+#url: ""
+
+# Social
+githubUsername: ManyThreads/mythos
+twitterUsername:
+dribbbleUsername:
+codepenUsername:
 
 # Build settings
 markdown: kramdown
-theme: minima
+
+themeColor: whiteblue #purple, green, blue, orange, purple, grey
+fixedNav: 'true' # true or false
+
+permalink: /:year/:month/:title
+markdown: kramdown
+include: [_pages]
+exclude: [_site, CHANGELOG.md, LICENSE, README.md, start.sh]
+sass:
+  style: compressed

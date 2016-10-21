@@ -1,0 +1,82 @@
+/* ==========================================================================
+   Article
+   ========================================================================== */
+
+.c-article {
+
+}
+
+.c-article__main {
+  max-width: 76rem; // 760px;
+  margin-right: auto;
+  margin-left: auto;
+  padding-top: 0rem;
+  padding-bottom: 7.5rem;
+  padding-right: 150px;
+  padding-left: 2rem;
+  @include fs--body;
+
+  > * {
+    margin-bottom: 1.8rem;
+    color: rgba($c__black, .7);
+  }
+  
+  
+  h1{
+    @include ff--mono(500);
+    @include fs--heading-1;
+    color: $c__blue;
+    margin-left: -2rem;
+  }
+
+  h2{
+    @include ff--mono(500);
+    @include fs--heading-2;
+    color: $c__blue;
+    margin-left: -2rem;
+  }
+
+  h3{
+    @include ff--mono(500);
+    @include fs--heading-3;
+    color: $c__blue;
+  }
+
+  h4{
+    @include ff--mono(500);
+    @include fs--heading-2;
+    color: $c__blue;
+  }
+
+  a:not(.c-btn) {
+    
+    color: $c__blue !important;
+  }
+
+  blockquote {
+    margin-left: -2.5rem;
+    width: calc(100% + 5rem);
+    padding: 2.5rem;
+    background: $c__light-grey;
+  }
+
+  .img-logoright {
+    margin-right: -150px;
+    margin-left: 0.5em;
+    margin-top: 0.5em;
+    margin-bottom: 0.5em;
+    width: 170px;
+    float: right;
+    clear: right;
+  }
+}
+
+@media screen and (max-width: 750px) {
+.c-article__main {
+  padding-right: 5%;
+
+  .img-logoright {
+    margin-right: -5%;
+  }
+}
+}

@@ -1,0 +1,18 @@
+<!-- to add navigation bar items add some a statments which are shown in here -->
+
+<nav class="c-navigation {% if site.fixedNav == 'true' %}is-fixed{% endif %}">
+  <div class="u-container">
+  <div class="c-navigation__logo">
+    <!--<img src="{{site.baseurl}}/mythos-logo.png"/> --!>
+    the Many Threads Operating System
+  </div>
+
+  <div class="c-navigation__container">
+    <a class="c-navigation__item {% if page.url == '/' %}is-active{% endif %}" href="{{ "/" | prepend: site.baseurl }}">About</a>
+    <a class="c-navigation__item {% if page.url == '/doc/' %}is-active{% endif %}" href="{{ "/doc/" | prepend: site.baseurl }}">Documentation</a>
+    <a class="c-navigation__item {% if page.url == '/download/' %}is-active{% endif %}" href="{{ "/download/" | prepend: site.baseurl }}">Download</a>
+    <a class="c-navigation__item {% if page.url == '/people/' %}is-active{% endif %}" href="{{ "/people/" | prepend: site.baseurl }}">People</a>
+    <a class="c-navigation__item {% if page.url == '/contact/' %}is-active{% endif %}" href="{{ "/contact/" | prepend: site.baseurl }}">Contact</a>
+  </div>
+  </div>
+</nav>

@@ -1,0 +1,74 @@
+/* ==========================================================================
+   Navigation
+   ========================================================================== */
+
+.c-navigation {
+  position: absolute;
+  top: 0;
+  left: 0;
+  padding: 0 2.5rem;
+  width: 100%;
+  background: $c__blue;
+  z-index: 10;
+
+  &:after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 0;
+    width: 100%;
+    height: 10px;
+    background: linear-gradient(to bottom, rgba(#000, .25), rgba(#000, 0));
+  }
+
+  &.is-fixed {
+    position: fixed;
+    will-change: transform;
+  }
+}
+
+.c-navigation__logo {
+  padding-top: 1.5rem;
+  float: left;
+  @include ff--mono(500);
+  @include fs--navi;
+  color: $c__white;
+  
+  img {
+    height: 30px;
+    }
+}
+
+.c-navigation__container {
+  text-align: right;
+}
+  
+.c-navigation__item {
+  position: relative;
+  display: inline-block;
+  padding-top: 1.5rem;
+  padding-bottom: 1rem;
+  @include ff--mono(500);
+  @include fs--navi;
+  color: $c__white;
+
+  &:not(:last-of-type) {
+    margin-right: 2.5rem;
+  }
+
+  &:after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 5px;
+    background: transparent;
+    transition: background ease-in-out 0.2s;
+  }
+
+  &:hover:after,
+  &.is-active:after {
+    background: $c__white;
+  }
+}

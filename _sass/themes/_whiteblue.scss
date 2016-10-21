@@ -1,0 +1,22 @@
+/* ==========================================================================
+   White blue Theme
+   ========================================================================== */
+
+.t-whiteblue {
+    
+   .c-navigation {
+     background: $c__blue;
+   }
+
+  .c-header {
+    background: $c__white;
+  }
+
+  .c-article__main a:not(.c-btn) {
+    color: $c__white;
+  }
+
+  .c-footer a {
+    color: $c__white;
+  }
+}
