@@ -1,0 +1,5 @@
+# -*- mode:toml; -*-
+
+[module.objects-capmap]
+    incfiles = [ "objects/CapMap.hh" ]
+    kernelfiles = [ "objects/CapMap.cc" ]

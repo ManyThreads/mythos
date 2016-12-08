@@ -1,0 +1,35 @@
+/**
+@namespace mythos
+The main namespace for all code from the mythos project.
+*/
+
+/**
+@namespace mythos::x86
+Processor specific functions like control registers and Model Specific Registers
+for the ia32, x86, x86-64 and amd64 architectures.
+
+see also:
+  - http://www.etallen.com/cpuid.html
+  - https://software.intel.com/en-us/articles/intel-64-architecture-processor-topology-enumeration
+  - http://malekb.free.fr/Detecting%20Multi-Core%20Processor%20Topology%20in%20an%20IA-32%20Platform.pdf
+  - http://support.amd.com/TechDocs/25481.pdf
+*/
+
+/**
+@namespace mythos::cpu
+Classes and functions that are used to manage the processor and
+abstract processor specific details where possible.
+*/
+
+/**
+@namespace mythos::async
+Communication support for asynchronous objects based on Tasklets, Monitors and Places.
+*/
+
+
+/**
+@namespace mlog
+The debug output and tracing subsystem that is used by the mythos
+kernel. It was developed during the MyThOS project but is probably
+very useful for other projects.
+*/

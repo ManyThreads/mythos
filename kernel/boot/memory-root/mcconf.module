@@ -1,0 +1,3 @@
+[module.memory-root]
+    incfiles = [ "boot/memory-root.hh" ]
+    kernelfiles = [ "boot/memory-root.cc" ]

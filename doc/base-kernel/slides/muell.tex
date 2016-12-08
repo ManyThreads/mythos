@@ -1,0 +1,77 @@
+\begin{frame}
+  \frametitle{MyThOS Design Ziele}
+
+  \begin{enumerate}
+  \item \alert{Overheads reduzieren:}\\
+    Policies vereinfachen und auslagern\\
+    z.B. kein Demand Paging, kein Swapping, kein Time Sharing
+  \item \alert{Verwaltungsaufgaben parallelisieren:}\\
+    Objekte freigeben, Speicher nullen\\
+    z.B. in Teilaufgaben zerlegen, auf unbenutzte Kerne verteilen
+  \item \alert{Wartezeiten sinnvoll füllen:}\\
+    Buchhaltung aus zeitkritischen Pfaden auslagern\\
+    z.B. asynchrone Kommunikation ohne aktives Warten, async. Idle Tasks
+  \item \alert{Kommunikationslatenz reduzieren:}\\
+    kleine Aufgaben senden statt große Daten holen,\\
+    lokal gemeinsame Caches ausnutzen\\
+    z.B. Active Messages, Delegation Queues\\
+  \end{enumerate}
+\end{frame}
+
+% \begin{frame}
+%   \frametitle{Reduce management overhead}
+%   \begin{itemize}
+%   \item thread creation dominated by address space setup
+%   \item thread suspend/wakeup limited by cross-core communication
+%   \item[$\Rightarrow$] learn from micro-kernels: move policies to higher layers\\
+% %    just protection domains, execution contexts, capability-based IPC
+%     no paging, no swapping, no on-demand mapping
+% % map allocated memory immediately on request:
+% %  requires less book-keeping, expensive/complex lookups just during unmap -> not time-critical 
+% %  (user can implement on-demand mapping based on protection fault handler)
+%   \end{itemize}
+% \end{frame}
+
+% \begin{frame}
+%   \frametitle{Exploit hardware’s parallelism}
+%   \begin{itemize}
+%   \item parallel processing for management tasks, e.g. data moving
+%   \item defer cleanup tasks to idle threads \& idle times
+%   \item[$\Rightarrow$] dynamically utilise idle cores/threads
+%   \end{itemize}
+% \end{frame}
+
+% \begin{frame}
+%   \frametitle{Fill waiting times}
+%   \begin{itemize}
+%   \item asynchronous tasks for deferred execution
+%   \item no busy waiting or polling
+%   \item[$\Rightarrow$] switch to next task or HW sleep mode\\
+%     wake-up triggered by messages \\ (challenging without MONITOR/MWAIT)
+%   \end{itemize}
+% \end{frame}
+
+% \begin{frame}
+%   \frametitle{Reduce communication and synchronisation overhead}
+%   \begin{itemize}
+%   \item data locality by centralising services, \\ move work to data instead of slow cache coherence
+%   \item mutual exclusion by delegation queues
+%   \item exploit locally shared caches for fast synchronisation
+%   \item[$\Rightarrow$] active messages, simple FIFO scheduling\\
+%     incoming messages, active user threads, idle-time tasks
+%   \end{itemize}
+% \end{frame}
+
+\begin{frame}
+  \frametitle{Die Kunst der Weglassens}
+  \framesubtitle{mcconf: Kernel maßschneidern für Platform und Anwendung}
+
+  \begin{description}[Komponenten]
+  \item[Komponenten] Vielfalt durch Laufzeit-Komposition\\
+    einfaches Replizieren \& Platzieren auf Kerne
+  \item[Module] Effizienz durch Compile-Time-Komposition\\
+    Abhängigkeitsverwaltung mit \texttt{\#include},\\
+    Varianten filtern anhand Prozessor, Umgebung\ldots
+  \end{description}
+
+\end{frame}

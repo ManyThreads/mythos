@@ -1,0 +1,60 @@
+# -*- mode:toml; -*-
+[module.gcc-kernel-pc]
+    incfiles = [ "util/compiler.hh" ]
+    requires = [ "tag/platform/pc", "tag/mode/kernel", "tag/compiler/gcc" ]
+
+    makefile_head = '''
+KERNEL_CXX = $(CXX)
+ifeq ($(AS), as)
+KERNEL_AS = $(CXX)
+else
+KERNEL_AS = $(AS)
+endif
+KERNEL_CPPFLAGS += $(CPPFLAGS)
+KERNEL_CPPFLAGS += -I.
+
+KERNEL_CXXFLAGS += $(CXXFLAGS)
+KERNEL_CXXFLAGS += -std=c++11
+KERNEL_CXXFLAGS += -Wno-invalid-offsetof
+KERNEL_CXXFLAGS += -Wall -Wextra -Wstrict-aliasing=3 -Wstrict-overflow=5 -Wsign-compare
+# -pedantic is deprecated since gcc4.8, but -Wpedantic is not supported by gcc4.7
+KERNEL_CXXFLAGS += -pedantic
+KERNEL_CXXFLAGS += -Wcast-align -Wlogical-op
+KERNEL_CXXFLAGS += -Wcast-qual -Wconversion -Wuseless-cast
+#KERNEL_CXXFLAGS += -Wstack-usage=512
+#KERNEL_CXXFLAGS += -Wsuggest-attribute=pure -Wsuggest-attribute=const -Wsuggest-attribute=noreturn
+KERNEL_CXXFLAGS += -fno-exceptions -fno-rtti
+# improves linker's garbage collection:
+KERNEL_CXXFLAGS += -ffunction-sections
+
+KERNEL_CXXFLAGS += -ffreestanding -mno-mmx -mno-sse -mno-sse2 -mno-sse3 -mno-3dnow
+# You will need to instruct GCC not to use the the AMD64 ABI 128-byte 'red zone', which resides below the stack pointer, or your kernel will be interrupt unsafe. Check http://forum.osdev.org/viewtopic.php?t=21720
+KERNEL_CXXFLAGS += -mno-red-zone
+#KERNEL_CXXFLAGS += -mpreferred-stack-boundary=4
+
+# The -mcmodel=large argument enables us to run the kernel at any 64-bit virtual memory address we want (only in GCC 4.3+). In fact, using the 'large' code model is discouraged due to its inefficiency, but it can be fine as a start. Check the SysV AMD64 ABI document for extra details.
+KERNEL_CXXFLAGS += -mcmodel=kernel -fno-pic
+
+# use -gdwarf-2 in order to avoid gdb <cant compute CFA for this frame> bug
+# use -gdwarf-2 in order to avoid linker error in gcc4.7
+#KERNEL_CXXFLAGS += -O2 -g3 -ggdb -gdwarf-2
+#KERNEL_CXXFLAGS += -Os -DNDEBUG
+KERNEL_CXXFLAGS += -O2 -g
+
+KERNEL_LD = $(LD)
+KERNEL_LFLAGS += $(LFLAGS)
+KERNEL_LFLAGS += -g -z max-page-size=0x1000 --gc-sections --warn-common -static -n
+
+APP_CXX = $(CXX)
+APP_AS = $(KERNEL_AS)
+APP_CPPFLAGS += $(CPPFLAGS)
+APP_CPPFLAGS += -I.
+APP_CXXFLAGS += $(CXXFLAGS)
+APP_CXXFLAGS += -std=c++11
+#APP_CXXFLAGS += -O2 -g3 -ggdb -gdwarf-2
+APP_CXXFLAGS += -O2 -g -mno-mmx -mno-sse -mno-sse2 -mno-sse3 -mno-3dnow
+APP_LD = $(LD)
+APP_LDFLAGS = -g -static
+
+-include ../Makefile.user
+'''

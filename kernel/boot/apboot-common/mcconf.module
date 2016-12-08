@@ -1,0 +1,4 @@
+# -*- mode:toml; -*-
+[module.apboot-common]
+    incfiles = [ "boot/DeployHWThread.hh" ]
+    kernelfiles = [ "boot/DeployHWThread.cc" ]

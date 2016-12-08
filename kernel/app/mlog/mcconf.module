@@ -1,0 +1,4 @@
+# -*- mode:toml; -*-
+[module.app-mlog]
+    incfiles = [ "app/mlog.hh" ]
+    initappfiles = [ "app/mlog.cc" ]

@@ -1,0 +1,5 @@
+# -*- mode:toml; -*-
+
+[module.objects-portal]
+    incfiles = [ "objects/Portal.hh" ]
+    kernelfiles = [ "objects/Portal.cc" ]

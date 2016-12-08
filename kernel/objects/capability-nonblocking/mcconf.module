@@ -1,0 +1,5 @@
+# -*- mode:toml; -*-
+
+[module.capability-nonblocking]
+  requires = [ "tag/cap/non-blocking" ]
+  incfiles = [ "objects/CapEntry.hh", "objects/CapLink.hh" ]

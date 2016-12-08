@@ -1,0 +1,44 @@
+% Beamer theme by Jana Traue <jana.traue@tu-cottbus.de>
+% December 2010 version 0.1
+%
+% based on the LaTeX-Beamer package :
+% Copyright 2003 by Till Tantau <tantau@users.sourceforge.net>
+%
+% This program can be redistributed and/or modified under the terms
+% of the GNU Public License, version 2.
+%
+\mode<presentation>
+%
+\definecolor{beamer@btublack}{cmyk}{0.1,0,0,0.8} 
+\definecolor{beamer@btured}{cmyk}{0,1,0.9,0} 
+\definecolor{beamer@fak1Color}{cmyk}{0.10,1.00,0,0} % magenta
+\definecolor{beamer@fak2Color}{cmyk}{1,0.70,0,0}    % dark blue
+\definecolor{beamer@fak3Color}{cmyk}{1,0,0.10,0}    % light blue
+\definecolor{beamer@fak4Color}{cmyk}{0.45,0,1,0}    % light green
+%
+\definecolor{beamer@highlightColor}{named}{black}
+%       
+\setbeamercolor{structure}{fg=beamer@highlightColor}
+%
+\setbeamercolor{title}{parent=normal}
+%
+\setbeamercolor{section in toc}{parent=structure}
+\setbeamercolor{section in toc shaded}{parent=normal}
+%
+\setbeamercolor{section number projected}{parent=item projected}
+%
+\setbeamercolor{subsection in toc}{parent=section in toc}
+\setbeamercolor{subsection in toc shaded}{parent=normal}
+%
+\setbeamercolor{footline}{fg=beamer@highlightColor}
+%
+\setbeamercolor{item}{parent=normal}
+\setbeamercolor{alerted text}{fg=beamer@fak1Color}
+\setbeamercolor{example text}{fg=beamer@fak4Color}
+%
+\setbeamercolor{mini frame}{parent=section in toc}
+%\setbeamercolor{mini frame shaded}{parent=beamer@fak4Color}
+\setbeamercolor{mini frame shaded}{use=normal text,fg=normal text.fg!30!bg}
+%
+\mode
+<all>

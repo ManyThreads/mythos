@@ -1,0 +1,179 @@
+\documentclass[%
+        paper=a4,
+	% BCOR=10mm, % Binding CORrection
+	oneside,			% two sided printing
+        %cleardoublepage=empty,         % empty backsides for two sided printing
+        twocolumn=false,
+	titlepage=false,			% support for title environment
+        abstract,
+	numbers=noenddot,		% numbers (in headlines) without ending points
+	headsepline,			% line below header
+	%footsepline,			% line above footer
+	headings=normal,                % size of header is normal
+	fontsize=11pt,			% fontsize in points
+	pagesize=pdftex,		% define typearea for pdftex usage
+        headheight=46.96317pt,          % value based on MyThOS logo
+        parskip=off                     % or half*
+]{scrartcl}
+
+% ------------------------------------------------------------------------------
+% character encoding and fonts for the document
+\usepackage[T1]{fontenc} % should be loaded before inputenc
+\usepackage[utf8]{inputenc}	    % unicode, newer than utf8x
+\usepackage{ae}
+\usepackage{aecompl}
+\usepackage[T1]{url}			% web adresses with t1 style
+\urlstyle{tt}					% web adresses in tt-style
+%\usepackage[UKenglish]{babel}
+\usepackage[ngerman,UKenglish]{babel}
+
+% ------------------------------------------------------------------------------
+% font setup
+\usepackage{microtype}
+\usepackage{ellipsis}			% corrects wrong spaces after dots
+\usepackage{amsmath}
+%\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage{latexsym}
+\usepackage{dsfont}
+
+%% bera mit euler
+\usepackage{bera,amssymb,eufrak}
+\usepackage[euler-digits,euler-hat-accent]{eulervm}
+
+\setlength{\parskip}{0.5em plus 1em minus 0.5em}
+\clubpenalty 2000
+\widowpenalty 2000
+%\setlength{\tolerance}{2000}
+\setlength{\emergencystretch}{20pt}   % kann man evtl. auf 20 erhöhen
+%\setlength{\hfuzz}{1pt}
+\setlength{\hfuzz}{10pt}
+
+% ------------------------------------------------------------------------------
+% pdf creation
+\usepackage[%
+  pdftex,
+  colorlinks=true,
+  urlcolor=red,
+  citecolor=red,
+  linkcolor=red,
+  bookmarks=true,
+  breaklinks=true
+]{hyperref}
+
+% ------------------------------------------------------------------------------
+% graphics
+\usepackage[usenames,dvipsnames]{xcolor}
+\usepackage{graphicx}
+\usepackage{subfigure}
+\usepackage{tikz}
+\usetikzlibrary{calc,trees,positioning,arrows,chains,shapes.geometric,%
+    decorations.pathreplacing,decorations.pathmorphing,shapes,%
+    matrix,shapes.symbols}
+
+% ------------------------------------------------------------------------------
+% listings
+\usepackage{listings}		% include listings
+\newcommand{\code}{\lstinline}
+\lstloadlanguages{C++}
+\lstset{
+  basicstyle=\ttfamily\footnotesize,
+  keywordstyle=\bfseries,
+  stringstyle=\textit,
+  emphstyle=\textit,
+  commentstyle=\textit,
+  breaklines=true,
+  breakatwhitespace=true,
+  breakautoindent=true,
+  morekeywords={},
+  numbers=left,
+  numberstyle=\tiny\color{black},
+  stepnumber=1,
+  numbersep=5pt,
+  tabsize=2,
+  showspaces=false,
+  showstringspaces=false,
+    xleftmargin=17pt, 			% left margin where linenumbers and frames do start
+    framexleftmargin=17pt, 		% left margin of frame (which will be colored)
+    framesep=0pt,
+    belowcaptionskip=0pt,
+    captionpos=b,
+    framerule=1pt
+}
+
+\usepackage{scrhack}
+\usepackage{float}
+\floatstyle{plain}
+\newfloat{listing}{tbhp}{myc}
+\floatname{listing}{Listing}
+
+% ------------------------------------------------------------------------------
+% tables 
+\usepackage{multirow}
+%\usepackage{ragged2e}
+\usepackage{tabularx}
+\usepackage{longtable}
+\usepackage{booktabs}   % toprule, midrule in Tabellen
+\newcolumntype{Y}{>{\raggedright\arraybackslash}X}
+\usepackage{caption}
+
+\usepackage{collcell}
+\newcolumntype{L}{>{\collectcell\lstinline}l<{\endcollectcell}}
+\newcolumntype{R}{>{\collectcell\lstinline}r<{\endcollectcell}}
+
+\usepackage{bytefield}
+
+%------------------------------------------------------------------------------
+\usepackage{xspace}
+\newcommand{\mythos}{\textsc{MyThOS}\xspace}
+\def\cc{{C\nolinebreak[4]\hspace{-.05em}\raisebox{.4ex}{\tiny\bf ++}}}
+
+\usepackage[textsize=tiny]{todonotes}
+
+%\usepackage{titling}
+\usepackage{enumerate}
+\usepackage{epigraph}
+\renewcommand{\epigraphsize}{\footnotesize}
+\setlength{\epigraphwidth}{0.618\textwidth}
+\usepackage{placeins}
+
+\titlehead{
+\begin{center}
+  \noindent\rule{1.0\textwidth}{1pt}\\[1cm]
+  \includegraphics[scale=0.5]{MyThOS_Logo}\\[0.5cm]
+  \sffamily
+  \small
+  \begin{tabularx}{\textwidth}{lX}
+    Förderkennzeichen: & 01IH130003 \\
+    Vorhabensbezeichnung: & MyThOS \\
+    & Modulares Betriebssystem für Massiv Parallele Anwendungen
+  \end{tabularx}\\[0.5cm]
+  \noindent\rule{1.0\textwidth}{1pt}
+\end{center}
+%\vspace{1cm}
+}
+
+
+\usepackage{scrlayer-scrpage}
+\makeatletter
+\title{\@myTitle}
+\renewcommand*{\title}[1]{\def\@myTitle{#1}}
+\setkomafont{pageheadfoot}{\sffamily\small}
+\lohead{%
+\@myTitle\\%
+\headmark%
+}
+\cohead{}
+\rohead{\includegraphics[height=1.5cm]{MyThOS_Logo}}
+\makeatother
+\pagestyle{scrheadings}
+
+%\usepackage{showframe}
+
+% ------------------------------------------------------------------------------
+% layout
+\usepackage{multicol}
+\usepackage{marginnote}
+\renewcommand*{\marginfont}{\footnotesize}
+\typearea[current]{last}		% recalculate type area
+

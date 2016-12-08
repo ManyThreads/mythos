@@ -1,0 +1,48 @@
+#pragma once
+
+#include "util/compiler.hh"
+
+inline bool implies(const bool& a, const bool& b)
+{
+  return !a || b;
+}
+
+/** write an error message and stops execution forever.
+ */
+extern "C" NORETURN bool __assert_fail(char const* file, unsigned int line,
+			      char const* expr, char const* message=0);
+
+// only in debug mode: if the expression evaluates to false, the programm will be stopped
+#ifndef NDEBUG
+#define ASSERT(expr) \
+  ((void)(!(expr) && __assert_fail(__FILE__,__LINE__, #expr)))
+#define ASSERT_MSG(expr, message) \
+  ((void)(!(expr) && __assert_fail(__FILE__,__LINE__, #expr, message)))
+#else /* not def NDEBUG */
+#define ASSERT(expr) (void)(expr)
+#define ASSERT_MSG(expr, message) (void)(expr)
+#endif 
+
+/** write an error message but does not stop.
+ */
+extern "C" bool __oops_fail(char const* file, unsigned int line,
+			    char const* expr, char const* message=0);
+
+// the operating system detected an internal error but tries to ignore it
+#define OOPS(expr) \
+  ((void)(!(expr) && __oops_fail(__FILE__,__LINE__, #expr)))
+#define OOPS_MSG(expr, message) \
+  ((void)(!(expr) && __oops_fail(__FILE__,__LINE__, #expr, message)))
+
+/** write an error message and stop execution.
+ */
+extern "C" NORETURN bool __panic_fail(char const* file, unsigned int line,
+			    char const* expr, char const* message=0);
+
+// the operating system detected an internal fatal error
+// from which it cannot safely recover, stops execution
+#define PANIC(expr) \
+  ((void)(!(expr) && __panic_fail(__FILE__,__LINE__, #expr)))
+#define PANIC_MSG(expr, message) \
+  ((void)(!(expr) && __panic_fail(__FILE__,__LINE__, #expr, message)))
+

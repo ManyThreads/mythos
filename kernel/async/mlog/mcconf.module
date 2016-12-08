@@ -1,0 +1,4 @@
+# -*- mode:toml; -*-
+[module.mlog-async]
+    incfiles = [ "async/mlog.hh" ]
+    kernelfiles = ["async/mlog.cc" ]

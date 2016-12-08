@@ -1,0 +1,4 @@
+# -*- mode:toml; -*-
+[module.host-common]
+    incfiles = [ "util/alignments.hh", "util/PhysPtr.hh", "util/assert.hh" ]
+    requires = [ "tag/mode/host" ]

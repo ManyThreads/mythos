@@ -1,0 +1,4 @@
+[module.core-local-memory]
+    incfiles = [ "cpu/CoreLocal.hh" ]
+    kernelfiles = [ "cpu/CoreLocal.cc" ]
+    

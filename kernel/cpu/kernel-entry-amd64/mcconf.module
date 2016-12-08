@@ -1,0 +1,8 @@
+# -*- mode:toml; -*-
+[module.kernel-entry-amd64]
+    incfiles = [ "cpu/kernel_entry.hh", "cpu/thread-state-layout.h",
+    "cpu/IdtAmd64.hh", "cpu/IRQDescriptorAmd64.hh" ]
+    kernelfiles = [ "cpu/irq_entry.S", "cpu/syscall_entry.S", "cpu/kernel_entry.cc",
+    "cpu/IdtAmd64.cc" ]
+    requires = [ "symbol/irq_entry_kernel" ]
+    

@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.0//EN" "http://www.w3.org/TR/2001/PR-SVG-20010719/DTD/svg10.dtd">
+<svg width="38cm" height="14cm" viewBox="549 97 755 275" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+  <g>
+    <rect style="fill: #ffffff" x="585.492" y="133.628" width="187.1" height="28"/>
+    <rect style="fill: none; fill-opacity:0; stroke-width: 2; stroke: #000000" x="585.492" y="133.628" width="187.1" height="28"/>
+    <text font-size="16" style="fill: #000000;text-anchor:middle;font-family:sans-serif;font-style:normal;font-weight:700" x="679.042" y="152.628">Capability</text>
+    <rect style="fill: #ffffff" x="585.492" y="161.628" width="187.1" height="84"/>
+    <rect style="fill: none; fill-opacity:0; stroke-width: 2; stroke: #000000" x="585.492" y="161.628" width="187.1" height="84"/>
+    <text font-size="12.8" style="fill: #000000;text-anchor:start;font-family:monospace;font-style:normal;font-weight:normal" x="588.492" y="175.628">+permissions: int</text>
+    <text font-size="12.8" style="fill: #000000;text-anchor:start;font-family:monospace;font-style:normal;font-weight:normal" x="588.492" y="191.628">+subject: KernelObject*</text>
+    <text font-size="12.8" style="fill: #000000;text-anchor:start;font-family:monospace;font-style:normal;font-weight:normal" x="588.492" y="207.628">+object: KernelObject*</text>
+    <text font-size="12.8" style="fill: #000000;text-anchor:start;font-family:monospace;font-style:normal;font-weight:normal" x="588.492" y="223.628">+parent: Capability*</text>
+    <text font-size="12.8" style="fill: #000000;text-anchor:start;font-family:monospace;font-style:normal;font-weight:normal" x="588.492" y="239.628">+inherited: Capability*</text>
+    <rect style="fill: #ffffff" x="585.492" y="245.628" width="187.1" height="36"/>
+    <rect style="fill: none; fill-opacity:0; stroke-width: 2; stroke: #000000" x="585.492" y="245.628" width="187.1" height="36"/>
+    <text font-size="12.8" style="fill: #000000;text-anchor:start;font-family:monospace;font-style:normal;font-weight:normal" x="588.492" y="259.628">+invoke(Msg*)</text>
+    <text font-size="12.8" style="fill: #000000;text-anchor:start;font-family:monospace;font-style:normal;font-weight:normal" x="588.492" y="275.628">+revoke()</text>
+  </g>
+  <g>
+    <rect style="fill: #ffffff" x="995.446" y="134.398" width="202.5" height="28"/>
+    <rect style="fill: none; fill-opacity:0; stroke-width: 2; stroke: #000000" x="995.446" y="134.398" width="202.5" height="28"/>
+    <text font-size="16" style="fill: #000000;text-anchor:middle;font-family:sans-serif;font-style:italic;font-weight:700" x="1096.7" y="153.398">KernelObject</text>
+    <rect style="fill: #ffffff" x="995.446" y="162.398" width="202.5" height="20"/>
+    <rect style="fill: none; fill-opacity:0; stroke-width: 2; stroke: #000000" x="995.446" y="162.398" width="202.5" height="20"/>
+    <text font-size="12.8" style="fill: #000000;text-anchor:start;font-family:monospace;font-style:normal;font-weight:normal" x="998.446" y="176.398">+reference count</text>
+    <rect style="fill: #ffffff" x="995.446" y="182.398" width="202.5" height="36"/>
+    <rect style="fill: none; fill-opacity:0; stroke-width: 2; stroke: #000000" x="995.446" y="182.398" width="202.5" height="36"/>
+    <text font-size="12.8" style="fill: #000000;text-anchor:start;font-family:monospace;font-style:italic;font-weight:700" x="998.446" y="196.398">+invoke(Capability*,Msg*)</text>
+    <text font-size="12.8" style="fill: #000000;text-anchor:start;font-family:monospace;font-style:italic;font-weight:700" x="998.446" y="212.398">+revoke(Capability*)</text>
+  </g>
+  <g>
+    <rect style="fill: #ffffff" x="1122.11" y="257.354" width="169.3" height="28"/>
+    <rect style="fill: none; fill-opacity:0; stroke-width: 2; stroke: #000000" x="1122.11" y="257.354" width="169.3" height="28"/>
+    <text font-size="16" style="fill: #000000;text-anchor:middle;font-family:sans-serif;font-style:italic;font-weight:700" x="1206.76" y="276.354">ExecutionContext</text>
+  </g>
+  <g>
+    <rect style="fill: #ffffff" x="1122.11" y="298.152" width="180.8" height="28"/>
+    <rect style="fill: none; fill-opacity:0; stroke-width: 2; stroke: #000000" x="1122.11" y="298.152" width="180.8" height="28"/>
+    <text font-size="16" style="fill: #000000;text-anchor:middle;font-family:sans-serif;font-style:italic;font-weight:700" x="1212.51" y="317.152">SchedulingContext</text>
+  </g>
+  <g>
+    <rect style="fill: #ffffff" x="1122.11" y="340.702" width="64.6" height="28"/>
+    <rect style="fill: none; fill-opacity:0; stroke-width: 2; stroke: #000000" x="1122.11" y="340.702" width="64.6" height="28"/>
+    <text font-size="16" style="fill: #000000;text-anchor:middle;font-family:sans-serif;font-style:italic;font-weight:700" x="1154.41" y="359.702">Portal</text>
+  </g>
+  <g>
+    <polyline style="fill: none; fill-opacity:0; stroke-width: 2; stroke-dasharray: 8; stroke: #000000" points="1096.7,237.639 1096.7,271.354 1122.11,271.354 "/>
+    <polygon style="fill: #ffffff" points="1104.7,237.639 1096.7,221.639 1088.7,237.639 "/>
+    <polygon style="fill: none; fill-opacity:0; stroke-width: 2; stroke: #000000" points="1104.7,237.639 1096.7,221.639 1088.7,237.639 "/>
+  </g>
+  <g>
+    <polyline style="fill: none; fill-opacity:0; stroke-width: 2; stroke-dasharray: 8; stroke: #000000" points="1096.7,236.634 1096.7,354.702 1122.11,354.702 "/>
+    <polygon style="fill: #ffffff" points="1104.7,236.634 1096.7,220.634 1088.7,236.634 "/>
+    <polygon style="fill: none; fill-opacity:0; stroke-width: 2; stroke: #000000" points="1104.7,236.634 1096.7,220.634 1088.7,236.634 "/>
+  </g>
+  <g>
+    <polyline style="fill: none; fill-opacity:0; stroke-width: 2; stroke-dasharray: 8; stroke: #000000" points="1096.7,236.634 1096.7,312.152 1122.11,312.152 "/>
+    <polygon style="fill: #ffffff" points="1104.7,236.634 1096.7,220.634 1088.7,236.634 "/>
+    <polygon style="fill: none; fill-opacity:0; stroke-width: 2; stroke: #000000" points="1104.7,236.634 1096.7,220.634 1088.7,236.634 "/>
+  </g>
+  <g>
+    <polyline style="fill: none; fill-opacity:0; stroke-width: 2; stroke: #000000" points="970.274,148.398 806.406,148.398 806.406,147.628 772.592,147.628 "/>
+    <polygon style="fill: #000000" points="995.446,148.398 981.446,153.198 967.446,148.398 981.446,143.598 "/>
+    <polygon style="fill: none; fill-opacity:0; stroke-width: 2; stroke: #000000" points="995.446,148.398 981.446,153.198 967.446,148.398 981.446,143.598 "/>
+    <text font-size="12.7998" style="fill: #000000;text-anchor:start;font-family:monospace;font-style:normal;font-weight:normal" x="808.406" y="145.013">owned capabilities</text>
+    <text font-size="12.7998" style="fill: #000000;text-anchor:end;font-family:monospace;font-style:normal;font-weight:normal" x="963.446" y="145.398"/>
+    <text font-size="12.7998" style="fill: #000000;text-anchor:start;font-family:monospace;font-style:normal;font-weight:normal" x="776.592" y="144.628">*</text>
+  </g>
+  <g>
+    <polyline style="fill: none; fill-opacity:0; stroke-width: 2; stroke: #000000" points="797.764,187.628 890.77,187.628 890.77,176.398 994.487,176.398 "/>
+    <polygon style="fill: #ffffff" points="772.592,187.628 786.592,182.828 800.592,187.628 786.592,192.428 "/>
+    <polygon style="fill: none; fill-opacity:0; stroke-width: 2; stroke: #000000" points="772.592,187.628 786.592,182.828 800.592,187.628 786.592,192.428 "/>
+    <text font-size="12.7998" style="fill: #000000;text-anchor:start;font-family:monospace;font-style:normal;font-weight:normal" x="892.77" y="179.013"/>
+    <text font-size="12.7998" style="fill: #000000;text-anchor:start;font-family:monospace;font-style:normal;font-weight:normal" x="804.592" y="184.628"/>
+    <text font-size="12.7998" style="fill: #000000;text-anchor:end;font-family:monospace;font-style:normal;font-weight:normal" x="990.487" y="173.398">*</text>
+  </g>
+  <g>
+    <polyline style="fill: none; fill-opacity:0; stroke-width: 2; stroke: #000000" points="797.764,203.628 890.516,203.628 890.516,176.398 994.44,176.398 "/>
+    <polygon style="fill: #ffffff" points="772.592,203.628 786.592,198.828 800.592,203.628 786.592,208.428 "/>
+    <polygon style="fill: none; fill-opacity:0; stroke-width: 2; stroke: #000000" points="772.592,203.628 786.592,198.828 800.592,203.628 786.592,208.428 "/>
+    <text font-size="12.7998" style="fill: #000000;text-anchor:start;font-family:monospace;font-style:normal;font-weight:normal" x="892.516" y="187.013"/>
+    <text font-size="12.7998" style="fill: #000000;text-anchor:start;font-family:monospace;font-style:normal;font-weight:normal" x="804.592" y="200.628"/>
+    <text font-size="12.7998" style="fill: #000000;text-anchor:end;font-family:monospace;font-style:normal;font-weight:normal" x="990.44" y="173.398">*</text>
+  </g>
+  <g>
+    <polyline style="fill: none; fill-opacity:0; stroke-width: 2; stroke: #000000" points="560.32,219.628 550.492,219.628 550.492,112.628 679.042,112.628 679.042,133.628 "/>
+    <polygon style="fill: #ffffff" points="585.492,219.628 571.492,224.428 557.492,219.628 571.492,214.828 "/>
+    <polygon style="fill: none; fill-opacity:0; stroke-width: 2; stroke: #000000" points="585.492,219.628 571.492,224.428 557.492,219.628 571.492,214.828 "/>
+    <text font-size="12.7998" style="fill: #000000;text-anchor:middle;font-family:monospace;font-style:normal;font-weight:normal" x="614.767" y="109.628"/>
+    <text font-size="12.7998" style="fill: #000000;text-anchor:end;font-family:monospace;font-style:normal;font-weight:normal" x="553.492" y="216.628"/>
+    <text font-size="12.7998" style="fill: #000000;text-anchor:start;font-family:monospace;font-style:normal;font-weight:normal" x="683.042" y="129.628">1</text>
+  </g>
+  <g>
+    <polyline style="fill: none; fill-opacity:0; stroke-width: 2; stroke: #000000" points="560.32,235.628 550.492,235.628 550.492,302.628 679.042,302.628 679.042,281.628 "/>
+    <polygon style="fill: #000000" points="585.492,235.628 571.492,240.428 557.492,235.628 571.492,230.828 "/>
+    <polygon style="fill: none; fill-opacity:0; stroke-width: 2; stroke: #000000" points="585.492,235.628 571.492,240.428 557.492,235.628 571.492,230.828 "/>
+    <text font-size="12.7998" style="fill: #000000;text-anchor:middle;font-family:monospace;font-style:normal;font-weight:normal" x="614.767" y="299.628"/>
+    <text font-size="12.7998" style="fill: #000000;text-anchor:end;font-family:monospace;font-style:normal;font-weight:normal" x="553.492" y="232.628"/>
+    <text font-size="12.7998" style="fill: #000000;text-anchor:start;font-family:monospace;font-style:normal;font-weight:normal" x="683.042" y="293.628">*</text>
+  </g>
+  <g>
+    <rect style="fill: #ffffff" x="856.58" y="267.884" width="217.9" height="28"/>
+    <rect style="fill: none; fill-opacity:0; stroke-width: 2; stroke: #000000" x="856.58" y="267.884" width="217.9" height="28"/>
+    <text font-size="16" style="fill: #000000;text-anchor:middle;font-family:sans-serif;font-style:italic;font-weight:700" x="965.53" y="286.884">CapabilitySpace</text>
+    <rect style="fill: #ffffff" x="856.58" y="295.884" width="217.9" height="20"/>
+    <rect style="fill: none; fill-opacity:0; stroke-width: 2; stroke: #000000" x="856.58" y="295.884" width="217.9" height="20"/>
+    <text font-size="12.8" style="fill: #000000;text-anchor:start;font-family:monospace;font-style:italic;font-weight:700" x="859.58" y="309.884">+lookup(index): Capability*</text>
+  </g>
+  <g>
+    <polyline style="fill: none; fill-opacity:0; stroke-width: 2; stroke-dasharray: 8; stroke: #000000" points="1096.7,236.634 1096.7,251.141 965.53,251.141 965.53,267.884 "/>
+    <polygon style="fill: #ffffff" points="1104.7,236.634 1096.7,220.634 1088.7,236.634 "/>
+    <polygon style="fill: none; fill-opacity:0; stroke-width: 2; stroke: #000000" points="1104.7,236.634 1096.7,220.634 1088.7,236.634 "/>
+  </g>
+  <g>
+    <polyline style="fill: none; fill-opacity:0; stroke-width: 2; stroke: #000000" points="831.408,281.884 807.586,281.884 807.586,147.628 772.592,147.628 "/>
+    <polygon style="fill: #000000" points="856.58,281.884 842.58,286.684 828.58,281.884 842.58,277.084 "/>
+    <polygon style="fill: none; fill-opacity:0; stroke-width: 2; stroke: #000000" points="856.58,281.884 842.58,286.684 828.58,281.884 842.58,277.084 "/>
+    <text font-size="12.7998" style="fill: #000000;text-anchor:start;font-family:monospace;font-style:normal;font-weight:normal" x="809.586" y="211.756"/>
+    <text font-size="12.7998" style="fill: #000000;text-anchor:end;font-family:monospace;font-style:normal;font-weight:normal" x="824.58" y="278.884"/>
+    <text font-size="12.7998" style="fill: #000000;text-anchor:start;font-family:monospace;font-style:normal;font-weight:normal" x="776.592" y="144.628">*</text>
+  </g>
+</svg>

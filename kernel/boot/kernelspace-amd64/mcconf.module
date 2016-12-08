@@ -1,0 +1,9 @@
+[module.amd64-pc-kernelspace]
+    incfiles = [ "boot/pagetables.hh", "boot/memory-layout-common.h", "boot/init-kernelspace-common.hh",
+    "boot/pagetables.cc.m4"]
+    kernelfiles = [ "boot/pagetables.cc", "boot/init-kernelspace-common.cc"]
+
+    makefile_body = '''
+boot/pagetables.cc: boot/pagetables.cc.m4
+	m4 boot/pagetables.cc.m4 > boot/pagetables.cc
+'''

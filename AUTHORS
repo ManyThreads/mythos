@@ -1,0 +1,48 @@
+The MyThOS project was supported by the German Federal Ministry of
+Education and Research (BMBF) grant no. 01IH13003C (MyThOS
+project). The x86 32bit and gem5 ports were partly supported by the
+German Research Foundation (DFG) under grant no. NO 625/7-1 (Coke
+project).
+
+Fabian Fassnacht, Uni Ulm
+Maik Krüger, BTU Cottbus-Senftenberg
+* interrupt handling
+* descriptor tables
+
+Maximilian Heyne, BTU Cottbus-Senftenberg
+* X86-64 memory management
+* memory management unit tests
+* mcconf compile-time module configuration tool
+
+Randolf Rotta, BTU Cottbus-Senftenberg
+* architecture and design
+* communication channels
+* basic boot code
+
+Robert Kuban, BTU Cottbus-Senftenberg
+* communication channels
+* synchronization primitives
+* task scheduling
+* testing framework
+* beginnings of C++ exception handling
+
+Stefan Bonfert, Uni Ulm
+* benchmarks
+
+Tim Naumann, BTU Cottbus-Senftenberg
+* X86 port (32bit)
+* X86 memory management (32bit)
+* clang-based extraction of interface descriptions
+* client/server stub generator for remote method invocations
+
+Vladimir Nikolov, Uni Ulm
+* booting all hardware threads
+* component models
+
+Martin Messer, BTU Cottbus-Senftenberg
+* gem5 port
+* E820 memory table
+* various code cleanups
+
+Zuzana Gabonayova, BTU Cottbus-Senftenberg
+* tracing subsystem and trace analysis

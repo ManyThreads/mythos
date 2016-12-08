@@ -1,0 +1,52 @@
+# -*- mode:toml; -*-
+[module.emu-qemu-amd64]
+    requires = [ "boot32.elf", "boot64.elf", "tag/cpu/amd64" ]
+
+    provides = ["tag/emu-qemu"]
+
+    makefile_head = '''
+QEMUFLAGS += -m 1024 -cpu SandyBridge -smp 4
+# com1: text output to terminal
+QEMUFLAGS += -serial stdio
+# com2: object channel for remote procedure calls into mythos
+QEMUFLAGS += -serial unix:h2p,server,nowait
+# com3: binary trace output into an file
+QEMUFLAGS += -serial file:mythos.trace
+QEMUFLAGS += -d pcall,int,unimp,guest_errors -no-reboot
+'''
+    
+    makefile_body = '''
+.PHONY: qemu qemudbg32 qemudbg
+
+qemu: boot32.elf
+	qemu-system-x86_64 $(QEMUFLAGS) -kernel boot32.elf
+
+qemu-text: boot32.elf
+	qemu-system-x86_64 -m 1024 -cpu SandyBridge -smp 4 -curses -kernel boot32.elf
+
+qemuidbg: boot32.elf
+	qemu-system-x86_64 $(QEMUFLAGS) -kernel boot32.elf -qmp stdio
+
+qemudbg32: boot32.elf boot64.elf
+	qemu-system-x86_64 $(QEMUFLAGS) -S -gdb tcp::1234 -kernel boot32.elf &
+	sleep 1
+	gdb -s boot64.elf -ex "set architecture i386" -ex "target remote :1234" -tui
+
+qemudbg: boot32.elf boot64.elf
+	qemu-system-x86_64 $(QEMUFLAGS) -gdb tcp::1234 -kernel boot32.elf &
+	sleep 3
+	gdb -s boot64.elf -ex "set architecture i386:x86-64:intel" -ex "target remote :1234" -ex "hbreak kernel.cc:183" -tui
+# set *((short*)$rip) = 0x9090
+
+qemu-ddd: boot32.elf
+	file=`mktemp` \
+        && trap "rm -f -- '$$file'" INT EXIT \
+        && echo "target remote | exec qemu-system-x86_64 -gdb stdio -kernel boot32.elf -k en-us -smp 2 -S" > "$$file" \
+		  && ddd --dbx --eval-command="set architecture i386:x86-64:intel" --eval-command="hbreak kernel_main" --gdb -x "$$file" boot64.elf
+
+qemu-ddd32: boot32.elf
+	file=`mktemp` \
+        && trap "rm -f -- '$$file'" INT EXIT \
+        && echo "target remote | exec qemu -gdb stdio -kernel boot32.elf -k en-us -smp 2 -S" > "$$file" \
+		  && ddd --dbx --eval-command="set architecture i386:intel" --eval-command="hbreak kernel_main" --gdb -x "$$file" boot32.elf
+'''

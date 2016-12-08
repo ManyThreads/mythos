@@ -1,0 +1,65 @@
+% Beamer theme by Jana Traue <jana.traue@tu-cottbus.de>
+% December 2010 version 0.1
+%
+% based on the LaTeX-Beamer package :
+% Copyright 2003 by Till Tantau <tantau@users.sourceforge.net>
+%
+% This program can be redistributed and/or modified under the terms
+% of the GNU Public License, version 2.
+%
+\mode<presentation>
+%
+\usefonttheme{btu}
+\usecolortheme{btu}
+\useinnertheme{btu}
+\useoutertheme{btu}
+%
+% layout of title page
+\setbeamertemplate{title page}%{default}[1][]
+{
+    \begin{flushright}
+        \vskip-0.35cm%
+        \insertlogo
+        % \vfill%
+    \end{flushright}
+    % \vskip2em%
+    \vfill
+    % \insertheadline
+    % left minipage for logo
+    \begin{minipage}{.4\textwidth}%
+    {%
+        \hskip-1cm\inserttitlegraphic\par
+    }
+    \end{minipage}%
+    % right minipage for title
+    \begin{minipage}{.7\textwidth}%
+        % date
+        \begin{beamercolorbox}[sep=8pt,left,colsep=-4bp,wd=\textwidth]{date}
+            \usebeamerfont{date}\insertdate
+        \end{beamercolorbox}%
+        \vskip0.5em
+        % title and subtitle
+        \begin{beamercolorbox}[sep=8pt,left,colsep=-4bp,wd=\textwidth]{title}
+            \usebeamerfont{title}\MakeUppercase\inserttitle\par%
+            \ifx\insertsubtitle\@empty%
+            \else%
+            \vskip0.25em%
+            {\usebeamerfont{subtitle}\usebeamercolor[fg]{subtitle}\MakeUppercase\insertsubtitle\par}%
+              \fi%     
+        \end{beamercolorbox}%
+        \vskip1em\par%
+        % author
+        \begin{beamercolorbox}[sep=8pt,left,colsep=-4bp,wd=\textwidth]{author}%
+              \usebeamerfont{author}\insertauthor%
+        \end{beamercolorbox}%
+        \vskip-1em
+        % institure
+        \begin{beamercolorbox}[sep=8pt,left,colsep=-4bp,wd=\textwidth]{institute}%
+              \usebeamerfont{institute}\insertinstitute%
+        \end{beamercolorbox}%
+    \end{minipage}%
+  \vfill
+}
+%
+\mode
+<all>

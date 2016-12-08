@@ -1,0 +1,4 @@
+# -*- mode:toml; -*-
+[module.lapic]
+    incfiles = [ "cpu/LAPIC.hh" ]
+    kernelfiles = [ "cpu/LAPIC.cc" ]

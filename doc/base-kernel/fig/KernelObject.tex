@@ -1,0 +1,32 @@
+
+\usetikzlibrary{positioning,arrows,decorations,shapes,decorations.pathmorphing,decorations.pathreplacing}
+\begin{tikzpicture} [font=\normalsize]
+	\newcommand{\pAtt}[1]{ \attribute{+ #1}};
+	\newcommand{\pOp}[1]{\operation{+ #1}};
+
+	\begin{class}[text width = 6cm]{KernelObject}{0,0}
+		\operation{process ( Capability* , Msg * ) };
+		\operation{ revoke ( Capability* ) };
+	\end{class}
+
+	\begin{class}[text width = 6cm] {ExecutionContext} {0,-3}
+		\inherit{KernelObject};
+	\end{class}	
+
+	\begin{class}[text width = 6cm] {Capability} { -12,0}
+		\operation{ invoke ( Msg * ) };
+		\operation{ revoke() };
+	\end{class}
+
+ % other dependencies
+	\aggregation{Capability.north east}{*..1}{Object}{KernelObject.north west}
+	\composition{KernelObject} {*..1}{owned Capabilities}{Capability}
+	\aggregation{Capability.south east}{*..1}{Subject}{KernelObject.south west}
+\draw[umlcd style, open diamond->] (Capability.north west) ++ (0.5,0) -- ++(0,1)-- ++(-1,0) |- ++(0,-1)-- (Capability.north west)
+node [, yshift = 1 cm ,above]{parent}
+node [above]{1..*};
+\draw[umlcd style, open diamond->] (Capability.south west) ++ (0.5,0) -- ++(0,-1)-- ++(-1,0) |- ++(0,1)-- (Capability.south west)
+node [, yshift = -1 cm ,below]{children}
+node [above ,yshift =-0.5cm ]{*..1};
+
+\end{tikzpicture}

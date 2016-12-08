@@ -1,0 +1,4 @@
+# -*- mode:toml; -*-
+
+[module.monitor-stateless]
+    incfiles = [ "async/MonitorStateless.hh" ]

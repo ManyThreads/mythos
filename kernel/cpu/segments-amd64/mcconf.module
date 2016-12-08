@@ -1,0 +1,6 @@
+# -*- mode:toml; -*-
+[module.segments-amd64]
+    incfiles = [ "cpu/SegmentDescriptor.hh", "cpu/tss64.hh" ]
+
+[module.segments-gdt-amd64]
+    incfiles = [ "cpu/gdt-layout.h", "cpu/GdtAmd64.hh" ]

@@ -1,0 +1,3 @@
+# -*- mode:toml; -*-
+[module.util-linked-list]
+    incfiles = [ "util/LinkedList.hh" ]

@@ -1,0 +1,3 @@
+# -*- mode:toml; -*-
+[module.mythos-pci-mpsc-queue]
+    incfiles = [ "mythos/PciMsgQueueMPSC.hh" ]

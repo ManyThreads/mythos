@@ -1,0 +1,5 @@
+# -*- mode:toml; -*-
+[module.mlog-base]
+    incfiles = [ "util/Filter.hh", "util/TextMsg.hh",
+    "util/ISink.hh", "util/TextMsgHelpers.hh", "util/Logger.hh" ]
+    kernelfiles = [ "util/Logger.cc" ]

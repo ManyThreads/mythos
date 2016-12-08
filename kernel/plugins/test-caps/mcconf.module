@@ -1,0 +1,3 @@
+[module.test-caps]
+    incfiles = [ "plugins/test-caps.hh" ]
+    kernelfiles = [ "plugins/test-caps.cc" ]

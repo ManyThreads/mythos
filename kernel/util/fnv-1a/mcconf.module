@@ -1,0 +1,3 @@
+# -*- mode:toml; -*-
+[module.fnv-1a]
+    incfiles = [ "util/hash.hh" ]

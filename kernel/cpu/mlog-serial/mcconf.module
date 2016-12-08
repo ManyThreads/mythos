@@ -1,0 +1,4 @@
+# -*- mode:toml; -*-
+[module.mlog-serial]
+    incfiles = [ "cpu/MLogSinkSerial.hh" ]
+    kernelfiles = [ "cpu/MLogSinkSerial.cc" ]

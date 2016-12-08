@@ -1,0 +1,5 @@
+# -*- mode:toml; -*-
+[module.mstring]
+    incfiles = [
+      "util/mstring.hh"
+      ]

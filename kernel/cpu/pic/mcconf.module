@@ -1,0 +1,3 @@
+# -*- mode:toml; -*-
+[module.pic-disable-x86]
+    incfiles = [ "cpu/PIC.hh" ]

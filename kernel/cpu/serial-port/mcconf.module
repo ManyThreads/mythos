@@ -1,0 +1,2 @@
+[module.serial-port]
+    incfiles = [ "cpu/SerialPort.hh", "cpu/SerialStreamBuf.hh" ]

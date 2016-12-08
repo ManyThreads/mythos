@@ -1,0 +1,4 @@
+# -*- mode:toml; -*-
+[module.objects-execution-context]
+    incfiles = [ "objects/ExecutionContext.hh" ]
+    kernelfiles = [ "objects/ExecutionContext.cc" ]

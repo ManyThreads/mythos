@@ -1,0 +1,81 @@
+# -*- mode:toml; -*-
+[module.gcc-kernel-knc]
+    incfiles = [ "util/compiler.hh" ]
+    requires = [ "tag/platform/knc", "tag/mode/kernel", "tag/compiler/gcc", "micrun-knc" ]
+
+    makefile_head = '''
+ifneq (, $(shell which k1om-mpss-linux-g++))
+  CXXFLAGS += -D__MIC__
+  AS=k1om-mpss-linux-as
+  CXX=k1om-mpss-linux-g++
+  CC=k1om-mpss-linux-gcc
+  LD=k1om-mpss-linux-ld
+  NM=k1om-mpss-linux-nm
+  OBJDUMP=k1om-mpss-linux-objdump
+else
+  NM=nm
+  OBJDUMP=objdump
+endif
+
+KERNEL_CXX = $(CXX)
+KERNEL_AS = $(CXX)
+KERNEL_CPPFLAGS += $(CPPFLAGS)
+KERNEL_CPPFLAGS += -I.
+
+KERNEL_CXXFLAGS += $(CXXFLAGS)
+KERNEL_CXXFLAGS += -std=c++11
+KERNEL_CXXFLAGS += -Wall -Wextra -Wstrict-aliasing=3 -Wstrict-overflow=5 -Wsign-compare
+# -pedantic is deprecated since gcc4.8, but -Wpedantic is not supported by gcc4.7
+KERNEL_CXXFLAGS += -pedantic
+KERNEL_CXXFLAGS += -Wcast-align -Wlogical-op
+KERNEL_CXXFLAGS += -Wcast-qual -Wconversion -Wuseless-cast
+KERNEL_CXXFLAGS += -fno-exceptions -fno-rtti
+# improves linker's garbage collection:
+KERNEL_CXXFLAGS += -ffunction-sections
+
+KERNEL_CXXFLAGS += -ffreestanding
+# You will need to instruct GCC not to use the the AMD64 ABI 128-byte 'red zone', which resides below the stack pointer, or your kernel will be interrupt unsafe. Check http://forum.osdev.org/viewtopic.php?t=21720
+KERNEL_CXXFLAGS += -mno-red-zone
+#KERNEL_CXXFLAGS += -mpreferred-stack-boundary=4
+
+# The -mcmodel=large argument enables us to run the kernel at any 64-bit virtual memory address we want (only in GCC 4.3+). In fact, using the 'large' code model is discouraged due to its inefficiency, but it can be fine as a start. Check the SysV AMD64 ABI document for extra details.
+KERNEL_CXXFLAGS += -mcmodel=kernel -fno-pic
+
+# use -gdwarf-2 in order to avoid gdb <cant compute CFA for this frame> bug
+# use -gdwarf-2 in order to avoid linker error in gcc4.7
+KERNEL_CXXFLAGS += -O2 -g3 -ggdb -gdwarf-2
+#KERNEL_CXXFLAGS += -O3 -DNDEBUG
+
+KERNEL_LD = $(LD)
+KERNEL_LFLAGS += $(LFLAGS)
+KERNEL_LFLAGS += -g -z max-page-size=0x1000 --gc-sections --warn-common -static -n
+
+APP_CXX = $(CXX)
+APP_AS = $(KERNEL_AS)
+APP_CPPFLAGS += $(CPPFLAGS)
+APP_CPPFLAGS += -I.
+APP_CXXFLAGS += $(CXXFLAGS)
+APP_CXXFLAGS += -std=c++11
+#APP_CXXFLAGS += -O2 -g3 -ggdb -gdwarf-2
+APP_CXXFLAGS += -O2 -g
+APP_LD = $(LD)
+APP_LDFLAGS = -g -static
+
+-include ../Makefile.user
+'''
+
+[module.micrun-knc]
+    requires = [ "boot64.elf" ]
+    provides = [ "micrun-knc" ]
+
+    makefile_body = '''
+micrun: boot64.elf
+	sudo micctrl -r --wait mic0
+	sudo micctrl -s
+	sudo sh -c "echo \"boot:elf:`pwd`/boot64.elf\" > /sys/class/mic/mic0/state"
+	sudo env LD_LIBRARY_PATH=$(LD_LIBRARY_PATH) ../host-knc/xmicterm 0
+
+micstop:
+	sudo micctrl -r --wait mic0
+	sudo micctrl -s
+'''

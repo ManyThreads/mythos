@@ -1,0 +1,15 @@
+name,precision,fpus,threads
+Haswell,DP,32,16
+Haswell,SP,64,16
+Sparc T5,DP,16,128
+Cyclops64,DP,80,160
+Intel KNC,DP,480,240
+Intel KNC,SP,960,240
+Intel KNL,DP,1152,288
+Intel KNL,SP,2304,288
+Fermi GF104,SP,512,768
+Fermi GF104,DP,256,768
+Kepler GK110,DP,960,960
+Kepler GK110,SP,2880,960
+Kalray MPPA,SP,256,256
+TileGx72,DP,216,72

@@ -1,0 +1,4 @@
+# -*- mode:toml; -*-
+[module.kernel-bug-amd64]
+    incfiles = [ "cpu/IrqHandler.hh" ]
+    kernelfiles = [ "cpu/IrqHandler.cc" ]

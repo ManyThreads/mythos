@@ -1,0 +1,5 @@
+# -*- mode:toml; -*-
+[module.monitor-common]
+    incfiles = [ "async/Place.hh", "async/Tasklet.hh", "async/TaskletQueue.hh",
+    "async/DeletionMonitor.hh", "async/IResult.hh", "async/KFuture.hh" ]
+    kernelfiles = [ "async/Place.cc" ]

@@ -1,0 +1,4 @@
+# -*- mode:toml; -*-
+[module.util-plugin]
+    incfiles = [ "util/Plugin.hh" ]
+    kernelfiles = [ "util/Plugin.cc" ]

@@ -1,0 +1,3 @@
+# -*- mode:toml; -*-
+[module.optional]
+    incfiles = [ "util/optional.hh" ]

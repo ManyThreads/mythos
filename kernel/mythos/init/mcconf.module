@@ -1,0 +1,3 @@
+# -*- mode:toml; -*-
+[module.mythos-init]
+    incfiles = [ "mythos/init.hh" ]

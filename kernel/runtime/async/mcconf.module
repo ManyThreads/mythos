@@ -1,0 +1,4 @@
+[module.runtime-async]
+    incfiles = [ "runtime/ISysretHandler.hh", "runtime/FutureBase.hh",
+      "runtime/PortalBase.hh", "runtime/Tasklet.hh" ]
+    appfiles = [ "runtime/FutureBase.cc" ]

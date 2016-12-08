@@ -1,0 +1,18 @@
+# -*- mode:toml; -*-
+[module.kernel-main]
+    incfiles = [ "boot/boot.ld" ]
+    kernelfiles = [ "boot/kernel.cc" ]
+    requires = [ "tag/mode/kernel" ]
+    provides = [ "symbol/entry_bsp", "symbol/entry_ap",
+    "symbol/syscall_entry_cxx", "symbol/irq_entry_user", "symbol/irq_entry_kernel" ]
+
+    makefile_head = '''
+# just for make clean
+EXTRATARGETS += boot/boot.o
+'''
+
+    makefile_body = '''
+# apply preprocessor on linker script
+boot/boot.o: boot/boot.ld
+	$(CPP) $(KERNEL_CPPFLAGS) $(DEPFLAGS) -E -P -xc boot/boot.ld -o boot/boot.o
+'''

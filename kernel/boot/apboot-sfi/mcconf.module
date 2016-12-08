@@ -1,0 +1,5 @@
+# -*- mode:toml; -*-
+[module.apboot-sfi]
+    incfiles = [ "boot/apboot.hh" ]
+    kernelfiles = [ "boot/apboot.cc" ]
+    requires = [ "tag/boot/sfi" ]

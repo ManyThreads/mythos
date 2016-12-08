@@ -1,0 +1,4 @@
+# -*- mode:toml; -*-
+
+[module.monitor-delegating]
+    incfiles = [ "async/MonitorDelegating.hh", "async/DelegationQueue.hh" ]

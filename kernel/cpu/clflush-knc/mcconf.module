@@ -1,0 +1,3 @@
+[module.clflush-knc]
+    incfiles = [ "cpu/clflush.hh" ]
+    requires = [ "tag/cpu/clevict" ]

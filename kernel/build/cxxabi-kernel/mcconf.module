@@ -1,0 +1,8 @@
+# -*- mode:toml; -*-
+[module.cxxabi-kernel]
+    incfiles = [ "util/stl/algorithm", "util/stl/stdexcept", "util/stl/string", "util/stl/cstring" ]
+    provides = [ "cstring", "cstdint", "cstddef", "algorithm", "stdexcept", "string", "atomic", "utility", "array", "new", "type_traits", "bits/stl_algobase.h" ]
+    kernelfiles = [ "util/cxxsupport.cc", "util/string.cc", "util/cxxdelete.cc" ]
+    makefile_head = '''
+KERNEL_CPPFLAGS += -Iutil/stl
+'''

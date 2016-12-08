@@ -1,0 +1,4 @@
+# -*- mode:toml; -*-
+[module.nested-monitor-delegating]
+    incfiles = [ "async/NestedMonitorDelegating.hh" ]
+    kernelfiles = [ "async/NestedMonitorDelegating.cc" ]

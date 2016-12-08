@@ -1,0 +1,3 @@
+[module.clflush-amd64]
+    incfiles= [ "cpu/clflush.hh" ]
+    requires= [ "tag/cpu/clflush" ]

@@ -1,0 +1,3 @@
+# -*- mode:toml; -*-
+[module.simple-monitor-home]
+    incfiles = [ "async/SimpleMonitorHome.hh" ]

@@ -1,0 +1,3 @@
+# -*- mode:toml; -*-
+[module.util-tuple]
+    incfiles = [ "util/Tuple.hh", "util/applyTuple.hh", "util/integer_sequence.hh" ]

@@ -1,0 +1,3 @@
+[module.test-plugin]
+    incfiles = [ "plugins/TestPlugin.hh", "plugins/test-macros.hh" ]
+    kernelfiles = []

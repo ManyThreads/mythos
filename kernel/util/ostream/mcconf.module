@@ -1,0 +1,8 @@
+# -*- mode:toml; -*-
+[module.ostream]
+incfiles = [
+  "util/MemStreamBuf.hh",
+  "util/FixedStreamBuf.hh",
+  "util/TeeStreamBuf.hh",
+  "util/ostream.hh",
+  "util/streambuf.hh"]

@@ -1,0 +1,4 @@
+# -*- mode:toml; -*-
+
+[module.datatypes]
+    incfiles = [ "util/VectorMax.hh", "util/BacktrackBuffer.hh" ]

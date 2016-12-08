@@ -1,0 +1,4 @@
+# -*- mode:toml; -*-
+[module.host-pci-memaccess]
+    incfiles = [ "host/IMemMapper.hh", "host/MemMapperPci.hh", "host/MemAccess.hh" ]
+    hostfiles = [ "host/MemMapperPci.cc" ]

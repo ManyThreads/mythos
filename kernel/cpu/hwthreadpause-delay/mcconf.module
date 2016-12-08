@@ -1,0 +1,4 @@
+[module.thread-pause-delay]
+    incfiles = [ "cpu/hwthread_pause.hh" ]
+    requires = [ "tag/cpu/delay" ]
+ 

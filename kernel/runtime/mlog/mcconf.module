@@ -1,0 +1,2 @@
+[module.runtime-mlog]
+    appfiles = [ "runtime/DebugSink.cc" ]

@@ -1,0 +1,18 @@
+[module.moda]
+srcfiles = [ "a.cc"] # all source files of the modules used during compilation
+incfiles = [ "a.h", 'subdir/b.h'] # all exported header files, used during and after compilation
+requires = [ "x86",'mem'] # symbols, files, pseudo modules required by this module
+provides = [ "gdt"] # symbols and pseudo modules provided by this module. Files not needed because srcfiles and incfiles is added to the provides 
+modules  = [ ]
+makefile_body = '''
+%.o: %.cc
+	$(CXX) $(CXXFLAGS) $(CPPFLAGS) $(DEPFLAGS) -c -o $@ $<
+'''
+makefile_head = ''
+
+[module.modc]
+srcfiles = [ 'c.cc']
+incfiles = [ 'c.h']
+requires = [ 'mem']
+provides = [ ]
+modules = [ ]

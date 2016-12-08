@@ -1,0 +1,3 @@
+[module.kernel-threadid]
+    incfiles = [ "cpu/hwthreadid.hh" ]
+    kernelfiles = [ "cpu/hwthreadid.cc" ]

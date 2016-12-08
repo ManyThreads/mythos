@@ -1,0 +1,17 @@
+# -*- mode:toml; -*-
+[module.host-xmicterm]
+    xmictermfiles = [ "host/xmicterm.cc" ]
+    provides = [ "xmicterm" ]
+
+    makefile_head = '''
+TARGETS += xmicterm
+
+# disable features which might require runtime support we don't have
+XMICTERM_CXX = $(HOST_CXX)
+XMICTERM_CXXFLAGS = $(HOST_CXXFLAGS)
+XMICTERM_CPPFLAGS = $(HOST_CPPFLAGS)
+'''
+    makefile_body = '''
+xmicterm: $(XMICTERMFILES_OBJ) $(HOSTFILES_OBJ)
+	$(HOST_CXX) $(HOST_LFLAGS) $(XMICTERM_CXXFLAGS) -o $@ $(XMICTERMFILES_OBJ) $(HOSTFILES_OBJ)
+'''

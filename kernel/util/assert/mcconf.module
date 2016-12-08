@@ -1,0 +1,5 @@
+# -*- mode:toml; -*-
+[module.assert]
+    incfiles = [ "util/assert.hh" ]
+    kernelfiles = [ "util/assert.cc" ]
+    appfiles = [ "util/assert-user.cc" ]

@@ -1,0 +1,10 @@
+# -*- mode:toml; -*-
+[module.bochs-emu-amd64]
+    incfiles = [ "bochs.rc" ]
+    requires = [ "boot.iso" ]
+    provides = [ "tag/emu-bochs" ]
+
+    makefile_body = '''
+bochs: boot.iso
+	../3rdparty/bochs/bochs -q -f bochs.rc
+'''

@@ -1,0 +1,4 @@
+# -*- mode:toml; -*-
+
+[module.monitor-homed]
+    incfiles = [ "async/MonitorHomed.hh", "async/Queues.hh" ]

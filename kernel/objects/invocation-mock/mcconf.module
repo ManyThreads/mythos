@@ -1,0 +1,6 @@
+# -*- mode:toml; -*-
+
+[module.invocation-mock]
+incfiles = [
+  "objects/InvocationMock.hh",
+  ]

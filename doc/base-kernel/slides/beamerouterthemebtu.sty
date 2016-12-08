@@ -1,0 +1,135 @@
+% Beamer theme by Jana Traue <jana.traue@tu-cottbus.de>
+% December 2010 version 0.1
+%
+% based on the LaTeX-Beamer package :
+% Copyright 2003 by Till Tantau <tantau@users.sourceforge.net>
+%
+% This program can be redistributed and/or modified under the terms
+% of the GNU Public License, version 2.
+
+\mode<presentation>
+
+% Mini frames
+\defbeamertemplate*{mini frame}{btu}
+{%
+  \begin{pgfpicture}{0pt}{0pt}{0.1cm}{0.1cm}
+    \pgfpathcircle{\pgfpoint{0.05cm}{0.05cm}}{0.05cm}
+    \pgfusepath{fill,stroke}
+  \end{pgfpicture}%
+}
+[action]
+{
+  \setbeamersize{mini frame size=.14cm,mini frame offset=.03cm}
+}
+
+\defbeamertemplate*{mini frame in current subsection}{btu}
+{%
+  \begin{pgfpicture}{0pt}{0pt}{0.1cm}{0.1cm}
+    \pgfpathcircle{\pgfpoint{0.05cm}{0.05cm}}{0.05cm}
+    \pgfusepath{fill,stroke}
+  \end{pgfpicture}%
+}
+
+\def\mycircles{%
+  \def\sectionentry##1##2##3##4##5{}%
+  \def\beamer@subsectionentry##1##2##3##4##5{}%
+  \def\beamer@subsectionpages##1##2{}%
+  % section number, subsection number, slide number, first/last frame, page number, part number
+  \def\slideentry##1##2##3##4##5##6{%
+    \ifnum##6=\c@part% belongs to the current part
+    \ifnum##1>0% a section started already
+    %\ifnum##2>0% a subsection started already
+    \ifnum\c@section=##1% slide belongs to the current section
+    \ifnum\c@subsection=##2% slide belongs to the current subsection
+    \kern\beamer@boxsize{% distance between items
+      \beamer@link(##4){% insert hyperrefs
+        \ifnum\c@subsectionslide=##3%
+          \usebeamercolor[fg]{mini frame}%
+          \usebeamertemplate{mini frame}%\beamer@minislidehilight%
+        \else%
+          \usebeamercolor[fg]{mini frame shaded}
+          \usebeamertemplate{mini frame in current subsection}%\beamer@minisliderowhilight%
+        \fi%
+      }%from hyperref
+    }% from hbox (got removed)
+    \fi\fi%
+    \fi\fi%\fi%
+  }%
+ \dohead%
+}
+%
+\defbeamertemplate*{slidenumber}{framenumber} {%
+  \mycircles%
+  \hbox to 3em{\hfill\insertframenumber}%
+}
+% 
+\defbeamertemplate{slidenumber}{totalframenumber} 
+{\insertframenumber\,/\,\inserttotalframenumber} 
+%
+\defbeamertemplate{slidenumber}{pagenumber} 
+{\insertpagenumber} 
+%
+\defbeamertemplate{slidenumber}{totalpagenumber} 
+{\insertpagenumber\,/\,\insertpresentationendpage} 
+%
+\def\insertsectionnumber{\@arabic\c@section}
+%
+\defbeamertemplate*{footline}{btu}
+{
+\leavevmode% 
+\begin{beamercolorbox}[wd=\paperwidth,ht=2.5ex,dp=0.5cm,leftskip=0.6cm, rightskip=.7cm plus1fil]{footline}% 
+\ifx\insertsection\@empty
+\else{\insertsectionnumber$\,\cdot\,$\insertsection}%
+\fi
+\hskip2ex plus1fill% 
+\usebeamertemplate{slidenumber}% 
+\end{beamercolorbox}% 
+\vskip0pt% 
+}
+%
+\defbeamertemplate*{sidebar right}{btu}
+{
+  \vskip0.93cm%
+  \llap{\insertlogo\hskip1.0cm}%
+  \vfill%
+  \llap{\usebeamertemplate***{navigation symbols}\hskip0.1cm}%
+  \vskip2pt%
+}
+
+\newlength{\logowidth}
+
+\defbeamertemplate*{frametitle}{btu}[1][left]
+{
+  \ifbeamercolorempty[bg]{frametitle}{}{\nointerlineskip}%
+  \@tempdima=\textwidth%
+  \advance\@tempdima by\beamer@leftmargin%
+  \advance\@tempdima by\beamer@rightmargin%
+  \vskip0.6cm%
+  \begin{beamercolorbox}[sep=0.3cm,#1,wd=\the\@tempdima]{frametitle}
+    \usebeamerfont{frametitle}%
+    \hskip0.45cm
+    \advance\@tempdima by-0.45cm%
+    \settowidth{\logowidth}{\insertlogo}% FIXME should be done just once and be configurable
+    \advance\@tempdima by-\logowidth%
+    \advance\@tempdima by-2cm% FIXME magic constant, why this value?
+    % minipage handles line-breaks with correct indentation!
+    \begin{minipage}{\the\@tempdima}
+      \raggedright%
+      \if@tempswa\else\csname beamer@fte#1\endcsname\fi%
+      \MakeUppercase{\strut\insertframetitle\strut}%
+    \end{minipage}%
+    \par%
+    {%
+      \ifx\insertframesubtitle\@empty%
+      \else%
+      {\hskip0.45cm\usebeamerfont{framesubtitle}\usebeamercolor[fg]{framesubtitle}\insertframesubtitle\strut\par}%
+      \fi
+    }%
+    \vskip-1ex%
+    \if@tempswa\else\vskip-.3cm\fi% set inside beamercolorbox... evil here...
+    \@tempdima=5cm%
+  \end{beamercolorbox}%
+}
+%
+\mode
+<all>

@@ -1,0 +1,40 @@
+% Beamer theme by Jana Traue <jana.traue@tu-cottbus.de>
+% December 2010 version 0.1
+%
+% based on the LaTeX-Beamer package :
+% Copyright 2003 by Till Tantau <tantau@users.sourceforge.net>
+%
+% This program can be redistributed and/or modified under the terms
+% of the GNU Public License, version 2.
+%
+\mode<presentation>
+%
+\defbeamertemplate*{section in toc}{btu}
+{\inserttocsectionnumber. \inserttocsection\par}
+
+% template definition for arrows in an itemize environment
+%
+\defbeamertemplate*{itemize item}{btu_arrow}{\put(-7,.25){$\pmb{\Rightarrow}$}}
+%
+\defbeamertemplate*{itemize subitem}{btu_arrow}{\put(-7,.25){$\Rightarrow$}}
+%
+\defbeamertemplate*{itemize subsubitem}{btu_arrow}{\put(-7,.25){$\rightarrow$}}
+%
+% template definition for bullets in an itemize environment
+%
+\defbeamertemplate*{itemize item}{btu_circle}{\put(0.0,2.5){\circle*{2.5}}}
+%
+\defbeamertemplate*{itemize subitem}{btu_circle}{\put(0.0,1.75){\circle{2.5}}}
+%
+\defbeamertemplate*{itemize subsubitem}{btu_circle}{\put(0.0,1.75){\circle{1.5}}}
+%
+% template definition for rules in an itemize environment
+%
+\defbeamertemplate*{itemize item}{btu}{\rule[0.2em]{3pt}{1pt}}
+%
+\defbeamertemplate*{itemize subitem}{btu}{\rule[0.2em]{2pt}{1pt}}
+%
+\defbeamertemplate*{itemize subsubitem}{btu}{\rule[0.2em]{1pt}{1pt}}
+%
+\mode
+<all>

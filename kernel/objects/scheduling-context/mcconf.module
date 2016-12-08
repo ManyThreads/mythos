@@ -1,0 +1,4 @@
+# -*- mode:toml; -*-
+[module.objects-scheduling-context]
+    incfiles = [ "objects/SchedulingContext.hh" ]
+    kernelfiles = [ "objects/SchedulingContext.cc" ]

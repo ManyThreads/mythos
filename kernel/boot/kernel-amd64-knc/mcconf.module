@@ -1,0 +1,33 @@
+# -*- mode:toml; -*-
+[module.kernel-amd64-knc]
+    incfiles = [ "boot/memory-layout.h", "boot/DeployKernelSpace.hh", "boot/mlog.hh" ]
+    kernelfiles = [ "boot/start.S", "boot/DeployKernelSpace.cc", "boot/mlog.cc" ]
+    requires = [ "tag/platform/knc", "symbol/entry_ap", "symbol/entry_bsp", ] # "symbol/host_info"
+    provides = [ "boot64.elf", "symbol/host_info_ptr" ]
+
+    makefile_head = '''
+TARGETS += boot64.elf
+EXTRATARGETS += kernel2.cc kernel2.o
+DEP += kernel2.d
+'''
+
+makefile_body = '''
+kernel2_other = $(filter-out %.cc, $(KERNELFILES))
+kernel2_obj = $(addsuffix .o, $(basename $(kernel2_other)))
+
+kernel2.cc:
+	echo "" > kernel2.cc
+	for F in $(filter %.cc, $(KERNELFILES)) ; do echo "#include \"$$F\"" >> kernel2.cc ; done
+
+kernel2.o: kernel2.cc
+	$(KERNEL_CXX) $(KERNEL_CXXFLAGS) $(KERNEL_CPPFLAGS) $(DEPFLAGS) -c -o $@ $<
+
+boot64.elf: boot/boot.o $(kernel2_obj) kernel2.o
+	$(KERNEL_LD) $(KERNEL_LFLAGS) -o boot64.elf -dT boot/boot.o kernel2.o $(kernel2_obj)
+#boot64.elf: boot/boot.o $(KERNELFILES_OBJ)
+#	$(KERNEL_LD) $(KERNEL_LFLAGS) -o boot64.elf -dT boot/boot.o boot/start.o $(filter-out boot/start.o,$(KERNELFILES_OBJ))
+	$(NM) -n boot64.elf | cut -d " " -f 1,3 | c++filt -t > boot.sym
+	$(NM) -S --size-sort -C boot64.elf > boot.size
+	$(OBJDUMP) -dS boot64.elf | c++filt > boot.disasm
+	strip boot64.elf
+'''

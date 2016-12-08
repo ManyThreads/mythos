@@ -1,0 +1,12 @@
+# -*- mode:toml; -*-
+
+[module.capability-spinning]
+  requires = [ "tag/cap/spinning" ]
+  incfiles = [
+    "objects/CapEntry.hh",
+    "objects/RevokeOperation.hh",
+  ]
+  kernelfiles = [
+    "objects/RevokeOperation.cc",
+    "objects/CapEntry.cc",
+  ]

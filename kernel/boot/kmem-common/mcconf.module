@@ -1,0 +1,2 @@
+[module.kmem-common]
+    incfiles = [ "boot/kmem-common.hh" ]

@@ -1,0 +1,3 @@
+# -*- mode:toml; -*-
+[module.host-info-table-knc]
+    incfiles = [ "mythos/HostInfoTable.hh" ]

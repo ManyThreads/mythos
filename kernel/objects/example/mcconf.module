@@ -1,0 +1,5 @@
+# -*- mode:toml; -*-
+
+[module.objects_example]
+    incfiles = [ "objects/Example.hh" ]
+    kernelfiles = [ "objects/Example.cc" ]

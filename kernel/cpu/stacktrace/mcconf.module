@@ -1,0 +1,7 @@
+[module.stacktrace]
+  requires = [ "tag/cpu/amd64" ]
+  incfiles = [ "cpu/stacktrace.hh" ]
+  makefile_head = ''' 
+# http://blog.reverberate.org/2013/05/deep-wizardry-stack-unwinding.html
+KERNEL_CXXFLAGS += -fno-omit-frame-pointer
+'''

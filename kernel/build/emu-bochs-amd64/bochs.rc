@@ -1,0 +1,22 @@
+ata0: enabled=1, ioaddr1=0x1f0, ioaddr2=0x3f0, irq=14
+ata0-master:  type=cdrom, path=boot.iso, status=inserted
+com1: enabled=1, mode=file, dev=bochs-out.txt
+com2: enabled=1, mode=socket-client, dev=localhost:8888
+com3: enabled=1, mode=file, dev=mythos.trace
+boot: cdrom
+
+#cpu: count=1:2:1, quantum=16, cpuid_limit_winnt=0, ignore_bad_msrs=0
+#cpu: count=1:2:4, ips=4000000, quantum=16, model=corei7_ivy_bridge_3770k, reset_on_triple_fault=1, cpuid_limit_winnt=0, ignore_bad_msrs=0
+megs: 1024
+
+#display_library: x, options="gui_debug"
+magic_break: enabled=1
+port_e9_hack: enabled=0
+
+#log: bochs.log
+#logprefix: %t%e%d
+#debug: action=report
+debug_symbols: file=boot.sym
+
+romimage: file="../3rdparty/bochs/bios/BIOS-bochs-latest"
+vgaromimage: file="../3rdparty/bochs/bios/VGABIOS-lgpl-latest"

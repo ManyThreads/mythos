@@ -1,0 +1,3 @@
+[module.test-mem]
+    incfiles = [ "plugins/test-mem.hh" ]
+    kernelfiles = [ "plugins/test-mem.cc" ]

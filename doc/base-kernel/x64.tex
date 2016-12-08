@@ -1,0 +1,384 @@
+\chapter{Extensions for x86-64 and Intel XeonPhi KNC}
+
+\begin{description}
+\item[Control Channel:]
+At least the first user-mode supervisor requires a communication channel to external tools on the host processor. \mythos does not aim to be a self-sufficient kernel and the control channel is the only initial interface from the user into the running system. Depending on the target platform, different implementations are needed, for example via PCIe shared memory on the XeonPhi versus a virtual serial IO port on emulators. Control Channels behave similar to Portals as communication endpoints and badged reference capabilities can be used to multiplex virtual channels. 
+\item[Debug Channel:] this kernel object provides a simple interface to the kernel's internal debug and trace messages subsystem. It is needed to see what the first supervisor does. Additional channels can be set up and configured by the supervisor.
+\end{description}
+
+The channel kernel objects could be replaced by platform-specific code in the supervisor. However, the initial channel via shared memory has to be at a fixed physical address in order to simplify the connection initiation. Channels via IO ports requires additional kernel support to enable io port access for the user-mode supervisor. Both would require additional kernel code while increasing the supervisor's complexity. Therefore, we choose to use custom platform-specific kernel objects for this purpose.
+
+
+%%% -------------------------------------------------------------------
+\section{Short Messages over PCIe2}
+\label{sec:short-message-channel-pci}
+
+% problem
+The communication between host services, such as the application launcher and
+the \mythos services on the many-core accelerators, is carried out via
+asynchronous message passing over PCIe2. As already explained, a similar
+mechanism can be established between different \mythos instances or components
+hosted on different processors, which are backed by shared memory. In this
+particular case, the majority of messages relates to control and configuration
+akin to remote method invocations or remote system calls. These require just
+small messages with a size limit in the order of a few cache lines.
+
+Data transfers may need larger messages. One way to implement them, is splitting
+the transfer into multiple small messages, which does not need additional
+services. In the long term, dedicated mechanisms for large data transfers, for
+example via DMA engines, can be added. These would be coordinated through short
+messages.
+
+% requirements
+Separate message channels are needed for each direction, that is from host to
+accelerator and from accelerator to host. On the producer site, support for
+multiple concurrent producers is desirable. This ensures, that all threads can
+send messages without the need for locking based mutual access or forwarding to
+a proxy thread. On the consumer side, such support for concurrent access is not
+strictly necessary. A main thread would be responsible to pull new messages and
+convert them into local tasks. A single consumer queue can be combined with a
+non-blocking mutual exclusion mechanism to hand over the work to an idle thread.
+
+The PCIe 2.0 network allows to map the accelerator's physical memory into the
+logical address space of applications running on the host processor. The host
+service can directly write and read the accelerator's memory almost like normal
+shared memory. However, careful protocol design is necessary because the PCIe
+2.0 network does not keep the caches coherent, atomic operations like
+fetch-and-add are not supported, and the involved processors may have a
+different view on the logical and physical address spaces.
+
+The interaction across multiple address spaces implies the need for memory
+pinning. The host operating system and \mythos must be instructed to never
+migrate the frames that contain the communication channel data. Otherwise,
+processors will read from and write to wrong positions, which are not observed
+by their counterparts. The easiest way to achieve this is by placing all shared
+communication data on the \mythos side. There we, know the physical address of
+the channel and can ensure that the data will not be moved. For shared data on
+the host side, which runs a Linux system for example, two steps are needed:
+First, the allocated pages have to be pinned in order to prevent migration and,
+second, their physical addresses have to be provided to the \mythos side. These
+need to be translated then into accelerator-physical addresses in order to
+become accessible from \mythos.
+
+\subsection{Logical View: Slotted Circular Buffer}
+
+Using a fixed size memory area is the easiest approach for host to accelerator
+communication because just this area needs to be mapped into the logical address
+spaces once. Hence, a slotted circular buffer design was chosen: The messages
+are stored in a fixed size array with slots of fixed size (a few cache lines).
+The producer and consumer sides use independent counters for their logical read
+and write positions. The actual positions are modulo the number of buffer slots.
+Each slot contains a state header for flow control between producers and
+consumers. The producer writes sequentially into different slots of the circular
+buffer while the consumer tries to catch-up the producer counter. The flow
+control information is provided for each slot and it is used to establish an
+access protocol between the producer and the consumer, which will be explained
+later in this chapter.
+
+The unidirectional channel is split into three data structures:
+ProducerSide, ConsumerSide, and ChannelData. This allows to place the respective
+parts into the appropriate memory, which enables the local use of atomic
+operations. Just the ChannelData is in the shared memory, which restricts it to
+ordinary read/write access and C++11 atomic load and store operations.
+
+The ProducerSide and ConsumerSide objects contain the respective logical
+read/write positions and a pointer to the the ChannelData according to the local
+logical address space. No access to the other end's state is needed.
+
+\subsection{Physical View: Consumer vs. Producer Side}
+
+For host to accelerator direction, the ProducerSide is placed in host memory
+while ConsumerSide and ChannelData are placed in the accelerator's memory. For
+the reverse direction, the ProducerSide and ChannelData are placed in the
+accelerator's memory and the ConsumerSide is placed in the host memory.
+
+The host has the ChannelData mapped with CacheDisabled and
+WriteCombining flags. The write combining makes sending more
+efficient. Ideally, the incoming channel's data should be mapped with
+caching enabled. 
+% TODO: what is the benefit of that, since incoming data will change 
+% throughout the communication process? 
+Unfortunately, the currently used driver interface
+does not support this mode.
+
+\subsection{Dynamic View: Cache Control}
+
+Initially, the producer and consumer side logical positions are zero. The slot
+headers are initialized accordingly to be recognized as ``free''.
+
+A producer acquires a logical write position by atomically incrementing a local
+write counter. This supports concurrent producers. A producer then polls the
+header of a respective slot until the slot is marked ``free'' (by being equal to
+the acquired logical position). Then, the message data is written into the slot
+and, finally, the slot is marked as ``occupied'' by setting a respective bit.
+
+The consumer polls the slot of its current logical read position. If the slot is
+marked as ``occupied'', the data is copied or processed directly. Then, the
+consumer writes the slot's next logical position into the header in order to
+mark it as free and selects the next responsible producer at the same time.
+Finally, the consumer has to invalidate the slot from its L1 and L2 caches and
+increment the logical read position.
+
+Access to shared memory over PCIe is not cache coherent. Reads to remote memory
+can be cached in the local cache, but writes to this memory will not invalidate
+these replica. Hence, the memory has to be mapped in \texttt{Cache Disabled}
+mode or the communication protocol has to implement proper manual cache line
+evictions. Usually, writes over PCIe should invalidate the destination's caches
+automatically. Unfortunately, currently this does not seem to work for writes
+from host to XeonPhi. Hence, the \texttt{CLEVICT0} and \texttt{CLEVICT1}
+instructions were used for manual cache line evictions.
+
+The \texttt{CLFLUSH} and \texttt{MFENCE} instructions are not available on the
+XeonPhi. The new \texttt{CLEVICTx} instructions evict the requested cache line
+from the local L1 or respectively L2 cache but do not broadcast the evict
+request to other caches. Hence, all threads that read from \texttt{ChannelData}
+have to evict their data before reading the next message.
+
+\emph{Future: Concurrent consumer support is possible by using a second bit in
+the slot header to mark the slot as locked by a consumer. This is done with an
+atomic compare-and-swap such that just a single consumer can succeed. All other
+consumers proceed to the next slots. Unfortunately, compare-and-swap is
+available only on the side that has the \texttt{ChannelData} in its local
+memory.}
+
+\subsection{Development View}
+
+Because the cache invalidation works differently on host and XeonPhi, two
+different implementations of the of the producer and consumer sides of the
+circular buffer are needed. These versions can be also be adapted more easily to
+specific needs of the respective the side. In our current implementation
+\texttt{ProducerSide} is specialized in the classes
+\texttt{PCIeRingProducerX86} (for the host) and \texttt{PCIeRingProducerPhi}
+(for the \mythos side). Both extend a generic interface \texttt{ISendChannel}.
+Likewise, a \texttt{ConsumerSide} is implemented in the classes
+\texttt{PCIeRingConsumerX86} and \texttt{PCIeRingConsumerPhi}. Both extend the
+interface \texttt{IRecvChannel}.
+
+The basic interface provided by \texttt{ISendChannel} has the methods
+\texttt{acquireSend()} and \texttt{trySend()}. The acquire method returns the
+logical write position, which is then handed to the send method.
+\texttt{trySend()} has to be repeated for the provided position until it
+succeeds. This non-blocking interface allows higher software levels to intermix
+polling for incoming messages.
+  
+The basic interface provided by \texttt{IRecvChannel} contains the methods
+\texttt{hasMessages()}, \texttt{tryRead()}, and \texttt{finishRead()}. The first
+method can be used to check whether there is a pending message without trying to
+read or write anything. \texttt{tryRead()} returns a pointer to message data and
+might lock an appropriate slot for concurrent consumer support. After a message
+has been processed, its address is provided to \texttt{finishRead()}, which
+flushes the respective caches and marks the slot as free.
+
+\emph{Implementation Note: The \texttt{ChannelData} structure is generic and has
+a slot type attribute as well as a slot count attribute. The slot type is
+combined with the channels slot header to define the actual slots and slot size.
+In consequence, the ProducerSide and ConsumerSide classes get the actual
+ChannelData type as template type argument.}
+
+%%% -------------------------------------------------------------------
+\section{Textual Debug and Binary Trace Output}
+\label{sec:debug-channel}
+
+\mythos components produce a configurable amount of textual debug and log
+messages via the \texttt{mlog} subsystem.  The \texttt{mlog} subsystem is
+integrated within all mythos modules and provides user interfaces for creating,
+filtering and sending log messages to customizable log sinks. One such sink is
+for example the debug output channel to the host. Currently the system is
+configured to send all levels of debug information of all subsystems over the
+PCIe2 channel to the host, where it can be further processed, e.g. stored into a
+file or printed on a terminal console. A per-module configuration of a
+debug-level is realizable as well.
+
+Textual messages have a variable unbounded length and should be able to contain
+multi-line messages. Besides this, all hardware threads can produce messages
+concurrently and their output should be sequentialized for better readability
+(a multiple producers channel). Writing messages to a single output channel can
+be a blocking operation, because the communication is just one-way and, thus, no
+deadlocks are possible. Performance is not important because production systems
+would disable almost all debugging outputs.
+
+In order to reduce the implementation effort and potential for errors,
+the short message channel from Section~\ref{sec:short-message-channel-pci} is
+reused. Just a more specific message format had to be defined.
+
+\todo{this might belong into the more general dev view}
+Several different \texttt{mlog} channels for different subsystems, e.g. memory management and userspace, are provided.
+Additional channels can easily be added. Each channel can output messages of different priority levels, as indicated by the programmer, which can be filtered before output. Thereby, developers can specify to see only important messages from the system, while getting detailed information from the subsystem, they are currently working on, without altering existing code.
+Textual debug messages are stored into an output buffer together with a timestamp, the originating hardware thread ID, the number of remaining messages and the length of the message. This output buffer can then be accessed externally to output the messages.
+Trace messages use the same \texttt{mlog} infrastructure, but are distinguished from debug messages by a type identifier. A different output buffer is used for trace messages to improve performance.
+
+An appropriate terminal application on the host implements the receiver side of
+the debug communication channel. The process needs to run with superuser access
+rights, in order to be capable of reading and writing to the channel regions
+within the mapped physical address space of the extension card. Every received
+message is processed according to its type and printed on screen. The output can
+be of course also forwarded to a log file.
+
+% \subsection{Logical Structure: Debug Message Format and Terminal App}
+% 
+% type ID (text, trace buffer register, trace buffer full)
+% 
+% for text messages: timestamp, thread ID, number of remaining messages in multi-part
+% messages, byte length and text
+% 
+% for trace management: physical address of the trace buffer
+% 
+% \mythos terminal application on the host. 
+% 
+% \subsection{Deployment}
+% 
+% \subsection{Dynamic Interactions}
+% 
+% \subsection{Implementation}
+
+
+%%% -------------------------------------------------------------------
+\section{Local and Global TLB Invalidation}
+
+% TODO
+
+see “MOV—Move to/from Control Registers” and Section 4.10.4.1, “Operations that Invalidate TLBs and Paging-Structure Caches,” of the Intel® 64 and IA-32 Architectures Software Developer’s Manual, Volume 3A
+
+
+%%% -------------------------------------------------------------------
+\section{Global Descriptor Table}
+
+% Wir müssen das Layout der GDT doch stärker festlegen, weil die systemcall und interrupt handler im Assemblercode Konstanten von den Segment Selectors brauchen. Also die GDTs doch nach cpu/* verlegen und einen header file mit defines für den assembler code hinzufügen
+
+%%% -------------------------------------------------------------------
+\section{LAPIC for Timer Interrupts and IPIs}
+
+% http://www.lowlevel.eu/wiki/LAPIC
+
+% APIC timer interrupts gehen doch. Er mag nur den 0x0a divider (128) nicht. mit kleineren teilerfaktoren z.b. 0x0b (1) geht es! 
+
+% logical instead of physical addressing mode?
+
+% move apic out of DRAM address range?
+
+%%% -------------------------------------------------------------------
+\section{Interrupt Handler Maps}
+
+% Eine Komponenten, die eine gemeinsame oder thread-lokale IDT verwaltet und Methoden zur Verfügung stellt, über die man Interrupt-Handler registrieren kann.
+% Wir müssen auch überlegen, wie man wahlweise Interrupt Handler über Call Gates versus Task-State Segment einbinden kann.
+
+% Den Zeiger auf die Tabelle der Interrupt Handler als Core-Local Variable und die Tabelle um einen Parameter (void*) pro Handler erweitern. Die eigentlichen Interrupt Handler bekommen neben Informationen über den Interrupt auch diesen Parameter übergeben. Dann müssen sie dies nicht selbst aus Core-Localen Variablen heraussuchen und es wird noch einfacher generische Handler wiederzuverwenden, wenn man nur den Parameter ändert.
+% Der CLV Zeiger auf die Handler-Tabelle kann zu Beginn für alle auf die selbe Tabelle zeigen. Aber wir können das später leicht auf core-private Tabellen ändern.
+
+
+%%% -------------------------------------------------------------------
+\section{Architecture-Specific Debugging Support}
+
+% bluescreen guru meditation: Datei und Zeile falls vorhanden, aktuelle Registerinhalte, Binärer Stackdump? addressraum layout dump?
+
+
+%%% -------------------------------------------------------------------
+\section{XeonPhi DMA Engines}
+
+The XeonPhi processor has a couple of DMA engines for bulk data transfers over the PCIe network. In order to use this, the physical memory address of the source and destination have to be known. The host side runs Linux, which can move pages in the physical address space. Hence, the host's memory areas used for DMA transfers have to be locked (aka pinned). Then, the second challenge is to find the physical address of these areas. From this perspective it seems easier, to implement a small Linux kernel module for XeonPhi-to-Host communication. Intel's solution is called "SCIF" and does a lot more than we need.
+
+%Step 1: work through a modern linux kernel module tutorial. Create a simple character device with custom mmap and ioctl methods.
+%Step 2: define interface semantics -- how can a user process communicate with the mythos kernel and exchange data...
+
+% Literature:
+%    page 27 in http://www.intel.com/content/dam/www/public/us/en/documents/product-briefs/xeon-phi-coprocessor-system-software-developers-guide.pdf
+%    http://www.linuxvoice.com/be-a-kernel-hacker/
+%    http://linux.die.net/man/2/mlock
+%    mpss-3.5.1-linux.tar from https://software.intel.com/en-us/articles/intel-manycore-platform-software-stack-mpss and in this archive the file src/mpss-modules*.src.rpm
+%    http://www.xml.com/ldd/chapter/book/ch13.html von diesem Buch gibt es im Internet ev. neuere Versionen...
+%    https://www.kernel.org/doc/Documentation/DMA-API-HOWTO.txt
+
+%%% -------------------------------------------------------------------
+\section{Sizes}
+
+\paragraph{Warning} This whole section is not up-to-date.\todo{Update}
+
+\begin{tabular}{lLRr}
+\toprule
+\multicolumn{4}{l}{\textbf{Base Sizes}} \\
+name & symbol & relation & bits \\
+\midrule
+machine word & MWORD & - & 64 \\
+machine word aligned & MW_ALIGN & - & 3 \\
+cache line & CL & 64*8 & 512 \\
+cache aligned & CL_ALIGN & - & 6 \\
+physical address & PHY_ADDR & - & 64 \\
+logical address & LOG_ADDR & - & 48 \\
+system space address & SYS_ADDR & - & 32 \\
+in-page offset & PAGE_OFF & - & 12 \\
+page table index & PT_IDX & - & 9 \\
+\bottomrule
+\toprule
+\multicolumn{4}{l}{\textbf{Derived Sizes}} \\
+name & symbol & relation & bits \\
+\midrule
+capability word & CAP_WORD & 2*MWORD & 128 \\
+frame pointer & FRAME_PTR & PHY_ADDR-PAGE_OFF & 52 \\
+object pointer & OBJ_PTR & SYS_ADDR-CL_ALIGN & 26 \\
+\bottomrule
+\end{tabular}
+
+\subsection{Capabilities}
+
+\begin{tabular}{LRr}
+\toprule
+name & type & bits \\
+CAP_SLOT & 4*MWORD & 256 \\
+\midrule 
+prev & SYS_ADDR & 32 \\
+next & SYS_ADDR & 32 \\
+cap & CAP_WORD &  128\\
+\midrule
+overall & = & 182\\
+\bottomrule
+\end{tabular}
+
+\begin{tabular}{LRr}
+\toprule
+name & type & bits \\
+FRAME_CAP & CAP_WORD & 128 \\
+\midrule 
+obj & OBJ_PTR & 26 \\
+prop & >= 5 bits & 5 \\
+\midrule 
+frame & FRAME_PTR & 52 \\
+frame_rights & >= 3 bits & 3 \\
+size & 2 bits & 2 \\
+\midrule
+overall & >= & 88\\
+\bottomrule
+\end{tabular}
+
+
+\begin{tabular}{LRr}
+\toprule
+name & type & bits \\
+MAPPED_FRAME_CAP & CAP_WORD & 128 \\
+\midrule 
+obj & OBJ_PTR & 26 \\
+prop & >= 5 bits & 5 \\
+\midrule
+frame_rights & >= 3 bits & 3 \\
+index & PT_IDX & 9 \\
+table & OBJ_PTR & 26 \\
+%parent & SYS_ADDR - CAP_SLOT_ALIGN & 29 \\
+\midrule
+overall & >= & 95\\
+\bottomrule
+\end{tabular}
+
+
+\begin{tabular}{LRr}
+\toprule
+name & type & bits \\
+MAPPED_TABLE_CAP & CAP_WORD & 128 \\
+\midrule 
+obj & OBJ_PTR & 26 \\
+prop & >= 5 bits & 5 \\
+\midrule
+index & PT_IDX & 9 \\
+table & 26 & 26 \\
+\midrule
+overall & >= & 95\\
+\bottomrule
+\end{tabular}

@@ -1,0 +1,160 @@
+\input{header}
+
+\title{MyThOS D4.2.2 Developer Tools}
+\author{Stefan Bonfert, Vladimir Nikolov, Robert Kuban, Randolf Rotta}
+
+\hypersetup{
+  pdftitle={MyThOS D4.2.2 Developer Tools},
+  pdfsubject={MyThOS Deliverable},
+  pdfauthor={Stefan Bonfert, Vladimir Nikolov, Robert Kuban, Randolf Rotta},
+  pdfkeywords={MyThOS} % comma separated
+}
+
+\begin{document}
+\selectlanguage{ngerman}
+\maketitle
+
+\begin{abstract}
+Zur Untersützung der Entwickler werden eine Reihe von Softwareentwicklungswerkzeugen zur Verfügung gestellt. Dabei wird soweit möglich auf bestehende Werkzeuge zurückgegriffen und durch Anpassung und Erweiterungen eine Umsetzung realisiert.
+\end{abstract}
+
+\newpage
+\tableofcontents
+\newpage
+% --- content ------------------------------------------------------------------
+
+\section{Einleitung}
+Dieses Dokument fasst den aktuellen Stand der Softwareentwicklungswerkzeuge 
+zusammen, die bei
+der Entwicklung des Kernels und bei der Entwicklung bzw. Anpassung der 
+Anwendungen an die neue
+Ausführungsumgebung verwendet werden. Darüber hinaus werden auch Vorgänge und 
+Tools
+beschrieben, welche bei der Auswertung der Anwendungsperformance verwendet 
+wurden und auch
+solche, die beim aktuellen Betrieb der Anwendungen für das Erstellen und für 
+die Auswertung von
+Simulationstests benötigt werden. Letztere werden auch für die Evaluation der
+Anwendungsperformance mit der neuen Betriebssystem-Umgebung zum Einsatz kommen.
+Dieses Dokument dient somit der Erstellung eines minimalen Werkzeugkastens, 
+welcher für die
+Entwicklung von Anwendungen und deren Betrieb bzw. Evaluation mit MyThOS 
+bereitgestellt wird.
+Die verwendeten Werkzeuge sind größtenteils frei verfügbar (z.B. open source), 
+proprietäre
+Produkte, wie der Intel C/C++ Compiler, die z.B. für eine 
+Performance-Steigerung der Anwendungen
+auf der Evaluationshardware verwendet werden können, werden ebenfalls 
+diskutiert, obwohl diese
+nicht zwingendermaßen für die Entwicklung notwendig sind.
+In diesem Dokument sind lediglich diejenigen Werkzeuge beschrieben, die seit 
+der Veröffentlichung von Deliverable D4.2.1 verändert oder zusätzlich in den 
+Entwicklungsprozess aufgenommen wurden.
+\section{Build-Tools}
+
+In \mythos werden zusammengehörende Dateien, die eine eigenständige Einheit 
+bilden zu Modulen zusammengefasst. Dadurch können sowohl Anforderungen von 
+Modulen wie besipeilsweise Compiler-Unterstützung, als auch Unterschiede 
+zwischen den Kernel-Varianten für unterschiedliche Platformen berücksichtigt 
+werden. Zudem erleichtert die modulorientierte Struktur die Evaluation 
+verschiedener Implementierungsvarianten, da einzelne Module einfach 
+austauschbar sind.
+
+Jedes Modul stellt eine Menge von Dateien bereit, und hängt von anderen Dateien 
+ab. Solche Abhängigkeiten können beispielsweise Header-Dateien oder spezielle 
+Implementierungsvarianten einzelner Objekte darstellen. Die meisten 
+Abhängigkeiten müssen nicht manuell spezifiziert werden, sondern werden 
+automatisiert aus den \texttt{\#include} Anweisungen im Quellcode extrahiert.
+
+Um automatisiert alle für eine bestimmte Konfiguration benötigten Dateien 
+zusammenzustellen wird eine Beschreibung der gewünschten Konfiguration 
+benötigt. Diese Spezifikation legt fest, welche Module für eine 
+bestimmte Ziel-Konfiguration benötigt werden, um ein lauffähiges Kernel-Image 
+zu erstellen.\newline
+Zur Auflösung der hier beschriebenen Abhängigkeiten wird eine Liste aller 
+benötigten Datien und Module erstellt. Anschließend wird ein Modul für das 
+Kernel-Abbild ausgewählt, falls es eines der benötigten Objekte bereitstellt.
+Falls zwei Module die selbe Datei bereitstellen entsteht ein Konflikt, der 
+vom Entwickler manuell aufgelöst werden muss, indem er eines der möglichen 
+Module auswählt. Zur einfacheren Auswahl größerer Mengen von Modulen können 
+Tags verwendet werden, die Teil der Modulbeschreibung sind. So sind 
+beispielsweise alle Module, die auf die Xeon Phi Karte zugeschnitten sind, mit 
+dem Tag \texttt{platform:knc} markiert.
+
+\begin{lstlisting}[float, label=lst:module, caption=Ein Beispiel einer 
+Modulbeschreibung.]
+[module.boot-memory-multiboot]
+requires = ["platform:multiboot"]
+incfiles = ["boot/memory/Stage3Setup.h"]
+kernelfiles = ["boot/memory/Stage3Setup.cc", "boot/memory/Stage3Setup.cc", 
+"boot/memory/Stage3Setup-multiboot.cc"]
+
+[module.boot-memory-gem5]
+requires = ["platform:gem5"]
+incfiles = ["boot/memory/Stage3Setup.h"]
+kernelfiles = ["boot/memory/Stage3Setup.cc", "boot/memory/Stage3Setup.cc", 
+"boot/memory/Stage3Setup-e820.cc"]
+
+[module.boot-memory-knc]
+requires = ["platform:knc"]
+incfiles = ["boot/memory/Stage3Setup.h"]
+kernelfiles = ["boot/memory/Stage3Setup.cc", "boot/memory/Stage3Setup.cc", 
+"boot/memory/Stage3Setup-sfi.cc", "boot/memory/Stage3Setup-knc.cc"]
+\end{lstlisting}
+
+Jedes Modul befindet sich mit seinen Quelldateien und der Spezifikation in 
+einem eigenen Ordner. Die Spezifikation wird dabei in einer oder mehreren 
+\texttt{*.module}-Dateien festgehalten. Die Pfade zu den einzelnen Quelldateien 
+sind darin relativ zum Pfad der Spezifikation angegeben. Der Pfad zum 
+Verzeichnis, das alle vorhandenen Module beinhaltet, ist Teil der 
+Konfigurations-Spezifikation. Listing \ref{lst:module} zeigt die 
+Spezifikation eines Mouls, das die Datei \texttt{Stage3Setup.h} für 
+unterschiedliche Plattformen bereitstellt. Anhand des 
+platform-Tags wird die korrekte Implementierungs-Variante augewählt.
+
+Um ein komplettes Kernel-Image zu erstellen liest das \texttt{mcconf}-Tool 
+alle vorhandenen Modulbeschreibungen ein, wählt anhand einer 
+Konfigurations-Spezifikation Module aus um vorhandene Abhängigkeiten aufzulösen 
+und kopiert die ausgewählten Quell-Dateien in einen Zielordner.
+Außerdem generiert das Tool ein \texttt{Makefile}, das Regeln für die 
+Übersetzung der Quelldateien und das Linken des fertigen Kernel-Images enthält.
+Anschließend kann das \texttt{make} Kommando verwendet werden, um das 
+Kernel-Abbild zu erstellen. Für die Adaption des \texttt{Makefile}s an die 
+Anforderungen einzelner Module können Modulbeschreibungen Teile des 
+\texttt{Makefile} enthalten.
+
+Für die Konfiguration des Build-Prozesses können separate Module verwendet 
+werden, die keine Quelldateien enthalten. Damit können beispielsweise 
+verschiedene je nach Zielplattform  unterschiedliche Compiler verwendet werden.
+
+
+\section{Debugging}
+Für die Fehlersuche im Kernel und in Anwendungsprogrammen kamen zunächst 
+hauptsächlich klassische Debugger in Kombination mit Emulatoren wie Qemu und 
+Bochs zum Einsatz. Um jedoch die Ausführung von parallelem Code auf realer 
+Hardware wie dem Xeon Phi Coprozessor nachvollziehen zu können, sind 
+zusätzliche Werkzeuge notwendig, da die Ausführung des Codes nich beliebig 
+unterbrochen werden kann.
+
+Zu diesem Zweck wurde ein Tracing Werkzeug entwickelt, das verteilt über alle 
+Hardwarethreads Traces sammelt und diese aggregiert ausgeben kann. Hierfür wird 
+auf jedem Hardwarethread separater Speicher verwendet, um Synchronisation beim 
+Sammeln von Traces zu vermeiden, da dadurch die Ausführung selbst beeinflusst 
+werden würde.
+
+Zusätzlich wurde ein neus Werkzeug entwickelt, mit dem kausale Zusammenhänge 
+zwischen Ereignissen auf verschiedenen Hardwarethreads extrahiert und 
+anschließend für die Programmanalyse verwendet werden können. Solche Ereignisse 
+können beispielsweise durch Nachrichtenaustausch hervorgerufene 
+Funktionsaufrufe sein.
+
+Durch dieses Werkzeug ist es möglich, die Ausführung von parallelem Code im 
+Nachhinein genau zu unteruschen und wichtige Informationen über Parallelität 
+und Abhängigkeiten zu extrahieren. Dadurch können Deadlocks oder 
+Kommunikationsmuster deutlich einfacher untersucht werden.
+
+% ------------------------------------------------------------------------------
+% \bibliographystyle{alpha}
+% \bibliography{literature}
+
+\end{document}

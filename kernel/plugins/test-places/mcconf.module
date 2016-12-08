@@ -1,0 +1,3 @@
+# -*- mode:toml; -*-
+[module.plugin-test-places]
+    kernelfiles = [ "plugins/test-places.cc" ]

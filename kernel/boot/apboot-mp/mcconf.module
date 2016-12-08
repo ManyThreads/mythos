@@ -1,0 +1,5 @@
+# -*- mode:toml; -*-
+[module.apboot-intelmp]
+    incfiles = [ "boot/MPApicTopology.hh", "boot/apboot.hh" ]
+    kernelfiles = [ "boot/apboot.cc" ]
+    requires = [ "tag/boot/intelmp" ]

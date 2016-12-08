@@ -1,0 +1,12 @@
+# -*- mode:toml; -*-
+[module.iso-image]
+    incfiles = [ "boot/isodir/boot/grub/grub.cfg" ]
+    requires = [ "boot32.elf" ]
+    provides = [ "boot.iso" ]
+    copy = [ "boot/isodir/boot/grub/grub.cfg" ]
+
+    makefile_body = '''
+boot.iso: boot32.elf
+	cp boot32.elf boot/isodir/boot/kernel.elf
+	grub-mkrescue -d /usr/lib/grub/i386-pc -o boot.iso boot/isodir
+'''

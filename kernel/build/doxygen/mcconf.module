@@ -1,0 +1,7 @@
+# -*- mode:toml; -*-
+[module.doxygen]
+    incfiles = [ "Doxyfile", "doxygen/namespaces.dox" ]
+    makefile_body = '''
+doc: Doxyfile
+	doxygen
+'''

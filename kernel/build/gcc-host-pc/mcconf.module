@@ -1,0 +1,29 @@
+# -*- mode:toml; -*-
+[module.gcc-host-pc]
+    incfiles = [ "util/compiler.hh" ]
+    requires = [ "tag/platform/pc", "tag/mode/host", "tag/compiler/gcc" ]
+    provides = [ "assert.h", "iostream", "sstream", "sys/stat.h", "sys/types.h", "sys/mman.h", "unistd.h", "cstdio", "fcntl.h", "cstdlib", "cstring", "cstdint", "cstddef", "algorithm", "stdexcept", "string", "atomic", "utility", "array", "new", "type_traits", "bits/stl_algobase.h" ]
+
+    makefile_head = '''
+HOST_CXX = $(CXX)
+HOST_AS = $(CXX)
+HOST_CPPFLAGS += $(CPPFLAGS)
+HOST_CPPFLAGS += -I.
+
+HOST_CXXFLAGS += $(CXXFLAGS)
+HOST_CXXFLAGS += -std=c++11
+HOST_CXXFLAGS += -Wno-invalid-offsetof
+HOST_CXXFLAGS += -Wall -Wextra -Wstrict-aliasing=3 -Wstrict-overflow=5 -Wsign-compare
+# -pedantic is deprecated since gcc4.8, but -Wpedantic is not supported by gcc4.7
+HOST_CXXFLAGS += -pedantic
+HOST_CXXFLAGS += -Wcast-align -Wlogical-op
+HOST_CXXFLAGS += -Wcast-qual -Wconversion -Wuseless-cast
+#HOST_CXXFLAGS += -Wstack-usage=512
+#HOST_CXXFLAGS += -Wsuggest-attribute=pure -Wsuggest-attribute=const -Wsuggest-attribute=noreturn
+
+# use -gdwarf-2 in order to avoid gdb <cant compute CFA for this frame> bug
+# use -gdwarf-2 in order to avoid linker error in gcc4.7
+#HOST_CXXFLAGS += -O2 -g3 -ggdb -gdwarf-2
+#HOST_CXXFLAGS += -Os -DNDEBUG
+HOST_CXXFLAGS += -O2 -g
+'''

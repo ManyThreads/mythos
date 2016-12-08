@@ -1,0 +1,6 @@
+# -*- mode:toml; -*-
+[module.nested-monitor-home]
+    incfiles = [ "async/NestedMonitorHome.hh" ]
+    kernelfiles = [ "async/NestedMonitorHome.cc" ]
+
+
