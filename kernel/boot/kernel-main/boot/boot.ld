@@ -24,7 +24,7 @@
  */
 #include "boot/memory-layout.h"
 
-ENTRY(_start_bsp) 
+ENTRY(_start_bsp)
 
 /** ELF programm header for the loader.
  *
@@ -34,7 +34,7 @@ ENTRY(_start_bsp)
  * Two sections init and kern are defined with type PT_LOAD.
  * PT_LOAD indicates that this segment should be loaded from the file.
  * The sections below are assigned to segments by ":name" at the
- * end of the section description. 
+ * end of the section description.
  */
 PHDRS
 {
@@ -46,7 +46,7 @@ PHDRS
 SECTIONS
 {
     /* LOAD_ADDR is begin of the init code and data */
-    /* load the boot code at VMA=LMA LOAD_ADDR */	
+    /* load the boot code at VMA=LMA LOAD_ADDR */
     .init LOAD_ADDR : AT(LOAD_ADDR)
     {
         KEEP(*(.init))
@@ -55,7 +55,7 @@ SECTIONS
 
     /* the begin of the upper half code and data in physical memory */
     PROVIDE (KERN_BEGIN = .);
-    
+
     /* All following sections will be placed into the upper half
     kernel address range. Thus, the Virtual Memory Address VMA will be
     large. But the Load Memory Address LMA has to be in physical addresses still. */
