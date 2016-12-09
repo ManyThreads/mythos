@@ -8,10 +8,10 @@
  * modify, merge, publish, distribute, sublicense, and/or sell copies
  * of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
  * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
@@ -20,8 +20,8 @@
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
- * 
- * Copyright 2014 Randolf Rotta, Maik Krüger, and contributors, BTU Cottbus-Senftenberg 
+ *
+ * Copyright 2014 Randolf Rotta, Maik Krüger, and contributors, BTU Cottbus-Senftenberg
  */
 #pragma once
 
@@ -32,7 +32,7 @@
 namespace mythos {
 
   /** output buffer writing to a serial port */
-  class SerialStreamBuf 
+  class SerialStreamBuf
     : public streambuf
   {
   public:
@@ -52,7 +52,7 @@ namespace mythos {
     }
 
     void putcstr(char const* s) { for (unsigned i=0; s[i]!=0; i++) sputc(s[i]); }
-    
+
   protected:
     void sync() {}
 
