@@ -15,18 +15,81 @@
 \maketitle
 
 \begin{abstract}
-Dieses Deliverable richtet sich an externe Anwender und dokumentiert die Tools als auch die Grundzüge des Programmiermodells anhang von Beispielen („Kochrezepten“).
+Dieses Deliverable richtet sich an externe Anwender und dokumentiert die Tools als auch die Grundzüge des Programmiermodells anhand von Beispielen („Kochrezepten“).
 \end{abstract}
 
 \newpage
 \tableofcontents
 % --- content ------------------------------------------------------------------
 
-\section{Übersicht}
+\selectlanguage{UKenglish}
+\section{Compiling an Application}
 
-* Kompilerflags und ähnliches für die Übersetzung und Bindung der Mythos-Anwendungen
-* Schnittstelle der Systemaufrufe
+* Kompilerflags und ähnliches für die Übersetzung und Bindung der
+Mythos-Anwendungen
+
+\section{Interface of \mythos System Calls}
+Compared to general purpose operating systems, \mythos offers a relatively
+small set of system calls for the interaction of applications with the
+operating system kernel. In the following all system calls are listed,
+including a description of their semantics.
+
+\begin{description}
+\item[void syscall\_debug(char const* start, uint64\_t length):] This system
+call is used to output debug messages to the text console. In the current
+implementation, the output is redirected to a static memory buffer, from where
+it is then output to the user's terminal by an helper application running on the
+\mythos host. The parameter \texttt{start} points to the buffer contaitning the
+text to be output, \texttt{length} determines the length of the string. After
+the output is written into the buffer, the syscall returns to the application.
+The actual output to the user's terminal is then executed asynchronously on the
+host computer.
+\item[void syscall\_exit(uint64\_t rescode):] This system call is called to exit
+the currently running application. When issuing this system call, the currently
+running \texttt{ExecutionContext} exits itself and yields control to the kernel.
+The parameter \texttt{rescode} follows the usual semantics of a result code,
+where the value $0$ indicates succesful execution of the application or thread,
+while all other result codes indicate unsuccesful execution, with a semantic,
+that is up to the application.
+\item[KEvent syscall\_invoke(CapPtr portal, CapPtr object, void* userctx):] All
+functionality in the kernel of \mythos is encapsulated into kernel objects.
+Using this system call, applications can interact with these kernel objects in a
+well-defined and controlled manner. This system call can be used to request a
+specific service, from the kernel object \texttt{object}. For the communication
+a portal is used, that is passed to the system call in the parameter
+\texttt{portal}. The called kernel object does not necessarily have to be
+located locally. The translation of the application's system calls to either
+local or remote system calls is transparent to the user. An additional reference
+\texttt{userctx} is passed, which is later returned to the application upon
+reply of the kernel object. This system call is executed asynchronously.
+Additional system calls have to be issued to check for the result of the
+invocation.
+\item[KEvent syscall\_poll():] This system call checks, whether the application
+received a response to a previously issued system call or an invocation by a
+remote portal. If a notification was received, this is indicated in
+\texttt{state}-member of the returned \texttt{KEvent}-object. The reference,
+that was passed to the corresponsding invoke system call (either locally or
+remotely via a portal) is made available to the application in the
+\texttt{user}-member of the returned object. This system call returnes
+immediately, even if there was no notification pending.
+\item[KEvent syscall\_wait():] This system call follows the same semantics as
+the \texttt{syscall\_poll} system call, but blocks until a notification was
+received. It's therefore follows a synchronous processing model.
+\item[KEvent syscall\_invoke\_poll(CapPtr portal, CapPtr object, void* userctx)]
+\item[KEvent syscall\_invoke\_wait(CapPtr portal, CapPtr object, void*
+userctx):] These two system calls combine an invocation of a kernel object with
+the check for pending notifications. They follow the semantics of the individual
+system calls as described above and are available in a blocking (wait) and a
+non-blocking (poll) implementation. The combination of two system calls into a
+single one resembles the common send-recevice pattern and potentially can reduce
+the number of required system calls and therefore the number of switches from
+user space to kernel space and back.
+\end{description}
+
+\section{Interface of the \mythos Runtime Environment}
 * Schnittstelle der User-Space Laufzeitumgebung
+
+\section{Example Application}
 * Beispiel und Hinweise für eine minimale Supervisor-Anwendung
 * Beispiel-Anwendung
 
