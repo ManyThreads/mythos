@@ -5687,7 +5687,7 @@ ALIGN_4K uint64_t pml3_table[] = {
 };
 
 ALIGN_4K uint64_t pml4_table[] = {
-  // boot variant with lower half sucht that the init segment is usable
+  // boot variant with lower half such that the init segment is usable
   PML4_BASE + table_to_phys_addr(pml3_table,0), // lower half
   INVALID, // 1
   INVALID, // 2

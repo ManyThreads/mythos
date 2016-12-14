@@ -53,19 +53,20 @@ void initKernelSpaceCommon()
   // rw but no execute access on kernel data in image from KERN_ROEND to KERN_END
   // TODO: set EXECUTEDISABLE
   // remove access (read and write) from remaining space behind KERN_END in the image
-  // first 8 entries are already invalid (see pagetables.cc.m4)
+  // first 8 entries are already invalid (see pagetables.cc.m4) 
   for (auto i = 8+reinterpret_cast<uintptr_t>(&KERN_END)/PML2_PAGESIZE; i<1024; i++) {
     image_pml2[i] &= ~PRESENT;
   }    
   
   // switch to final address space without lower half, reload TLB
   asm volatile("mov %0,%%cr3": : "r" (table_to_phys_addr(pml4_table,1)));
+  // can no longer write directly to the init and initdata section from here on
 }
     
 void mapLapic(uintptr_t phys)
 {
   static_assert(LAPIC_ADDR == 0xffff800100001000, "failed assumption about kernel layout");
-  devices_pml1[1] = PRESENT + WRITE + ACCESSED + DIRTY + GLOBAL + phys;
+  devices_pml1[1] = CD + PRESENT + WRITE + ACCESSED + DIRTY + GLOBAL + phys;
 }
 
 uintptr_t initKernelStack(size_t idx, uintptr_t paddr)

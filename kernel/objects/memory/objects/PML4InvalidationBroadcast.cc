@@ -54,7 +54,7 @@ namespace mythos {
   void PML4InvalidationBroadcast::broadcast(Tasklet* t, IResult<void>* res, PhysPtr<void> pml4, PML4InvalidationBroadcast* start)
   {
     // invalidate if neccessary
-    const PhysPtr<void> kernel_pml4(boot::table_to_phys_addr(boot::pml4_table, 0));
+    PhysPtr<void> kernel_pml4(boot::table_to_phys_addr(boot::pml4_table, 1));
     if (getLocalPlace().getCR3() == pml4) {
       getLocalPlace().setCR3(kernel_pml4);
     }

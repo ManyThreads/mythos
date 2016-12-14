@@ -74,7 +74,7 @@ forloop(`i',0,1,`  PML3_BASE + table_to_phys_addr(image_pml2,i),'NL)dnl
 };
 
 ALIGN_4K uint64_t pml4_table[] = {
-  // boot variant with lower half sucht that the init segment is usable
+  // boot variant with lower half such that the init segment is usable
   PML4_BASE + table_to_phys_addr(pml3_table,0), // lower half
 forloop(`i',1,255,`  INVALID, // i'NL)dnl
   PML4_BASE + table_to_phys_addr(pml3_table,0), // upper half direct mapped area
