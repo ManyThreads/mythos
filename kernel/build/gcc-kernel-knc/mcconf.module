@@ -12,6 +12,7 @@ ifneq (, $(shell which k1om-mpss-linux-g++))
   LD=k1om-mpss-linux-ld
   NM=k1om-mpss-linux-nm
   OBJDUMP=k1om-mpss-linux-objdump
+  STRIP=k1om-mpss-linux-strip
 else
   NM=nm
   OBJDUMP=objdump
