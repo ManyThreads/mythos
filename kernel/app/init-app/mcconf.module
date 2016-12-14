@@ -21,7 +21,7 @@ INITAPP_CPPFLAGS = $(APP_CPPFLAGS)
     makefile_body = '''
 app/init.elf: $(INITAPPFILES_OBJ) $(APPFILES_OBJ) $(CRTFILES_OBJ)
 	$(APP_CXX) $(APP_LDFLAGS) $(APP_CXXFLAGS) -nostdlib -o $@ app/start.o app/crtbegin.o -lgcc $(INITAPPFILES_OBJ) $(APPFILES_OBJ) app/crtend.o
-	nm  $@ | cut -d " " -f 1,3 | c++filt -t > init.sym
-	objdump -dS $@ | c++filt > init.disasm
-	strip $@
+	$(NM)  $@ | cut -d " " -f 1,3 | c++filt -t > init.sym
+	$(OBJDUMP) -dS $@ | c++filt > init.disasm
+	$(strip) $@
 '''
