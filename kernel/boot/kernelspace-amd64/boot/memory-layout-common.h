@@ -8,10 +8,10 @@
  * modify, merge, publish, distribute, sublicense, and/or sell copies
  * of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
  * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
@@ -20,14 +20,14 @@
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
- * 
- * Copyright 2014 Randolf Rotta, Maik Krüger, and contributors, BTU Cottbus-Senftenberg 
+ *
+ * Copyright 2014 Randolf Rotta, Maik Krüger, and contributors, BTU Cottbus-Senftenberg
  */
 /** @file memory-layout-common.h
  * Memory layout definitions during booting. These definitions
  * connect the linker script with the startup assembler code and the
- * initial kernel C/C++ code. 
- * 
+ * initial kernel C/C++ code.
+ *
  * See doc/memory-layout.md for a discussion of these constants. Never
  * ever change something here without updating the documentation!
  *
@@ -39,7 +39,7 @@
  */
 #pragma once
 
-/** where the code and data of the loaded image will be 
+/** where the code and data of the loaded image will be
  * placed in the physical address space (load address = virtual address).
  */
 #define LOAD_ADDR           0x200000  /* 2M Byte */
@@ -55,8 +55,8 @@
  */
 #define VIRT_ADDR           0xffffffff81000000
 
-/** position and size of the kernels direct mapped area, 
- * which will contain all kernel objects 
+/** position and size of the kernels direct mapped area,
+ * which will contain all kernel objects
  */
 #define KERNELMEM_ADDR      0xffff800000000000
 #define KERNELMEM_SIZE      0x0000000100000000 /* 4GB = 32bit */

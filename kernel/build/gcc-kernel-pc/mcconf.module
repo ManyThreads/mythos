@@ -10,6 +10,11 @@ KERNEL_AS = $(CXX)
 else
 KERNEL_AS = $(AS)
 endif
+LD=ld
+NM=nm
+OBJDUMP=objdump
+STRIP=strip
+
 KERNEL_CPPFLAGS += $(CPPFLAGS)
 KERNEL_CPPFLAGS += -I.
 
