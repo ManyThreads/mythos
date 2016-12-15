@@ -2,7 +2,7 @@
 
 pushd `dirname $0` > /dev/null
 
-pip install --upgrade pip
+#pip install --upgrade pip
 pip install -t ./python-libs pydot
 pip install -t ./python-libs pydotplus
 pip install -t ./python-libs pytoml==0.1.2

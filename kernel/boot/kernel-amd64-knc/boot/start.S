@@ -83,7 +83,7 @@ _start_bsp:
         or      $0x101, %rax            // set LME (bit8) and enable SYSCALL (bit0), XXX enable noexecute (bit11)
         wrmsr                           // write EFER
         mov     %cr4, %rdx
-        or      $0x20, %edx             // enable PAE mode (bit5), XXX enable SMAP,SMEP,PCE later?
+        or      $0x20, %rdx             // enable PAE mode (bit5), XXX enable SMAP,SMEP,PCE later?
         mov     %rdx, %cr4
         mov     $(BOOT_PML4-VIRT_ADDR), %rdx             // pointer to the Page Directory
         mov     %rdx, %cr3

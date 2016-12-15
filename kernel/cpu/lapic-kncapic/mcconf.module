@@ -1,0 +1,4 @@
+# -*- mode:toml; -*-
+[module.lapic-kncapic]
+    incfiles = [ "cpu/LAPICdef.hh" ]
+    requires = [ "tag/cpu/kncapic" ]

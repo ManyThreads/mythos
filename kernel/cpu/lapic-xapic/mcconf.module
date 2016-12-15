@@ -1,0 +1,4 @@
+# -*- mode:toml; -*-
+[module.lapic-xapic]
+    incfiles = [ "cpu/LAPICdef.hh" ]
+    requires = [ "tag/cpu/xapic" ]
