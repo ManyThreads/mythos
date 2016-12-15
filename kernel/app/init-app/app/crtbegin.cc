@@ -28,26 +28,46 @@
 #include <cstddef>
 #include <atomic>
 
-extern void (*__preinit_array_start []) (void) __attribute__((weak));
-extern void (*__preinit_array_end []) (void) __attribute__((weak));
-extern void (*__init_array_start []) (void) __attribute__((weak));
-extern void (*__init_array_end []) (void) __attribute__((weak));
-extern void (*__fini_array_start []) (void) __attribute__((weak));
-extern void (*__fini_array_end []) (void) __attribute__((weak));
+#include "mythos/syscall.hh"
+#include "app/mlog.hh"
+
+extern atexit_func_t __preinit_array_start[] __attribute__((weak));
+extern atexit_func_t __preinit_array_end[] __attribute__((weak));
+extern atexit_func_t __init_array_start[] __attribute__((weak));
+extern atexit_func_t __init_array_end[] __attribute__((weak));
+extern atexit_func_t __fini_array_start[] __attribute__((weak));
+extern atexit_func_t __fini_array_end[] __attribute__((weak));
+atexit_func_t _ctors_start[] __attribute__((section(".ctors"))) = {0};
+atexit_func_t _dtors_start[] __attribute__((section(".dtors"))) = {0};
+extern "C" atexit_func_t _ctors_end[];
+extern "C" atexit_func_t _dtors_end[];
 extern "C" void _init();
 extern "C" void _fini();
 
+// see also http://stackoverflow.com/a/28981890 :(
 extern "C" void __libc_init_array()
 {
   for (size_t i = 0; i < __preinit_array_end - __preinit_array_start; i++)
     __preinit_array_start[i]();
   _init();
-  for (size_t i = 0; i < __init_array_end - __init_array_start; i++)
+  for (size_t i = 0; i < __init_array_end - __init_array_start; i++) {
     __init_array_start[i]();
+  }
+
+  for (size_t i = 1; i < _ctors_end - _ctors_start; i++) {
+    // mlog::TextMsg<200> msg("", "init", i, (void*)_ctors_end[-i]);
+    // mythos::syscall_debug(msg.getData(), msg.getSize());
+    _ctors_end[-i]();
+  }
 }
 
 static void __libc_fini_array()
 {
+  for (size_t i = 1; i < _dtors_end - _dtors_start; i++) {
+    // mlog::TextMsg<200> msg("", "init", i, (void*)_dtors_end[i]);
+    // mythos::syscall_debug(msg.getData(), msg.getSize());
+    _dtors_end[i]();
+  }
   for (size_t i = __fini_array_end - __fini_array_start; i > 0; i--)
     __fini_array_start[i-1]();
   _fini();
