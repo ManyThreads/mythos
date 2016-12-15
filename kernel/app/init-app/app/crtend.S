@@ -31,3 +31,13 @@
 .section .fini
 	pop %rbp
         ret
+
+.section .ctors
+.global _ctors_end
+_ctors_end:
+        .quad 0
+
+.section .dtors
+.global _dtors_end
+_dtors_end:
+        .quad 0
