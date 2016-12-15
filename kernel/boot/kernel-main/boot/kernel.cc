@@ -66,6 +66,7 @@ NORETURN void entry_ap(size_t id) SYMBOL("entry_ap");
 void entry_bsp()
 {
   mythos::boot::initKernelSpace();
+  mythos::boot::mapLapic(mythos::x86::getApicBase()); // make LAPIC accessible
   mythos::GdtAmd64 tempGDT;
   tempGDT.init();
   tempGDT.load();
@@ -79,7 +80,6 @@ void entry_bsp()
   MLOG_DETAIL(mlog::boot, "CLM blocksize", (void*)mythos::KernelCLM::getBlockSize());
 
   mythos::boot::initCxxGlobals(); // init all global variables
-  mythos::boot::mapLapic(mythos::x86::getApicBase()); // make LAPIC accessible
   mythos::boot::initMemoryRegions();
   mythos::boot::initKernelMemory(*mythos::boot::kmem_root());
   mythos::boot::apboot(); // does not return, jumps to entry_ap()
