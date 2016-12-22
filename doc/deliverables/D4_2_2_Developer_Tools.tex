@@ -16,7 +16,7 @@
 
 \begin{abstract}
 
-Zur Untersützung der Entwickler werden eine Reihe von
+Zur Unterstützung der Entwickler werden eine Reihe von
 Softwareentwicklungswerkzeugen zur Verfügung gestellt. Dabei wird soweit möglich
 auf bestehende Werkzeuge zurückgegriffen und durch Anpassung und Erweiterungen
 eine Umsetzung realisiert.
@@ -63,7 +63,7 @@ entsprechende Werkzeuge, mit denen das Erstellen eines für den jeweiligen
 Anwendungsfall und Zweck angepassten Kernel-Abbilds automatisiert ablaufen kann.
 Das zentrale Werkzeug für die Verwaltung der Kernel-Konfiguration ist das
 python-basierte sog. \texttt{mcconf}-Tool, welches im Verzeichnis
-\texttt{{mythos-base-dir}/3rdparty/mcconf} zu finden ist. Die Hauptaufgabe
+\texttt{\{mythos\}/3rdparty/mcconf} zu finden ist. Die Hauptaufgabe
 dieses Werkzeugs ist es eine Ansammlung von zu übersetzenden Quellcode-Dateien
 zu erstellen, die eine gewünschte bzw. benutzer-definierte Kernel-Konfiguration
 umsetzt, und auch Abhängigkeiten auf der Code-Ebene zu verwalten. Damit ist
@@ -72,9 +72,9 @@ erzeugen.
 
 In \mythos werden zusammengehörende Dateien, die eine eigenständige Einheit
 bilden, zu Modulen zusammengefasst. Dadurch können sowohl Anforderungen von
-Modulen wie besipeilsweise Compiler-Unterstützung, als auch Unterschiede
-zwischen den Kernel-Varianten für unterschiedliche Platformen berücksichtigt
-werden. Zudem erleichtert die modulorientierte Struktur die Evaluation
+Modulen wie besipielsweise Compiler-Unterstützung, als auch Unterschiede
+zwischen den Kernel-Varianten für unterschiedliche Plattformen berücksichtigt
+werden. Zudem erleichtert die modul-orientierte Struktur die Evaluation
 verschiedener Implementierungsvarianten, da einzelne Module einfach austauschbar
 sind.
 
@@ -94,7 +94,7 @@ und registriert alle auffindbaren Moduldefinitionen.
 Um automatisiert alle für eine bestimmte Konfiguration benötigten Dateien
 zusammenzustellen wird eine Beschreibung der gewünschten Kernel-Konfiguration
 benötigt. Solche Konfigurationen können als Dateien mit einer definierten
-Struktur und Syntax bereitsgestellt und abgespeichert werden. Diese tragen die
+Struktur und Syntax bereitgestellt und abgespeichert werden. Diese tragen die
 Endung \texttt{.config}. Beispiele bereits vordefinierter Konfigurationen für
 \texttt{amd64} (\texttt{kernel-amd64.config}) und \texttt{KNC}
 (\texttt{kernel-knc.config}) Architekturen liegen im \mythos-Hauptverzeichnis
@@ -104,7 +104,7 @@ als Unterverzeichnisse und Dateien vor. Jede Spezifikation legt fest,
 welche Module für eine bestimmte Ziel-Konfiguration benötigt werden, um ein
 lauffähiges Kernel-Image zu erstellen. Zur Auflösung der hier
 beschriebenen Abhängigkeiten erzeugt das \texttt{mcconf} Tool eine Liste aller
-benötigten Datein und Module. Anschließend wird für jedes benötigte Objekt ein
+benötigten Dateien und Module. Anschließend wird für jedes benötigte Objekt ein
 Modul ausgewählt und zum Kernel-Abbild hinzugefügt, falls dieses eines der
 benötigten Objekte bereitstellt. 
 
@@ -146,9 +146,9 @@ eigenen Ordner. Die Spezifikation wird dabei in einer oder mehreren
 sind darin relativ zum Pfad der Spezifikation (\texttt{*.module}-Datei)
 angegeben (siehe Listing~\ref{lst:module}). Der Pfad zum Verzeichnis, das alle
 vorhandenen Module beinhaltet, ist Teil der Konfigurations-Spezifikation.
-Listing \ref{lst:module} zeigt die Spezifikation eines Mouls, das die Datei
+Listing \ref{lst:module} zeigt die Spezifikation eines Moduls, das die Datei
 \texttt{Stage3Setup.h} für unterschiedliche Plattformen bereitstellt. Anhand des
-platform-Tags wird die korrekte Implementierungs-Variante augewählt.
+platform-Tags wird die korrekte Implementierungs-Variante ausgewählt.
 
 Um ein komplettes Kernel-Image zu erstellen liest das \texttt{mcconf}-Tool alle
 vorhandenen Modulbeschreibungen ein, wählt anhand einer
@@ -172,7 +172,12 @@ Für die Konfiguration des Build-Prozesses können separate Module verwendet
 werden, die keine Quelldateien enthalten. Damit können beispielsweise
 verschiedene je nach Zielplattform  unterschiedliche Compiler verwendet werden.
 Diese Module enthalten lediglich Verweise auf unterschiedliche
-Submodule  und deren Versionen. 
+Submodule und deren Versionen.
+
+Weitere Informationen und Beispiele für die Funktionsweise vom \texttt{mcconf}
+Tool sowie für die Definition und Umsetzung von
+Modul-Konfigurationen befinden sich im Projekt-Verzeichnis
+\texttt{\{mythos\}/3rdparty/mcconf}.
 
 \section{Debugging}
 Für die Fehlersuche im Kernel und in Anwendungsprogrammen kamen zunächst
@@ -202,13 +207,13 @@ und Anleitungen werden auf dem öffentlichen Repository
 (\url{https://manythreads.github.io/mythos/}) bereitgestellt und auf der
 Projektseite (\url{https://manythreads.github.io/mythos/}) bekannt gegeben.
 
-Zusätzlich wurde ein neus Werkzeug entwickelt, mit dem kausale Zusammenhänge
+Zusätzlich wurde ein neues Werkzeug entwickelt, mit dem kausale Zusammenhänge
 zwischen Ereignissen auf verschiedenen Hardwarethreads extrahiert und
 anschließend für die Programmanalyse verwendet werden können. Solche Ereignisse
 können beispielsweise durch Nachrichtenaustausch hervorgerufene Funktionsaufrufe
 sein. Durch dieses Werkzeug ist es möglich, die Ausführung von parallelem Code
-im Nachhinein genau zu unteruschen und wichtige Informationen über Parallelität und
-Abhängigkeiten zu extrahieren. Dadurch können Deadlocks oder
+im Nachhinein genau zu untersuchen und wichtige Informationen über Parallelität
+und Abhängigkeiten zu extrahieren. Dadurch können Deadlocks oder
 Kommunikationsmuster deutlich einfacher untersucht werden. Der Code und die
 entsprechenden Dokumentationen des Tools werden gerade ebenfalls portiert und
 erweitert und nach einer entsprechenden Evaluation und Testphase öffentlich zur
