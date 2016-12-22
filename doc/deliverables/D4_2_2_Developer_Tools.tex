@@ -30,45 +30,48 @@ eine Umsetzung realisiert.
 
 \section{Einleitung}
 
-Dieses Dokument fasst den aktuellen Stand der Softwareentwicklungswerkzeuge
-zusammen, die bei der Entwicklung des Kernels und bei der Entwicklung bzw.
-Anpassung der Anwendungen an die neue Ausführungsumgebung verwendet werden
-können. Darüber hinaus werden auch Vorgänge und Tools beschrieben, welche bei
-der Auswertung der Anwendungsperformance verwendet wurden und auch solche, die
+Dieses Dokument erweitert den aktuellen Stand der Softwareentwicklungswerkzeuge,
+welcher zuvor im Deliverable D4.2.1 erfasst wurde.
+Diese Werkzeuge werden bei der Entwicklung des Kernels und bei der Entwicklung
+bzw. Anpassung der Anwendungen an die neue Ausführungsumgebung verwendet und
+werden im Gesamtpaket D4.2 zusammengefasst.
+
+Das Gesamtpaket D4.2 dient somit der Erstellung eines minimalen Werkzeugkastens,
+welcher für die Entwicklung von Anwendungen und deren Betrieb bzw. Evaluation
+mit MyThOS bereitgestellt wird. Die verwendeten Werkzeuge sind größtenteils frei
+verfügbar (z.B. open source). Proprietäre Produkte, wie der Intel C/C++
+Compiler, die z.B. für eine Performance-Steigerung der Anwendungen auf der
+Evaluationshardware verwendet werden können, werden ebenfalls diskutiert, obwohl
+diese nicht zwingendermaßen für die Entwicklung notwendig sind (vgl. D4.2.1).
+
+Darüber hinaus werden im D4.2 auch Vorgänge und Tools beschrieben, welche bei
+der Auswertung der Anwendungsperformance verwendet werden und auch solche, die
 beim aktuellen Betrieb der Anwendungen für das Erstellen und für die Auswertung
 von Simulationstests benötigt werden. Letztere werden auch für die Evaluation
 der Anwendungsperformance mit der neuen Betriebssystem-Umgebung zum Einsatz
-kommen.
+kommen. \todo{welche?}
 
-Dieses Dokument dient somit der Erstellung eines minimalen Werkzeugkastens,
-welcher für die Entwicklung von Anwendungen und deren Betrieb bzw. Evaluation
-mit MyThOS bereitgestellt wird. Die verwendeten Werkzeuge sind größtenteils frei
-verfügbar (z.B. open source), proprietäre Produkte, wie der Intel C/C++
-Compiler, die z.B. für eine Performance-Steigerung der Anwendungen auf der
-Evaluationshardware verwendet werden können, werden ebenfalls diskutiert, obwohl
-diese nicht zwingendermaßen für die Entwicklung notwendig sind.
-In diesem Dokument sind lediglich diejenigen Werkzeuge beschrieben, die seit der
-Veröffentlichung von Deliverable D4.2.1 verändert oder zusätzlich in den
-Entwicklungsprozess aufgenommen wurden. Somit beschreibt dieses Dokument nur die
-Erweiterung der Werkzeug-Palette, welche in D4.2.1 bereits dokumentiert
-wurde.
+In diesem Dokument sind lediglich diejenigen Werkzeuge und Vorgänge beschrieben,
+die seit der Veröffentlichung von Deliverable D4.2.1 verändert oder zusätzlich in den
+Entwicklungsprozess aufgenommen wurden. Somit ist dieses Dokument als
+Erweiterung von D4.2.1 zu betrachten und schließt das Gesamtpaket D4.2 ab.
 
 \section{Konfigurations- und Build-Tools}
 
-\mythos unterstützt einen modularen und höchst konfigurierbaren Kernel sowie
+\mythos unterstützt einen modularen und konfigurierbaren Kernel sowie
 entsprechende Werkzeuge, mit denen das Erstellen eines für den jeweiligen
 Anwendungsfall und Zweck angepassten Kernel-Abbilds automatisiert ablaufen kann.
 Das zentrale Werkzeug für die Verwaltung der Kernel-Konfiguration ist das
 python-basierte sog. \texttt{mcconf}-Tool, welches im Verzeichnis
 \texttt{{mythos-base-dir}/3rdparty/mcconf} zu finden ist. Die Hauptaufgabe
-dieses Werkzeugs ist es eine Ansammlung von zu übersetzenden Source-Dateien zu
-erstellen, die eine gewünschte bzw. benutzer-definierte Kernel-Konfiguration
+dieses Werkzeugs ist es eine Ansammlung von zu übersetzenden Quellcode-Dateien
+zu erstellen, die eine gewünschte bzw. benutzer-definierte Kernel-Konfiguration
 umsetzt, und auch Abhängigkeiten auf der Code-Ebene zu verwalten. Es ist
 ebenfalls möglich in einem Schritt automatisiert mehrere Kernel-Versionen zu
 erzeugen. 
 
 In \mythos werden zusammengehörende Dateien, die eine eigenständige Einheit
-bilden zu Modulen zusammengefasst. Dadurch können sowohl Anforderungen von
+bilden, zu Modulen zusammengefasst. Dadurch können sowohl Anforderungen von
 Modulen wie besipeilsweise Compiler-Unterstützung, als auch Unterschiede
 zwischen den Kernel-Varianten für unterschiedliche Platformen berücksichtigt
 werden. Zudem erleichtert die modulorientierte Struktur die Evaluation
@@ -79,16 +82,32 @@ Jedes Modul stellt eine Menge von Dateien bereit und kann von anderen Dateien
 und Modulen abhängen. Solche Abhängigkeiten können beispielsweise Header-Dateien
 oder spezielle Implementierungsvarianten einzelner Objekte darstellen. Die
 meisten Abhängigkeiten müssen nicht manuell spezifiziert werden, sondern werden
-automatisiert aus den \texttt{\#include} Anweisungen im Quellcode extrahiert.
+durch das \texttt{mcconf} Tool automatisiert aus den \texttt{\#include}
+Anweisungen im Quellcode extrahiert. Die Definition eines jeden Kernel-Moduls
+liegt als Datei (\texttt{mcconf.module}) im entsprechenden Verzeichnis im
+Kernel-Quellcode vor. Diese spezifiziert grob die vom Modul bereitgestellten
+Objekte und Dateien, benötigte Objekte und auch spezielle Konfigurationen und
+Anweisungen für den Build-Prozess (Compiler und Linker). Das \texttt{mcconf}
+Tool traversiert automatisch die Verzeichnisstruktur des Kernel-Quellcodes durch
+und registriert alle auffindbaren Moduldefinitionen.
 
 Um automatisiert alle für eine bestimmte Konfiguration benötigten Dateien
-zusammenzustellen wird eine Beschreibung der gewünschten Konfiguration benötigt.
-Diese Spezifikation legt fest, welche Module für eine bestimmte
-Ziel-Konfiguration benötigt werden, um ein lauffähiges Kernel-Image zu
-erstellen.\newline Zur Auflösung der hier beschriebenen Abhängigkeiten wird eine
-Liste aller benötigten Datien und Module erstellt. Anschließend wird ein Modul
-für das Kernel-Abbild ausgewählt, falls es eines der benötigten Objekte
-bereitstellt.
+zusammenzustellen wird eine Beschreibung der gewünschten Kernel-Konfiguration
+benötigt. Solche Konfigurationen können als Dateien mit einer definierten
+Struktur und Syntax bereitsgestellt und abgespeichert werden. Diese tragen die
+Endung \texttt{.config}. Beispiele bereits vordefinierter Konfigurationen für
+\texttt{amd64} (\texttt{kernel-amd64.config}) und \texttt{knc}
+(\texttt{kernel-knc.config}) Architekturen liegen im \mythos-Hauptverzeichnis
+vor. Die entsprechenden Kernel-Konfigurationen werden durch das dort ebenfalls
+bereitgestellte \texttt{./configure}-Skript automatisch erzeugt und liegen dann
+als Unterverzeichnisse und Datei-Verweisen vor. Jede Spezifikation legt fest,
+welche Module für eine bestimmte Ziel-Konfiguration benötigt werden, um ein
+lauffähiges Kernel-Image zu erstellen. Zur Auflösung der hier
+beschriebenen Abhängigkeiten erzeugt das \texttt{mcconf} Tool eine Liste aller
+benötigten Datein und Module. Anschließend wird für jedes benötigte Objekt ein
+Modul ausgewählt und zum Kernel-Abbild hinzugefügt, falls dieses eines der
+benötigten Objekte bereitstellt. 
+
 Falls zwei Module die selbe Datei bereitstellen entsteht ein Konflikt, der vom
 Entwickler manuell aufgelöst werden muss, indem er eines der möglichen Module
 auswählt. Zur einfacheren Auswahl größerer Mengen von Modulen können Tags
@@ -96,8 +115,12 @@ verwendet werden, die Teil der Modulbeschreibung sind. So sind beispielsweise
 alle Module, die auf die Xeon Phi Karte zugeschnitten sind, mit dem Tag
 \texttt{platform:knc} markiert.
 
+Im Folgenden wird nochmals speziell auf die Moduldefinitionen eingegangen, da
+diese insbesondere bei der Entwicklung von Anwendungen und Erweiterung des
+Kernels zum Einsatz kommen.
+
 \begin{lstlisting}[float, label=lst:module, caption=Ein Beispiel einer 
-Modulbeschreibung.]
+Modulbeschreibung (\texttt{mcconf.module}).]
 [module.boot-memory-multiboot]
 requires = ["platform:multiboot"]
 incfiles = ["boot/memory/Stage3Setup.h"]
@@ -120,12 +143,12 @@ kernelfiles = ["boot/memory/Stage3Setup.cc", "boot/memory/Stage3Setup.cc",
 Jedes Modul befindet sich mit seinen Quelldateien und der Spezifikation in einem
 eigenen Ordner. Die Spezifikation wird dabei in einer oder mehreren
 \texttt{*.module}-Dateien festgehalten. Die Pfade zu den einzelnen Quelldateien
-sind darin relativ zum Pfad der Spezifikation angegeben. Der Pfad zum
-Verzeichnis, das alle vorhandenen Module beinhaltet, ist Teil der
-Konfigurations-Spezifikation. Listing \ref{lst:module} zeigt die Spezifikation
-eines Mouls, das die Datei \texttt{Stage3Setup.h} für unterschiedliche
-Plattformen bereitstellt. Anhand des platform-Tags wird die korrekte
-Implementierungs-Variante augewählt.
+sind darin relativ zum Pfad der Spezifikation (\texttt{*.module}-Datei)
+angegeben (siehe Listing~\ref{lst:module}). Der Pfad zum Verzeichnis, das alle
+vorhandenen Module beinhaltet, ist Teil der Konfigurations-Spezifikation.
+Listing \ref{lst:module} zeigt die Spezifikation eines Mouls, das die Datei
+\texttt{Stage3Setup.h} für unterschiedliche Plattformen bereitstellt. Anhand des
+platform-Tags wird die korrekte Implementierungs-Variante augewählt.
 
 Um ein komplettes Kernel-Image zu erstellen liest das \texttt{mcconf}-Tool alle
 vorhandenen Modulbeschreibungen ein, wählt anhand einer
@@ -133,14 +156,23 @@ Konfigurations-Spezifikation Module aus um vorhandene Abhängigkeiten aufzulöse
 und kopiert die ausgewählten Quell-Dateien in einen Zielordner.
 Außerdem generiert das Tool ein \texttt{Makefile}, das Regeln für die
 Übersetzung der Quelldateien und das Linken des fertigen Kernel-Images enthält.
-Anschließend kann das \texttt{make} Kommando verwendet werden, um das
-Kernel-Abbild zu erstellen. Für die Adaption des \texttt{Makefile}s an die
-Anforderungen einzelner Module können Modulbeschreibungen Teile des
+Diese Regeln können, wie bereits vorher erklärt, innerhalb der einzelnen
+Modul-Spezifikationen spezialisiert werden, die die entsprechenden Teile des
 \texttt{Makefile} enthalten.
+
+Sobald das angepasste \texttt{Makefile} für die gesamte Kernel-Konfiguration im
+entsprechenden Unterverzeichnis erzeugt wurde, kann diese übersetzt und
+ausgeführt werden. Dafür enthält das \texttt{Makefile} automatisch generierte
+Targets wie \texttt{make micrun} -- zum Starten auf einem Knights Corner
+Prozessor -- \texttt{make qemu} -- zur Emulation mit QEMU --, oder zur
+Aktivierung im GDB Debug-Modus \texttt{make qemudgb}. Die Übersetzung und das
+Erstellen des Kernel-Abbilds geschieht durch \texttt{make}. 
 
 Für die Konfiguration des Build-Prozesses können separate Module verwendet
 werden, die keine Quelldateien enthalten. Damit können beispielsweise
 verschiedene je nach Zielplattform  unterschiedliche Compiler verwendet werden.
+Diese Module enthalten lediglich Verweise auf unterschiedliche
+Submodule  und deren Versionen. 
 
 \section{Debugging}
 Für die Fehlersuche im Kernel und in Anwendungsprogrammen kamen zunächst
