@@ -28,7 +28,7 @@ eine Umsetzung realisiert.
 \newpage
 % --- content ------------------------------------------------------------------
 
-\section{Einleitung}
+\section{Deliverable D4.2.2 und das Gesamtpaket D.4.2 - \emph{Developer Tools}}
 
 Dieses Dokument erweitert den aktuellen Stand der Softwareentwicklungswerkzeuge,
 welcher zuvor im Deliverable D4.2.1 erfasst wurde.
@@ -66,8 +66,8 @@ python-basierte sog. \texttt{mcconf}-Tool, welches im Verzeichnis
 \texttt{{mythos-base-dir}/3rdparty/mcconf} zu finden ist. Die Hauptaufgabe
 dieses Werkzeugs ist es eine Ansammlung von zu übersetzenden Quellcode-Dateien
 zu erstellen, die eine gewünschte bzw. benutzer-definierte Kernel-Konfiguration
-umsetzt, und auch Abhängigkeiten auf der Code-Ebene zu verwalten. Es ist
-ebenfalls möglich in einem Schritt automatisiert mehrere Kernel-Versionen zu
+umsetzt, und auch Abhängigkeiten auf der Code-Ebene zu verwalten. Damit ist
+es ebenfalls möglich, in einem Schritt automatisiert mehrere Kernel-Versionen zu
 erzeugen. 
 
 In \mythos werden zusammengehörende Dateien, die eine eigenständige Einheit
@@ -96,11 +96,11 @@ zusammenzustellen wird eine Beschreibung der gewünschten Kernel-Konfiguration
 benötigt. Solche Konfigurationen können als Dateien mit einer definierten
 Struktur und Syntax bereitsgestellt und abgespeichert werden. Diese tragen die
 Endung \texttt{.config}. Beispiele bereits vordefinierter Konfigurationen für
-\texttt{amd64} (\texttt{kernel-amd64.config}) und \texttt{knc}
+\texttt{amd64} (\texttt{kernel-amd64.config}) und \texttt{KNC}
 (\texttt{kernel-knc.config}) Architekturen liegen im \mythos-Hauptverzeichnis
 vor. Die entsprechenden Kernel-Konfigurationen werden durch das dort ebenfalls
 bereitgestellte \texttt{./configure}-Skript automatisch erzeugt und liegen dann
-als Unterverzeichnisse und Datei-Verweisen vor. Jede Spezifikation legt fest,
+als Unterverzeichnisse und Dateien vor. Jede Spezifikation legt fest,
 welche Module für eine bestimmte Ziel-Konfiguration benötigt werden, um ein
 lauffähiges Kernel-Image zu erstellen. Zur Auflösung der hier
 beschriebenen Abhängigkeiten erzeugt das \texttt{mcconf} Tool eine Liste aller
@@ -177,27 +177,42 @@ Submodule  und deren Versionen.
 \section{Debugging}
 Für die Fehlersuche im Kernel und in Anwendungsprogrammen kamen zunächst
 hauptsächlich klassische Debugger in Kombination mit Emulatoren wie Qemu und
-Bochs zum Einsatz. Um jedoch die Ausführung von parallelem Code auf realer
-Hardware wie dem Xeon Phi Coprozessor nachvollziehen zu können, sind zusätzliche
-Werkzeuge notwendig, da die Ausführung des Codes nich beliebig unterbrochen
-werden kann.
+Bochs zum Einsatz. Wie bereits erklärt, enthält das \texttt{Makefile} einer
+jeden Kernel-Konfiguration entsprechende Targets (wie z.B. \texttt{qemugdb},
+\texttt{qemu-ddd}). Der Emulator und der Debugger können über
+die Remote-Debugging Werkzeuge eines beliebigen IDEs, wie z.B. Eclipse, KDevelop
+etc., angesteuert werden, was das Debugging des Kernels im Emulator erleichtert.
+Für diese Fälle ist die Kernel-Konfiguration \texttt{kernel-amd64.config}
+vorgesehen.
+
+Um jedoch die Ausführung von parallelem Code auf realer Hardware wie dem Xeon
+Phi Coprozessor nachvollziehen zu können, sind zusätzliche Werkzeuge notwendig,
+da die dortige Ausführung des Codes nicht beliebig unterbrochen werden kann.
 
 Zu diesem Zweck wurde ein Tracing Werkzeug entwickelt, das verteilt über alle
-Hardwarethreads Traces sammelt und diese aggregiert ausgeben kann. Hierfür wird
-auf jedem Hardwarethread separater Speicher verwendet, um Synchronisation beim
-Sammeln von Traces zu vermeiden, da dadurch die Ausführung selbst beeinflusst
-werden würde.
+Hardwarethreads Ausführungs- und Laufzeit-Informationen (Traces) sammelt und
+diese aggregiert ausgeben kann.
+Hierfür wird auf jedem Hardwarethread separater Speicher verwendet, um
+Synchronisation beim Sammeln einzelner Traces zu vermeiden, da dadurch die
+Ausführung selbst beeinflusst werden würde. \todo{Wo liegt dieses Werkzeug und wie
+Verwendet man es? Oder darauf verweisen, dass es gerade an die neue
+Kernel-Architektur angepasst wird?} Das Tracing Werkzeug wird momentan erweitert
+und an die aktuelle Kernel-Architektur angepasst. Entsprechende Dokumentationen
+und Anleitungen werden auf dem öffentlichen Repository
+(\url{https://manythreads.github.io/mythos/}) bereitgestellt und auf der
+Projektseite (\url{https://manythreads.github.io/mythos/}) bekannt gegeben.
 
 Zusätzlich wurde ein neus Werkzeug entwickelt, mit dem kausale Zusammenhänge
 zwischen Ereignissen auf verschiedenen Hardwarethreads extrahiert und
 anschließend für die Programmanalyse verwendet werden können. Solche Ereignisse
 können beispielsweise durch Nachrichtenaustausch hervorgerufene Funktionsaufrufe
-sein.
-
-Durch dieses Werkzeug ist es möglich, die Ausführung von parallelem Code im
-Nachhinein genau zu unteruschen und wichtige Informationen über Parallelität und
+sein. Durch dieses Werkzeug ist es möglich, die Ausführung von parallelem Code
+im Nachhinein genau zu unteruschen und wichtige Informationen über Parallelität und
 Abhängigkeiten zu extrahieren. Dadurch können Deadlocks oder
-Kommunikationsmuster deutlich einfacher untersucht werden.
+Kommunikationsmuster deutlich einfacher untersucht werden. Der Code und die
+entsprechenden Dokumentationen des Tools werden gerade ebenfalls portiert und
+erweitert und nach einer entsprechenden Evaluation und Testphase öffentlich zur
+Verfügung gestellt.
 
 % ------------------------------------------------------------------------------
 % \bibliographystyle{alpha}
