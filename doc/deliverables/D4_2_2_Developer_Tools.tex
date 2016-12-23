@@ -44,7 +44,7 @@ Compiler, die z.B. für eine Performance-Steigerung der Anwendungen auf der
 Evaluationshardware verwendet werden können, werden ebenfalls diskutiert, obwohl
 diese nicht zwingendermaßen für die Entwicklung notwendig sind (vgl. D4.2.1).
 
-Darüber hinaus werden im D4.2 auch Vorgänge und Tools beschrieben, welche bei
+Darüber hinaus werden in D4.2 auch Vorgänge und Tools beschrieben, welche bei
 der Auswertung der Anwendungsperformance verwendet werden und auch solche, die
 beim aktuellen Betrieb der Anwendungen für das Erstellen und für die Auswertung
 von Simulationstests benötigt werden. Letztere werden auch für die Evaluation
@@ -67,14 +67,14 @@ python-basierte sog. \texttt{mcconf}-Tool, welches im Verzeichnis
 dieses Werkzeugs ist es eine Ansammlung von zu übersetzenden Quellcode-Dateien
 zu erstellen, die eine gewünschte bzw. benutzer-definierte Kernel-Konfiguration
 umsetzt, und auch Abhängigkeiten auf der Code-Ebene zu verwalten. Damit ist
-es ebenfalls möglich, in einem Schritt automatisiert mehrere Kernel-Versionen zu
-erzeugen. 
+es ebenfalls möglich, in einem Schritt automatisiert mehrere Kernel-Versionen
+für verschiedene Anwendugsfälle und Hardware-Platformen zu erzeugen.
 
 In \mythos werden zusammengehörende Dateien, die eine eigenständige Einheit
 bilden, zu Modulen zusammengefasst. Dadurch können sowohl Anforderungen von
 Modulen wie besipielsweise Compiler-Unterstützung, als auch Unterschiede
 zwischen den Kernel-Varianten für unterschiedliche Plattformen berücksichtigt
-werden. Zudem erleichtert die modul-orientierte Struktur die Evaluation
+werden. Zudem erleichtert die Modul-orientierte Struktur die Evaluation
 verschiedener Implementierungsvarianten, da einzelne Module einfach austauschbar
 sind.
 
@@ -85,28 +85,28 @@ meisten Abhängigkeiten müssen nicht manuell spezifiziert werden, sondern werde
 durch das \texttt{mcconf} Tool automatisiert aus den \texttt{\#include}
 Anweisungen im Quellcode extrahiert. Die Definition eines jeden Kernel-Moduls
 liegt als Datei (\texttt{mcconf.module}) im entsprechenden Verzeichnis im
-Kernel-Quellcode vor. Diese spezifiziert grob die vom Modul bereitgestellten
+Kernel-Quellcode vor. Diese spezifiziert die vom Modul bereitgestellten
 Objekte und Dateien, benötigte Objekte und auch spezielle Konfigurationen und
 Anweisungen für den Build-Prozess (Compiler und Linker). Das \texttt{mcconf}
-Tool traversiert automatisch die Verzeichnisstruktur des Kernel-Quellcodes durch
+Tool traversiert automatisch die Verzeichnisstruktur des Kernel-Quellcodes
 und registriert alle auffindbaren Moduldefinitionen.
 
 Um automatisiert alle für eine bestimmte Konfiguration benötigten Dateien
 zusammenzustellen wird eine Beschreibung der gewünschten Kernel-Konfiguration
-benötigt. Solche Konfigurationen können als Dateien mit einer definierten
+benötigt. Solche Konfigurationen können als Dateien mit definierter
 Struktur und Syntax bereitgestellt und abgespeichert werden. Diese tragen die
 Endung \texttt{.config}. Beispiele bereits vordefinierter Konfigurationen für
 \texttt{amd64} (\texttt{kernel-amd64.config}) und \texttt{KNC}
 (\texttt{kernel-knc.config}) Architekturen liegen im \mythos-Hauptverzeichnis
 vor. Die entsprechenden Kernel-Konfigurationen werden durch das dort ebenfalls
-bereitgestellte \texttt{./configure}-Skript automatisch erzeugt und liegen dann
+bereitgestellte Makefile automatisch erzeugt und liegen dann
 als Unterverzeichnisse und Dateien vor. Jede Spezifikation legt fest,
 welche Module für eine bestimmte Ziel-Konfiguration benötigt werden, um ein
 lauffähiges Kernel-Image zu erstellen. Zur Auflösung der hier
 beschriebenen Abhängigkeiten erzeugt das \texttt{mcconf} Tool eine Liste aller
 benötigten Dateien und Module. Anschließend wird für jedes benötigte Objekt ein
 Modul ausgewählt und zum Kernel-Abbild hinzugefügt, falls dieses eines der
-benötigten Objekte bereitstellt. 
+benötigten Objekte bereitstellt.
 
 Falls zwei Module die selbe Datei bereitstellen entsteht ein Konflikt, der vom
 Entwickler manuell aufgelöst werden muss, indem er eines der möglichen Module
@@ -119,24 +119,24 @@ Im Folgenden wird nochmals speziell auf die Moduldefinitionen eingegangen, da
 diese insbesondere bei der Entwicklung von Anwendungen und Erweiterung des
 Kernels zum Einsatz kommen.
 
-\begin{lstlisting}[float, label=lst:module, caption=Ein Beispiel einer 
+\begin{lstlisting}[float, label=lst:module, caption=Ein Beispiel einer
 Modulbeschreibung (\texttt{mcconf.module}).]
 [module.boot-memory-multiboot]
 requires = ["platform:multiboot"]
 incfiles = ["boot/memory/Stage3Setup.h"]
-kernelfiles = ["boot/memory/Stage3Setup.cc", "boot/memory/Stage3Setup.cc", 
+kernelfiles = ["boot/memory/Stage3Setup.cc", "boot/memory/Stage3Setup.cc",
 "boot/memory/Stage3Setup-multiboot.cc"]
 
 [module.boot-memory-gem5]
 requires = ["platform:gem5"]
 incfiles = ["boot/memory/Stage3Setup.h"]
-kernelfiles = ["boot/memory/Stage3Setup.cc", "boot/memory/Stage3Setup.cc", 
+kernelfiles = ["boot/memory/Stage3Setup.cc", "boot/memory/Stage3Setup.cc",
 "boot/memory/Stage3Setup-e820.cc"]
 
 [module.boot-memory-knc]
 requires = ["platform:knc"]
 incfiles = ["boot/memory/Stage3Setup.h"]
-kernelfiles = ["boot/memory/Stage3Setup.cc", "boot/memory/Stage3Setup.cc", 
+kernelfiles = ["boot/memory/Stage3Setup.cc", "boot/memory/Stage3Setup.cc",
 "boot/memory/Stage3Setup-sfi.cc", "boot/memory/Stage3Setup-knc.cc"]
 \end{lstlisting}
 
@@ -156,7 +156,7 @@ Konfigurations-Spezifikation Module aus um vorhandene Abhängigkeiten aufzulöse
 und kopiert die ausgewählten Quell-Dateien in einen Zielordner.
 Außerdem generiert das Tool ein \texttt{Makefile}, das Regeln für die
 Übersetzung der Quelldateien und das Linken des fertigen Kernel-Images enthält.
-Diese Regeln können, wie bereits vorher erklärt, innerhalb der einzelnen
+Diese Regeln können, wie bereits beschrieben, innerhalb der einzelnen
 Modul-Spezifikationen spezialisiert werden, die die entsprechenden Teile des
 \texttt{Makefile} enthalten.
 
@@ -166,16 +166,18 @@ ausgeführt werden. Dafür enthält das \texttt{Makefile} automatisch generierte
 Targets wie \texttt{make micrun} -- zum Starten auf einem Knights Corner
 Prozessor -- \texttt{make qemu} -- zur Emulation mit QEMU --, oder zur
 Aktivierung im GDB Debug-Modus \texttt{make qemudgb}. Die Übersetzung und das
-Erstellen des Kernel-Abbilds geschieht durch \texttt{make}. 
+Erstellen des Kernel-Abbilds geschieht durch \texttt{make}.
 
 Für die Konfiguration des Build-Prozesses können separate Module verwendet
 werden, die keine Quelldateien enthalten. Damit können beispielsweise
-verschiedene je nach Zielplattform  unterschiedliche Compiler verwendet werden.
+je nach Zielplattform  unterschiedliche Compiler verwendet werden.
 Diese Module enthalten lediglich Verweise auf unterschiedliche
-Submodule und deren Versionen.
+Submodule und deren Versionen oder Code, der direkt in das \texttt{Makefile}
+übernommen wird und damit die Übersetzung von \mythos an die Zielplatform
+anpasst.
 
-Weitere Informationen und Beispiele für die Funktionsweise vom \texttt{mcconf}
-Tool sowie für die Definition und Umsetzung von
+Weitere Informationen und Beispiele für die Funktionsweise des \texttt{mcconf}
+Tools sowie für die Definition und Umsetzung von
 Modul-Konfigurationen befinden sich im Projekt-Verzeichnis
 \texttt{\{mythos\}/3rdparty/mcconf}.
 
@@ -185,7 +187,7 @@ hauptsächlich klassische Debugger in Kombination mit Emulatoren wie Qemu und
 Bochs zum Einsatz. Wie bereits erklärt, enthält das \texttt{Makefile} einer
 jeden Kernel-Konfiguration entsprechende Targets (wie z.B. \texttt{qemugdb},
 \texttt{qemu-ddd}). Der Emulator und der Debugger können über
-die Remote-Debugging Werkzeuge eines beliebigen IDEs, wie z.B. Eclipse, KDevelop
+die Remote-Debugging Werkzeuge beliebiger IDEs, wie z.B. Eclipse, KDevelop
 etc., angesteuert werden, was das Debugging des Kernels im Emulator erleichtert.
 Für diese Fälle ist die Kernel-Konfiguration \texttt{kernel-amd64.config}
 vorgesehen.
@@ -204,7 +206,7 @@ Verwendet man es? Oder darauf verweisen, dass es gerade an die neue
 Kernel-Architektur angepasst wird?} Das Tracing Werkzeug wird momentan erweitert
 und an die aktuelle Kernel-Architektur angepasst. Entsprechende Dokumentationen
 und Anleitungen werden auf dem öffentlichen Repository
-(\url{https://manythreads.github.io/mythos/}) bereitgestellt und auf der
+(\url{https://github.com/ManyThreads/mythos}) bereitgestellt und auf der
 Projektseite (\url{https://manythreads.github.io/mythos/}) bekannt gegeben.
 
 Zusätzlich wurde ein neues Werkzeug entwickelt, mit dem kausale Zusammenhänge
