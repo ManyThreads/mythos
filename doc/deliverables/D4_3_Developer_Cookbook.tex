@@ -90,8 +90,115 @@ the number of required system calls and therefore the number of switches from
 user space to kernel space and back.
 \end{description}
 
-\section{Interface of the \mythos Runtime Environment}
-* Schnittstelle der User-Space Laufzeitumgebung
+\section{Interface of the \mythos Runtime Environment} Due to the focus of the
+\mythos project on developing an operating system, the support for applications
+in terms of runtime environment are limited, compared to general purpose
+operating systems like Linux. The main point of interaction with the operating
+system is the use of portals, which represent the communication endpoint between
+the application and \mythos. The interaction between the applciation and the
+portals is detailed in the previous section of this document.
+
+For the ineraction of applications with other kernel objects, some user space
+representations are provided to application developers, that encapsulate the
+communication with the respective kernel object and therefore provide the
+developer with a more specialized interface than generic portals. In the
+following, these user space representations and their interfaces are presented.
+
+\subsection{CapMap}
+
+\subsection{DebugSink}
+This class represents a small wrapper for the debug system call and can be used
+to ouput debug information (or any other text) to the text console and thereby
+make it available to users or developers. Its functionality is contained in the
+function \texttt{void write(char const* str, size\_t len)}, which takes a string
+and its length as input parameters and outputs this string to the console.
+
+\subsection{ExecutionContext}
+As detailed in the deliverable D2.2, Execution Context objects are used to
+represent the execution state of a single software thread. Therefore, they are a
+very important interaction point for application developers to control the
+degree of parallelism in their applications and to achieve actual concurrency
+witin \mythos. Their interface looks as follows:
+
+\texttt{PortalFutureRef<void> create(PortalRef pr, UntypedMemory kmem,
+CapPtr factory, PageMap as, CapMap cs, CapPtr sched, void* stack, StartFun
+start, void* userctx):}
+This function is used to create a new \texttt{ExecutionContext} kernel object.
+The parameter \texttt{pr} specifies the pointer to the portal that should be
+used for this operation. \texttt{kmem} specifies the kernel memory area, in
+which the new EC should be allocated. \texttt{factory} is a pointer to the
+kernel object responsible for the actual creation of the object and has to be
+provided by the operating system beforehand. In the parameters \texttt{as} and
+\texttt{cs} the address space and the capability space of the application are
+passed. The parameter \texttt{sched} specifies the scheduling context, which is
+designated to execute the newly created EC, while its user space stack is placed
+at the virtual address specified by the parameter \texttt{stack}. Finally,
+\texttt{start} is a pointer to the initial function  executed by the EC in user
+space and \texttt{userctx} can be used by the application developer to later
+identify individual ECs and is passed to the function specified by
+\texttt{start}.
+
+  \texttt{PortalFutureRef<void> configure(PortalRef pr, PageMap as, CapMap cs,
+  CapPtr sched):} This method is used to configure the EC, which is accessed via
+  the local portal \texttt{pr} to use the page map, capability map and
+  scheduling context, specified by \texttt{as}, \texttt{cs} or \texttt{sched}
+  respectively, in the future.
+
+\subsection{Frame}
+A frame object represents a memory frame, that can be accessed by the
+application and is allocated from an \texttt{UntypedMemory} object via the
+method \texttt{PortalFutureRef<void> create(PortalRef pr, UntypedMemory kmem,
+CapPtr factory, size\_t size, size\_t alignment)}. Additionally to the local
+portal \texttt{pr}, the allocation pool \texttt{kmem} and the factory for
+\texttt{Frame} objects \texttt{factory}, the size and the alignment requirements
+for the newly allocated frame are passed as arguments in the parameters
+\texttt{size} and \texttt{alignment}.
+
+The \texttt{PortalFutureRef<protocol::Frame::Info> info(PortalRef pr)} mehthod
+returns various information about a given memory frame, like its size and
+alignment accompanied by permissions, that are set to this memory frame, like
+its exacutable and writable flags.
+
+\subsection{PageMap}
+
+\subsection{Tasklet}
+Tasklets are used for two purposes in \mythos. They represent the smallest unit
+of executed code and at the same time serve as a token in a token-based flow
+control system. A tasklet encapsulates a single functor, that can be set and
+retrieved. For this purpose the \texttt{Tasklet} class exposes two
+self-explainatory methods:\newline
+\texttt{  template<class FUNCTOR>\newline
+    void set(FUNCTOR const&& fun);\newline\newline
+    template<class MSG>\newline
+    MSG get() const;}
+
+\subsection{UntypedMemory}
+This object represents a memory pool, from which memory can be allocated to be
+either used by the application (Frames) or to be used to host kernel objects.
+The \texttt{UntypedMemory} objects only expose one function to the user space,
+which is defined as \texttt{PortalFutureRef<void> create(PortalRef pr,
+UntypedMemory kmem, CapPtr factory,size\_t size, size\_t alignment)}. This
+method is used to derive an \texttt{UntypedMemory} object from an
+\texttt{UntypedMemory} object, spliiting one of these objects into two. Thereby,
+a hierarchical memory structure is built up. For this purpose, it is passed a
+pointer to the local portal \texttt{pr}, the original \texttt{UntypedMemory}
+object \texttt{kmem}, a pointer to an object capable of creating new
+\texttt{UntypedMemory} objects \texttt{factory} and the new objects desired size
+and memory alignment.
+
+\subsection{Library Functions} In addition to the functions detailed above, that
+directly interact with the operating system via system calls, a small set of
+convenience functions was is implemented, that conform to the defualt interfaces
+known for these functions from the C/C++ string library. Currently, the set of
+functions comprises of \texttt{memcpy} to copy memory ranges, \texttt{memset} to
+initialize memory regions, \texttt{strlen} to determine the length of a string
+and \texttt{strcmp} to check two strings for the lexical order and equality.
+
+
+
+
+
+
 
 \section{Example Application}
 * Beispiel und Hinweise für eine minimale Supervisor-Anwendung
