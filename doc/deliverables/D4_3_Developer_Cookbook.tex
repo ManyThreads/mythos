@@ -29,7 +29,7 @@ The \mythos kernel loads an initial application after the operating system is bo
 
 Due to  the reduced nature of \mythos, applications have to be compiled carefully to be executable on \mythos. This will also be true once the dynamic application loader is in place. Currently \mythos does offer the full interface of commonly used libraries like LibC. Therefore, the compiler has to be instructed not to include exception handling into the code (\texttt{-fno-exceptions}) and omit including stack protectors (\texttt{-fno-stack-protector}). The linker has to be configured to not link against the standard libraries (\texttt{-nostdlib}) and link against all other libraries statically (\texttt{-static}), since dynamically loaded libraries are not yet supported by \mythos. However, GCC-specific functions are included in the code of \mythos. Therefore, these libraries have to be included into the code (\texttt{-lgcc}).
 
-Since \mythos is designed to run on manycore architectures, which often have limited support for advanced istruction set extensions, these should be disabled in the compiler. When compiling an application for the Intel\textcopyright~Xeon~Phi\superscript{\texttrademark}, all of MMX, SSE, SSE2, SSE3 and 3DNow should be disabled (\textt{-mno-mmx -mno-sse -mno-sse2 -mno-sse3 -mno-3dnow}).
+Since \mythos is designed to run on manycore architectures, which often have limited support for advanced istruction set extensions, these should be disabled in the compiler. When compiling an application for the Intel\textcopyright~Xeon~Phi\texttrademark{}, all of MMX, SSE, SSE2, SSE3 and 3DNow should be disabled (\texttt{-mno-mmx -mno-sse -mno-sse2 -mno-sse3 -mno-3dnow}).
 
 
 \section{Interface of \mythos System Calls}
@@ -166,11 +166,15 @@ Tasklets are used for two purposes in \mythos. They represent the smallest unit
 of executed code and at the same time serve as a token in a token-based flow
 control system. A tasklet encapsulates a single functor, that can be set and
 retrieved. For this purpose the \texttt{Tasklet} class exposes two
-self-explainatory methods:\newline
-\texttt{  template<class FUNCTOR>\newline
-    void set(FUNCTOR const&& fun);\newline\newline
-    template<class MSG>\newline
-    MSG get() const;}
+self-explainatory methods:
+
+\begin{lstlisting}
+template<class FUNCTOR>
+void set(FUNCTOR const&& fun);
+
+template<class MSG>
+MSG get() const;
+\end{lstlisting}
 
 \subsection{UntypedMemory}
 This object represents a memory pool, from which memory can be allocated to be
