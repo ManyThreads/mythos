@@ -83,9 +83,9 @@ protected:
 public:
   void print()
   {
-    mlog::async.info("tasklet", this, "handler", handler, "hash", hash32(payload, 48));
+    MLOG_INFO(mlog::async, "tasklet", this, "handler", handler, "hash", hash32(payload, 48));
     for (auto row = 0; row < 6; ++row) {
-      mlog::async.detail(DMDUMP(&payload[row*8], 8));
+      MLOG_DETAIL(mlog::async, DMDUMP(&payload[row*8], 8));
     }
   }
 

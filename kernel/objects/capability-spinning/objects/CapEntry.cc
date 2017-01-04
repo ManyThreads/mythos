@@ -118,7 +118,7 @@ namespace mythos {
     Cap curCap;
     do {
       curCap = Cap(expected);
-      mlog::cap.detail(this, ".kill", DVAR(curCap));
+      MLOG_DETAIL(mlog::cap, this, ".kill", DVAR(curCap));
       if (!curCap.isUsable()) {
         return curCap.isZombie() ? true : false;
       }

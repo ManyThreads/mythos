@@ -73,7 +73,7 @@ InitLoader::~InitLoader() {}
 optional<void> InitLoader::load()
 {
   if (!_img.isValid()) return Error::GENERIC_ERROR;
-  mlog::boot.info("found init application image at", (void*)&app_image_start);
+  MLOG_INFO(mlog::boot, "found init application image at", (void*)&app_image_start);
 
   // order matters here
   optional<void> res(Error::SUCCESS);
@@ -138,27 +138,27 @@ optional<void> InitLoader::csSet(CapPtr dst, IKernelObject& obj)
 
 optional<void> InitLoader::initCSpace()
 {
-  mlog::boot.info("create initial cspace ...");
+  MLOG_INFO(mlog::boot, "create initial cspace ...");
   ASSERT(CapMap::cap_count(10) == CSpaceLayout::SIZE);
   auto ocspace = CapMapFactory::initial(_memEntry, _memEntry->cap(), _mem,
 				       CapPtrDepth(10), CapPtrDepth(22), CapPtr(0));
   if (!ocspace) return ocspace;
   _cspace = *ocspace;
 
-  mlog::boot.info("... create cspace reference in cap", CSPACE);
+  MLOG_INFO(mlog::boot, "... create cspace reference in cap", CSPACE);
   auto res = csSet(CSPACE, _cspace->getRoot());
   if (!res) return res;
 
-  mlog::boot.info("... create UM reference in cap", UM);
+  MLOG_INFO(mlog::boot, "... create UM reference in cap", UM);
   res = csSet(UM, *_memEntry);
   if (!res) return res;
 
-  mlog::boot.info("... create portal in cap", PORTAL);
+  MLOG_INFO(mlog::boot, "... create portal in cap", PORTAL);
   auto portal = create<Portal,PortalFactory>(_cspace->get(PORTAL));
   if (!portal) return portal;
   _portal = *portal;
 
-  mlog::boot.info("... create example factory in cap", EXAMPLE_FACTORY);
+  MLOG_INFO(mlog::boot, "... create example factory in cap", EXAMPLE_FACTORY);
   res = Error::SUCCESS;
   if (res) res = csSet(EXAMPLE_FACTORY, factory::example);
   if (res) res = csSet(MEMORY_REGION_FACTORY, factory::memoryRegion);
@@ -169,7 +169,7 @@ optional<void> InitLoader::initCSpace()
   if (res) res = csSet(UNTYPED_MEMORY_FACTORY, factory::untypedMemory);
   if (!res) return res;
 
-  mlog::boot.info("... create memory regions in caps", STATIC_MEM_START, "till", STATIC_MEM_START+STATIC_MEMORY_REGIONS-1);
+  MLOG_INFO(mlog::boot, "... create memory regions in caps", STATIC_MEM_START, "till", STATIC_MEM_START+STATIC_MEMORY_REGIONS-1);
   static_assert(STATIC_MEMORY_REGIONS <= STATIC_MEM_START-SCHEDULERS_START, "Initial cspace to small.");
   for (size_t i = 0; i < STATIC_MEMORY_REGIONS; ++i) {
     auto res = csSet(CapPtr(STATIC_MEM_START+i), memory_region(i)->getRoot());
@@ -177,7 +177,7 @@ optional<void> InitLoader::initCSpace()
   }
 
   ASSERT(cpu::hwThreadCount() <= SCHEDULERS_START-APP_CAP_START);
-  mlog::boot.info("... create scheduling context caps in caps", SCHEDULERS_START, "till", SCHEDULERS_START+cpu::hwThreadCount()-1);
+  MLOG_INFO(mlog::boot, "... create scheduling context caps in caps", SCHEDULERS_START, "till", SCHEDULERS_START+cpu::hwThreadCount()-1);
   for (size_t i = 0; i < cpu::hwThreadCount(); ++i) {
     auto res = csSet(CapPtr(SCHEDULERS_START+i), boot::getScheduler(cpu::enumerateHwThreadID(i)));
     if (!res) return res;
@@ -187,7 +187,7 @@ optional<void> InitLoader::initCSpace()
 
 optional<void> InitLoader::createDirectories()
 {
-  mlog::boot.info("create page mapping structures ...");
+  MLOG_INFO(mlog::boot, "create page mapping structures ...");
   // we assume the mappings are only in the first 1 GB of the logical mem
   // we also use 2MiB pages ... so we need only one of the PLM2-4
   auto pml4 = create<PageMap, PageMapFactory>(_cspace->get(PML4), 4u);
@@ -214,7 +214,7 @@ optional<void> InitLoader::mapDirectory(size_t target, size_t entry, size_t inde
 optional<void> InitLoader::createMemoryRegion()
 {
   _maxFrames = countPages();
-  mlog::boot.info("create dynamic memory region with", _maxFrames, "+1 frames ...");
+  MLOG_INFO(mlog::boot, "create dynamic memory region with", _maxFrames, "+1 frames ...");
   _maxFrames++; // one message buffer frame
   auto regionEntry = _cspace->get(DYNAMIC_REGION);
   auto region = create<MemoryRegion, MemoryRegionFactory>
@@ -247,7 +247,7 @@ optional<void> InitLoader::createMsgFrame()
 {
   const auto page = 10;
   ipc_vaddr = page << 21;
-  mlog::boot.info("map message buffer frame to page", page);
+  MLOG_INFO(mlog::boot, "map message buffer frame to page", page);
 
   auto frameNum = mapFrame(page, true, false);
   if (!frameNum) return frameNum;
@@ -277,7 +277,7 @@ optional<void> InitLoader::loadImage()
 
 optional<void> InitLoader::createEC()
 {
-  mlog::boot.info("create and initialize EC");
+  MLOG_INFO(mlog::boot, "create and initialize EC");
   auto ec = create<ExecutionContext,ExecutionContextFactory>(_cspace->get(EC));
   if (!ec) return ec;
   _portal->setOwner(_cspace->get(EC), 0x1337);
@@ -309,7 +309,7 @@ Range<uintptr_t> InitLoader::toPageRange(const elf64::PHeader* ph)
 
 optional<void> InitLoader::load(const elf64::PHeader* ph)
 {
-  mlog::boot.info("\tload", DVAR(ph->type), DVAR(ph->flags), DVARhex(ph->offset),
+  MLOG_INFO(mlog::boot, "\tload", DVAR(ph->type), DVAR(ph->flags), DVARhex(ph->offset),
         DVARhex(ph->vaddr), DVARhex(ph->filesize), DVARhex(ph->memsize),
         DVARhex(ph->alignment));
   ASSERT(ph->alignment <= PageAlign::alignment());

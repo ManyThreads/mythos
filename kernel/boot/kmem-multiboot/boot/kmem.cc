@@ -46,10 +46,10 @@ void initKernelMemory(UntypedMemory& um)
 
   // find usable RAM areas and add them to the memory pool
   OOPS_MSG(mboot_magic == MultiBoot::MAGIC, "No MultiBoot memory map found :(");
-  mlog::boot.detail("multiboot table: ", DVARhex(mboot_magic), DVARhex(mboot_table));
+  MLOG_DETAIL(mlog::boot, "multiboot table: ", DVARhex(mboot_magic), DVARhex(mboot_table));
   if (mboot_magic == MultiBoot::MAGIC) {
     mbi.foreach([&usable_mem](MultiBootInfo::MMapEntry const* me) {
-      mlog::boot.detail("MB mmap ", DMRANGE(me->getAddress().physint(), me->getSize()),
+      MLOG_DETAIL(mlog::boot, "MB mmap ", DMRANGE(me->getAddress().physint(), me->getSize()),
        (me->isAvailable() ? " available " : (me->isReserved() ? " reserved " : "NA")));
       if (me->isAvailable())
 	      usable_mem.addStartLength(me->getAddress(), me->getSize());

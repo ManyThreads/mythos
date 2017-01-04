@@ -140,17 +140,17 @@ namespace mythos {
   {
   public:
     MPApicTopology() {
-      mlog::boot.info("searching IntelMP structure...");
+      MLOG_INFO(mlog::boot, "searching IntelMP structure...");
       IntelMP::FPStructure* fp= findMP(PhysPtr<char>(0x0f0000ul).log(),0x0fffff-0x0f0000);
       ASSERT(fp);
-      mlog::boot.detail("MP floating pointer base:", fp);
-      mlog::boot.detail("MP floating spezification version:", fp->specRev);
+      MLOG_DETAIL(mlog::boot, "MP floating pointer base:", fp);
+      MLOG_DETAIL(mlog::boot, "MP floating spezification version:", fp->specRev);
 
       // find config table and local apics in base entries
       IntelMP::ConfigurationTable* configTable = fp->configuration_table.log();
-      mlog::boot.detail("MP configuration spezification version:", configTable->specRev);
-      mlog::boot.detail("MP configuration base length:", configTable->base_table_length);
-      mlog::boot.detail("MP configuration entry count:", configTable->entry_count);
+      MLOG_DETAIL(mlog::boot, "MP configuration spezification version:", configTable->specRev);
+      MLOG_DETAIL(mlog::boot, "MP configuration base length:", configTable->base_table_length);
+      MLOG_DETAIL(mlog::boot, "MP configuration entry count:", configTable->entry_count);
 
       uintptr_t baseEntries = uintptr_t(configTable) + sizeof(IntelMP::ConfigurationTable);
       uint16_t entry_count = 0;
@@ -159,7 +159,7 @@ namespace mythos {
         auto entry = reinterpret_cast<IntelMP::BaseEntry*>(baseEntries+pos);
         switch (entry->type){
           case PROCESSOR: {
-            //mlog::boot.detail("PROCESSOR table entry at offset", pos);
+            //MLOG_DETAIL(mlog::boot, "PROCESSOR table entry at offset", pos);
             auto proc_entry = static_cast<IntelMP::EntryProcessor*>(entry);
             if (proc_entry->flags & 0x01) {  // processor is usuable
               lapicIDs[num_threads] = proc_entry->local_apic_id;
@@ -170,7 +170,7 @@ namespace mythos {
             break;
           }
           default:
-            //mlog::boot.detail("invalid table type", entry->type,"at offset", pos);
+            //MLOG_DETAIL(mlog::boot, "invalid table type", entry->type,"at offset", pos);
             pos+=8;
             entry_count++;
             break;

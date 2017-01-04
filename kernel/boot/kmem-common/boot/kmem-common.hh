@@ -52,13 +52,13 @@ namespace mythos {
       }
 
       void reserve(size_t begin, size_t end, const char* reason) {
-        mlog::boot.detail("reserve", DMRANGE(begin, end-begin), "for", reason);
+        MLOG_DETAIL(mlog::boot, "reserve", DMRANGE(begin, end-begin), "for", reason);
         this->substract(begin, end);
       }
 
       void addToUM(UntypedMemory& um) {
         for (auto& r : *this) {
-          mlog::boot.detail("add range", DMRANGE(r.getStart(), r.getSize()), "to untyped memory");
+          MLOG_DETAIL(mlog::boot, "add range", DMRANGE(r.getStart(), r.getSize()), "to untyped memory");
           um.addRange(PhysPtr<void>(r.getStart()), r.getSize());
         }
       }

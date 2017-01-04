@@ -45,7 +45,7 @@ namespace mythos {
 
   void DeleteBroadcast::run(Tasklet* t, IResult<void>* res)
   {
-    mlog::cap.detail("start delete broadcast");
+    MLOG_DETAIL(mlog::cap, "start delete broadcast");
     DeleteBroadcast* start = &nodes[cpu::hwThreadID()];
     start->broadcast(t, res, start);
   }
@@ -55,10 +55,10 @@ namespace mythos {
     DeleteBroadcast* pnext = this->next;
     while (pnext != start && !pnext->home->isActive()) pnext = pnext->next;
     if (pnext != start) {
-      mlog::cap.detail("relay delete broadcast");
+      MLOG_DETAIL(mlog::cap, "relay delete broadcast");
       pnext->home->run(t->set( [=](Tasklet* t){ broadcast(t, res, start); } ));
     } else {
-      mlog::cap.detail("end delete broadcast");
+      MLOG_DETAIL(mlog::cap, "end delete broadcast");
       res->response(t);
     }
   }

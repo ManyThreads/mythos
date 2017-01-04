@@ -61,7 +61,7 @@ public:
     if (mode == ASYNC) {
       pushPrivate(msg);
     } else {
-      mlog::async.detail(this, "run tasklet", msg);
+      MLOG_DETAIL(mlog::async, this, "run tasklet", msg);
       msg->run();
     }
   }
@@ -72,7 +72,7 @@ public:
   }
 
   void pushShared(Tasklet* msg) {
-    mlog::async.detail(this, "push shared", msg);
+    MLOG_DETAIL(mlog::async, this, "push shared", msg);
     if (queue.push(msg)) wakeup();
   }
 
@@ -93,7 +93,7 @@ public:
 protected:
   void pushPrivate(Tasklet* msg) {
     ASSERT(isLocal());
-    mlog::async.detail(this, "push private", msg);
+    MLOG_DETAIL(mlog::async, this, "push private", msg);
     queue.pushPrivate(msg);
   }
 

@@ -36,14 +36,14 @@ namespace mythos {
 
   void SchedulingContext::unbind(handle_t* ec)
   {
-    mlog::sched.detail("unbind", ec);
+    MLOG_DETAIL(mlog::sched, "unbind", ec);
     readyQueue.remove(ec);
     preempt(ec); /// @todo race when ec is deleted too early
   }
 
   void SchedulingContext::ready(handle_t* ec)
   {
-    mlog::sched.info("ready", ec);
+    MLOG_INFO(mlog::sched, "ready", ec);
     ASSERT(ec != nullptr);
 
     readyQueue.remove(ec); /// @todo do not need to remove if already on the queue, just do nothing then
@@ -67,7 +67,7 @@ namespace mythos {
 
   void SchedulingContext::preempt(Tasklet* t, IResult<void>* res, handle_t* ec)
   {
-    mlog::sched.detail("preempt", DVAR(t), DVAR(ec));
+    MLOG_DETAIL(mlog::sched, "preempt", DVAR(t), DVAR(ec));
     ASSERT(ec != nullptr);
     handle_t* const removed = reinterpret_cast<handle_t*>(REMOVED);
     if (!current_ec.compare_exchange_strong(ec, removed))
@@ -76,7 +76,7 @@ namespace mythos {
     if (&getLocalPlace() == home)
       return res->response(t, Error::SUCCESS); // we are on the home thread already, nothing to do
     if (preempting.test_and_set()) return; // we are preempting the home already, nothing to do
-    mlog::sched.detail("send preemption message", DVAR(t), DVAR(home));
+    MLOG_DETAIL(mlog::sched, "send preemption message", DVAR(t), DVAR(home));
     home->run(tasklet.set([=](Tasklet* t){
           res->response(t, Error::SUCCESS);
           preempting.clear();
@@ -85,7 +85,7 @@ namespace mythos {
 
   void SchedulingContext::preempt(handle_t* ec)
   {
-    mlog::sched.detail("preempt", DVAR(ec));
+    MLOG_DETAIL(mlog::sched, "preempt", DVAR(ec));
     ASSERT(ec != nullptr);
     handle_t* const removed = reinterpret_cast<handle_t*>(REMOVED);
     if (!current_ec.compare_exchange_strong(ec, removed)) return; // was not selected, nothing to do
@@ -93,7 +93,7 @@ namespace mythos {
   }
 
   void SchedulingContext::preempt() {
-    mlog::sched.detail("preempt", DVAR(home));
+    MLOG_DETAIL(mlog::sched, "preempt", DVAR(home));
     if (&getLocalPlace() == home) return; // we are on the home thread already, nothing to do
     if (preempting.test_and_set()) return; // we are preempting the home already, nothing to do
     home->run(tasklet.set([=](Tasklet*){ preempting.clear(); }));
@@ -101,7 +101,7 @@ namespace mythos {
 
   void SchedulingContext::yield(handle_t* ec)
   {
-    mlog::sched.detail("yield", DVAR(ec));
+    MLOG_DETAIL(mlog::sched, "yield", DVAR(ec));
     ASSERT(ec != nullptr);
     if (current_ec != ec) return; // was not selected, nothing to do
     if (readyQueue.empty()) return; // no other waiting thread, nothing to do
@@ -114,7 +114,7 @@ namespace mythos {
 
   void SchedulingContext::tryRunUser()
   {
-    mlog::sched.detail("tryRunUser");
+    MLOG_DETAIL(mlog::sched, "tryRunUser");
     ASSERT(&getLocalPlace() == home);
     handle_t* current = current_ec;
     handle_t* const removed = reinterpret_cast<handle_t*>(REMOVED);

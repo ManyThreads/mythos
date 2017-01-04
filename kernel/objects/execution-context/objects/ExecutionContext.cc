@@ -54,17 +54,17 @@ namespace mythos {
   void ExecutionContext::clearFlagResume(uint8_t f)
   {
     auto prev = clearFlag(f);
-    mlog::ec.info("cleared flag", DVAR(this), DVARhex(f), DVARhex(prev), DVARhex(flags.load()), isReady());
+    MLOG_INFO(mlog::ec, "cleared flag", DVAR(this), DVARhex(f), DVARhex(prev), DVARhex(flags.load()), isReady());
     if (isBlocked(prev) && isReady()) {
       auto sched = _sched.get();
-      mlog::ec.info("trying to wake up the scheduler");
+      MLOG_INFO(mlog::ec, "trying to wake up the scheduler");
       if (sched) sched->ready(&ec_handle);
     }
   }
 
   optional<void> ExecutionContext::setAddressSpace(optional<CapEntry*> pme)
   {
-    mlog::ec.info("setAddressSpace", DVAR(this), DVAR(pme));
+    MLOG_INFO(mlog::ec, "setAddressSpace", DVAR(this), DVAR(pme));
     TypedCap<IPageMap> obj(pme);
     if (!obj) return obj.state();
     if (!obj->getPageMapInfo(obj.cap()).isRootMap()) return Error::INVALID_CAPABILITY;
@@ -73,19 +73,19 @@ namespace mythos {
 
   void ExecutionContext::bind(optional<IPageMap*>)
   {
-    mlog::ec.info("setAddressSpace bind", DVAR(this));
+    MLOG_INFO(mlog::ec, "setAddressSpace bind", DVAR(this));
     clearFlagResume(NO_AS);
   }
 
   void ExecutionContext::unbind(optional<IPageMap*>)
   {
-    mlog::ec.info("setAddressSpace unbind", DVAR(this));
+    MLOG_INFO(mlog::ec, "setAddressSpace unbind", DVAR(this));
     setFlagSuspend(NO_AS);
   }
 
   optional<void> ExecutionContext::setSchedulingContext(optional<CapEntry*> sce)
   {
-    mlog::ec.info("setScheduler", DVAR(this), DVAR(sce));
+    MLOG_INFO(mlog::ec, "setScheduler", DVAR(this), DVAR(sce));
     TypedCap<IScheduler> obj(sce);
     if (!obj) return obj.state();
     return _sched.set(this, *sce, obj.cap());
@@ -93,13 +93,13 @@ namespace mythos {
 
   void ExecutionContext::bind(optional<IScheduler*>)
   {
-    mlog::ec.info("setScheduler bind", DVAR(this));
+    MLOG_INFO(mlog::ec, "setScheduler bind", DVAR(this));
     clearFlagResume(NO_SCHED);
   }
 
   void ExecutionContext::unbind(optional<IScheduler*> sched)
   {
-    mlog::ec.info("setScheduler unbind", DVAR(this));
+    MLOG_INFO(mlog::ec, "setScheduler unbind", DVAR(this));
     ASSERT(sched);
     setFlag(NO_SCHED);
     sched->unbind(&ec_handle);
@@ -107,7 +107,7 @@ namespace mythos {
 
   optional<void> ExecutionContext::setCapSpace(optional<CapEntry*> cse)
   {
-    mlog::ec.info("setCapSpace", DVAR(this), DVAR(cse));
+    MLOG_INFO(mlog::ec, "setCapSpace", DVAR(this), DVAR(cse));
     TypedCap<ICapMap> obj(cse);
     if (!obj) return obj.state();
     return _cs.set(this, *cse, obj.cap());
@@ -115,7 +115,7 @@ namespace mythos {
 
   void ExecutionContext::setEntryPoint(uintptr_t rip)
   {
-    mlog::ec.info("EC setEntryPoint", DVARhex(rip));
+    MLOG_INFO(mlog::ec, "EC setEntryPoint", DVARhex(rip));
     threadState.rip = rip;
     clearFlagResume(IS_EXITED);
   }
@@ -290,7 +290,7 @@ namespace mythos {
 
   void ExecutionContext::notify(INotifiable::handle_t* event)
   {
-    mlog::ec.info("got notification", DVAR(this), DVAR(event));
+    MLOG_INFO(mlog::ec, "got notification", DVAR(this), DVAR(event));
     notificationQueue.push(event);
     clearFlagResume(IS_WAITING);
   }
@@ -303,14 +303,14 @@ namespace mythos {
   void ExecutionContext::handleTrap(cpu::ThreadState* ctx)
   {
     ASSERT(&threadState == ctx);
-    mlog::ec.error("user fault", DVAR(ctx->irq), DVAR(ctx->error),
+    MLOG_ERROR(mlog::ec, "user fault", DVAR(ctx->irq), DVAR(ctx->error),
          DVARhex(ctx->cr2));
-    mlog::ec.error("...", DVARhex(ctx->rip), DVARhex(ctx->rflags),
+    MLOG_ERROR(mlog::ec, "...", DVARhex(ctx->rip), DVARhex(ctx->rflags),
          DVARhex(ctx->rsp));
-    mlog::ec.error("...", DVARhex(ctx->rax), DVARhex(ctx->rbx), DVARhex(ctx->rcx),
+    MLOG_ERROR(mlog::ec, "...", DVARhex(ctx->rax), DVARhex(ctx->rbx), DVARhex(ctx->rcx),
          DVARhex(ctx->rdx), DVARhex(ctx->rbp), DVARhex(ctx->rdi),
          DVARhex(ctx->rsi));
-    mlog::ec.error("...", DVARhex(ctx->r8), DVARhex(ctx->r9), DVARhex(ctx->r10),
+    MLOG_ERROR(mlog::ec, "...", DVARhex(ctx->r8), DVARhex(ctx->r9), DVARhex(ctx->r10),
          DVARhex(ctx->r11), DVARhex(ctx->r12), DVARhex(ctx->r13),
          DVARhex(ctx->r14), DVARhex(ctx->r15));
     setFlag(IS_TRAPPED); // mark as not executable until the exception is handled
@@ -323,43 +323,43 @@ namespace mythos {
     auto& userctx = ctx->rsi;
     auto portal = ctx->rdx;
     auto kobj = ctx->r10;
-    mlog::syscall.detail("handleSyscall", DVAR(this));
-    mlog::syscall.detail(DVARhex(ctx->rip), DVARhex(ctx->rflags), DVARhex(ctx->rsp));
-    mlog::syscall.detail(DVARhex(ctx->rdi), DVARhex(ctx->rsi), DVARhex(ctx->rdx),
+    MLOG_DETAIL(mlog::syscall, "handleSyscall", DVAR(this));
+    MLOG_DETAIL(mlog::syscall, DVARhex(ctx->rip), DVARhex(ctx->rflags), DVARhex(ctx->rsp));
+    MLOG_DETAIL(mlog::syscall, DVARhex(ctx->rdi), DVARhex(ctx->rsi), DVARhex(ctx->rdx),
                      DVARhex(ctx->r10), DVARhex(ctx->r8), DVARhex(ctx->r9));
 
     switch(SyscallCode(code)) {
 
       case SYSCALL_EXIT:
-        mlog::syscall.info("exit");
+        MLOG_INFO(mlog::syscall, "exit");
         setFlag(IS_EXITED);
         break;
 
       case SYSCALL_POLL:
-        mlog::syscall.info("poll");
+        MLOG_INFO(mlog::syscall, "poll");
         setFlag(IN_WAIT);
         break;
 
       case SYSCALL_WAIT:
-        mlog::syscall.info("wait");
+        MLOG_INFO(mlog::syscall, "wait");
         setFlag(IN_WAIT | IS_WAITING);
         if (!notificationQueue.empty()) clearFlag(IS_WAITING); // because of race with notifier
         break;
 
       case SYSCALL_INVOKE:
-        mlog::syscall.info("invoke", DVAR(portal), DVAR(kobj), DVARhex(userctx));
+        MLOG_INFO(mlog::syscall, "invoke", DVAR(portal), DVAR(kobj), DVARhex(userctx));
         code = uint64_t(syscallInvoke(CapPtr(portal), CapPtr(kobj), userctx).state());
         break;
 
       case SYSCALL_INVOKE_POLL:
-        mlog::syscall.info("invoke_poll", DVAR(portal), DVAR(kobj), DVARhex(userctx));
+        MLOG_INFO(mlog::syscall, "invoke_poll", DVAR(portal), DVAR(kobj), DVARhex(userctx));
         code = uint64_t(syscallInvoke(CapPtr(portal), CapPtr(kobj), userctx).state());
         if (Error(code) != Error::SUCCESS) break;
         setFlag(IN_WAIT);
         break;
 
       case SYSCALL_INVOKE_WAIT:
-        mlog::syscall.info("invoke_wait", DVAR(portal), DVAR(kobj), DVARhex(userctx));
+        MLOG_INFO(mlog::syscall, "invoke_wait", DVAR(portal), DVAR(kobj), DVARhex(userctx));
         code = uint64_t(syscallInvoke(CapPtr(portal), CapPtr(kobj), userctx).state());
         if (Error(code) != Error::SUCCESS) break;
         setFlag(IN_WAIT | IS_WAITING);
@@ -367,7 +367,7 @@ namespace mythos {
         break;
 
       case SYSCALL_DEBUG: {
-        mlog::syscall.info("debug", DVARhex(userctx), DVAR(portal));
+        MLOG_INFO(mlog::syscall, "debug", DVARhex(userctx), DVAR(portal));
         mlog::Logger<mlog::FilterAny> user("user");
         user.error(mlog::DebugString((char const*)userctx, portal));
         code = uint64_t(Error::SUCCESS);
@@ -376,7 +376,7 @@ namespace mythos {
 
       default: break;
     }
-    mlog::syscall.detail(DVARhex(userctx), DVAR(code));
+    MLOG_DETAIL(mlog::syscall, DVARhex(userctx), DVAR(code));
   }
 
   optional<void> ExecutionContext::syscallInvoke(CapPtr portal, CapPtr dest, uint64_t user)
@@ -391,7 +391,7 @@ namespace mythos {
   void ExecutionContext::resume() {
     if (!isReady()) return;
     if (clearFlag(IN_WAIT) & IN_WAIT) {
-      mlog::ec.detail("try to resume from wait state");
+      MLOG_DETAIL(mlog::ec, "try to resume from wait state");
       auto e = notificationQueue.pull();
       if (e) {
         auto ev = e->get()->deliver();
@@ -401,7 +401,7 @@ namespace mythos {
         threadState.rsi = 0;
         threadState.rdi = uint64_t(Error::NO_NOTIFICATION);
       }
-      mlog::syscall.detail(DVARhex(threadState.rsi), DVAR(threadState.rdi));
+      MLOG_DETAIL(mlog::syscall, DVARhex(threadState.rsi), DVAR(threadState.rdi));
     }
 
     // remove myself from the last place's current_ec if still there
@@ -421,7 +421,7 @@ namespace mythos {
       lastPlace = thisPlace;
       thisPlace->store(this);
       auto info = as->getPageMapInfo(as.cap());
-      mlog::ec.info("load addrspace", DVAR(this), DVARhex(info.table.physint()));
+      MLOG_INFO(mlog::ec, "load addrspace", DVAR(this), DVARhex(info.table.physint()));
       getLocalPlace().setCR3(info.table);
       /// @todo restore FPU and vector state
     }

@@ -38,19 +38,19 @@ namespace mythos {
   {
   public:
     void process(cpu::KernelIRQFrame* ctx) {
-      mlog::boot.error("kernel fault", DVAR(ctx->irq), DVAR(ctx->error),
+      MLOG_ERROR(mlog::boot, "kernel fault", DVAR(ctx->irq), DVAR(ctx->error),
 		       DVARhex(x86::getCR2()));
-      mlog::boot.error("...", DVARhex(ctx->rip), DVAR(ctx->cs), DVARhex(ctx->rflags),
+      MLOG_ERROR(mlog::boot, "...", DVARhex(ctx->rip), DVAR(ctx->cs), DVARhex(ctx->rflags),
 		       DVARhex(ctx->rsp), DVAR(ctx->ss));
-      mlog::boot.error("...", DVARhex(ctx->rax), DVARhex(ctx->rbx), DVARhex(ctx->rcx),
+      MLOG_ERROR(mlog::boot, "...", DVARhex(ctx->rax), DVARhex(ctx->rbx), DVARhex(ctx->rcx),
 		       DVARhex(ctx->rdx), DVARhex(ctx->rbp), DVARhex(ctx->rdi),
 		       DVARhex(ctx->rsi));
-      mlog::boot.error("...", DVARhex(ctx->r8), DVARhex(ctx->r9), DVARhex(ctx->r10),
+      MLOG_ERROR(mlog::boot, "...", DVARhex(ctx->r8), DVARhex(ctx->r9), DVARhex(ctx->r10),
 		       DVARhex(ctx->r11), DVARhex(ctx->r12), DVARhex(ctx->r13),
 		       DVARhex(ctx->r14), DVARhex(ctx->r15));
-      mlog::boot.error("stacktrace:");
+      MLOG_ERROR(mlog::boot, "stacktrace:");
       for (auto& frame : StackTrace(ctx->rbp)) {
-	mlog::boot.error('\t', frame.ret);
+	MLOG_ERROR(mlog::boot, '\t', frame.ret);
       }
       // TODO information from interesting kernel data structures
       mythos::sleep_infinitely();
@@ -62,7 +62,7 @@ namespace mythos {
   {
   public:
     void process(cpu::KernelIRQFrame* ctx) {
-      mlog::boot.info("kernel irq", DVAR(ctx->irq), DVAR(ctx->error),
+      MLOG_INFO(mlog::boot, "kernel irq", DVAR(ctx->irq), DVAR(ctx->error),
 		      DVARhex(ctx->rip), DVARhex(ctx->rsp));
     }
   };

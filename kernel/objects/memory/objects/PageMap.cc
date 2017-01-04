@@ -77,9 +77,9 @@ namespace mythos {
 
   void PageMap::print() const
   {
-    mlog::cap.error("page map level", level(), &_pm_table(0));
-    for (size_t i = 0; i < num_caps(); ++i) mlog::cap.info(i, _pm_table(i), _cap_table(i));
-    for (size_t i = num_caps(); i < TABLE_SIZE; ++i) mlog::cap.info(i, _pm_table(i));
+    MLOG_ERROR(mlog::cap, "page map level", level(), &_pm_table(0));
+    for (size_t i = 0; i < num_caps(); ++i) MLOG_INFO(mlog::cap, i, _pm_table(i), _cap_table(i));
+    for (size_t i = num_caps(); i < TABLE_SIZE; ++i) MLOG_INFO(mlog::cap, i, _pm_table(i));
   }
 
   optional<void> PageMap::deleteCap(Cap self, IDeleter& del)
@@ -119,13 +119,13 @@ namespace mythos {
 
   optional<void> PageMap::mapTable(CapEntry* tableEntry, MapFlags req, size_t index)
   {
-    mlog::cap.info("mapTable", DVAR(level()), DVAR(tableEntry), DVAR(index));
+    MLOG_INFO(mlog::cap, "mapTable", DVAR(level()), DVAR(tableEntry), DVAR(index));
     ASSERT(index < num_caps());
     TypedCap<IPageMap> table(tableEntry);
     if (!table) return table.state();
     auto info = table->getPageMapInfo(table.cap());
     if (level() != info.level+1) return Error::INVALID_CAPABILITY;
-    mlog::cap.detail("mapTable checks done", DVAR(level()), DVAR(table.cap()), DVAR(index));
+    MLOG_DETAIL(mlog::cap, "mapTable checks done", DVAR(level()), DVAR(table.cap()), DVAR(index));
 
     auto pme = &_pm_table(index);
     auto entry = PageTableEntry().present(true).userMode(true).writeable(req.writable)
@@ -163,7 +163,7 @@ namespace mythos {
 
   optional<void> PageMap::mapFrame(size_t index, IPageMap::FrameOp const& op, size_t offset)
   {
-    mlog::cap.info("mapFrame", DVAR(level()), DVAR(op.frame.cap()), DVAR(index), DVAR(offset),
+    MLOG_INFO(mlog::cap, "mapFrame", DVAR(level()), DVAR(op.frame.cap()), DVAR(index), DVAR(offset),
                   DVARhex(op.frameInfo.start.physint()), DVARhex(op.frameInfo.size));
     ASSERT(op.frame);
     ASSERT(index < num_caps());
@@ -171,7 +171,7 @@ namespace mythos {
     uintptr_t frameaddr = op.frameInfo.start.physint() + offset;
     if (frameaddr % pageSize() != 0) return Error::PAGEMAP_MISSING;
     if (offset + pageSize() > op.frameInfo.size) return Error::INSUFFICIENT_RESOURCES;
-    mlog::cap.detail("mapFrame checks done");
+    MLOG_DETAIL(mlog::cap, "mapFrame checks done");
 
     // build entry: page flag only valid on PML2 and higher
     /// @todo what about W^X ?
@@ -200,7 +200,7 @@ namespace mythos {
 
   optional<void> PageMap::unmapEntry(size_t index)
   {
-    mlog::cap.info("unmapEntry", DVAR(level()), DVAR(index));
+    MLOG_INFO(mlog::cap, "unmapEntry", DVAR(level()), DVAR(index));
     ASSERT(index < num_caps());
     auto pme = &_pm_table(index);
     cap::resetReference([=]{ pme->reset(); }, _cap_table(index)); // ignore lost races
@@ -209,7 +209,7 @@ namespace mythos {
 
   optional<void> PageMap::MprotectOp::applyFrame(PageTableEntry* table, size_t index)
   {
-    mlog::cap.info("mprotect", DVAR(index), DVARhex(flags.value));
+    MLOG_INFO(mlog::cap, "mprotect", DVAR(index), DVARhex(flags.value));
     PageTableEntry pme = table[index]; // copy the entry for later compare_exchange!
     ASSERT(pme.page); // otherwise we should not have ended up here
     auto entry = pme.writeable(flags.writable && pme.configurable)

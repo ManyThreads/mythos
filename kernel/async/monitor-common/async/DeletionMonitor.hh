@@ -43,7 +43,7 @@ public:
   void releaseRef() {
     auto result = refcount.fetch_sub(1);
     if (result == 0 && deleteTask != nullptr) {
-      mlog::async.detail(this, "schedule delete task");
+      MLOG_DETAIL(mlog::async, this, "schedule delete task");
       getLocalPlace().pushShared(deleteTask);
     }
   }
@@ -53,7 +53,7 @@ public:
     refcount++;
     deleteTask = msg->set(fun);
     if (--refcount == 0) {
-      mlog::async.detail(this, "schedule delete task immediately");
+      MLOG_DETAIL(mlog::async, this, "schedule delete task immediately");
       getLocalPlace().pushShared(deleteTask);
     }
   }
