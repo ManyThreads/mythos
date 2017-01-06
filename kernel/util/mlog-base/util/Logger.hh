@@ -34,14 +34,22 @@ namespace mlog {
 
   extern ISink* sink;
 
+#define STRINGIFY(x) #x
+#define TOSTRING(x) STRINGIFY(x)
+#define PATH "[" __FILE__ ":" TOSTRING(__LINE__) "]"
+
 #define MLOG_DETAIL(logger, ...) \
-  if ((logger).isActive(mlog::TextDetail::VERBOSITY)) logger.write<mlog::TextDetail>(__VA_ARGS__);
+  if ((logger).isActive(mlog::TextDetail::VERBOSITY)) logger.write<mlog::TextDetail>( \
+          PATH, __VA_ARGS__);
 #define MLOG_INFO(logger, ...) \
-  if ((logger).isActive(mlog::TextInfo::VERBOSITY)) logger.write<mlog::TextInfo>(__VA_ARGS__);
+  if ((logger).isActive(mlog::TextInfo::VERBOSITY)) logger.write<mlog::TextInfo>( \
+         PATH, __VA_ARGS__);
 #define MLOG_WARN(logger, ...) \
-  if ((logger).isActive(mlog::TextWarn::VERBOSITY)) logger.write<mlog::TextWarn>(__VA_ARGS__);
+  if ((logger).isActive(mlog::TextWarn::VERBOSITY)) logger.write<mlog::TextWarn>( \
+          PATH, __VA_ARGS__);
 #define MLOG_ERROR(logger, ...) \
-  if ((logger).isActive(mlog::TextError::VERBOSITY)) logger.write<mlog::TextError>(__VA_ARGS__);
+  if ((logger).isActive(mlog::TextError::VERBOSITY)) logger.write<mlog::TextError>( \
+          PATH, __VA_ARGS__);
   
   template<class Filter=FilterAny>
   class Logger
