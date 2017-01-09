@@ -106,6 +106,7 @@ following, these user space representations and their interfaces are presented.
 
 \subsection{CapMap}
 
+
 \subsection{DebugSink}
 This class represents a small wrapper for the debug system call and can be used
 to ouput debug information (or any other text) to the text console and thereby
@@ -154,12 +155,51 @@ portal \texttt{pr}, the allocation pool \texttt{kmem} and the factory for
 for the newly allocated frame are passed as arguments in the parameters
 \texttt{size} and \texttt{alignment}.
 
-The \texttt{PortalFutureRef<protocol::Frame::Info> info(PortalRef pr)} mehthod
+The \texttt{PortalFutureRef<protocol::Frame::Info> info(PortalRef pr)} method
 returns various information about a given memory frame, like its size and
 alignment accompanied by permissions, that are set to this memory frame, like
 its exacutable and writable flags.
 
 \subsection{PageMap}
+Objects of the class \texttt{PageMap} represent a single table in the
+hierarchical page table structure of the application. On creation, each page map
+and their contents are bound to a specific level in the page table hierarchy.
+The entries of a page map point to either a memory frame of the same level or a
+page map of the next lower level.
+\texttt{PageMap} objects can be created using the method
+\texttt{PortalFutureRef<void> create(PortalRef pr, UntypedMemory kmem, CapPtr
+factory, size\_t level)}. Besides the local portal \texttt{pr}, the memory area
+used for allocation \texttt{kmem} and the page map factory \texttt{factory}, the
+level of the page map has to be specified.
+
+After creation (and potentially configuration) a page map can be put into action
+by calling the method \texttt{PortalFutureRef<protocol::PageMap::Result>
+installMap(PortalRef pr, PageMap pagemap, uintptr\_t vaddr, size\_t level,
+MapFlags flags)}. Thereby, the page map is mapped into the higher level table
+\texttt{pagemap}, which then contains mappings for the virtual addresses in the
+range of \texttt{vaddr} at the given level of page tables. Additionally, flags
+can be set on the page map, e.g. write permissions or caching behaviour. A page
+map can be removed from the page table hierarchy using the method
+\texttt{PortalFutureRef<protocol::PageMap::Result> removeMap(PortalRef pr,
+uintptr\_t vaddr, size\_t level)}.
+
+Using the method \texttt{PortalFutureRef<protocol::PageMap::Result>
+mmap(PortalRef pr, Frame frame, uintptr\_t vaddr, size\_t size, MapFlags flags)},
+a given memory frame can be mapped to the virtual user space address
+\texttt{vaddr}. Again, flags can be specified to customize the mapping process.
+The reverse operation is available via the method
+\texttt{PortalFutureRef<protocol::PageMap::Result> munmap(PortalRef pr,
+uintptr\_t vaddr, size\_t size)}, which removes the frame from the page map.
+Existing mappings can be remapped from \texttt{sourceAddr} to \texttt{destAddr}
+by calling the method \texttt{PortalFutureRef<protocol::PageMap::Result>
+remap(PortalRef pr, uintptr\_t sourceAddr, uintptr\_t destAddr, size\_t size)}.
+Flags, that were previously set for a page map or a frame can be altered to a
+new set of flags by using the method
+\texttt{PortalFutureRef<protocol::PageMap::Result> mprotect(PortalRef pr,
+uintptr\_t vaddr, size\_t size, MapFlags flags)}.
+The semantics of these method calls are comparable to the linux system calls
+\texttt{mmap}, \texttt{munmap}, \texttt{mremap} and \texttt{mprotect}.
+
 
 \subsection{Tasklet}
 Tasklets are used for two purposes in \mythos. They represent the smallest unit
@@ -197,16 +237,6 @@ known for these functions from the C/C++ string library. Currently, the set of
 functions comprises of \texttt{memcpy} to copy memory ranges, \texttt{memset} to
 initialize memory regions, \texttt{strlen} to determine the length of a string
 and \texttt{strcmp} to check two strings for the lexical order and equality.
-
-
-
-
-
-
-
-\section{Example Application}
-* Beispiel und Hinweise für eine minimale Supervisor-Anwendung
-* Beispiel-Anwendung
 
 % ------------------------------------------------------------------------------
 % \bibliographystyle{alpha}
