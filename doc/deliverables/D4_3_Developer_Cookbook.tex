@@ -14,8 +14,12 @@
 \selectlanguage{ngerman}
 \maketitle
 
-\begin{abstract}
-Dieses Deliverable richtet sich an externe Anwender und dokumentiert die Tools als auch die Grundzüge des Programmiermodells anhand von Beispielen (Kochrezepten€œ).
+\begin{abstract} 
+
+Dieses Deliverable richtet sich an externe Anwender und
+dokumentiert die Tools als auch die Grundz\"uge des Programmiermodells anhand von
+Beispielen (Kochrezepten).  
+
 \end{abstract}
 
 \newpage
@@ -107,7 +111,14 @@ following, these user space representations and their interfaces are presented.
 \subsection{CapMap}
 A capability map object is used to manage the application's capability space by creating, moving, deleting or revoking capability pointers, which are references to kernel objects that can be accessed and utilised by the application.
 
-A new capability map object can be instantiated by calling \texttt{PortalFutureRef<void> create(PortalRef pr, UntypedMemory kmem, CapPtr factory, CapPtrDepth indexbits, CapPtrDepth guardbits, CapPtr guard)}. This method creates a new capability map via the portal \texttt{pr} in the memory area \texttt{kmem} using the factory referenced by \texttt{factory}. Additionally, indexbits and guardbits can be set, which are further detailed in Deliverable D2.2.
+A new capability map object can be instantiated by calling: \\
+\textbf{\texttt{PortalFutureRef<void> create(PortalRef pr, UntypedMemory kmem, CapPtr
+factory, CapPtrDepth indexbits, CapPtrDepth guardbits, CapPtr guard)}}. 
+
+This method creates a new capability map via the portal \texttt{pr} in the memory
+area \texttt{kmem} using the factory referenced by \texttt{factory}.
+Additionally, indexbits and guardbits can be set, which are further detailed in
+Deliverable D2.2.
 
 An existing capability map can be utilised to manipulate the capability entries, which it contains. New capabilities can be created using the methods \texttt{PortalFutureRef<void> derive(PortalRef pr, CapPtr src, CapPtrDepth srcDepth, CapPtr dstCs, CapPtr dst, CapPtrDepth dstDepth, CapRequest req)} and \texttt{reference}, which implements the same method signature.  The methods create new capabilities, that are children of or references to an existing capability \texttt{src} in the called capability space. The newly created capabilities are then inserted into the capability space \texttt{dstCs} at the location \texttt{dst}. Additionally, desired capability flags can be passed in the parameter \texttt{req}. 
 
@@ -216,6 +227,7 @@ control system. A tasklet encapsulates a single functor, that can be set and
 retrieved. For this purpose the \texttt{Tasklet} class exposes two
 self-explanatory methods:
 
+\lstset{language=c++}
 \begin{lstlisting}
 template<class FUNCTOR>
 void set(FUNCTOR const&& fun);
@@ -247,16 +259,69 @@ initialise memory regions, \texttt{strlen} to determine the length of a string
 and \texttt{strcmp} to check two strings for the lexical order and equality.
 
 \section{Moving a function from user space to kernel space}
-When developing an application, the developer at some point may decide to move parts of the functionality of the application to the kernel space to improve the application's performance. In this section we describe, how to extend an existing kernel object with an additional function, that then can be called from the user space application. The process of initially developing a kernel object including all required methods is laid out in deliverable D3.3.
 
-For convenience, each kernel object that is invocable from user space should feature a runtime representation, which serves as a wrapper. These runtime representations are located in the folder \texttt{runtime/kobject/runtime} and encapsulate the calls to the portal of the current Execution Context. Here, a runtime method has to be defined, that calls the \texttt{tryInvoke} method on a portal and may pass additional arguments to that method.
+When developing an application, the developer at some point may decide to move
+parts of its functionality to the kernel space to improve the application's
+performance. In this section we describe, how to extend an existing kernel
+object with an additional function, that then can be called from the user space
+application. The process of initially developing a kernel object including all
+required methods is laid out in deliverable D3.3.
 
-For data exchange between user space and kernel space, invocation buffers are used, that can be arbitrarily used by applications. Their contents are described by protocols, that are stored in \texttt{kernel/mythos/invocation/mythos/protocol}. The corresponding class in this folder contains a list of available methods, that has to be extended with the new one. Additionally, the format of the invocation buffer has to be specified here, inside a method-specific struct which includes a constructor that receives all arguments, that were previously passed to the runtime object. Furthermore, the method \texttt{dispatchMethod} has to be adapted to call the correct method of the kernel object when receiving a message. This method of the kernel object then carries out the actual work that the developer wanted to move into the kernel.
+For convenience, each kernel object that is invocable from user space should
+feature a runtime representation, which serves as a wrapper.  For our Example
+object the according runtime representation is listed in
+Listing~\ref{lst:obj-runtime}. Runtime representations of kernel objects are
+typically located in the folder \texttt{runtime/kobject/runtime} and
+encapsulate the calls to the portal of the current Execution Context (e.g. see
+Listing~\ref{lst:obj-runtime}, Line~13). Here, a runtime method has to be
+defined, that calls the \texttt{tryInvoke} method on a portal and may pass
+additional arguments to that method.
 
-The actual kernel object's implementation is stored in \texttt{objects/<objectName>/\\objects}. Here, the method called by the protocol's dispatcher has to be implemented. This method is responsible for extracting the required information from the invocation buffer and processing it. Data can be returned to the application through the invocation buffer.
+\lstset{language=c++,caption=Object's Runtime Representation,label=lst:obj-runtime}
+\begin{lstlisting}
+#include "runtime/PortalBase.hh"
+#include "mythos/protocol/Example.hh"
+#include "runtime/UntypedMemory.hh"
 
+namespace mythos {
 
+  class Example : public KObject
+  {
+  public:
+    Example(CapPtr cap) : KObject(cap) {}
 
+    PortalFutureRef<void> create(PortalRef pr, UntypedMemory kmem, CapPtr factory) {
+      return pr.tryInvoke<protocol::Example::Create>(kmem.cap(), _cap, factory);
+    }
+
+    PortalFutureRef<void> printMessage(PortalRef pr, char const* str, size_t bytes) {
+      return pr.tryInvoke<protocol::Example::PrintMessage>(_cap, str, bytes);
+    }
+  };
+
+} // namespace mythos
+\end{lstlisting}
+
+For data exchange between user space and kernel space, invocation buffers are
+used, that can be arbitrarily used by applications. Their contents are
+described by protocols, that are stored in
+\texttt{kernel/mythos/invocation/mythos/protocol}. The corresponding class in
+this folder contains a list of available methods, that has to be extended with
+the new one\footnote{as an example, consider
+\texttt{kernel/mythos/invocation/mythos/protocol/Example.hh}}. Additionally,
+the format of the invocation buffer has to be specified here, inside a
+method-specific struct which includes a constructor that receives all
+arguments, that were previously passed to the runtime object.  Furthermore, the
+method \texttt{dispatchMethod} has to be adapted to call the correct method of
+the kernel object when receiving a message. This method of the kernel object
+then carries out the actual work that the developer wanted to move into the
+kernel.
+
+The actual kernel object's implementation is stored in
+\texttt{objects/<objectName>/\\objects}. Here, the method called by the
+protocol's dispatcher has to be implemented. This method is responsible for
+extracting the required information from the invocation buffer and processing
+it. Data can be returned to the application through the invocation buffer.
 
 % ------------------------------------------------------------------------------
 % \bibliographystyle{alpha}
