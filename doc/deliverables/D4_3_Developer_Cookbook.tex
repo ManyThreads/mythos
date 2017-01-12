@@ -15,7 +15,7 @@
 \maketitle
 
 \begin{abstract}
-Dieses Deliverable richtet sich an externe Anwender und dokumentiert die Tools als auch die GrundzÃ¼ge des Programmiermodells anhand von Beispielen (â€žKochrezeptenâ€œ).
+Dieses Deliverable richtet sich an externe Anwender und dokumentiert die Tools als auch die Grundzüge des Programmiermodells anhand von Beispielen (Kochrezepten€œ).
 \end{abstract}
 
 \newpage
@@ -43,7 +43,7 @@ including a description of their semantics.
 call is used to output debug messages to the text console. In the current
 implementation, the output is redirected to a static memory buffer, from where
 it is then output to the user's terminal by an helper application running on the
-\mythos host. The parameter \texttt{start} points to the buffer contaitning the
+\mythos host. The parameter \texttt{start} points to the buffer containing the
 text to be output, \texttt{length} determines the length of the string. After
 the output is written into the buffer, the syscall returns to the application.
 The actual output to the user's terminal is then executed asynchronously on the
@@ -52,8 +52,8 @@ host computer.
 the currently running application. When issuing this system call, the currently
 running \texttt{ExecutionContext} exits itself and yields control to the kernel.
 The parameter \texttt{rescode} follows the usual semantics of a result code,
-where the value $0$ indicates succesful execution of the application or thread,
-while all other result codes indicate unsuccesful execution, with a semantic,
+where the value $0$ indicates successful execution of the application or thread,
+while all other result codes indicate unsuccessful execution, with a semantic,
 that is up to the application.
 \item[KEvent syscall\_invoke(CapPtr portal, CapPtr object, void* userctx):] All
 functionality in the kernel of \mythos is encapsulated into kernel objects.
@@ -72,9 +72,9 @@ invocation.
 received a response to a previously issued system call or an invocation by a
 remote portal. If a notification was received, this is indicated in
 \texttt{state}-member of the returned \texttt{KEvent}-object. The reference,
-that was passed to the corresponsding invoke system call (either locally or
+that was passed to the corresponding invoke system call (either locally or
 remotely via a portal) is made available to the application in the
-\texttt{user}-member of the returned object. This system call returnes
+\texttt{user}-member of the returned object. This system call returns
 immediately, even if there was no notification pending.
 \item[KEvent syscall\_wait():] This system call follows the same semantics as
 the \texttt{syscall\_poll} system call, but blocks until a notification was
@@ -95,21 +95,29 @@ user space to kernel space and back.
 in terms of runtime environment are limited, compared to general purpose
 operating systems like Linux. The main point of interaction with the operating
 system is the use of portals, which represent the communication endpoint between
-the application and \mythos. The interaction between the applciation and the
+the application and \mythos. The interaction between the application and the
 portals is detailed in the previous section of this document.
 
-For the ineraction of applications with other kernel objects, some user space
+For the interaction of applications with other kernel objects, some user space
 representations are provided to application developers, that encapsulate the
 communication with the respective kernel object and therefore provide the
-developer with a more specialized interface than generic portals. In the
+developer with a more specialised interface than generic portals. In the
 following, these user space representations and their interfaces are presented.
 
 \subsection{CapMap}
+A capability map object is used to manage the application's capability space by creating, moving, deleting or revoking capability pointers, which are references to kernel objects that can be accessed and utilised by the application.
 
+A new capability map object can be instantiated by calling \texttt{PortalFutureRef<void> create(PortalRef pr, UntypedMemory kmem, CapPtr factory, CapPtrDepth indexbits, CapPtrDepth guardbits, CapPtr guard)}. This method creates a new capability map via the portal \texttt{pr} in the memory area \texttt{kmem} using the factory referenced by \texttt{factory}. Additionally, indexbits and guardbits can be set, which are further detailed in Deliverable D2.2.
+
+An existing capability map can be utilised to manipulate the capability entries, which it contains. New capabilities can be created using the methods \texttt{PortalFutureRef<void> derive(PortalRef pr, CapPtr src, CapPtrDepth srcDepth, CapPtr dstCs, CapPtr dst, CapPtrDepth dstDepth, CapRequest req)} and \texttt{reference}, which implements the same method signature.  The methods create new capabilities, that are children of or references to an existing capability \texttt{src} in the called capability space. The newly created capabilities are then inserted into the capability space \texttt{dstCs} at the location \texttt{dst}. Additionally, desired capability flags can be passed in the parameter \texttt{req}. 
+
+The method \texttt{ PortalFutureRef<void> move(PortalRef pr, CapPtr src, \\CapPtrDepth srcDepth, CapPtr dstCs, CapPtr dst, CapPtrDepth dstDepth)} can be used to move a capability \texttt{src} from the called capability space to another capability space \texttt{dstCs} at location \texttt{dst}. Thereby, capabilities can be separated into multiple capability spaces to pass them to individual applications or application parts.
+
+To delete a capability from the capability map the method \texttt{PortalFutureRef<void> deleteCap(PortalRef pr, CapPtr src, CapPtrDepth srcDepth)} can be called, which deletes the capability \texttt{src} from the map. Furthermore, the method \texttt{PortalFutureRef<void> deleteCap(PortalRef pr, KObject src)} can be used to delete a given kernel object from the map, regardless of its assigned corresponding capability. For these two methods, respective \texttt{revokeCap} methods exist with the same signatures, that can be used to revoke individual capabilities.
 
 \subsection{DebugSink}
 This class represents a small wrapper for the debug system call and can be used
-to ouput debug information (or any other text) to the text console and thereby
+to output debug information (or any other text) to the text console and thereby
 make it available to users or developers. Its functionality is contained in the
 function \texttt{void write(char const* str, size\_t len)}, which takes a string
 and its length as input parameters and outputs this string to the console.
@@ -119,7 +127,7 @@ As detailed in the deliverable D2.2, Execution Context objects are used to
 represent the execution state of a single software thread. Therefore, they are a
 very important interaction point for application developers to control the
 degree of parallelism in their applications and to achieve actual concurrency
-witin \mythos. Their interface looks as follows:
+within \mythos. Their interface looks as follows:
 
 \texttt{PortalFutureRef<void> create(PortalRef pr, UntypedMemory kmem,
 CapPtr factory, PageMap as, CapMap cs, CapPtr sched, void* stack, StartFun
@@ -158,7 +166,7 @@ for the newly allocated frame are passed as arguments in the parameters
 The \texttt{PortalFutureRef<protocol::Frame::Info> info(PortalRef pr)} method
 returns various information about a given memory frame, like its size and
 alignment accompanied by permissions, that are set to this memory frame, like
-its exacutable and writable flags.
+its executable and writable flags.
 
 \subsection{PageMap}
 Objects of the class \texttt{PageMap} represent a single table in the
@@ -180,13 +188,13 @@ MapFlags flags)}. Thereby, the page map is mapped into the higher level table
 range of \texttt{vaddr} at the given level of page tables. Additionally, flags
 can be set on the page map, e.g. write permissions or caching behaviour. A page
 map can be removed from the page table hierarchy using the method
-\texttt{PortalFutureRef<protocol::PageMap::Result> removeMap(PortalRef pr,
+\texttt{PortalFutureRef<protocol::PageMap::Result> removeMap(PortalRef pr, \\
 uintptr\_t vaddr, size\_t level)}.
 
-Using the method \texttt{PortalFutureRef<protocol::PageMap::Result>
+Using the method \texttt{PortalFutureRef<protocol::PageMap::Result> \\
 mmap(PortalRef pr, Frame frame, uintptr\_t vaddr, size\_t size, MapFlags flags)},
 a given memory frame can be mapped to the virtual user space address
-\texttt{vaddr}. Again, flags can be specified to customize the mapping process.
+\texttt{vaddr}. Again, flags can be specified to customise the mapping process.
 The reverse operation is available via the method
 \texttt{PortalFutureRef<protocol::PageMap::Result> munmap(PortalRef pr,
 uintptr\_t vaddr, size\_t size)}, which removes the frame from the page map.
@@ -206,7 +214,7 @@ Tasklets are used for two purposes in \mythos. They represent the smallest unit
 of executed code and at the same time serve as a token in a token-based flow
 control system. A tasklet encapsulates a single functor, that can be set and
 retrieved. For this purpose the \texttt{Tasklet} class exposes two
-self-explainatory methods:
+self-explanatory methods:
 
 \begin{lstlisting}
 template<class FUNCTOR>
@@ -221,7 +229,7 @@ This object represents a memory pool, from which memory can be allocated to be
 either used by the application (Frames) or to be used to host kernel objects.
 The \texttt{UntypedMemory} objects only expose one function to the user space,
 which is defined as \texttt{PortalFutureRef<void> create(PortalRef pr,
-UntypedMemory kmem, CapPtr factory,size\_t size, size\_t alignment)}. This
+UntypedMemory kmem, CapPtr factory, size\_t size, size\_t alignment)}. This
 method is used to derive an \texttt{UntypedMemory} object from an
 \texttt{UntypedMemory} object, spliiting one of these objects into two. Thereby,
 a hierarchical memory structure is built up. For this purpose, it is passed a
@@ -232,11 +240,23 @@ and memory alignment.
 
 \subsection{Library Functions} In addition to the functions detailed above, that
 directly interact with the operating system via system calls, a small set of
-convenience functions was is implemented, that conform to the defualt interfaces
+convenience functions was is implemented, that conform to the default interfaces
 known for these functions from the C/C++ string library. Currently, the set of
 functions comprises of \texttt{memcpy} to copy memory ranges, \texttt{memset} to
-initialize memory regions, \texttt{strlen} to determine the length of a string
+initialise memory regions, \texttt{strlen} to determine the length of a string
 and \texttt{strcmp} to check two strings for the lexical order and equality.
+
+\section{Moving a function from user space to kernel space}
+When developing an application, the developer at some point may decide to move parts of the functionality of the application to the kernel space to improve the application's performance. In this section we describe, how to extend an existing kernel object with an additional function, that then can be called from the user space application. The process of initially developing a kernel object including all required methods is laid out in deliverable D3.3.
+
+For convenience, each kernel object that is invocable from user space should feature a runtime representation, which serves as a wrapper. These runtime representations are located in the folder \texttt{runtime/kobject/runtime} and encapsulate the calls to the portal of the current Execution Context. Here, a runtime method has to be defined, that calls the \texttt{tryInvoke} method on a portal and may pass additional arguments to that method.
+
+For data exchange between user space and kernel space, invocation buffers are used, that can be arbitrarily used by applications. Their contents are described by protocols, that are stored in \texttt{kernel/mythos/invocation/mythos/protocol}. The corresponding class in this folder contains a list of available methods, that has to be extended with the new one. Additionally, the format of the invocation buffer has to be specified here, inside a method-specific struct which includes a constructor that receives all arguments, that were previously passed to the runtime object. Furthermore, the method \texttt{dispatchMethod} has to be adapted to call the correct method of the kernel object when receiving a message. This method of the kernel object then carries out the actual work that the developer wanted to move into the kernel.
+
+The actual kernel object's implementation is stored in \texttt{objects/<objectName>/\\objects}. Here, the method called by the protocol's dispatcher has to be implemented. This method is responsible for extracting the required information from the invocation buffer and processing it. Data can be returned to the application through the invocation buffer.
+
+
+
 
 % ------------------------------------------------------------------------------
 % \bibliographystyle{alpha}
