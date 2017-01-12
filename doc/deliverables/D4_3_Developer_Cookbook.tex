@@ -307,10 +307,61 @@ used, that can be arbitrarily used by applications. Their contents are
 described by protocols, that are stored in
 \texttt{kernel/mythos/invocation/mythos/protocol}. The corresponding class in
 this folder contains a list of available methods, that has to be extended with
-the new one\footnote{as an example, consider
-\texttt{kernel/mythos/invocation/mythos/protocol/Example.hh}}. Additionally,
-the format of the invocation buffer has to be specified here, inside a
-method-specific struct which includes a constructor that receives all
+the new one. As an example, consider the protocol definition for our example object in
+\texttt{kernel/mythos/invocation/mythos/protocol/Example.hh}: 
+
+\lstset{language=c++,caption=Object's Protocol Definition,label=lst:obj-protocol}
+\begin{lstlisting}
+#include "mythos/protocol/common.hh"
+#include "mythos/protocol/UntypedMemory.hh"
+#include <cstring>
+
+namespace mythos {
+namespace protocol {
+
+struct Example {
+	constexpr static uint8_t proto = EXAMPLE;
+
+	enum Methods : uint8_t {
+		PRINT_MESSAGE,
+	};
+
+	struct PrintMessage : public InvocationBase {
+		typedef InvocationBase response_type;
+		constexpr static uint16_t label = (proto<<8) + PRINT_MESSAGE;
+		PrintMessage(char const* str, size_t bytes)
+		: InvocationBase(label,getLength(this))
+		{
+			if (bytes>InvocationBase::maxBytes) bytes = InvocationBase::maxBytes;
+			this->bytes = uint16_t(bytes);
+			this->tag.length = uint8_t((bytes+3)/4);
+			memcpy(message, str, bytes);
+		}
+		uint16_t bytes;
+		char message[InvocationBase::maxBytes-2];
+	};
+
+	struct Create : public UntypedMemory::CreateBase {
+		Create(CapPtr dst, CapPtr factory) : CreateBase(dst, factory) {}
+	};
+
+	template<class IMPL, class... ARGS>
+	static Error dispatchRequest(IMPL* obj, uint8_t m, ARGS const&...args) {
+		switch(Methods(m)) {
+		case PRINT_MESSAGE: return obj->printMessage(args...);
+		default: return Error::NOT_IMPLEMENTED;
+		}
+	}
+
+};
+
+} // namespace protocol
+} // namespace mythos
+\end{lstlisting}
+
+
+Additionally, the format of the invocation buffer has to be specified here,
+inside a method-specific struct which includes a constructor that receives all
 arguments, that were previously passed to the runtime object.  Furthermore, the
 method \texttt{dispatchMethod} has to be adapted to call the correct method of
 the kernel object when receiving a message. This method of the kernel object
