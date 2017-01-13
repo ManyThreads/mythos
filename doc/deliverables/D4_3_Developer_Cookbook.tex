@@ -907,7 +907,8 @@ required methods is laid out in the previous Section~\ref{sec:kernel-objects}.
 
 For convenience, each kernel object that is invocable from user space should
 feature a runtime representation, which serves as a wrapper.  For our Example
-object the according runtime representation is listed in
+object suppose that it is extended with a \texttt{printMessage()} method.  
+The according runtime representation is listed in
 Listing~\ref{lst:obj-runtime}. Runtime representations of kernel objects are
 typically located in the folder \texttt{kernel/runtime/kobject/runtime} and
 encapsulate the calls to the portal of the current Execution Context (e.g. see
@@ -941,12 +942,14 @@ namespace mythos {
 \end{lstlisting}
 
 For data exchange between user space and kernel space, invocation buffers are
-used, that can be arbitrarily used by applications. Their contents are
-described by protocols, that are stored in
-\texttt{kernel/mythos/invocation/mythos/protocol}. The corresponding class in
-this folder contains a list of available methods, that has to be extended with
-the new one. As an example, consider the protocol definition for our example object in
-\texttt{kernel/mythos/invocation/mythos/protocol/Example.hh}:
+used, that can be arbitrarily used by applications. Their contents are described
+by protocols, that are stored in
+\texttt{kernel/mythos/invocation/mythos/protocol}.
+Listing~\ref{lst:obj-protocol} shows the overall definition of the protocol for
+our example object. The corresponding class contains a list of available
+methods (\texttt{enum}), that has to be extended with the new one. This list is important
+for the method dispatching process in the object, i.e. \texttt{dispatchRequest()},
+which is explained later. 
 
 \lstset{language=c++,caption=Object's Protocol Definition,label=lst:obj-protocol}
 \begin{lstlisting}
@@ -997,21 +1000,108 @@ struct Example {
 } // namespace mythos
 \end{lstlisting}
 
-
 Additionally, the format of the invocation buffer has to be specified here,
 inside a method-specific struct which includes a constructor that receives all
 arguments, that were previously passed to the runtime object.  Furthermore, the
-method \texttt{dispatchMethod} has to be adapted to call the correct method of
-the kernel object when receiving a message. This method of the kernel object
-then carries out the actual work that the developer wanted to move into the
-kernel.
+method \texttt{dispatchRequest} has to be adapted to call the correct method
+\texttt{printMessage()} (line~37) of the kernel object when receiving a message.
+This method of the kernel object then carries out the actual work that the
+developer wanted to move into the kernel.
 
 The actual kernel object's implementation is stored in
-\\\texttt{kernel/objects/<objectName>/objects}. Here, the method called by the
-protocol's dispatcher has to be implemented. This method is responsible for
-extracting the required information from the invocation buffer and processing
-it. Data can be returned to the application through the invocation buffer.
+\\\texttt{kernel/objects/<objectName>/objects} as a respective class
+\texttt{ExampleObj} defined in \texttt{Example.hh} and \texttt{Example.cc}.
+Here, the method called by the protocol's dispatcher has to be implemented. This
+method is responsible for extracting the required information from the
+invocation buffer and processing it. Data can be returned to the application
+through the invocation buffer. Listing~\ref{lst:obj-decl} shows the declaration
+of the object class and, besides the typical object methods as previously
+explained in Section~\ref{sec:kernel-objects}, the extended method
+\texttt{printMessage()} in line~16. The respective implementation of the method
+is shown in Listing~\ref{lst:obj-impl}. \\
 
+\lstset{language=c++,caption=Kernel Object's Declaration,label=lst:obj-decl}
+\begin{lstlisting}
+class ExampleObj : public IKernelObject
+{
+public:
+  ExampleObj(IAsyncFree* mem) : _mem(mem) {}
+  ExampleObj(const ExampleObj&) = delete;
+
+  // default IKernelObject methods
+  optional<void const*> vcast(TypeId id) const override;
+  optional<void> deleteCap(Cap self, IDeleter& del) override;
+  void deleteObject(Tasklet* t, IResult<void>* r) override;
+  void invoke(Tasklet* t, Cap self, IInvocation* msg) override;
+
+protected:
+  ...
+  friend struct protocol::Example;
+  Error printMessage(Tasklet* t, Cap self, IInvocation* msg);
+
+protected:
+  IAsyncFree* _mem;
+  ...
+};
+
+class ExampleFactory : public FactoryBase
+{
+public:
+  static optional<ExampleObj*>
+  factory(CapEntry* dstEntry, CapEntry* memEntry, Cap memCap, IAllocator* mem);
+
+  Error factory(CapEntry* dstEntry, CapEntry* memEntry, Cap memCap,
+                IAllocator* mem, IInvocation*) const override {
+    return factory(dstEntry, memEntry, memCap, mem).state();
+  }
+};
+\end{lstlisting}
+
+
+\lstset{language=c++,caption=Kernel Object's Method
+Implementation,label=lst:obj-impl}
+\begin{lstlisting}
+Error ExampleObj::printMessage(Tasklet*, Cap self, IInvocation* msg)
+{
+  mlogex.info("invoke printMessage", DVAR(this), DVAR(self), DVAR(msg));
+  auto data = msg->getMessage()->cast<protocol::Example::PrintMessage>();
+  mlogex.error(mlog::DebugString(data->message, data->bytes));
+  return Error::SUCCESS;
+}
+\end{lstlisting}
+
+As a last point, note the \texttt{ExampleFactory} class in
+\\\texttt{kernel/objects/example/objects/Example.hh}, which provides a standard
+object factory for the creation process of that KO. That factory inherits a
+generic method \texttt{factory(\ldots)} (line~29), which is automatically
+invoked during the object creation process and redirects to a custom static factory method
+implementation (in line~27). There the developer has to implement the specific 
+object creation procedure by the factory. A standard implementation can be
+found in \texttt{kernel/objects/example/objects/Example.cc}:
+ 
+\lstset{language=c++}
+\begin{lstlisting}
+  optional<ExampleObj*>
+  ExampleFactory::factory(CapEntry* dstEntry, CapEntry* memEntry, Cap memCap,
+                         IAllocator* mem)
+  {
+    auto obj = mem->create<ExampleObj>();
+    if (!obj) return obj.state();
+    Cap cap(*obj);
+    auto res = cap::inherit(*memEntry, *dstEntry, memCap, cap);
+    if (!res) {
+      mem->free(*obj); // mem->release(obj) goes throug IKernelObject deletion mechanism
+      return res.state();
+    }
+    return *obj;
+  }
+\end{lstlisting}
+ 
+The standard factory implementation basically creates the object with the help
+of a special memory allocator (line~5) and registers the new object
+application's capability space (line~8). For more information please refer to
+the inline documentation in the source code.
+ 
 % ------------------------------------------------------------------------------
 % \bibliographystyle{alpha}
 % \bibliography{literature}
