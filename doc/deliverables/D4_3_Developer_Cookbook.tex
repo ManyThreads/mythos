@@ -29,7 +29,28 @@ als auch die Grundzuege des Programmiermodells anhand von Beispielen
 \selectlanguage{UKenglish}
 
 \section{Introduction}
+\mythos, as a reduced operating system, gives application developers the
+possibility to control its behavior and configuration at a fine-grained level.
+For this purpose, it can be configured to suit the needs of the application to a
+much higher degree, than traditional operating systems. However, in order to
+utilize this configurability, application developers need additional knowledge
+about \mythos in order to write performant applications. This document is
+intended to supply required knowledge to them and serve as both a starting point
+for development and a reference document. Therefore, this document contains both
+descriptions of \mythos' interfaces and examples how to use them.
 
+In Section \ref{sec:init-app}, an example application is presented, including
+hints for the development of different applications and information about the
+compilation process required for them to run on \mythos. Section
+\ref{sec:system-calls} describes the system call interface of \mythos, that may
+be used by applications. Since this interface is very reduced and generic,
+various user space objects are provided to conveniently interact with the kernel
+and the application's kernel objects. These are further described in section
+\ref{sec:runtime-objects}. Section \ref{sec:kernel-objects} serves as a
+guideline for the development of own kernel objects, that can be used to move
+functionality from the user space into the kernel. Finally, Section
+\ref{sec:objects-example} illustrates these development steps with a concrete
+example.
 
 \section{Creating and Compiling a User Application}
 \label{sec:init-app}
@@ -201,6 +222,7 @@ Intel\textcopyright~Xeon~Phi\texttrademark{}, all of MMX, SSE, SSE2, SSE3 and
 -mno-3dnow}).
 
 \section{Basic System Call Interface of \mythos}
+\label{sec:system-calls}
 
 Compared to general purpose operating systems, \mythos offers a relatively
 small set of system calls for the interaction of applications with the
@@ -275,7 +297,9 @@ order to poll and synchronize on results. These are abstractions of the basic
 \texttt{syscall\_\{poll,wait\}()} functions and the \texttt{PortalBase} type
 inherits the implementation provided in \texttt{FutureBase.hh}.
 
-\section{Interface of the \mythos Runtime Environment} Due to the focus of the
+\section{Interface of the \mythos Runtime Environment}
+\label{sec:runtime-objects}
+ Due to the focus of the
 \mythos project on developing an operating system, the support for applications
 in terms of runtime environment are limited, compared to general purpose
 operating systems like Linux. The main point of interaction with the operating
@@ -871,7 +895,7 @@ protected:
 };
 \end{lstlisting}
 
-\section{Example: extending a Kernel Object}
+\section{Example: Extending a Kernel Object}
 \label{sec:objects-example}
 
 When developing an application, the developer at some point may decide to move
