@@ -27,6 +27,10 @@ als auch die Grundzuege des Programmiermodells anhand von Beispielen
 % --- content ------------------------------------------------------------------
 
 \selectlanguage{UKenglish}
+
+\section{Introduction}
+
+
 \section{Creating and Compiling a User Application}
 \label{sec:init-app}
 
@@ -304,11 +308,32 @@ area \texttt{kmem} using the factory referenced by \texttt{factory}.
 Additionally, indexbits and guardbits can be set, which are further detailed in
 Deliverable D2.2.
 
-An existing capability map can be utilised to manipulate the capability entries, which it contains. New capabilities can be created using the methods \texttt{PortalFutureRef<void> derive(PortalRef pr, CapPtr src, CapPtrDepth srcDepth, CapPtr dstCs, CapPtr dst, CapPtrDepth dstDepth, CapRequest req)} and \texttt{reference}, which implements the same method signature.  The methods create new capabilities, that are children of or references to an existing capability \texttt{src} in the called capability space. The newly created capabilities are then inserted into the capability space \texttt{dstCs} at the location \texttt{dst}. Additionally, desired capability flags can be passed in the parameter \texttt{req}. 
+An existing capability map can be utilised to manipulate the capability entries,
+which it contains. New capabilities can be created using the methods
+\texttt{PortalFutureRef<void> derive(PortalRef pr, CapPtr src, CapPtrDepth
+srcDepth, CapPtr dstCs, CapPtr dst, CapPtrDepth dstDepth, CapRequest req)} and
+\texttt{reference}, which implements the same method signature.  The methods
+create new capabilities, that are children of or references to an existing
+capability \texttt{src} in the called capability space. The newly created
+capabilities are then inserted into the capability space \texttt{dstCs} at the
+location \texttt{dst}. Additionally, desired capability flags can be passed in
+the parameter \texttt{req}.
 
-The method \texttt{ PortalFutureRef<void> move(PortalRef pr, CapPtr src, \\CapPtrDepth srcDepth, CapPtr dstCs, CapPtr dst, CapPtrDepth dstDepth)} can be used to move a capability \texttt{src} from the called capability space to another capability space \texttt{dstCs} at location \texttt{dst}. Thereby, capabilities can be separated into multiple capability spaces to pass them to individual applications or application parts.
+The method \texttt{ PortalFutureRef<void> move(PortalRef pr, CapPtr src,
+\\CapPtrDepth srcDepth, CapPtr dstCs, CapPtr dst, CapPtrDepth dstDepth)} can be
+used to move a capability \texttt{src} from the called capability space to
+another capability space \texttt{dstCs} at location \texttt{dst}. Thereby,
+capabilities can be separated into multiple capability spaces to pass them to
+individual applications or application parts.
 
-To delete a capability from the capability map the method \texttt{PortalFutureRef<void> deleteCap(PortalRef pr, CapPtr src, CapPtrDepth srcDepth)} can be called, which deletes the capability \texttt{src} from the map. Furthermore, the method \texttt{PortalFutureRef<void> deleteCap(PortalRef pr, KObject src)} can be used to delete a given kernel object from the map, regardless of its assigned corresponding capability. For these two methods, respective \texttt{revokeCap} methods exist with the same signatures, that can be used to revoke individual capabilities.
+To delete a capability from the capability map the method
+\texttt{PortalFutureRef<void> deleteCap(PortalRef pr, CapPtr src, CapPtrDepth
+srcDepth)} can be called, which deletes the capability \texttt{src} from the
+map. Furthermore, the method \texttt{PortalFutureRef<void> deleteCap(PortalRef
+pr, KObject src)} can be used to delete a given kernel object from the map,
+regardless of its assigned corresponding capability. For these two methods,
+respective \texttt{revokeCap} methods exist with the same signatures, that can
+be used to revoke individual capabilities.
 
 \subsection{DebugSink}
 This class represents a small wrapper for the debug system call and can be used
