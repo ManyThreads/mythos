@@ -288,6 +288,12 @@ representations are provided to application developers, that encapsulate the
 communication with the respective kernel object and therefore provide the
 developer with a more specialised interface than generic portals. In the
 following, these user space representations and their interfaces are presented.
+For further reference, the user space representations are located in the folder
+\texttt{kernel/runtime/kobject/runtime}, the message formats used for communication
+with the respective kernel objects are specified in protocols, which are stored
+in \texttt{kernel/mythos/invocation/mythos/protocol} and the kernel space
+implementations of the kernel objects can be found in the folder
+\texttt{objects}. The filenames and folder names are identical to the headings and class names used in this chapter.
 
 \subsection{CapMap}
 
@@ -879,7 +885,7 @@ For convenience, each kernel object that is invocable from user space should
 feature a runtime representation, which serves as a wrapper.  For our Example
 object the according runtime representation is listed in
 Listing~\ref{lst:obj-runtime}. Runtime representations of kernel objects are
-typically located in the folder \texttt{runtime/kobject/runtime} and
+typically located in the folder \texttt{kernel/runtime/kobject/runtime} and
 encapsulate the calls to the portal of the current Execution Context (e.g. see
 Listing~\ref{lst:obj-runtime}, Line~13). Here, a runtime method has to be
 defined, that calls the \texttt{tryInvoke} method on a portal and may pass
@@ -977,7 +983,7 @@ then carries out the actual work that the developer wanted to move into the
 kernel.
 
 The actual kernel object's implementation is stored in
-\texttt{objects/<objectName>/\\objects}. Here, the method called by the
+\\\texttt{kernel/objects/<objectName>/objects}. Here, the method called by the
 protocol's dispatcher has to be implemented. This method is responsible for
 extracting the required information from the invocation buffer and processing
 it. Data can be returned to the application through the invocation buffer.
