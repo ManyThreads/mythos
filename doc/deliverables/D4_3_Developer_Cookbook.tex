@@ -14,7 +14,7 @@
 \selectlanguage{ngerman}
 \maketitle
 
-\begin{abstract} 
+\begin{abstract}
 
 Dieses Deliverable richtet sich an externe Anwender und dokumentiert die Tools
 als auch die Grundzuege des Programmiermodells anhand von Beispielen
@@ -62,7 +62,7 @@ int main() {
   auto res1 = example.create(portal, kmem, mythos::init::EXAMPLE_FACTORY);
   res1.wait();
   ASSERT(res1.state() == mythos::Error::SUCCESS);
-  ...   
+  ...
 }
 \end{lstlisting}
 
@@ -113,12 +113,12 @@ MyThOS also supports a variety of error codes which are defined in
 For more information on the peculiarities
 and the procedure of object creation and invocation from a user application
 please refer to Section~\ref{sec:objects}.
- 
+
 Finally the init app creates and activates two execution contexts \texttt{ec1}
 and \texttt{ec2} which (when later executed) simply print a short debug message
 (line~6) and then suspend (line~7). The following code excerpt shows the
 creation and activation procedure of one \texttt{ExecutionContext}:
- 
+
 \lstset{language=c++}
 \begin{lstlisting}
 mythos::PageMap myAS(mythos::init::PML4);  // Address Space
@@ -264,7 +264,7 @@ userctx):] These two system calls combine an invocation of a kernel object with
 the check for pending notifications. They follow the semantics of the individual
 system calls as described above and are available in a blocking (wait) and a
 non-blocking (poll) implementation. The combination of two system calls into a
-single one resembles the common send-recevice pattern and potentially can reduce
+single one resembles the common send-receive pattern and potentially can reduce
 the number of required system calls and therefore the number of switches from
 user space to kernel space and back.
 \end{description}
@@ -295,63 +295,81 @@ A capability map object is used to manage the application's capability space by
 creating, moving, deleting or revoking capability pointers. These are references
 to kernel objects that can be accessed and utilised by the application.
 
-\todo{check!}
 A new capability map object can be instantiated by calling:
 \lstset{language=c++,numbers=none}
 \begin{lstlisting}
-PortalFutureRef<void> create(PortalRef pr, UntypedMemory kmem, CapPtr factory,
-      CapPtrDepth indexbits, CapPtrDepth guardbits, CapPtr guard)
+PortalFutureRef<void> create(PortalRef pr, UntypedMemory kmem, CapPtr factory, CapPtrDepth indexbits, CapPtrDepth guardbits, CapPtr guard)
 \end{lstlisting}
 
-This method creates a new capability map via the portal \texttt{pr} in the memory
-area \texttt{kmem} using the factory referenced by \texttt{factory}.
+\noindent This method creates a new capability map via the portal \texttt{pr} in the
+memory area \texttt{kmem} using the factory referenced by \texttt{factory}.
 Additionally, indexbits and guardbits can be set, which are further detailed in
 Deliverable D2.2.
 
 An existing capability map can be utilised to manipulate the capability entries,
 which it contains. New capabilities can be created using the methods
-\texttt{PortalFutureRef<void> derive(PortalRef pr, CapPtr src, CapPtrDepth
-srcDepth, CapPtr dstCs, CapPtr dst, CapPtrDepth dstDepth, CapRequest req)} and
-\texttt{reference}, which implements the same method signature.  The methods
-create new capabilities, that are children of or references to an existing
-capability \texttt{src} in the called capability space. The newly created
-capabilities are then inserted into the capability space \texttt{dstCs} at the
-location \texttt{dst}. Additionally, desired capability flags can be passed in
-the parameter \texttt{req}.
+\lstset{language=c++,numbers=none}
+\begin{lstlisting}
+PortalFutureRef<void> derive(PortalRef pr, CapPtr src, CapPtrDepth srcDepth, CapPtr dstCs, CapPtr dst, CapPtrDepth dstDepth, CapRequest req)
+\end{lstlisting}
 
-The method \texttt{ PortalFutureRef<void> move(PortalRef pr, CapPtr src,
-\\CapPtrDepth srcDepth, CapPtr dstCs, CapPtr dst, CapPtrDepth dstDepth)} can be
+\noindent and \texttt{reference(\ldots)}, which implements the same method
+signature.  These methods create new capabilities, that are children of or
+references to an existing capability \texttt{src} in the called capability
+space. The newly created capabilities are then inserted into the capability
+space \texttt{dstCs} at the location \texttt{dst}. Additionally, desired
+capability flags can be specified in the parameter \texttt{req}.
+
+The method
+\lstset{language=c++,numbers=none}
+\begin{lstlisting}
+PortalFutureRef<void> move(PortalRef pr, CapPtr src, CapPtrDepth srcDepth, CapPtr dstCs, CapPtr dst, CapPtrDepth dstDepth)
+\end{lstlisting}
+\noindent can be
 used to move a capability \texttt{src} from the called capability space to
 another capability space \texttt{dstCs} at location \texttt{dst}. Thereby,
 capabilities can be separated into multiple capability spaces to pass them to
 individual applications or application parts.
 
 To delete a capability from the capability map the method
-\texttt{PortalFutureRef<void> deleteCap(PortalRef pr, CapPtr src, CapPtrDepth
-srcDepth)} can be called, which deletes the capability \texttt{src} from the
-map. Furthermore, the method \texttt{PortalFutureRef<void> deleteCap(PortalRef
-pr, KObject src)} can be used to delete a given kernel object from the map,
+\lstset{language=c++,numbers=none}
+\begin{lstlisting}
+PortalFutureRef<void> deleteCap(PortalRef pr, CapPtr src, CapPtrDepth srcDepth)
+\end{lstlisting}
+\noindent can be called, which deletes the capability \texttt{src} from the
+map. Furthermore, the method
+\lstset{language=c++,numbers=none}
+\begin{lstlisting}
+PortalFutureRef<void> deleteCap(PortalRef pr, KObject src)
+\end{lstlisting}
+\noindent can be used to delete a given kernel object from the map,
 regardless of its assigned corresponding capability. For these two methods,
-respective \texttt{revokeCap} methods exist with the same signatures, that can
+respective \texttt{revokeCap(\ldots)} methods exist with the same signatures, that can
 be used to revoke individual capabilities.
 
 \subsection{DebugSink}
 This class represents a small wrapper for the debug system call and can be used
 to output debug information (or any other text) to the text console and thereby
 make it available to users or developers. Its functionality is contained in the
-function \texttt{void write(char const* str, size\_t len)}, which takes a string
+function
+\lstset{language=c++,numbers=none}
+\begin{lstlisting}
+void write(char const* str, size_t len)
+\end{lstlisting}
+\noindent which takes a string
 and its length as input parameters and outputs this string to the console.
 
 \subsection{ExecutionContext}
-As detailed in the deliverable D2.2, Execution Context objects are used to
+As detailed in deliverable D2.2, Execution Context objects are used to
 represent the execution state of a single software thread. Therefore, they are a
 very important interaction point for application developers to control the
 degree of parallelism in their applications and to achieve actual concurrency
 within \mythos. Their interface looks as follows:
 
-\texttt{PortalFutureRef<void> create(PortalRef pr, UntypedMemory kmem,
-CapPtr factory, PageMap as, CapMap cs, CapPtr sched, void* stack, StartFun
-start, void* userctx):}
+\lstset{language=c++,numbers=none}
+\begin{lstlisting}
+PortalFutureRef<void> create(PortalRef pr, UntypedMemory kmem, CapPtr factory, PageMap as, CapMap cs, CapPtr sched, void* stack, StartFun start, void* userctx)
+\end{lstlisting}
 This function is used to create a new \texttt{ExecutionContext} kernel object.
 The parameter \texttt{pr} specifies the pointer to the portal that should be
 used for this operation. \texttt{kmem} specifies the kernel memory area, in
@@ -361,30 +379,41 @@ provided by the operating system beforehand. In the parameters \texttt{as} and
 \texttt{cs} the address space and the capability space of the application are
 passed. The parameter \texttt{sched} specifies the scheduling context, which is
 designated to execute the newly created EC, while its user space stack is placed
-at the virtual address specified by the parameter \texttt{stack}. Finally,
-\texttt{start} is a pointer to the initial function  executed by the EC in user
+at the virtual address specified by the parameter \texttt{stack}.
+\texttt{start} is a pointer to the initial function executed by the EC in user
 space and \texttt{userctx} can be used by the application developer to later
 identify individual ECs and is passed to the function specified by
 \texttt{start}.
 
-  \texttt{PortalFutureRef<void> configure(PortalRef pr, PageMap as, CapMap cs,
-  CapPtr sched):} This method is used to configure the EC, which is accessed via
-  the local portal \texttt{pr} to use the page map, capability map and
-  scheduling context, specified by \texttt{as}, \texttt{cs} or \texttt{sched}
-  respectively, in the future.
+\lstset{language=c++,numbers=none}
+\begin{lstlisting}
+PortalFutureRef<void> configure(PortalRef pr, PageMap as, CapMap cs, CapPtr sched)
+\end{lstlisting}
+This method is used to configure the EC, which is accessed via
+the local portal \texttt{pr} to use the page map, capability map and
+scheduling context, specified by \texttt{as}, \texttt{cs} or \texttt{sched}
+respectively, in the future.
 
 \subsection{Frame}
 A frame object represents a memory frame, that can be accessed by the
 application and is allocated from an \texttt{UntypedMemory} object via the
-method \texttt{PortalFutureRef<void> create(PortalRef pr, UntypedMemory kmem,
-CapPtr factory, size\_t size, size\_t alignment)}. Additionally to the local
+method
+\lstset{language=c++,numbers=none}
+\begin{lstlisting}
+PortalFutureRef<void> create(PortalRef pr, UntypedMemory kmem, CapPtr factory, size_t size, size_t alignment)
+\end{lstlisting}
+\noindent Additionally to the local
 portal \texttt{pr}, the allocation pool \texttt{kmem} and the factory for
 \texttt{Frame} objects \texttt{factory}, the size and the alignment requirements
 for the newly allocated frame are passed as arguments in the parameters
 \texttt{size} and \texttt{alignment}.
 
-The \texttt{PortalFutureRef<protocol::Frame::Info> info(PortalRef pr)} method
-returns various information about a given memory frame, like its size and
+The method
+\lstset{language=c++,numbers=none}
+\begin{lstlisting}
+PortalFutureRef<protocol::Frame::Info> info(PortalRef pr)
+\end{lstlisting}
+\noindent returns various information about a given memory frame, like its size and
 alignment accompanied by permissions, that are set to this memory frame, like
 its executable and writable flags.
 
@@ -395,36 +424,55 @@ and their contents are bound to a specific level in the page table hierarchy.
 The entries of a page map point to either a memory frame of the same level or a
 page map of the next lower level.
 \texttt{PageMap} objects can be created using the method
-\texttt{PortalFutureRef<void> create(PortalRef pr, UntypedMemory kmem, CapPtr
-factory, size\_t level)}. Besides the local portal \texttt{pr}, the memory area
+\lstset{language=c++,numbers=none}
+\begin{lstlisting}
+PortalFutureRef<void> create(PortalRef pr, UntypedMemory kmem, CapPtr factory, size_t level)
+\end{lstlisting}
+\noindent Besides the local portal \texttt{pr}, the memory area
 used for allocation \texttt{kmem} and the page map factory \texttt{factory}, the
 level of the page map has to be specified.
 
 After creation (and potentially configuration) a page map can be put into action
-by calling the method \texttt{PortalFutureRef<protocol::PageMap::Result>
-installMap(PortalRef pr, PageMap pagemap, uintptr\_t vaddr, size\_t level,
-MapFlags flags)}. Thereby, the page map is mapped into the higher level table
+by calling the method
+\lstset{language=c++,numbers=none}
+\begin{lstlisting}
+PortalFutureRef<protocol::PageMap::Result> installMap(PortalRef pr, PageMap pagemap, uintptr_t vaddr, size_t level, MapFlags flags)
+\end{lstlisting}
+\noindent Thereby, the page map is mapped into the higher level table
 \texttt{pagemap}, which then contains mappings for the virtual addresses in the
 range of \texttt{vaddr} at the given level of page tables. Additionally, flags
 can be set on the page map, e.g. write permissions or caching behaviour. A page
 map can be removed from the page table hierarchy using the method
-\texttt{PortalFutureRef<protocol::PageMap::Result> removeMap(PortalRef pr, \\
-uintptr\_t vaddr, size\_t level)}.
+\lstset{language=c++,numbers=none}
+\begin{lstlisting}
+PortalFutureRef<protocol::PageMap::Result> removeMap(PortalRef pr, uintptr_t vaddr, size_t level)
+\end{lstlisting}
 
-Using the method \texttt{PortalFutureRef<protocol::PageMap::Result> \\
-mmap(PortalRef pr, Frame frame, uintptr\_t vaddr, size\_t size, MapFlags flags)},
-a given memory frame can be mapped to the virtual user space address
+With the method
+\lstset{language=c++,numbers=none}
+\begin{lstlisting}
+PortalFutureRef<protocol::PageMap::Result> mmap(PortalRef pr, Frame frame, uintptr_t vaddr, size_t size, MapFlags flags)
+\end{lstlisting}
+\noindent a given memory frame can be mapped to the virtual user space address
 \texttt{vaddr}. Again, flags can be specified to customise the mapping process.
 The reverse operation is available via the method
-\texttt{PortalFutureRef<protocol::PageMap::Result> munmap(PortalRef pr,
-uintptr\_t vaddr, size\_t size)}, which removes the frame from the page map.
+\lstset{language=c++,numbers=none}
+\begin{lstlisting}
+PortalFutureRef<protocol::PageMap::Result> munmap(PortalRef pr, uintptr_t vaddr, size_t size)
+\end{lstlisting}
+\noindent which removes the frame from the page map.
 Existing mappings can be remapped from \texttt{sourceAddr} to \texttt{destAddr}
-by calling the method \texttt{PortalFutureRef<protocol::PageMap::Result>
-remap(PortalRef pr, uintptr\_t sourceAddr, uintptr\_t destAddr, size\_t size)}.
+by calling the method
+\lstset{language=c++,numbers=none}
+\begin{lstlisting}
+PortalFutureRef<protocol::PageMap::Result> remap(PortalRef pr, uintptr_t sourceAddr, uintptr_t destAddr, size_t size)
+\end{lstlisting}
 Flags, that were previously set for a page map or a frame can be altered to a
 new set of flags by using the method
-\texttt{PortalFutureRef<protocol::PageMap::Result> mprotect(PortalRef pr,
-uintptr\_t vaddr, size\_t size, MapFlags flags)}.
+\lstset{language=c++,numbers=none}
+\begin{lstlisting}
+PortalFutureRef<protocol::PageMap::Result> mprotect(PortalRef pr, uintptr_t vaddr, size_t size, MapFlags flags)}
+\end{lstlisting}
 The semantics of these method calls are comparable to the linux system calls
 \texttt{mmap}, \texttt{munmap}, \texttt{mremap} and \texttt{mprotect}.
 
@@ -449,10 +497,13 @@ MSG get() const;
 This object represents a memory pool, from which memory can be allocated to be
 either used by the application (Frames) or to be used to host kernel objects.
 The \texttt{UntypedMemory} objects only expose one function to the user space,
-which is defined as \texttt{PortalFutureRef<void> create(PortalRef pr,
-UntypedMemory kmem, CapPtr factory, size\_t size, size\_t alignment)}. This
-method is used to derive an \texttt{UntypedMemory} object from an
-\texttt{UntypedMemory} object, spliiting one of these objects into two. Thereby,
+which is defined as
+\lstset{language=c++,numbers=none}
+\begin{lstlisting}
+PortalFutureRef<void> create(PortalRef pr, UntypedMemory kmem, CapPtr factory, size_t size, size_t alignment)
+\end{lstlisting}
+\noindent This method is used to derive an \texttt{UntypedMemory} object from an
+\texttt{UntypedMemory} object, splitting one of these objects into two. Thereby,
 a hierarchical memory structure is built up. For this purpose, it is passed a
 pointer to the local portal \texttt{pr}, the original \texttt{UntypedMemory}
 object \texttt{kmem}, a pointer to an object capable of creating new
@@ -518,7 +569,7 @@ described by protocols, that are stored in
 \texttt{kernel/mythos/invocation/mythos/protocol}. The corresponding class in
 this folder contains a list of available methods, that has to be extended with
 the new one. As an example, consider the protocol definition for our example object in
-\texttt{kernel/mythos/invocation/mythos/protocol/Example.hh}: 
+\texttt{kernel/mythos/invocation/mythos/protocol/Example.hh}:
 
 \lstset{language=c++,caption=Object's Protocol Definition,label=lst:obj-protocol}
 \begin{lstlisting}
