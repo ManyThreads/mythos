@@ -33,7 +33,7 @@ als auch die Grundzuege des Programmiermodells anhand von Beispielen
 The \mythos kernel automatically loads a default initial application after the
 operating system is booted and the available hardware is appropriately
 configured. The code of the init application lies in the
-\texttt{kernel/app/init-app/app} directory of the kernel source and the
+\texttt{kernel/app/init-app/app} directory of the kernel source tree and the
 \texttt{int main()} function in \texttt{init.cc} is the entry point for the
 application execution. In the following just some code excerpts are depicted
 explaining the general application behavior. For better understanding please
@@ -196,16 +196,24 @@ Intel\textcopyright~Xeon~Phi\texttrademark{}, all of MMX, SSE, SSE2, SSE3 and
 3DNow should be disabled (\texttt{-mno-mmx -mno-sse -mno-sse2 -mno-sse3
 -mno-3dnow}).
 
-\section{Interface of \mythos System Calls}
+\section{Basic System Call Interface of \mythos}
 
 Compared to general purpose operating systems, \mythos offers a relatively
 small set of system calls for the interaction of applications with the
 operating system kernel. In the following all system calls are listed,
-including a description of their semantics.
+including a description of their semantics. The user space wrappers of those
+system calls are defined in \texttt{kernel/mythos/invocation/mythos/syscall.hh}.
+
+\noindent \emph{Note:} This is the lowest level interface to the system. More
+general abstractions based on that definitions exist. For example consider
+object and system related invocations through a portal defined in
+\texttt{kernel/runtime/async/runtime/PortalBase.hh}. These functions finally
+decompose into basic system calls as defined in
+\texttt{\\kernel/mythos/invocation/mythos/syscall.hh}.
 
 \begin{description}
 \item[void syscall\_debug(char const* start, uint64\_t length):] This system
-call is used to output debug messages to the text console. In the current
+call is used to print debug messages to the text console. In the current
 implementation, the output is redirected to a static memory buffer, from where
 it is then output to the user's terminal by an helper application running on the
 \mythos host. The parameter \texttt{start} points to the buffer containing the
@@ -232,7 +240,9 @@ local or remote system calls is transparent to the user. An additional reference
 \texttt{userctx} is passed, which is later returned to the application upon
 reply of the kernel object. This system call is executed asynchronously.
 Additional system calls have to be issued to check for the result of the
-invocation.
+invocation. \emph{Note:} as already mentioned, for particular cases there are
+already wrappers providing a higher level interface for handling results and
+invocation status, as for example \texttt{PortalBase.h}.
 \item[KEvent syscall\_poll():] This system call checks, whether the application
 received a response to a previously issued system call or an invocation by a
 remote portal. If a notification was received, this is indicated in
@@ -255,6 +265,12 @@ the number of required system calls and therefore the number of switches from
 user space to kernel space and back.
 \end{description}
 
+\noindent \emph{Note:} for portal based communication with the kernel, future
+objects of type \texttt{kernel/runtime/async/runtime/FutureBase.hh} are used in
+order to poll and synchronize on results. These are abstractions of the basic
+\texttt{syscall\_\{poll,wait\}()} functions and the \texttt{PortalBase} type
+inherits the implementation provided in \texttt{FutureBase.hh}.
+
 \section{Interface of the \mythos Runtime Environment} Due to the focus of the
 \mythos project on developing an operating system, the support for applications
 in terms of runtime environment are limited, compared to general purpose
@@ -270,10 +286,14 @@ developer with a more specialised interface than generic portals. In the
 following, these user space representations and their interfaces are presented.
 
 \subsection{CapMap}
-A capability map object is used to manage the application's capability space by creating, moving, deleting or revoking capability pointers, which are references to kernel objects that can be accessed and utilised by the application.
 
+A capability map object is used to manage the application's capability space by
+creating, moving, deleting or revoking capability pointers. These are references
+to kernel objects that can be accessed and utilised by the application.
+
+\todo{check!}
 A new capability map object can be instantiated by calling:
-\lstset{language=c++}
+\lstset{language=c++,numbers=none}
 \begin{lstlisting}
 PortalFutureRef<void> create(PortalRef pr, UntypedMemory kmem, CapPtr factory,
       CapPtrDepth indexbits, CapPtrDepth guardbits, CapPtr guard)
