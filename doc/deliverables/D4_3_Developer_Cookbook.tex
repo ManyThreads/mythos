@@ -1079,7 +1079,7 @@ implementation (in line~27). There the developer has to implement the specific
 object creation procedure by the factory. A standard implementation can be
 found in \texttt{kernel/objects/example/objects/Example.cc}:
  
-\lstset{language=c++}
+\lstset{language=c++,label=lst:obj-factory}
 \begin{lstlisting}
   optional<ExampleObj*>
   ExampleFactory::factory(CapEntry* dstEntry, CapEntry* memEntry, Cap memCap,
