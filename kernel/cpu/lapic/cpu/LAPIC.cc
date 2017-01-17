@@ -33,7 +33,7 @@ namespace mythos {
   LAPIC lapic;
 
   void LAPIC::init() {
-    mlog::boot.info("initializing local xAPIC");
+    MLOG_INFO(mlog::boot, "initializing local xAPIC");
     Register value;
 
     // init the Destination Format Register and the Logical
@@ -41,11 +41,11 @@ namespace mythos {
     // before enabling an APIC.  See e.g. "AP-388 82489DX User's
     // Manual" (Intel document number 292116).
     value = read(REG_DFR);
-    mlog::boot.detail("APIC DFR", DVARhex(value.value));
+    MLOG_DETAIL(mlog::boot, "APIC DFR", DVARhex(value.value));
     value.model = 0xF; // flat mode
     write(REG_DFR, value);
     value = read(REG_LDR);
-    mlog::boot.detail("APIC LDR", DVARhex(value.value));
+    MLOG_DETAIL(mlog::boot, "APIC LDR", DVARhex(value.value));
     value.destination = 1; // will not be used anyway
     write(REG_LDR, value);
 
@@ -89,16 +89,16 @@ namespace mythos {
     // the lowest 4 bits should be 0, the vector should be above 32 (processor internal interrupts)
     // but the acutal value does not matter, because it is configured for each separately...
     value = read(REG_SVR);
-    mlog::boot.detail("SVR before init", reinterpret_cast<void*>(value.value));
+    MLOG_DETAIL(mlog::boot, "SVR before init", reinterpret_cast<void*>(value.value));
     value.vector = 0xFF;  // this interrupt should never be triggered anyway
     value.apic_enable = 1;
     value.focus_processor_checking = 0;
     value.eio_suppression = 0;
-    mlog::boot.detail("SVR writing", reinterpret_cast<void*>(value.value));
+    MLOG_DETAIL(mlog::boot, "SVR writing", reinterpret_cast<void*>(value.value));
     write(REG_SVR, value);
-    mlog::boot.detail("SVR after init", reinterpret_cast<void*>(read(REG_SVR).value));
+    MLOG_DETAIL(mlog::boot, "SVR after init", reinterpret_cast<void*>(read(REG_SVR).value));
 
-    mlog::boot.detail("lapic", DVAR(x86::initialApicID()), DVAR(getId()));
+    MLOG_DETAIL(mlog::boot, "lapic", DVAR(x86::initialApicID()), DVAR(getId()));
     ASSERT(getId() == x86::initialApicID());
 
     // init Error register
@@ -114,14 +114,14 @@ namespace mythos {
   }
 
   void LAPIC::enablePeriodicTimer(uint8_t irq, uint32_t count) {
-    mlog::boot.info("enable periodic APIC timer", DVAR(irq), DVAR(count));
+    MLOG_INFO(mlog::boot, "enable periodic APIC timer", DVAR(irq), DVAR(count));
     write(REG_TIMER_DCR, 0x0b);  // divide bus clock by 0xa=128 or 0xb=1
     setInitialCount(count);
     write(REG_LVT_TIMER, read(REG_LVT_TIMER).timer_mode(PERIODIC).masked(0).vector(irq));
   }
 
   void LAPIC::disableTimer() {
-    mlog::boot.info("disable APIC timer");
+    MLOG_INFO(mlog::boot, "disable APIC timer");
     write(REG_LVT_TIMER, read(REG_LVT_TIMER).timer_mode(ONESHOT).masked(1).vector(0));
   }
 
@@ -140,7 +140,7 @@ namespace mythos {
     writeIPI(0, edgeIPI(ICR_DESTSHORT_NOTSELF, MODE_SIPI, uint8_t(startIP >> 12)));
     write(REG_ESR, 0); // Be paranoid about clearing APIC errors.
     uint32_t esr = read(REG_ESR).value & 0xEF;
-    mlog::boot.detail("SIPI broadcast result", DVARhex(esr));
+    MLOG_DETAIL(mlog::boot, "SIPI broadcast result", DVARhex(esr));
     return true;
   }
 
@@ -154,7 +154,7 @@ namespace mythos {
 
   bool LAPIC::sendIRQ(size_t destination, uint8_t vector)
   {
-    mlog::boot.error("send IRQ:", DVAR(destination), DVAR(vector));
+    MLOG_ERROR(mlog::boot, "send IRQ:", DVAR(destination), DVAR(vector));
     write(REG_ESR, 0); // Be paranoid about clearing APIC errors.
     read(REG_ESR);
     writeIPI(destination, edgeIPI(ICR_DESTSHORT_NO, MODE_FIXED, vector));
@@ -164,7 +164,7 @@ namespace mythos {
 
   void LAPIC::writeIPI(size_t destination, Register icrlow) {
     ASSERT(destination<256);
-    mlog::boot.detail("write ICR", DVAR(destination), DVARhex(icrlow.value));
+    MLOG_DETAIL(mlog::boot, "write ICR", DVAR(destination), DVARhex(icrlow.value));
     write(REG_ICR_HIGH, Register().destination(destination));
     write(REG_ICR_LOW, icrlow);
     //hwthread_wait(300);

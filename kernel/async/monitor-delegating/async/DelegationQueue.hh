@@ -54,7 +54,7 @@ public:
   DelegationQueueLIFO() : head(nullptr), tail(FREE) {}
   
   bool push(Tasklet* msg) {
-    //mlog::async.detail("push", DVAR(this), DVAR(msg));
+    //MLOG_DETAIL(mlog::async, "push", DVAR(this), DVAR(msg));
     msg->nextTasklet = LOCKED; // mark as incomplete push (TODO: should that be a SC store?)
     TaskletBase* oldtail = tail.exchange(msg); // replace the tail
     // complete the push
@@ -70,7 +70,7 @@ public:
   /** try to release the lock */
   bool tryRelease()
   {
-    //mlog::async.detail("tryRelease", DVAR(this));
+    //MLOG_DETAIL(mlog::async, "tryRelease", DVAR(this));
     if (head) {
       // there are tasklets in the private queue
       return false;
@@ -84,11 +84,11 @@ public:
 
   Tasklet* pop()
   {
-    //mlog::async.detail("pop", DVAR(this));
+    //MLOG_DETAIL(mlog::async, "pop", DVAR(this));
     auto current = head;
     if (!current) {
       current = tail.exchange(LOCKED); // detach tail
-      //mlog::async.detail("detatch tail", DVAR(this), DVAR(current));
+      //MLOG_DETAIL(mlog::async, "detatch tail", DVAR(this), DVAR(current));
     }
     do { // wait until the push is no longer marked as incomplete
         // use exchange in order to avoid shared state of cacheline
@@ -97,7 +97,7 @@ public:
         // sleep for a short amount of cycles
         hwthread_pause();
     } while (true);
-    //mlog::async.detail("new head", DVAR(this), DVAR(head));
+    //MLOG_DETAIL(mlog::async, "new head", DVAR(this), DVAR(head));
     if (current == LOCKED) {
       return nullptr;
     } else {

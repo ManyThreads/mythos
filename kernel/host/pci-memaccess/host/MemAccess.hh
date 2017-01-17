@@ -42,7 +42,7 @@ namespace mythos {
     {
       std::cout << "map " << (void*)paddr.physint() << " size " << msize 
 		<< " laddr " << laddr << std::endl;
-      // mlog::mmu.detail("temp. map", DVARhex(paddr), DVARhex(laddr), DVAR(msize));
+      // MLOG_DETAIL(mlog::mmu, "temp. map", DVARhex(paddr), DVARhex(laddr), DVAR(msize));
     }
 
     MemAccess(MemAccess&& o)
@@ -62,7 +62,7 @@ namespace mythos {
     ~MemAccess() {
       if (mapper != 0) {
 	mapper->unmap(laddr, msize);
-	// mlog::mmu.detail("temp. unmap", DVARhex(laddr), DVAR(msize));
+	// MLOG_DETAIL(mlog::mmu, "temp. unmap", DVARhex(laddr), DVAR(msize));
       }
     }
 

@@ -36,10 +36,10 @@ namespace boot {
   inline void initCxxGlobals()
   {
     // initialize global variables by calling their constructors
-    mlog::boot.detail("Calling constructors of all static instances");
+    MLOG_DETAIL(mlog::boot, "Calling constructors of all static instances");
     for (void (**func)() = &CTORS_START; func != &CTORS_END; func++) {
       if (*func == 0) break;
-      mlog::boot.detail("calling constructor", DVAR((void*)size_t(*func)));
+      MLOG_DETAIL(mlog::boot, "calling constructor", DVAR((void*)size_t(*func)));
       (*func)();
     }
   }

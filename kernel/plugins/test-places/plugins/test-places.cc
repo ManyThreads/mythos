@@ -44,7 +44,7 @@ namespace mythos {
 
       void run() {
 	monitor.request(&starter, [=](Tasklet*) {
-	    mlog::boot.info("TestPlaces: started processing");
+	    MLOG_INFO(mlog::boot, "TestPlaces: started processing");
 	    state = 0;
 	    process();
 	  });
@@ -60,27 +60,27 @@ namespace mythos {
 	    return this->monitor.responseDone();
 	  case 1: ;
 	  }
-	  mlog::boot.info("TestPlaces: finished roundtrip");
+	  MLOG_INFO(mlog::boot, "TestPlaces: finished roundtrip");
 	  state = 2;
 	  return this->monitor.responseAndRequestDone();
 	default:
-	  mlog::boot.info("TestPlaces: strange call");
+	  MLOG_INFO(mlog::boot, "TestPlaces: strange call");
 	}
       }
 
       void fooRequest(Tasklet* t, Node* r) {
-	mlog::boot.info("TestPlaces: sending foo request", DVAR(t), DVAR(r), "to", DVAR(this));
+	MLOG_INFO(mlog::boot, "TestPlaces: sending foo request", DVAR(t), DVAR(r), "to", DVAR(this));
 	monitor.request(t, [=](Tasklet*t) { this->_fooRequest(t,r); } );
       }
 
       void _fooRequest(Tasklet* t, Node* r) {
-	mlog::boot.info("TestPlaces: process foo request", DVAR(t), DVAR(r), "on", DVAR(this));
+	MLOG_INFO(mlog::boot, "TestPlaces: process foo request", DVAR(t), DVAR(r), "on", DVAR(this));
 	r->fooResponse(t);
 	monitor.requestDone();
       }
 
       void fooResponse(Tasklet*t) {
-	mlog::boot.info("TestPlaces: sending foo response", DVAR(t), "to", DVAR(this));
+	MLOG_INFO(mlog::boot, "TestPlaces: sending foo response", DVAR(t), "to", DVAR(this));
 	monitor.response(t, [=](Tasklet*) { this->process(); });
       }
       
@@ -101,7 +101,7 @@ namespace mythos {
     }
 
     void initThread(size_t threadid) {
-      mlog::boot.detail("TestPlaces: my place is", &mythos::async::getLocalPlace(),
+      MLOG_DETAIL(mlog::boot, "TestPlaces: my place is", &mythos::async::getLocalPlace(),
 			threadid, cpu::enumerateHwThreadID(0),
 			cpu::hwThreadCount());
       if (threadid == cpu::enumerateHwThreadID(0)) {

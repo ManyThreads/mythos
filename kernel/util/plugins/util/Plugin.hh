@@ -45,14 +45,14 @@ namespace mythos {
 
     static void initPluginsGlobal() {
       for (Plugin* c = first; c != nullptr; c = c->next) {
-	mlog::boot.info("initPluginsGlobal", c);
+	MLOG_INFO(mlog::boot, "initPluginsGlobal", c);
 	c->initGlobal();
       }
     }
 
     static void initPluginsOnThread(size_t threadid) {
       for (Plugin* c = first; c != nullptr; c = c->next) {
-	mlog::boot.info("initPluginsOnThread", c, threadid);
+	MLOG_INFO(mlog::boot, "initPluginsOnThread", c, threadid);
 	c->initThread(threadid);
       }
     }

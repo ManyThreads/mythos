@@ -46,7 +46,7 @@ namespace mythos {
 
   void PML4InvalidationBroadcast::run(Tasklet* t, IResult<void>* res, PhysPtr<void> pml4)
   {
-    mlog::cap.detail("start pml4 invalidation broadcast");
+    MLOG_DETAIL(mlog::cap, "start pml4 invalidation broadcast");
     PML4InvalidationBroadcast* start = &nodes[cpu::hwThreadID()];
     start->broadcast(t, res, pml4, start);
   }
@@ -62,10 +62,10 @@ namespace mythos {
     PML4InvalidationBroadcast* pnext = this->next;
     while (pnext != start && pnext->home->getCR3() != pml4) pnext = pnext->next;
     if (pnext != start) {
-      mlog::cap.detail("relay pml4 invalidation");
+      MLOG_DETAIL(mlog::cap, "relay pml4 invalidation");
       pnext->home->run(t->set( [=](Tasklet* t){ broadcast(t, res, pml4,  start); } ));
     } else {
-      mlog::cap.detail("end pml4 invalidation");
+      MLOG_DETAIL(mlog::cap, "end pml4 invalidation");
       res->response(t);
     }
   }

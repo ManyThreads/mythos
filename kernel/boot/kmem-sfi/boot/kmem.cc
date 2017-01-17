@@ -42,11 +42,11 @@ void initKernelMemory(UntypedMemory& um)
   OOPS_MSG(info.hasSyst() && info.hasMmap(), "No memory map found :(");
   if (info.hasSyst() && info.hasMmap()) {
     SFI::Mmap& mmap = *info.getMmap();
-    mlog::boot.detail("parsing SFI System Table", DVAR(&mmap));
+    MLOG_DETAIL(mlog::boot, "parsing SFI System Table", DVAR(&mmap));
 
     for(unsigned j=0; j<mmap.size(); ++j) {
       auto me = mmap[j];
-      mlog::boot.detail("MB mmap ", DMRANGE(me.getAddress().physint(), me.getSize()),
+      MLOG_DETAIL(mlog::boot, "MB mmap ", DMRANGE(me.getAddress().physint(), me.getSize()),
           (me.type == SFI::Mmap::ConventionalMemory ? " available " : "reserved"));
       if (me.type == SFI::Mmap::ConventionalMemory)
         usable_mem.addStartLength(me.getAddress(), me.getSize());

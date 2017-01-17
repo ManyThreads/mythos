@@ -39,10 +39,10 @@ void initKernelMemory(UntypedMemory& um)
   E820Info ebi;
   OOPS_MSG(ebi.size()>0, "No Linux zero page E820 memory map found! :(");
   if (ebi.size() > 0) {
-    mlog::boot.info("load Linux zero page E820 memory map with size", ebi.size());
+    MLOG_INFO(mlog::boot, "load Linux zero page E820 memory map with size", ebi.size());
     for (size_t i=0; i < ebi.size(); i++) {
       auto me = ebi[i];
-      mlog::boot.detail("E820 mmap ", DMRANGE(me.addr.physint(), me.size),
+      MLOG_DETAIL(mlog::boot, "E820 mmap ", DMRANGE(me.addr.physint(), me.size),
 			(me.isUsable() ? "available" : "reserved"));
       if (me.isUsable()) usable_mem.addStartLength(me.addr, me.size);
     }
