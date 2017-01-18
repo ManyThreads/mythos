@@ -80,6 +80,20 @@ std::string deviceKNC(int adapter)
   return s.str();
 }
 
+uid_t get_root() {
+    uid_t old_uid = getuid();
+    if (setuid(0) != 0) {
+        std::cerr << "Could not get root. Is setuid bit set?\n";
+    }
+    return old_uid;
+}
+
+void undo_root(uid_t old_uid) {
+    if (setuid(old_uid) != 0) {
+        std::cerr << "Could not restore old uid\n";
+    }
+}
+
 struct InfoPtr {
   uint64_t info;
   uint64_t debug;
@@ -118,6 +132,7 @@ private:
 
 int main(int argc, char** argv)
 {
+  uid_t old_uid = get_root();
   int adapter;
   if (argc < 2) {
     std::cerr << argv[0] << " adapter" << std::endl;
@@ -145,6 +160,8 @@ int main(int argc, char** argv)
 
   auto debugOutChannel = micmem.access(PhysPtr<HostInfoTable::DebugChannel>(info->debugOut));
   PCIeRingConsumer<HostInfoTable::DebugChannel> debugOut(debugOutChannel.addr());
+
+  undo_root(old_uid);
 
   // collect messages until whole message arrived
   std::unordered_map<uint16_t, std::string> messages;

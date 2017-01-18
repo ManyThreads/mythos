@@ -76,7 +76,9 @@ micrun: boot64.elf
 	sudo micctrl -r --wait mic0
 	sudo micctrl -s
 	sudo sh -c "echo \"boot:elf:`pwd`/boot64.elf\" > /sys/class/mic/mic0/state"
-	sudo env LD_LIBRARY_PATH=$(LD_LIBRARY_PATH) ../host-knc/xmicterm 0
+	sudo chown root.root ../host-knc/xmicterm
+	sudo chmod 4755 ../host-knc/xmicterm
+	env LD_LIBRARY_PATH=$(LD_LIBRARY_PATH) ../host-knc/xmicterm 0
 
 micstop:
 	sudo micctrl -r --wait mic0
