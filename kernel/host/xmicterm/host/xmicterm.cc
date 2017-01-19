@@ -67,6 +67,12 @@ void drop_root() {
     std::cerr << "Cannot drop root when not root.\n";
     return;
   }
+  char *gid = std::getenv(ENV_GID);
+  char *uid = std::getenv(ENV_UID);
+  if (gid == nullptr || uid == nullptr) {
+    std::cerr << "No environment variables. Application has to be run with sudo.\n";
+    return;
+  }
   if (setgid(atoi(std::getenv(ENV_GID))) != 0) {
     std::cerr << "Could not restore Group ID.\n";
   }
@@ -89,7 +95,9 @@ class file_logger {
 
     file_logger(const char *directory_)
       :directory(directory_) {
-        if (mkdir( (std::string(getenv("PWD")) + std::string("/") + directory).c_str(),
+        std::stringstream s;
+        s << getenv("PWD") << "/" << directory;
+        if (mkdir(s.str().c_str(),
               S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH) != 0)
         {
           std::cerr << "Error creating directory for logs.\n";
@@ -123,7 +131,7 @@ class file_logger {
     }
 
   private:
-    std::string directory;
+    const std::string directory;
     std::unordered_map<uint16_t, std::ofstream*> files;
 };
 
