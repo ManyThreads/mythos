@@ -34,34 +34,16 @@
 #include <unistd.h>
 #include <unordered_map>
 #include <fstream>
+#include <sys/types.h>
+#include <sys/stat.h>
 
 using namespace mythos;
 
+// Environmental variables set if program is called by sudo
+static const constexpr char* ENV_UID = "SUDO_UID";
+static const constexpr char* ENV_GID = "SUDO_GID";
 
-std::string DescribeIosFailure(const std::ios& stream)
-{
-  std::string result;
-
-  if (stream.eof()) {
-    result = "Unexpected end of file.";
-  }  else if (errno) {
-#if defined(__unix__)
-    // We use strerror_r because it's threadsafe.
-    // GNU's strerror_r returns a string and may ignore buffer completely.
-    char buffer[255];
-    result = std::string(strerror_r(errno, buffer, sizeof(buffer)));
-#else
-    result = std::string(strerror(errno));
-#endif
-  }
-
-  else {
-    result = "Unknown file error.";
-  }
-  return result;
-}
-
-template<typename T>
+  template<typename T>
 void parsenum(char const *str, T& val)
 {
   std::stringstream s;
@@ -80,18 +62,20 @@ std::string deviceKNC(int adapter)
   return s.str();
 }
 
-uid_t get_root() {
-    uid_t old_uid = getuid();
-    if (setuid(0) != 0) {
-        std::cerr << "Could not get root. Is setuid bit set?\n";
-    }
-    return old_uid;
-}
-
-void undo_root(uid_t old_uid) {
-    if (setuid(old_uid) != 0) {
-        std::cerr << "Could not restore old uid\n";
-    }
+void drop_root() {
+  if (getuid() != 0) {
+    std::cerr << "Cannot drop root when not root.\n";
+    return;
+  }
+  if (setgid(atoi(std::getenv(ENV_GID))) != 0) {
+    std::cerr << "Could not restore Group ID.\n";
+  }
+  if (setuid(atoi(std::getenv(ENV_UID))) != 0) {
+    std::cerr << "Could not restore User ID.\n";
+  }
+  if (getuid() == 0) {
+    std::cerr << "Dropping root unsuccessful\n";
+  }
 }
 
 struct InfoPtr {
@@ -101,38 +85,50 @@ struct InfoPtr {
 
 /// Class logs into files, opening new file for every sending channel id.
 class file_logger {
-public:
-  ~file_logger() {
-    for (auto f : files) {
-      f.second->close();
-      delete f.second;
-    }
-  }
+  public:
 
-  void log(uint16_t vchannel, std::string msg) {
-    auto found = files.find(vchannel);
-    if (found != files.end()) {
-      *found->second << msg << "\n";
-      found->second->flush();
-    } else {
-      std::ofstream *file_stream = new std::ofstream("..\\" + std::to_string(vchannel),
-                                           std::ios::out | std::ios::trunc);
-      if (!file_stream->is_open()) {
-        std::cerr << "Could not open file " << ("..\\" + std::to_string(vchannel)) << "\n";
-        std::cerr << DescribeIosFailure(*file_stream) << "\n";
-        return;
+    file_logger(const char *directory_)
+      :directory(directory_) {
+        if (mkdir( (std::string(getenv("PWD")) + std::string("/") + directory).c_str(),
+              S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH) != 0)
+        {
+          std::cerr << "Error creating directory for logs.\n";
+        }
       }
-      files.insert({vchannel, file_stream});
-      *file_stream << msg << "\n";
+
+    ~file_logger() {
+      for (auto f : files) {
+        f.second->close();
+        delete f.second;
+      }
     }
-  }
-private:
-  std::unordered_map<uint16_t, std::ofstream*> files;
+
+    void log(uint16_t vchannel, std::string msg) {
+      auto found = files.find(vchannel);
+      if (found != files.end()) {
+        *found->second << msg << "\n";
+        found->second->flush();
+      } else {
+        std::ofstream *file_stream = new std::ofstream(
+            directory + std::string("/") + std::to_string(vchannel),
+            std::ios::out | std::ios::trunc);
+        if (!file_stream->is_open()) {
+          std::cerr << "Could not open file " << (std::to_string(vchannel)) << "\n";
+          return;
+        }
+        files.insert({vchannel, file_stream});
+        *file_stream << msg << "\n";
+        file_stream->flush();
+      }
+    }
+
+  private:
+    std::string directory;
+    std::unordered_map<uint16_t, std::ofstream*> files;
 };
 
 int main(int argc, char** argv)
 {
-  uid_t old_uid = get_root();
   int adapter;
   if (argc < 2) {
     std::cerr << argv[0] << " adapter" << std::endl;
@@ -140,7 +136,7 @@ int main(int argc, char** argv)
   }
   parsenum(argv[1], adapter);
   std::cerr << "will read from adapter " << adapter
-	   << " file " << deviceKNC(adapter) << std::endl;
+    << " file " << deviceKNC(adapter) << std::endl;
   MemMapperPci micmem(deviceKNC(adapter));
 
   // wait until the _host_info_ptr pointer at address 2MiB actually contains something
@@ -151,52 +147,54 @@ int main(int argc, char** argv)
     if (info_ptr->info == 0) sleep(1);
   } while (info_ptr->info == 0);
   std::cerr << "host info is at physical address "
-	    << (void*)info_ptr->info << std::endl;
+    << (void*)info_ptr->info << std::endl;
 
   auto info = micmem.access(PhysPtr<HostInfoTable>(info_ptr->info));
   cpu::clflush(info.addr());
   std::cerr << "debug stream is at physical address "
-	    << (void*)info->debugOut << std::endl;
+    << (void*)info->debugOut << std::endl;
 
   auto debugOutChannel = micmem.access(PhysPtr<HostInfoTable::DebugChannel>(info->debugOut));
   PCIeRingConsumer<HostInfoTable::DebugChannel> debugOut(debugOutChannel.addr());
 
-  undo_root(old_uid);
+  // drop root to allow file logger access to user specific directories
+  drop_root();
 
   // collect messages until whole message arrived
-  std::unordered_map<uint16_t, std::string> messages;
+  std::unordered_map<uint16_t, std::stringstream*> messages;
 
-  // log to file
-  file_logger logger;
+  // log to directory debug
+  file_logger logger("debug");
 
   while (true) {
     //typedef HostInfoTable::DebugChannel::handle_t handle_t;
-    /// @todo log messages into a file
     auto handle = debugOut.acquireRecv();
     auto& msg = debugOut.get<DebugMsg>(handle);
 
     auto found = messages.find(msg.vchannel);
-    if (found != messages.end()) { // have to merge messages
-      if (msg.msgbytes < DebugMsg::PAYLOAD) { //output merged messages
-          std::string out(found->second + std::string(msg.data, msg.msgbytes));
-          std::cout << found->first  << "(" << out.length() << "): ";
-          std::cout.write(out.c_str(), out.length());
-          std::cout << std::endl;
-          logger.log(found->first, out);
-          messages.erase(msg.vchannel);
+    if (found != messages.end()) { // a message already there, have to merge them
+      if (msg.msgbytes < DebugMsg::PAYLOAD) { // output merged messages
+        found->second->write(msg.data, msg.msgbytes);
+        auto str = found->second->str();
+        std::cout << found->first  << "(" << str.length() << "): ";
+        std::cout << str << "\n";
+        logger.log(found->first, str);
+        messages.erase(msg.vchannel);
       } else { // append another message
-          std::string append(found->second + std::string(msg.data, msg.msgbytes));
-          messages.insert({msg.vchannel, append});
+        found->second->write(msg.data, DebugMsg::PAYLOAD);
       }
-    } else {
-        if (msg.msgbytes < DebugMsg::PAYLOAD) {
-            std::cout << msg.vchannel << "(" << msg.msgbytes << "): ";
-            std::cout.write(msg.data, msg.msgbytes);
-            std::cout << std::endl;
-            logger.log(msg.vchannel, {msg.data});
-        } else {
-            messages.insert({msg.vchannel, std::string(msg.data)});
-        }
+    } else { // message not in buffer
+      if (msg.msgbytes < DebugMsg::PAYLOAD) { // message displayed directly
+        std::cout << msg.vchannel << "(" << msg.msgbytes << "): ";
+        std::cout.write(msg.data, msg.msgbytes);
+        std::cout << std::endl;
+        logger.log(msg.vchannel, std::string(msg.data, msg.msgbytes));
+
+      } else { // new buffer
+        std::stringstream *s = new std::stringstream();
+        s->write(msg.data, DebugMsg::PAYLOAD);
+        messages.insert({msg.vchannel, s});
+      }
     }
     debugOut.finishRecv(handle);
   }
