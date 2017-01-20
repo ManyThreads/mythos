@@ -19,8 +19,8 @@ synchronisation.
 ## Current State of Implementation
 
 * Supports x86-64 (aka amd64) emulators like QEMU and Bochs.
-  Gem5 requires small patches.
-* Basic support for the Intel Xeon Phi Knights Corner processor.
+  Gem5 still requires additional patches.
+* Supports the Intel Xeon Phi Knights Corner processor.
 * Starts an embedded init application on the first core and this
   application can create and configure further kernel objects.
 * Creating and starting application threads (aka Execution Contexts)
@@ -55,7 +55,12 @@ synchronisation.
 
 ## Running on the Intel XeonPhi KNC
 
-TBD
+In order to run MyThOS on an Intel XeonPhi Knights Corner processor, a recent version of Intel's MPSS software stack is needed. In addition a not too old C++ compiler is needed for the host tools. After loading the respective environment variables:
+* First, run `3rdparty/install-python-libs` in order to install the needed libraries for the build configuration tool. This requires python and pip (a widespread package installer for python).
+* Now you can run `make` in the root folder. This will assemble the source code into the subfolders `kernel-amd64`, `kernel-knc` and `host-knc`.
+* Change into the `host-knc` folder and run `make` in order to compile the `xmicterm` application. This is used to receive the debugging and log messages from the MyThOS kernel and applications.
+* Then, change into the `kernel-knc` folder and run `make` in order to compile the init application and the kernel.
+* In order to boot the system on the XeonPhi, you need root access (sudo). Run `make micrun` in order to stop any running coprocessor OS and boot MyThOS. If everything goes well, the script will start the `xmicterm` and you see the debug output. Stop it with CTRL-c and use `make micstop` to shut down the coprocessor. You can enable more detailed debug messages by editing `Makefile.user` and recompiling the kernel.
 
 # Acknowledgements
 

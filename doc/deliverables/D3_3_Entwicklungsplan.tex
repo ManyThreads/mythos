@@ -15,8 +15,18 @@
 \maketitle
 
 \begin{abstract}
-Dieses Dokument umfasst den Strategieplan für die Weiterentwicklung des Prototypen und Anleitungen für Systementwickler. Abschnitt~\ref{sec:kernel-objects} gibt Beispiele und Hinweise für die Entwicklung eigener Kernel-Objekte, die Behandlung von Systemaufrufen, die Synchronisation asynchroner Aufgaben, sowie die Verwaltung von Beziehungen zwischen Kernel-Objekten. 
-Abschnitt~\ref{sec:extensions} fasst nützliche Erweiterungen des bestehenden Kernels zusammen. Dazu gehören zum Beispiel Verbesserungen bei der Fehler- und Performanceanalyse, Schnittstellen zur Konfiguration der Interruptbehandlung und Capability Transfers zwischen Kommunikationsportalen. 
+
+Dieses Dokument umfasst den Strategieplan für die Weiterentwicklung des
+Prototypen und Anleitungen für Systementwickler.
+% Abschnitt~\ref{sec:kernel-objects} gibt Beispiele und Hinweise für die
+% Entwicklung eigener Kernel-Objekte, die Behandlung von Systemaufrufen, die
+% Synchronisation asynchroner Aufgaben, sowie die Verwaltung von Beziehungen
+% zwischen Kernel-Objekten.
+Es fasst somit nützliche und geplante Erweiterungen des bestehenden
+Kernels zusammen. Dazu gehören zum Beispiel Verbesserungen bei der Fehler- und
+Performanceanalyse, Schnittstellen zur Konfiguration der Interruptbehandlung und
+Capability Transfers zwischen Kommunikationsportalen.
+ 
 \end{abstract}
 
 \newpage
@@ -28,351 +38,400 @@ Abschnitt~\ref{sec:extensions} fasst nützliche Erweiterungen des bestehenden Ke
 
 % --- content ------------------------------------------------------------------
 \selectlanguage{UKenglish}
-\section{Kernel Development}
-\label{sec:kernel-objects}
+% \section{Kernel Development}
+% \label{sec:kernel-objects}
+% 
+% This section describes the steps necessary to create a new kernel
+% object. First, the \texttt{IKernelObject} interface
+% (Listing~\ref{lst:ikernelobject}) is discussed. It has to be
+% implemented by all kernel objects in order to participate in the
+% resource management and processing of system calls.  Then, the
+% allocation and initialisation of kernel objects through factories is
+% described.  Finally, an overview over the synchronisation monitors and
+% the weak references mechanism is given.
+% 
+% The kernel source includes an example object, which serves as
+% a starting point for the creation of custom Kernel Objects and as a
+% mock for testing object allocation and deletion. For further
+% information, consider the documentation embedded into the source
+% code. Most of the code embedded here is part of the Example object.
+% 
+% \begin{lstlisting}[float, label=lst:ikernelobject, caption=The \texttt{IKernelObject} interface.]
+% class IKernelObject : public ICastable {
+% public:
+%   virtual Range<uintptr_t> addressRange(Cap self);
+%   virtual optional<Cap> mint(Cap self, CapRequest request);
+%   virtual optional<void> deleteCap(Cap self, IDeleter& del) = 0;
+%   virtual void deleteObject(Tasklet* t, IResult<void>* r) = 0;
+%   virtual Range<uintptr_t> objectRange() const = 0;
+%   virtual optional<CapEntryRef> lookup(Cap self, CapPtr needle, CapPtrDepth maxDepth);
+%   virtual void invoke(Tasklet* t, Cap self, IInvocation* msg);
+% };
+% 
+% class ICastable {
+% public:
+%   virtual optional<void const*> vcast(TypeId id) const;
+% };
+% \end{lstlisting}
+% 
+% \subsection{Ressource management}
+% 
+% The \texttt{addressRange()} method is used by the resource inheritance
+% tree for parent-ship tests. The method has to return the physical
+% address range that is used by the object. The range has to be a
+% superset of the address ranges of all derived child objects in the
+% capability inheritance tree. Kernel objects that will have no children
+% can simply use the default implementation.
+% 
+% \texttt{deleteCap()} and \texttt{deleteObject()} are both part of the
+% multistep deletion process. \texttt{deleteCap()} notifies the object
+% that a capability is going to be deleted. For most objects, this will
+% have no effect for reference and derived capabilities. For original
+% capabilities, the objects recursively deletes its capability entry and
+% schedules itself for asynchronous deletion using the \texttt{IDeleter}
+% object given as a parameter. Listing~\ref{lst:deletecap} shows a simple example
+% for an object without any embedded capability entries.
+% 
+% \begin{lstlisting}[float, label=lst:deletecap, caption=Example handler for capability revocation.]
+% optional<void> ExampleObj::deleteCap(Cap self, IDeleter& del) {
+%   if (self.isOriginal()) del.deleteObject(del_handle);
+%   return Error::SUCCESS;
+% }
+% \end{lstlisting}
+% 
+% \texttt{deleteObject()} carries out the final step of the asynchronous
+% deletion. The object will use its deletion monitor to wait for all
+% outstanding asynchronous request to complete and then asynchronously
+% requests the deletion from the \texttt{UntypedMemory} object it was
+% allocated from. An example is shown in
+% Listing~\ref{lst:deleteobject}. The memory's \texttt{release()} method
+% will call the object's \texttt{objectRange()} to query the address
+% range that is used by the object itself. First, the objects virtual
+% destructor \texttt{~IKernelObject()} is called in order to let the
+% object free all contained additional memory blocks. Then, the objects
+% memory is freed. Finally, the deleter is notified about the completion
+% by replying to the \texttt{IResult} pointer.
+% 
+% \begin{lstlisting}[float, label=lst:deleteobject, caption=Example handler for asynchronous object deletion.]
+% void ExampleObj::deleteObject(Tasklet* t, IResult<void>* r) {
+%   monitor.doDelete(t, [=](Tasklet* t){ this->_mem->release(t, r, this); });
+% }
+% \end{lstlisting}
+% 
+% The \texttt{mint()} method is used when creating a reference or derived capability. This mechanism allows to restrict access rights, add communication badges and similar by altering the data portion of the capability according to the request argument. The meaning of the request arguments is defined by the actual object because the capability data portion is interpreted only by the object itself. If a kernel object does not accept the minting request, it should return an error code.
+% 
+% \subsection{System Calls as Capability Invocation}
+% 
+% The \texttt{lookup()} method is used by the system call entry code in
+% order to find the target object that matches the given capability
+% pointer. The search in the caller's capability space recursively walks
+% through its capability maps. The default implementation of this method
+% fails and returns an error code. A custom implementation is only
+% necessary if the object acts as a capability map.
+% 
+% The \texttt{invoke()} method implements the receiving side of the
+% capability invocation to a kernel object. Its default implementation
+% simply returns with an error. Listing~\ref{lst:invokehandler} shows an
+% example of the invocation handling. The \texttt{invoke()} method
+% dispatches the message based on the message label and asynchronously
+% calls the appropriate implementation. The implementation checks the
+% caller's access rights by inspecting the capability \texttt{self} that
+% was used to access the object. Then, the arguments are copied from the
+% message into local buffers and checked for validity. The copy is
+% crucial for security because otherwise concurrently running
+% application threads could manipulate the arguments after the sanity
+% check have been passed. After carrying out the request, the object
+% replies and releases the its monitor.
+% 
+% \begin{lstlisting}[float, label=lst:invokehandler, caption=Example invocation 
+% handler.]
+% void ExampleObj::invoke(Tasklet* t, Cap self, IInvocation* msg) {
+%   switch (msg->getLabel()) {
+%   case 0:
+%     return monitor.request(t, [=](Tasklet* t) { printMessage(t, self, msg); });
+%   default:
+%     msg->replyResponse(Error::INVALID_REQUEST);
+%   }
+% }
+% 
+% void ExampleObj::printMessage(Tasklet* t, Cap self, IInvocation* msg) {
+%   // may use data portion of self for access control and badges...
+%   auto msgdata = msg->getMessage();
+%   // do something useful with the message data...
+%   message.replyResponse(Error::SUCCESS);
+%   monitor.requestDone();
+% }
+% \end{lstlisting}
+% 
+% The \texttt{IInvocation} interface provides several more methods that
+% help, for example, to look up additional kernel objects in the callers
+% capability space, access the callers \texttt{ExecutionContext}, and
+% the caller's logical address space configuration.
+% 
+% \subsection{Interactions between Kernel Objects}
+% 
+% When a capability lookup is used to retrieve a pointer to another
+% kernel object, this pointer is still typed as
+% \texttt{IKernelObject}. This is sufficient to pass invocation messages
+% to the object. However, the invocation mechanism is complex and
+% possibly costly. Therefore it would be more efficient and convenient
+% to call the kernel object's implementation-specific methods
+% directly.
+% 
+% Normal C++ programs use the compiler-generated runtime type
+% information (RTTI) and the \texttt{dynamic\_cast} conversion. This
+% information is not available in the kernel in order to reduce its
+% size. Instead, the conversion is accomplished through the
+% \texttt{ICastable} mechanism. The method \texttt{vcast()} is
+% implemented by each kernel object in order to hand out pointers to
+% more specific interfaces. Listing~\ref{lst:vcast} shows an example.
+% The converted pointer is then retrieved via the \texttt{cast()} helper
+% method as shown in Listing~\ref{lst:cast}.
+% 
+% \begin{lstlisting}[float, label=lst:vcast, caption=Example run-time type conversion in the \texttt{UntypedMemory} object.]
+% virtual optional<void const*> vcast(TypeId id) const override {
+%   if (id == TypeId::id<UntypedMemory>()) return this;
+%   if (id == TypeId::id<IAllocator>()) return static_cast<IAllocator const*>(this);
+%   return Error::TYPE_MISMATCH;
+% }
+% \end{lstlisting}
+% 
+% \begin{lstlisting}[float, label=lst:cast, caption=Casting a kernel object into a more specific type.]
+% auto alloc = ptr->cast<IAllocator>();
+% if (alloc) { // checks whether the conversion was successful
+%   alloc->allocate(...);
+% }
+% \end{lstlisting}
+% 
+% 
+% 
+% \subsection{Object Creation}
+% 
+% Kernel objects are created with memory from a single
+% \texttt{UntypedMemory} via the help of a factory object.  The only
+% exception are a few initial objects that exist statically.  The
+% factory has to implement the \texttt{IFactory} interface, which is
+% shown in Listing~\ref{lst:ifactory}. 
+% 
+% \begin{lstlisting}[float, label=lst:ifactory, caption=The \texttt{IFactory} interface.]
+% class IFactory {
+% public:
+%   virtual optional<void> factory(Cap umcap, IAllocator* mem, IInvocation* msg,
+%                                  CapEntry* tgtentry) = 0;
+% };
+% \end{lstlisting}
+% 
+% The \texttt{umcap} capability belongs to the \texttt{UntypedMemory}
+% that called the factory.  This value is later needed to complete the
+% insertion into the resource tree.  The \texttt{mem} argument points to
+% the \texttt{IAllocator} interface of the \texttt{UntypedMemory}.
+% Because the memory calls the factory the memory's synchronisation
+% monitor has been entered, synchronous calls to \texttt{mem} can be
+% used safely.  The created object has to store \texttt{mem} in order to
+% be able to release its memory later.  The \texttt{tgtentry} points to
+% the capability entry that shall receive the first capability that
+% points to the newly created kernel object.  Finally, the \texttt{msg}
+% arguments contains the invocation buffer that was passed from userland
+% with additional initialisation parameters for the new object.
+% 
+% An example factory implementation is shown in
+% Listing~\ref{lst:factory}.  First, the target capability entry is
+% acquired and locked in order to prevent data races (line 3).  Then,
+% memory for the object is allocated and the object is constructed in
+% this memory.  The factory and the object constructor can allocate
+% additional memory from \texttt{mem} (line 2).  If the allocation
+% fails, the memory has to be released and the target capability entry
+% has to be reset (lines 5--7).
+% 
+% Finally, the original capability of the created object is inserted as
+% child of the \texttt{UntypedMemory} that it was allocated from (line
+% 10).  The parent entry is retrieved from the invocation message and
+% should match \texttt{umcap}.  The operation fails when the parent
+% object was deleted concurrently.  In this case, the object and the
+% target entry have to be released (lines 11--14).  The original
+% capability can be either stored as member variable in the created
+% object, as shown in the example, or can be stored directly in the
+% target entry.  In the example, a reference capability is written to the
+% target entry.
+% 
+% \begin{lstlisting}[float, label=lst:factory, caption=An example factory implementation.]
+% optional<void> ExampleFactory::factory(Cap umcap, IAllocator* mem,
+%                                        IInvocation* msg, CapEntry* tgtentry) {
+%   if (!tgtentry->acquire()) return Error::LOST_RACE;
+%   auto obj = mem->create<ExampleObj,64>(mem, ...); // create with 64b alignment
+%   if (!obj) {
+%     tgtentry->reset();
+%     return Error::INSUFFICIENT_RESOURCES;
+%   }
+%   Cap tgtcap(obj);
+%   auto res = cap::inherit(msg->getCapEntry(), obj->ownRoot, umcap, tgtcap);
+%   if (!res) {
+%     mem->release(obj);
+%     tgtentry->reset();
+%     return res.state();
+%   }
+%   return cap::inherit(obj->ownRoot, tgtentry, tgtcap, tgtcap.asReference());
+% }
+% \end{lstlisting}
+% 
+% 
+% 
+% \subsection{Serialisation Monitors}
+% 
+% The monitors are used by kernel objects to serialise asynchronous
+% method calls and select the place (hardware thread) that processes the
+% calls.  Currently, four monitor variants are available.  The choice
+% depends on the synchronisation needs.  In most cases, the
+% \texttt{NestedMonitorDelegating} is a good choice.
+% 
+% \paragraph{DeletionMonitor.}
+% This monitor implements a reference counter that is used to delay the
+% deletion request until all counted references were released.  It is
+% used as base class for the other monitors.  The methods
+% \texttt{acquireRef()} and \texttt{releaseRef()} increase or decrease
+% the reference counter, respectively.  The \texttt{doDelete()} method
+% schedules a Tasklet to be executed the next time the reference counter
+% reaches zero.  The Tasklet is processed at the place of the
+% \texttt{releaseRef()} caller.  If the reference counter is zero
+% already, the Tasklet processed immediately.
+% 
+% \paragraph{SimpleMonitorHome.}
+% This variant comes close to the classic monitor concept.  The
+% \texttt{request()} method schedules the given Tasklet at a predefined
+% place called \texttt{home}.  At the end of each request handler
+% implementation, \texttt{requestDone()} has to be called in order to
+% release the reference counter.  Because all Tasklet scheduled by the
+% monitor are processed on the same hardware thread, they all are
+% mutually exclusive.
+% 
+% \paragraph{NestedMonitorHome.}
+% This extension of the previous monitor differentiates between
+% asynchronous \emph{requests} and \emph{responses} in order to
+% implement a form of nested locking.  The next requests is processed
+% only after the previous has finished by calling
+% \texttt{requestDone()}.  Requests can issue sub-requests to other
+% kernel objects and the last response has to call
+% \texttt{responseAndRequestDone()} instead of just
+% \texttt{responseDone()}.  Developers should be careful with cyclic
+% dependencies between kernel objects because the mutually exclusive
+% request are prone to deadlocks -- like in any scenario with nested
+% locks that can be entered just once.
+% 
+% \paragraph{NestedMonitorDelegating.}
+% This monitor has the same \emph{request}/\emph{response} interface as \texttt{NestedMonitorHome} but
+% the monitor is not bound to a specific home place.  Instead, the first
+% request that acquires exclusive access sets the home to its caller's
+% place.  All responses to sub-requests will processed at this
+% place.  Further requests that do not acquire exclusive access will be
+% processed at this place, too.  The last \texttt{requestDone()} or
+% \texttt{responseAndRequestDone()} releases the exclusive access, such
+% that later requests select a new home.  This behaviour is based on the
+% concept of \emph{delegation locks}.
+% 
+% 
+% \subsection{Connecting Objects through Weak Reference Capabilities}
+% 
+% Pointers between kernel objects require special care because the
+% target object can be deleted concurrently.  This would leave dangling
+% pointers, which result in fancy bugs and headaches.  In many cases,
+% the associations between kernel objects are established by the
+% transfer of access rights.  In \mythos this is implemented by passing
+% a capability to the kernel object and the capability revocation can be
+% used to clean up such pointers.  This idea is implemented by the
+% \texttt{CapRef} class.
+% 
+% \begin{lstlisting}[float, label=lst:capref, caption=The weak reference capability interface.]
+% template<class Subject, class Object, class Revoker=RevokeByUnbind>
+% class CapRef : public CapRefBase {
+% public:
+%   optional<void> set(Subject* subject, CapEntry& src, Cap srcCap);
+%   optional<Object*> get() const;
+%   void reset();
+% protected:
+%   virtual void revoked(Cap self, Cap orig);
+% };   
+% \end{lstlisting}
+% 
+% Listing~\ref{lst:capref} summarises the principal interface of
+% \texttt{CapRef}. Basically, the object contains a capability entry
+% that holds a reference capability and a pointer to the
+% \texttt{subject} capability holder.  The \texttt{set()} method
+% inherits the reference from the \texttt{src} and \texttt{srcCap} pair.
+% It fails if a concurrent call to \texttt{set()} was faster or when the
+% source entry was deleted concurrently.  The \texttt{get()} method
+% returns a pointer to the capability's object casted to the desired
+% object interface.  It fails if the capability was never set or was
+% revoked meanwhile.  The \texttt{reset()} method clears the reference
+% and called automatically from \texttt{set()}.
+% 
+% During capability revocation, the \texttt{revoked()} method will be
+% called synchronously.  It can be overridden by derived types.  The
+% default implementation calls 
+% \lstinline{Revoker::apply(subject, object, self, orig)}.
+% The default \texttt{RevokeByUnbind} calls
+% \lstinline{subject->unbind(object)} synchronously in order to notify the reference
+% holder. An example usage is given in Listing~\ref{lst:caprefex}.
+% 
+% \begin{lstlisting}[float, label=lst:caprefex, caption=An example use of weak references.]
+% class Foo : public IKernelObject {
+% public:
+%   optional<void> bindPortal(CapEntry& pcap); // calls portal.set(...)
+% protected:
+%   CapRef<Foo, IPortal> portal;
+%   friend class RevokeByUnbind;
+%   void unbind(optional<IPortal*> o); // reacts to the revocation
+% };
+% \end{lstlisting}
+% 
 
-This section describes the steps necessary to create a new kernel
-object. First, the \texttt{IKernelObject} interface
-(Listing~\ref{lst:ikernelobject}) is discussed. It has to be
-implemented by all kernel objects in order to participate in the
-resource management and processing of system calls.  Then, the
-allocation and initialisation of kernel objects through factories is
-described.  Finally, an overview over the synchronisation monitors and
-the weak references mechanism is given.
+\section{Introduction}
+\label{sec:intro}
 
-The kernel source includes an example object, which serves as
-a starting point for the creation of custom Kernel Objects and as a
-mock for testing object allocation and deletion. For further
-information, consider the documentation embedded into the source
-code. Most of the code embedded here is part of the Example object.
+This document recaps a strategy plan for the further development of the MyThOS
+operating system and its prototype. It summarizes a bunch of useful and
+nice-to-have improvements, like for example for error and performance analysis, interfaces
+for the configuration of the interrupt handling and capability transfers
+between communication portals. It also outlines the development strategy of the
+partners in terms of future academic activities and projects, that will help to
+sustainably improve the system.
 
-\begin{lstlisting}[float, label=lst:ikernelobject, caption=The \texttt{IKernelObject} interface.]
-class IKernelObject : public ICastable {
-public:
-  virtual Range<uintptr_t> addressRange(Cap self);
-  virtual optional<Cap> mint(Cap self, CapRequest request);
-  virtual optional<void> deleteCap(Cap self, IDeleter& del) = 0;
-  virtual void deleteObject(Tasklet* t, IResult<void>* r) = 0;
-  virtual Range<uintptr_t> objectRange() const = 0;
-  virtual optional<CapEntryRef> lookup(Cap self, CapPtr needle, CapPtrDepth maxDepth);
-  virtual void invoke(Tasklet* t, Cap self, IInvocation* msg);
-};
+In the second phase of the project the MyThOS system and its architecture were
+completely redesigned and re-implemented from scratch. The lessons learned from
+the previous version helped us to streamline the kernel into a more consistent
+shape and operation. Logical and functional gaps are not pushed up anymore to
+the responsibility of the application developers, but were filled and closed
+with clear definitions, requirements and architectural elements of the system.
+In the course of that development various nice-to-have functionalities were left
+aside or postponed, as the focus was initially set on the development of the new
+version of the base kernel. Such functionalities and features are presented and
+discussed later in Section~\ref{sec:extensions}.
 
-class ICastable {
-public:
-  virtual optional<void const*> vcast(TypeId id) const;
-};
-\end{lstlisting}
+MyThOS is planned to serve as a basis for various further research projects and
+initiatives. Thereby, aspects like different scheduling policies, task models,
+resource management strategies (CPU, energy, network), fault tolerance and
+support for time-critical applications will be investigated. The fields of
+application and research range from heterogeneous and embedded systems, over
+large scale infrastructures to time-critical and real-time applications and
+systems. Concrete developments and projects as well as cooperations with
+industrial and academic partners will be announced and referenced on MyThOS's
+website (\url{https://manythreads.github.io/mythos/}).
 
-\subsection{Ressource management}
+Furthermore, we aim to extend the code-base with further (example) applications
+and to port the system to different hardware architectures (e.g. ARM, PPC,
+particular Microcontrollers, etc). Also modules for physical storage, network
+communication, graphical display and device drivers for further peripherial
+hardware are still on the roadmap. 
 
-The \texttt{addressRange()} method is used by the resource inheritance
-tree for parent-ship tests. The method has to return the physical
-address range that is used by the object. The range has to be a
-superset of the address ranges of all derived child objects in the
-capability inheritance tree. Kernel objects that will have no children
-can simply use the default implementation.
+Besides this, theoretical and practical aspects of MyThOS are already and will
+be further integrated in various lectures, seminars, student thesis and labs at
+the Ulm University and at the BTU Cottbus. 
 
-\texttt{deleteCap()} and \texttt{deleteObject()} are both part of the
-multistep deletion process. \texttt{deleteCap()} notifies the object
-that a capability is going to be deleted. For most objects, this will
-have no effect for reference and derived capabilities. For original
-capabilities, the objects recursively deletes its capability entry and
-schedules itself for asynchronous deletion using the \texttt{IDeleter}
-object given as a parameter. Listing~\ref{lst:deletecap} shows a simple example
-for an object without any embedded capability entries.
+MyThOS was also published on GitHub with the aim to build an open source
+developer community and to provide a well-known platform for further
+developments and improvements.
 
-\begin{lstlisting}[float, label=lst:deletecap, caption=Example handler for capability revocation.]
-optional<void> ExampleObj::deleteCap(Cap self, IDeleter& del) {
-  if (self.isOriginal()) del.deleteObject(del_handle);
-  return Error::SUCCESS;
-}
-\end{lstlisting}
-
-\texttt{deleteObject()} carries out the final step of the asynchronous
-deletion. The object will use its deletion monitor to wait for all
-outstanding asynchronous request to complete and then asynchronously
-requests the deletion from the \texttt{UntypedMemory} object it was
-allocated from. An example is shown in
-Listing~\ref{lst:deleteobject}. The memory's \texttt{release()} method
-will call the object's \texttt{objectRange()} to query the address
-range that is used by the object itself. First, the objects virtual
-destructor \texttt{~IKernelObject()} is called in order to let the
-object free all contained additional memory blocks. Then, the objects
-memory is freed. Finally, the deleter is notified about the completion
-by replying to the \texttt{IResult} pointer.
-
-\begin{lstlisting}[float, label=lst:deleteobject, caption=Example handler for asynchronous object deletion.]
-void ExampleObj::deleteObject(Tasklet* t, IResult<void>* r) {
-  monitor.doDelete(t, [=](Tasklet* t){ this->_mem->release(t, r, this); });
-}
-\end{lstlisting}
-
-The \texttt{mint()} method is used when creating a reference or derived capability. This mechanism allows to restrict access rights, add communication badges and similar by altering the data portion of the capability according to the request argument. The meaning of the request arguments is defined by the actual object because the capability data portion is interpreted only by the object itself. If a kernel object does not accept the minting request, it should return an error code.
-
-\subsection{System Calls as Capability Invocation}
-
-The \texttt{lookup()} method is used by the system call entry code in
-order to find the target object that matches the given capability
-pointer. The search in the caller's capability space recursively walks
-through its capability maps. The default implementation of this method
-fails and returns an error code. A custom implementation is only
-necessary if the object acts as a capability map.
-
-The \texttt{invoke()} method implements the receiving side of the
-capability invocation to a kernel object. Its default implementation
-simply returns with an error. Listing~\ref{lst:invokehandler} shows an
-example of the invocation handling. The \texttt{invoke()} method
-dispatches the message based on the message label and asynchronously
-calls the appropriate implementation. The implementation checks the
-caller's access rights by inspecting the capability \texttt{self} that
-was used to access the object. Then, the arguments are copied from the
-message into local buffers and checked for validity. The copy is
-crucial for security because otherwise concurrently running
-application threads could manipulate the arguments after the sanity
-check have been passed. After carrying out the request, the object
-replies and releases the its monitor.
-
-\begin{lstlisting}[float, label=lst:invokehandler, caption=Example invocation 
-handler.]
-void ExampleObj::invoke(Tasklet* t, Cap self, IInvocation* msg) {
-  switch (msg->getLabel()) {
-  case 0:
-    return monitor.request(t, [=](Tasklet* t) { printMessage(t, self, msg); });
-  default:
-    msg->replyResponse(Error::INVALID_REQUEST);
-  }
-}
-
-void ExampleObj::printMessage(Tasklet* t, Cap self, IInvocation* msg) {
-  // may use data portion of self for access control and badges...
-  auto msgdata = msg->getMessage();
-  // do something useful with the message data...
-  message.replyResponse(Error::SUCCESS);
-  monitor.requestDone();
-}
-\end{lstlisting}
-
-The \texttt{IInvocation} interface provides several more methods that
-help, for example, to look up additional kernel objects in the callers
-capability space, access the callers \texttt{ExecutionContext}, and
-the caller's logical address space configuration.
-
-\subsection{Interactions between Kernel Objects}
-
-When a capability lookup is used to retrieve a pointer to another
-kernel object, this pointer is still typed as
-\texttt{IKernelObject}. This is sufficient to pass invocation messages
-to the object. However, the invocation mechanism is complex and
-possibly costly. Therefore it would be more efficient and convenient
-to call the kernel object's implementation-specific methods
-directly.
-
-Normal C++ programs use the compiler-generated runtime type
-information (RTTI) and the \texttt{dynamic\_cast} conversion. This
-information is not available in the kernel in order to reduce its
-size. Instead, the conversion is accomplished through the
-\texttt{ICastable} mechanism. The method \texttt{vcast()} is
-implemented by each kernel object in order to hand out pointers to
-more specific interfaces. Listing~\ref{lst:vcast} shows an example.
-The converted pointer is then retrieved via the \texttt{cast()} helper
-method as shown in Listing~\ref{lst:cast}.
-
-\begin{lstlisting}[float, label=lst:vcast, caption=Example run-time type conversion in the \texttt{UntypedMemory} object.]
-virtual optional<void const*> vcast(TypeId id) const override {
-  if (id == TypeId::id<UntypedMemory>()) return this;
-  if (id == TypeId::id<IAllocator>()) return static_cast<IAllocator const*>(this);
-  return Error::TYPE_MISMATCH;
-}
-\end{lstlisting}
-
-\begin{lstlisting}[float, label=lst:cast, caption=Casting a kernel object into a more specific type.]
-auto alloc = ptr->cast<IAllocator>();
-if (alloc) { // checks whether the conversion was successful
-  alloc->allocate(...);
-}
-\end{lstlisting}
-
-
-
-\subsection{Object Creation}
-
-Kernel objects are created with memory from a single
-\texttt{UntypedMemory} via the help of a factory object.  The only
-exception are a few initial objects that exist statically.  The
-factory has to implement the \texttt{IFactory} interface, which is
-shown in Listing~\ref{lst:ifactory}. 
-
-\begin{lstlisting}[float, label=lst:ifactory, caption=The \texttt{IFactory} interface.]
-class IFactory {
-public:
-  virtual optional<void> factory(Cap umcap, IAllocator* mem, IInvocation* msg,
-                                 CapEntry* tgtentry) = 0;
-};
-\end{lstlisting}
-
-The \texttt{umcap} capability belongs to the \texttt{UntypedMemory}
-that called the factory.  This value is later needed to complete the
-insertion into the resource tree.  The \texttt{mem} argument points to
-the \texttt{IAllocator} interface of the \texttt{UntypedMemory}.
-Because the memory calls the factory the memory's synchronisation
-monitor has been entered, synchronous calls to \texttt{mem} can be
-used safely.  The created object has to store \texttt{mem} in order to
-be able to release its memory later.  The \texttt{tgtentry} points to
-the capability entry that shall receive the first capability that
-points to the newly created kernel object.  Finally, the \texttt{msg}
-arguments contains the invocation buffer that was passed from userland
-with additional initialisation parameters for the new object.
-
-An example factory implementation is shown in
-Listing~\ref{lst:factory}.  First, the target capability entry is
-acquired and locked in order to prevent data races (line 3).  Then,
-memory for the object is allocated and the object is constructed in
-this memory.  The factory and the object constructor can allocate
-additional memory from \texttt{mem} (line 2).  If the allocation
-fails, the memory has to be released and the target capability entry
-has to be reset (lines 5--7).
-
-Finally, the original capability of the created object is inserted as
-child of the \texttt{UntypedMemory} that it was allocated from (line
-10).  The parent entry is retrieved from the invocation message and
-should match \texttt{umcap}.  The operation fails when the parent
-object was deleted concurrently.  In this case, the object and the
-target entry have to be released (lines 11--14).  The original
-capability can be either stored as member variable in the created
-object, as shown in the example, or can be stored directly in the
-target entry.  In the example, a reference capability is written to the
-target entry.
-
-\begin{lstlisting}[float, label=lst:factory, caption=An example factory implementation.]
-optional<void> ExampleFactory::factory(Cap umcap, IAllocator* mem,
-                                       IInvocation* msg, CapEntry* tgtentry) {
-  if (!tgtentry->acquire()) return Error::LOST_RACE;
-  auto obj = mem->create<ExampleObj,64>(mem, ...); // create with 64b alignment
-  if (!obj) {
-    tgtentry->reset();
-    return Error::INSUFFICIENT_RESOURCES;
-  }
-  Cap tgtcap(obj);
-  auto res = cap::inherit(msg->getCapEntry(), obj->ownRoot, umcap, tgtcap);
-  if (!res) {
-    mem->release(obj);
-    tgtentry->reset();
-    return res.state();
-  }
-  return cap::inherit(obj->ownRoot, tgtentry, tgtcap, tgtcap.asReference());
-}
-\end{lstlisting}
-
-
-
-\subsection{Serialisation Monitors}
-
-The monitors are used by kernel objects to serialise asynchronous
-method calls and select the place (hardware thread) that processes the
-calls.  Currently, four monitor variants are available.  The choice
-depends on the synchronisation needs.  In most cases, the
-\texttt{NestedMonitorDelegating} is a good choice.
-
-\paragraph{DeletionMonitor.}
-This monitor implements a reference counter that is used to delay the
-deletion request until all counted references were released.  It is
-used as base class for the other monitors.  The methods
-\texttt{acquireRef()} and \texttt{releaseRef()} increase or decrease
-the reference counter, respectively.  The \texttt{doDelete()} method
-schedules a Tasklet to be executed the next time the reference counter
-reaches zero.  The Tasklet is processed at the place of the
-\texttt{releaseRef()} caller.  If the reference counter is zero
-already, the Tasklet processed immediately.
-
-\paragraph{SimpleMonitorHome.}
-This variant comes close to the classic monitor concept.  The
-\texttt{request()} method schedules the given Tasklet at a predefined
-place called \texttt{home}.  At the end of each request handler
-implementation, \texttt{requestDone()} has to be called in order to
-release the reference counter.  Because all Tasklet scheduled by the
-monitor are processed on the same hardware thread, they all are
-mutually exclusive.
-
-\paragraph{NestedMonitorHome.}
-This extension of the previous monitor differentiates between
-asynchronous \emph{requests} and \emph{responses} in order to
-implement a form of nested locking.  The next requests is processed
-only after the previous has finished by calling
-\texttt{requestDone()}.  Requests can issue sub-requests to other
-kernel objects and the last response has to call
-\texttt{responseAndRequestDone()} instead of just
-\texttt{responseDone()}.  Developers should be careful with cyclic
-dependencies between kernel objects because the mutually exclusive
-request are prone to deadlocks -- like in any scenario with nested
-locks that can be entered just once.
-
-\paragraph{NestedMonitorDelegating.}
-This monitor has the same \emph{request}/\emph{response} interface as \texttt{NestedMonitorHome} but
-the monitor is not bound to a specific home place.  Instead, the first
-request that acquires exclusive access sets the home to its caller's
-place.  All responses to sub-requests will processed at this
-place.  Further requests that do not acquire exclusive access will be
-processed at this place, too.  The last \texttt{requestDone()} or
-\texttt{responseAndRequestDone()} releases the exclusive access, such
-that later requests select a new home.  This behaviour is based on the
-concept of \emph{delegation locks}.
-
-
-\subsection{Connecting Objects through Weak Reference Capabilities}
-
-Pointers between kernel objects require special care because the
-target object can be deleted concurrently.  This would leave dangling
-pointers, which result in fancy bugs and headaches.  In many cases,
-the associations between kernel objects are established by the
-transfer of access rights.  In \mythos this is implemented by passing
-a capability to the kernel object and the capability revocation can be
-used to clean up such pointers.  This idea is implemented by the
-\texttt{CapRef} class.
-
-\begin{lstlisting}[float, label=lst:capref, caption=The weak reference capability interface.]
-template<class Subject, class Object, class Revoker=RevokeByUnbind>
-class CapRef : public CapRefBase {
-public:
-  optional<void> set(Subject* subject, CapEntry& src, Cap srcCap);
-  optional<Object*> get() const;
-  void reset();
-protected:
-  virtual void revoked(Cap self, Cap orig);
-};   
-\end{lstlisting}
-
-Listing~\ref{lst:capref} summarises the principal interface of
-\texttt{CapRef}. Basically, the object contains a capability entry
-that holds a reference capability and a pointer to the
-\texttt{subject} capability holder.  The \texttt{set()} method
-inherits the reference from the \texttt{src} and \texttt{srcCap} pair.
-It fails if a concurrent call to \texttt{set()} was faster or when the
-source entry was deleted concurrently.  The \texttt{get()} method
-returns a pointer to the capability's object casted to the desired
-object interface.  It fails if the capability was never set or was
-revoked meanwhile.  The \texttt{reset()} method clears the reference
-and called automatically from \texttt{set()}.
-
-During capability revocation, the \texttt{revoked()} method will be
-called synchronously.  It can be overridden by derived types.  The
-default implementation calls 
-\lstinline{Revoker::apply(subject, object, self, orig)}.
-The default \texttt{RevokeByUnbind} calls
-\lstinline{subject->unbind(object)} synchronously in order to notify the reference
-holder. An example usage is given in Listing~\ref{lst:caprefex}.
-
-\begin{lstlisting}[float, label=lst:caprefex, caption=An example use of weak references.]
-class Foo : public IKernelObject {
-public:
-  optional<void> bindPortal(CapEntry& pcap); // calls portal.set(...)
-protected:
-  CapRef<Foo, IPortal> portal;
-  friend class RevokeByUnbind;
-  void unbind(optional<IPortal*> o); // reacts to the revocation
-};
-\end{lstlisting}
-
+In the following Section~\ref{sec:extensions} we now summarize some of the
+directions for technical improvements of the kernel.
 
 \section{Strategy for further Development}
 \label{sec:extensions}
