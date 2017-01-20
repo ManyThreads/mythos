@@ -203,8 +203,8 @@ which should be reused by custom applications.
 
 Due to  the reduced nature of \mythos, applications have to be compiled
 carefully to be executable on \mythos. This will also be true once the dynamic
-application loader is in place. Currently \mythos does offer the full interface
-of commonly used libraries like LibC. Therefore, the compiler has to be
+application loader is in place. Currently, \mythos does not offer the full interface
+of commonly used libraries like the LibC. Therefore, the compiler has to be
 instructed not to include exception handling into the code
 (\texttt{-fno-exceptions}) and omit including stack protectors
 (\texttt{-fno-stack-protector}). The linker has to be configured to not link
