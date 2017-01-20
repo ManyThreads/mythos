@@ -82,17 +82,17 @@ SECTIONS
     .data : {
       *(.data .data.* .gnu.linkonce.d.*)
       . = ALIGN(64); /* cache line aligned */
-      PROVIDE (CLM_ADDR = .);
+      CLM_ADDR = ABSOLUTE(.);
       SORT_BY_ALIGNMENT (*)(.kernel_clm.hot)
       SORT_BY_ALIGNMENT (*)(.kernel_clm)
       . = ALIGN(64); /* cache line aligned */
-      PROVIDE (CLM_BLOCKEND = .);
+      CLM_BLOCKEND = ABSOLUTE(.);
     } : data
 
     .bss : {
-	. += BOOT_MAX_THREADS*(CLM_BLOCKEND - CLM_ADDR);
-	PROVIDE (CLM_END = .);
-        *(.bss .bss.* .gnu.linkonce.b.*)
+      . += BOOT_MAX_THREADS*(CLM_BLOCKEND - CLM_ADDR);
+      CLM_END = ABSOLUTE(.);
+      *(.bss .bss.* .gnu.linkonce.b.*)
     }
 
     . = ALIGN(2M); /* page aligned */

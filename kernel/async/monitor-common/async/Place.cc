@@ -34,7 +34,7 @@ namespace async {
 
   void Place::init(size_t apicID)
   {
-    mlog::async.info("init Place", DVAR(this), DVAR(apicID));
+    MLOG_INFO(mlog::async, "init Place", DVAR(this), DVAR(apicID));
     this->apicID = apicID;
     this->nestingMonitor = true;
     this->_cr3 = PhysPtr<void>(cpu::getPageTable());
@@ -46,7 +46,7 @@ namespace async {
     Tasklet* msg = queue.pull();
     while (true) {
       if (msg != nullptr) {
-        mlog::async.detail(this, "run tasklet", msg);
+        MLOG_DETAIL(mlog::async, this, "run tasklet", msg);
         msg->run();
       } else {
         if (queue.tryRelease()) break;

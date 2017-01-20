@@ -66,6 +66,7 @@ NORETURN void entry_ap(size_t id) SYMBOL("entry_ap");
 void entry_bsp()
 {
   mythos::boot::initKernelSpace();
+  mythos::boot::mapLapic(mythos::x86::getApicBase()); // make LAPIC accessible
   mythos::GdtAmd64 tempGDT;
   tempGDT.init();
   tempGDT.load();
@@ -79,7 +80,6 @@ void entry_bsp()
   MLOG_DETAIL(mlog::boot, "CLM blocksize", (void*)mythos::KernelCLM::getBlockSize());
 
   mythos::boot::initCxxGlobals(); // init all global variables
-  mythos::boot::mapLapic(mythos::x86::getApicBase()); // make LAPIC accessible
   mythos::boot::initMemoryRegions();
   mythos::boot::initKernelMemory(*mythos::boot::kmem_root());
   mythos::boot::apboot(); // does not return, jumps to entry_ap()
@@ -90,9 +90,9 @@ NORETURN void runUser();
 
 void runUser() {
   mythos::async::getLocalPlace().processTasks();
-  mlog::boot.detail("trying to execute app");
+  MLOG_DETAIL(mlog::boot, "trying to execute app");
   mythos::boot::getLocalScheduler().tryRunUser();
-  mlog::boot.detail("going to sleep now");
+  MLOG_DETAIL(mlog::boot, "going to sleep now");
   mythos::cpu::go_sleeping(); // resets the kernel stack!
 }
 
@@ -100,7 +100,7 @@ void entry_ap(size_t id)
 {
   //asm volatile("xchg %bx,%bx");
   mythos::boot::apboot_thread(id);
-  mlog::boot.detail("started hardware thread");
+  MLOG_DETAIL(mlog::boot, "started hardware thread");
 
   if (id == mythos::cpu::enumerateHwThreadID(0)) {
     auto res = mythos::boot::load_init(); // start the first application
@@ -113,14 +113,14 @@ void entry_ap(size_t id)
 void mythos::cpu::sleeping_failed()
 {
   mythos::async::getLocalPlace().enterKernel();
-  mlog::boot.detail("sleeping failed without visible interrupt");
+  MLOG_DETAIL(mlog::boot, "sleeping failed without visible interrupt");
   runUser();
 }
 
 void mythos::cpu::syscall_entry_cxx(mythos::cpu::ThreadState* ctx)
 {
   mythos::async::getLocalPlace().enterKernel();
-  mlog::boot.detail("user system call", DVAR(ctx->rdi), DVAR(ctx->rsi),
+  MLOG_DETAIL(mlog::boot, "user system call", DVAR(ctx->rdi), DVAR(ctx->rsi),
       DVARhex(ctx->rip), DVARhex(ctx->rsp));
   mythos::handle_syscall(ctx);
   runUser();
@@ -129,7 +129,7 @@ void mythos::cpu::syscall_entry_cxx(mythos::cpu::ThreadState* ctx)
 void mythos::cpu::irq_entry_user(mythos::cpu::ThreadState* ctx)
 {
   mythos::async::getLocalPlace().enterKernel();
-  mlog::boot.detail("user interrupt", DVAR(ctx->irq), DVAR(ctx->error),
+  MLOG_DETAIL(mlog::boot, "user interrupt", DVAR(ctx->irq), DVAR(ctx->error),
       DVARhex(ctx->rip), DVARhex(ctx->rsp));
   if (ctx->irq<32) {
     mythos::handle_trap(ctx); // handle traps, exceptions, bugs from user mode
@@ -142,14 +142,14 @@ void mythos::cpu::irq_entry_user(mythos::cpu::ThreadState* ctx)
 
 void mythos::cpu::irq_entry_kernel(mythos::cpu::KernelIRQFrame* ctx)
 {
-  mlog::boot.detail("kernel interrupt", DVAR(ctx->irq), DVAR(ctx->error),
+  MLOG_DETAIL(mlog::boot, "kernel interrupt", DVAR(ctx->irq), DVAR(ctx->error),
       DVARhex(ctx->rip), DVARhex(ctx->rsp));
   bool wasbug = handle_bugirqs(ctx);
   bool nested = mythos::async::getLocalPlace().enterKernel();
   // initiate irq processing: first kernel bugs
   if (!wasbug) {
     // TODO then external and wakeup interrupts
-    mlog::boot.info("ack the interrupt");
+    MLOG_INFO(mlog::boot, "ack the interrupt");
     mythos::lapic.endOfInterrupt();
   }
 

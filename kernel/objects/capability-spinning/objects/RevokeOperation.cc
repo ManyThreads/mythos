@@ -68,7 +68,7 @@ namespace mythos {
       return;
     }
     if (!entry.kill()) {
-      mlog::cap.detail("Can not kill entry", &entry, entry);
+      MLOG_DETAIL(mlog::cap, "Can not kill entry", &entry, entry);
       res->response(t, Error::LOST_RACE);
       monitor.requestDone();
       return;

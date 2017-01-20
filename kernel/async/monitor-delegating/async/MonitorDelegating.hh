@@ -59,16 +59,16 @@ public:
   {
     if (!requestQueue.tryRelease()) {
       auto msg = requestQueue.pop();
-      mlog::async.info(this, "after pop");
+      MLOG_INFO(mlog::async, this, "after pop");
       enqueue(msg);
     }
     // if in response, the response is responsible
     // for releasing the monitor
     if (!inResponse) {
-      mlog::async.info(this, "release in request");
+      MLOG_INFO(mlog::async, this, "release in request");
       release();
     } else {
-      mlog::async.info(this, "release in response");
+      MLOG_INFO(mlog::async, this, "release in response");
     }
     releaseRef();
   }
@@ -95,21 +95,21 @@ protected:
   void enqueue(Tasklet* msg)
   {
     if (queue.push(msg)) { // first
-      mlog::async.info(this, "acquired monitor");
+      MLOG_INFO(mlog::async, this, "acquired monitor");
       msg = queue.pop();
       getLocalPlace().runLocal(msg);
     } else {
-        mlog::async.info(this, "delegated monitor");
+        MLOG_INFO(mlog::async, this, "delegated monitor");
     }
   }
 
   void release() {
     if (!queue.tryRelease()) {
-      mlog::async.info(this, "reschedule monitor");
+      MLOG_INFO(mlog::async, this, "reschedule monitor");
       auto msg = queue.pop();
       getLocalPlace().runLocal(msg);
     } else {
-      mlog::async.info(this, "released monitor");
+      MLOG_INFO(mlog::async, this, "released monitor");
     }
   }
 

@@ -32,16 +32,16 @@ namespace mythos {
   ACPIApicTopology::ACPIApicTopology()
     : systemDetected(false), n_threads(0)
   {
-    mlog::boot.info("searching ACPI configuration...");
+    MLOG_INFO(mlog::boot, "searching ACPI configuration...");
 
     // find root system description pointer
     // QEMU seabios places RSDP somewhere in low mem and it is ACPI 1.0
     PhysPtr<uint16_t> ebdaBase(0x040E);
-    mlog::boot.detail("EBDA base", (void*)(size_t(*ebdaBase)<<4));
+    MLOG_DETAIL(mlog::boot, "EBDA base", (void*)(size_t(*ebdaBase)<<4));
 
     RSDP* rsdp = RSDP::find(PhysPtr<char>(0xe0000), 0x00100000-0xe0000);
     if (rsdp == 0) rsdp = RSDP::find(PhysPtr<char>(size_t(*ebdaBase)<<4), 4096);
-    mlog::boot.detail(DVAR(rsdp));
+    MLOG_DETAIL(mlog::boot, DVAR(rsdp));
     if (rsdp == 0 || rsdp->getRSDTPtr()==0) return;
 
     // parse the root system description table and search for the MADT
@@ -49,10 +49,10 @@ namespace mythos {
     MADT* madt = nullptr;
     for (size_t i = 0; i < rsdt->getNumSDTPtrs(); i++) {
       ACPI* entry = rsdt->getSDTPtr(i);
-      mlog::boot.detail("RSDT entry", DVARhex(entry->signature), DVAR(entry));
+      MLOG_DETAIL(mlog::boot, "RSDT entry", DVARhex(entry->signature), DVAR(entry));
       if (entry->signature == ACPI::MADT) madt = static_cast<MADT*>(entry);
     }
-    mlog::boot.detail("parsing MADT entries ...", DVAR(madt));
+    MLOG_DETAIL(mlog::boot, "parsing MADT entries ...", DVAR(madt));
     if (madt == nullptr) return;
 
     // parse the madt
@@ -90,7 +90,7 @@ namespace mythos {
       }
       } // switch
     }
-    mlog::boot.detail("found apic IDs", DVAR(n_threads));
+    MLOG_DETAIL(mlog::boot, "found apic IDs", DVAR(n_threads));
     systemDetected = true;
   }
 

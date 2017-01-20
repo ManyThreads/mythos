@@ -49,11 +49,11 @@ optional<void*> UntypedMemory::alloc(size_t length, size_t alignment)
 {
   auto result = heap.alloc(length, alignment);
   if (result) {
-    mlog::um.info("alloc", DVAR(length), DVARhex(alignment), DVARhex(*result));
+    MLOG_INFO(mlog::um, "alloc", DVAR(length), DVARhex(alignment), DVARhex(*result));
     monitor.acquireRef();
     return reinterpret_cast<void*>(*result);
   } else {
-    mlog::um.info("alloc failed", DVAR(length), DVARhex(alignment), DVAR(result.state()));
+    MLOG_INFO(mlog::um, "alloc failed", DVAR(length), DVARhex(alignment), DVAR(result.state()));
     return result.state();
   }
 }
@@ -67,11 +67,11 @@ optional<void> UntypedMemory::alloc(MemoryDescriptor* begin, MemoryDescriptor* e
     ASSERT(!it->ptr);
     result = heap.alloc(it->size, it->alignment);
     if (result) {
-      mlog::um.info("alloc", DVAR(it->size), DVARhex(it->alignment), DVARhex(*result));
+      MLOG_INFO(mlog::um, "alloc", DVAR(it->size), DVARhex(it->alignment), DVARhex(*result));
       monitor.acquireRef();
       it->ptr = reinterpret_cast<void*>(*result);
     } else {
-      mlog::um.info("alloc failed", DVAR(it->size), DVARhex(it->alignment), DVAR(result.state()));
+      MLOG_INFO(mlog::um, "alloc failed", DVAR(it->size), DVARhex(it->alignment), DVAR(result.state()));
       break;
     }
   }
@@ -87,7 +87,7 @@ void UntypedMemory::free(void* ptr, size_t length)
 {
   auto start = reinterpret_cast<uintptr_t>(ptr);
   auto freeRange = Range<uintptr_t>::bySize(PhysPtr<void>::fromKernel(ptr).physint(), length);
-  mlog::um.info("free", DVARhex(ptr), DVARhex(length));
+  MLOG_INFO(mlog::um, "free", DVARhex(ptr), DVARhex(length));
   ASSERT(_range.contains(freeRange));
   monitor.releaseRef();
   heap.free(start, length);
@@ -115,7 +115,7 @@ void UntypedMemory::addRange(PhysPtr<void> start, size_t length)
 void UntypedMemory::free(Tasklet* t, IResult<void>* r,
        MemoryDescriptor* begin, MemoryDescriptor* end)
 {
-  mlog::um.info("free request", DVAR(t), DVAR(r), DVARhex(begin), DVARhex(end));
+  MLOG_INFO(mlog::um, "free request", DVAR(t), DVAR(r), DVARhex(begin), DVARhex(end));
   monitor.request(t, [=](Tasklet* t){
       this->free(begin, end);
       r->response(t);
@@ -125,7 +125,7 @@ void UntypedMemory::free(Tasklet* t, IResult<void>* r,
 
 void UntypedMemory::free(Tasklet* t, IResult<void>* r, void* start, size_t length)
 {
-  mlog::um.info("free request", DVAR(t), DVAR(r), DVARhex(start), DVARhex(length));
+  MLOG_INFO(mlog::um, "free request", DVAR(t), DVAR(r), DVARhex(start), DVARhex(length));
   monitor.request(t, [=](Tasklet* t){
       this->free(start, length);
       r->response(t);

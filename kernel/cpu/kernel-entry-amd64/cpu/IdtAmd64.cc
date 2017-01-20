@@ -39,7 +39,7 @@ namespace mythos {
   }
   
   void IdtAmd64::init() {
-    mlog::boot.detail("init IDT with entry handlers at", (void*)interrupt_entry_table[0]);
+    MLOG_DETAIL(mlog::boot, "init IDT with entry handlers at", (void*)interrupt_entry_table[0]);
     initEarly();
     // mark interrupts that shall be executed on the nmi stack
     table[2].setIST(1); // NMI Non-Maskable Interrupt

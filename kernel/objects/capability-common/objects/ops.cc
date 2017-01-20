@@ -39,7 +39,7 @@ namespace mythos {
     // first check ranges
     auto parentRange = parent.getPtr()->addressRange(parent);
     auto otherRange = other.getPtr()->addressRange(other);
-    //mlog::cap.detail(DVAR(parentRange), DVAR(otherRange));
+    //MLOG_DETAIL(mlog::cap, DVAR(parentRange), DVAR(otherRange));
     if (parentRange.contains(otherRange)) {
 
       if (!otherRange.contains(parentRange)) {
@@ -64,7 +64,7 @@ namespace mythos {
 
   optional<void> inherit(CapEntry& thisEntry, CapEntry& newEntry, Cap thisCap, Cap newCap)
   {
-    mlog::cap.detail("inherit caps", DVAR(thisCap), DVAR(newCap),
+    MLOG_DETAIL(mlog::cap, "inherit caps", DVAR(thisCap), DVAR(newCap),
 		    DVAR(isParentOf(thisCap, newCap)), DVAR(isParentOf(newCap, thisCap)));
     ASSERT(newEntry.cap().isAllocated());
     ASSERT(implies(thisCap.isReference(), !isParentOf(thisCap, newCap) && !isParentOf(newCap, thisCap)));

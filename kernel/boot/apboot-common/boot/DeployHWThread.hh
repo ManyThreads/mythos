@@ -80,11 +80,11 @@ struct DeployHWThread
     gdt.kernel_gs.setBaseAddress(uint32_t(KernelCLM::getOffset(apicID)));
     async::preparePlace(apicID);
 
-    mlog::boot.detail("  mapped kernel stack", DVAR(apicID),
+    MLOG_DETAIL(mlog::boot, "  mapped kernel stack", DVAR(apicID),
                       (void*)stacks[apicID], (void*)(uintptr_t(stackspace)+apicID*CORE_STACK_SIZE-VIRT_ADDR));
-    mlog::boot.detail("  nmi stack", DVAR(apicID),
+    MLOG_DETAIL(mlog::boot, "  nmi stack", DVAR(apicID),
                       (void*)tss_kernel.ist[1]);
-    mlog::boot.detail("  core-local memory offset", DVAR(apicID),
+    MLOG_DETAIL(mlog::boot, "  core-local memory offset", DVAR(apicID),
                       (void*)(KernelCLM::getOffset(apicID)));
   }
 
@@ -93,7 +93,7 @@ struct DeployHWThread
     gdt.tss_kernel_load();
     KernelCLM::initOffset(apicID);
     cpu::initHWThreadID(apicID);
-    mlog::boot.detail("init", DVAR(apicID)); // no logging before the local CLM init
+    MLOG_DETAIL(mlog::boot, "init", DVAR(apicID)); // no logging before the local CLM init
     cpu::initSyscallEntry(stacks[apicID]);
     idt.load();
     async::initLocalPlace(apicID);

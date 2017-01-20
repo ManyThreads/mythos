@@ -36,6 +36,7 @@ namespace boot {
 
 ALIGN_4K uint64_t devices_pml1[] = {
   INVALID, // dummy entry to get distance to the kernel memory
+  // vaddr 0xffff8001 00001000 (LAPIC_ADDR)
   INVALID, // LAPIC mapping
   INVALID, // 2
   INVALID, // 3
@@ -1064,8 +1065,11 @@ ALIGN_4K uint64_t devices_pml1[] = {
 };
 
 ALIGN_4K uint64_t devices_pml2[] = {
+  // vaddr 0xffff8001 00000000 (DEVICES_ADDR)
   PRESENT + WRITE + USER + ACCESSED + table_to_phys_addr(devices_pml1,0), // LAPIC
+  // vaddr 0xffff8001 00200000 (KERNELSTACKS_ADDR)
   PRESENT + WRITE + USER + ACCESSED + table_to_phys_addr(devices_pml1,1), // kernel stacks
+  // vaddr 0xffff8001 00400000 (usable for additional hardware like XeonPhi's MMIO registers)
   INVALID, // 2
   INVALID, // 3
   INVALID, // 4
@@ -1577,6 +1581,8 @@ ALIGN_4K uint64_t devices_pml2[] = {
   INVALID, // 510
   INVALID, // 511
 };
+
+  /// @todo add more functions like initKernelStack, but compute index from logical address, including  assertions.
 
 ALIGN_4K uint64_t image_pml2[] = {
   INVALID, // 0
@@ -4658,6 +4664,7 @@ ALIGN_4K uint64_t pml2_tables[] = {
 
 ALIGN_4K uint64_t pml3_table[] = {
   // 4GiB direct mapped area and page tables for memory mapped devices
+  // vaddr 0x00000000 00000000 and 0xffff8000 00000000 (KERNELMEM_ADDR)
   PML3_BASE + table_to_phys_addr(pml2_tables,0),
   PML3_BASE + table_to_phys_addr(pml2_tables,1),
   PML3_BASE + table_to_phys_addr(pml2_tables,2),
@@ -5682,12 +5689,14 @@ ALIGN_4K uint64_t pml3_table[] = {
   INVALID, // 507
   INVALID, // 508
   INVALID, // 509
+  // vaddr 0xffffffff 81000000 (VIRT_ADDR)
   PML3_BASE + table_to_phys_addr(image_pml2,0),
   PML3_BASE + table_to_phys_addr(image_pml2,1),
 };
 
 ALIGN_4K uint64_t pml4_table[] = {
-  // boot variant with lower half sucht that the init segment is usable
+  // boot variant with lower half such that the init segment is usable
+  // vaddr 0x00000000 00000000
   PML4_BASE + table_to_phys_addr(pml3_table,0), // lower half
   INVALID, // 1
   INVALID, // 2
@@ -6202,6 +6211,7 @@ ALIGN_4K uint64_t pml4_table[] = {
   PML4_BASE + table_to_phys_addr(pml3_table,1), // upper half kernel image area
 
   // final variant without lower half
+  // vaddr 0x00000000 00000000
   INVALID, // 0
   INVALID, // 1
   INVALID, // 2
@@ -6717,6 +6727,6 @@ ALIGN_4K uint64_t pml4_table[] = {
 };
 
 #undef table_to_phys_addr
-  
+
 } // boot
 } // mythos

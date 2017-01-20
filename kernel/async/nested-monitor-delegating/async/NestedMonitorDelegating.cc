@@ -34,7 +34,7 @@ namespace async {
     if (waitq.push(msg)) { // first push, acquired exclusive access
       this->acquireRef(); // mark object as used
       Place* myPlace = &getLocalPlace();
-      mlog::async.detail("NMD",this, "req acquired waitq", DVAR(msg), DVAR(myPlace));
+      MLOG_DETAIL(mlog::async, "NMD",this, "req acquired waitq", DVAR(msg), DVAR(myPlace));
       home.store(myPlace, std::memory_order_relaxed);
       auto tsk = waitq.pull(); // has to be successfull because of our enqueue
       ASSERT(tsk != nullptr);
@@ -46,7 +46,7 @@ namespace async {
     Place* myPlace = home.load(std::memory_order_relaxed);
     ASSERT(myPlace == &getLocalPlace());
     auto tsk = waitq.pull(); // try to run the next waiting request
-    mlog::async.detail("NMD",this, "requestDone", DVAR(myPlace), DVAR(tsk));
+    MLOG_DETAIL(mlog::async, "NMD",this, "requestDone", DVAR(myPlace), DVAR(tsk));
     if (tsk != nullptr) {
       myPlace->runLocal(tsk, Place::MAYINLINE); // exploit tail recursion
     } else { // try to release
