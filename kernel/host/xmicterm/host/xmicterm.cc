@@ -117,9 +117,9 @@ class file_logger {
         *found->second << msg << "\n";
         found->second->flush();
       } else {
-        std::ofstream *file_stream = new std::ofstream(
-            directory + std::string("/") + std::to_string(vchannel),
-            std::ios::out | std::ios::trunc);
+        std::stringstream s;
+        s << directory << "/" << vchannel;
+        std::ofstream *file_stream = new std::ofstream(s.str(), std::ios::out | std::ios::trunc);
         if (!file_stream->is_open()) {
           std::cerr << "Could not open file " << (std::to_string(vchannel)) << "\n";
           return;
@@ -181,7 +181,7 @@ int main(int argc, char** argv)
 
     auto found = messages.find(msg.vchannel);
     if (found != messages.end()) { // a message already there, have to merge them
-      if (msg.msgbytes < DebugMsg::PAYLOAD) { // output merged messages
+      if (msg.msgbytes <= DebugMsg::PAYLOAD) { // output merged messages
         found->second->write(msg.data, msg.msgbytes);
         auto str = found->second->str();
         std::cout << found->first  << "(" << str.length() << "): ";
@@ -192,7 +192,7 @@ int main(int argc, char** argv)
         found->second->write(msg.data, DebugMsg::PAYLOAD);
       }
     } else { // message not in buffer
-      if (msg.msgbytes < DebugMsg::PAYLOAD) { // message displayed directly
+      if (msg.msgbytes <= DebugMsg::PAYLOAD) { // message displayed directly
         std::cout << msg.vchannel << "(" << msg.msgbytes << "): ";
         std::cout.write(msg.data, msg.msgbytes);
         std::cout << std::endl;
