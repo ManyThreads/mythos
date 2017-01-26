@@ -8,10 +8,10 @@
  * modify, merge, publish, distribute, sublicense, and/or sell copies
  * of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
  * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
@@ -20,8 +20,8 @@
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
- * 
- * Copyright 2016 Randolf Rotta, Maik Krüger, Robert Kuban, and contributors, BTU Cottbus-Senftenberg 
+ *
+ * Copyright 2016 Randolf Rotta, Maik Krüger, Robert Kuban, and contributors, BTU Cottbus-Senftenberg
  */
 #include "host/MemMapperPci.hh"
 #include "mythos/HostInfoTable.hh"
@@ -32,10 +32,19 @@
 #include <string>
 #include <cstring>
 #include <unistd.h>
+#include <unordered_map>
+#include <fstream>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <memory>
 
 using namespace mythos;
 
-template<typename T>
+// Environmental variables set if program is called by sudo
+static const constexpr char* ENV_UID = "SUDO_UID";
+static const constexpr char* ENV_GID = "SUDO_GID";
+
+  template<typename T>
 void parsenum(char const *str, T& val)
 {
   std::stringstream s;
@@ -49,14 +58,75 @@ void parsenum(char const *str, T& val)
 std::string deviceKNC(int adapter)
 {
   std::stringstream s;
-  // choose the aperture memory file with the write combining enabled. 
+  // choose the aperture memory file with the write combining enabled.
   s << "/sys/class/mic/mic" << adapter << "/device/resource0"; /// @todo or _wc ???
   return s.str();
+}
+
+void drop_root() {
+  if (getuid() != 0) {
+    std::cerr << "Cannot drop root when not root.\n";
+    return;
+  }
+  char *gid = std::getenv(ENV_GID);
+  char *uid = std::getenv(ENV_UID);
+  if (gid == nullptr || uid == nullptr) {
+    std::cerr << "No environment variables. Application has to be run with sudo.\n";
+    return;
+  }
+  if (setgid(atoi(std::getenv(ENV_GID))) != 0) {
+    std::cerr << "Could not restore Group ID.\n";
+  }
+  if (setuid(atoi(std::getenv(ENV_UID))) != 0) {
+    std::cerr << "Could not restore User ID.\n";
+  }
+  if (getuid() == 0) {
+    std::cerr << "Dropping root unsuccessful\n";
+  }
 }
 
 struct InfoPtr {
   uint64_t info;
   uint64_t debug;
+};
+
+/// Class logs into files, opening new file for every sending channel id.
+class file_logger {
+  public:
+
+    file_logger(const char *directory_)
+      :directory(directory_) {
+        std::stringstream s;
+        s << getenv("PWD") << "/" << directory;
+        if (mkdir(s.str().c_str(),
+              S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH) != 0)
+        {
+          std::cerr << "Error creating directory for logs.\n";
+        }
+      }
+
+    void log(uint16_t vchannel, const std::string &msg) {
+      std::cout << vchannel << ": " << msg << "\n";
+
+      auto &filestream = files[vchannel];
+      if (!filestream) {
+        std::stringstream s;
+        s << directory << "/" << vchannel;
+        filestream = std::unique_ptr<std::ofstream>(
+            new std::ofstream(s.str(), std::ios::out | std::ios::trunc)
+            );
+        if (!filestream->is_open()) {
+          std::cerr << "Could not open file " << (std::to_string(vchannel)) << "\n";
+          return;
+        }
+      }
+      *filestream << msg << "\n";
+      filestream->flush();
+    }
+
+  private:
+    const std::string directory;
+    std::unordered_map<uint16_t, std::unique_ptr<std::ofstream>> files;
 };
 
 int main(int argc, char** argv)
@@ -68,7 +138,7 @@ int main(int argc, char** argv)
   }
   parsenum(argv[1], adapter);
   std::cerr << "will read from adapter " << adapter
-	   << " file " << deviceKNC(adapter) << std::endl;
+    << " file " << deviceKNC(adapter) << std::endl;
   MemMapperPci micmem(deviceKNC(adapter));
 
   // wait until the _host_info_ptr pointer at address 2MiB actually contains something
@@ -77,29 +147,48 @@ int main(int argc, char** argv)
     cpu::clflush(info_ptr.addr());
     std::cout << "info: " << (void*)info_ptr->info << " debug: " << (void*)info_ptr->debug << " " << info_ptr->debug << std::endl;
     if (info_ptr->info == 0) sleep(1);
-  } while (info_ptr->info == 0); 
-  std::cerr << "host info is at physical address " 
-	    << (void*)info_ptr->info << std::endl;
+  } while (info_ptr->info == 0);
+  std::cerr << "host info is at physical address "
+    << (void*)info_ptr->info << std::endl;
 
   auto info = micmem.access(PhysPtr<HostInfoTable>(info_ptr->info));
   cpu::clflush(info.addr());
   std::cerr << "debug stream is at physical address "
-	    << (void*)info->debugOut << std::endl;
-  
+    << (void*)info->debugOut << std::endl;
+
   auto debugOutChannel = micmem.access(PhysPtr<HostInfoTable::DebugChannel>(info->debugOut));
   PCIeRingConsumer<HostInfoTable::DebugChannel> debugOut(debugOutChannel.addr());
 
+  // drop root to allow file logger access to user specific directories
+  drop_root();
+
+  // collect messages until whole message arrived
+  std::unordered_map<uint16_t, std::unique_ptr<std::stringstream> > messages;
+
+  // log to directory debug
+  file_logger logger("debug");
+
   while (true) {
     //typedef HostInfoTable::DebugChannel::handle_t handle_t;
-    /// @todo merge multi-package messages per vchannel before printing
-    /// @todo log messages into a file
     auto handle = debugOut.acquireRecv();
     auto& msg = debugOut.get<DebugMsg>(handle);
-    std::cout << msg.vchannel << "(" << msg.msgbytes << "): ";
-    std::cout.write(msg.data, msg.msgbytes>DebugMsg::PAYLOAD?DebugMsg::PAYLOAD:msg.msgbytes);
-    std::cout << std::endl;
+
+    auto &stream = messages[msg.vchannel];
+    if (!stream) {
+        stream = std::unique_ptr<std::stringstream>(new std::stringstream());
+    }
+
+    if (msg.msgbytes <= DebugMsg::PAYLOAD) {
+        stream->write(msg.data, msg.msgbytes);
+        auto str = stream->str();
+        logger.log(msg.vchannel, str);
+        stream->str(std::string());
+        stream->clear();
+    } else {
+        stream->write(msg.data, DebugMsg::PAYLOAD);
+    }
     debugOut.finishRecv(handle);
   }
-  
+
   return 0;
 }
