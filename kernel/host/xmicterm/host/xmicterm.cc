@@ -36,6 +36,7 @@
 #include <fstream>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <memory>
 
 using namespace mythos;
 
@@ -104,35 +105,28 @@ class file_logger {
         }
       }
 
-    ~file_logger() {
-      for (auto f : files) {
-        f.second->close();
-        delete f.second;
-      }
-    }
+    void log(uint16_t vchannel, const std::string &msg) {
+      std::cout << vchannel << ": " << msg << "\n";
 
-    void log(uint16_t vchannel, std::string msg) {
-      auto found = files.find(vchannel);
-      if (found != files.end()) {
-        *found->second << msg << "\n";
-        found->second->flush();
-      } else {
+      auto &filestream = files[vchannel];
+      if (!filestream) {
         std::stringstream s;
         s << directory << "/" << vchannel;
-        std::ofstream *file_stream = new std::ofstream(s.str(), std::ios::out | std::ios::trunc);
-        if (!file_stream->is_open()) {
+        filestream = std::unique_ptr<std::ofstream>(
+            new std::ofstream(s.str(), std::ios::out | std::ios::trunc)
+            );
+        if (!filestream->is_open()) {
           std::cerr << "Could not open file " << (std::to_string(vchannel)) << "\n";
           return;
         }
-        files.insert({vchannel, file_stream});
-        *file_stream << msg << "\n";
-        file_stream->flush();
       }
+      *filestream << msg << "\n";
+      filestream->flush();
     }
 
   private:
     const std::string directory;
-    std::unordered_map<uint16_t, std::ofstream*> files;
+    std::unordered_map<uint16_t, std::unique_ptr<std::ofstream>> files;
 };
 
 int main(int argc, char** argv)
@@ -169,7 +163,7 @@ int main(int argc, char** argv)
   drop_root();
 
   // collect messages until whole message arrived
-  std::unordered_map<uint16_t, std::stringstream*> messages;
+  std::unordered_map<uint16_t, std::unique_ptr<std::stringstream> > messages;
 
   // log to directory debug
   file_logger logger("debug");
@@ -179,30 +173,19 @@ int main(int argc, char** argv)
     auto handle = debugOut.acquireRecv();
     auto& msg = debugOut.get<DebugMsg>(handle);
 
-    auto found = messages.find(msg.vchannel);
-    if (found != messages.end()) { // a message already there, have to merge them
-      if (msg.msgbytes <= DebugMsg::PAYLOAD) { // output merged messages
-        found->second->write(msg.data, msg.msgbytes);
-        auto str = found->second->str();
-        std::cout << found->first  << "(" << str.length() << "): ";
-        std::cout << str << "\n";
-        logger.log(found->first, str);
-        messages.erase(msg.vchannel);
-      } else { // append another message
-        found->second->write(msg.data, DebugMsg::PAYLOAD);
-      }
-    } else { // message not in buffer
-      if (msg.msgbytes <= DebugMsg::PAYLOAD) { // message displayed directly
-        std::cout << msg.vchannel << "(" << msg.msgbytes << "): ";
-        std::cout.write(msg.data, msg.msgbytes);
-        std::cout << std::endl;
-        logger.log(msg.vchannel, std::string(msg.data, msg.msgbytes));
+    auto &stream = messages[msg.vchannel];
+    if (!stream) {
+        stream = std::unique_ptr<std::stringstream>(new std::stringstream());
+    }
 
-      } else { // new buffer
-        std::stringstream *s = new std::stringstream();
-        s->write(msg.data, DebugMsg::PAYLOAD);
-        messages.insert({msg.vchannel, s});
-      }
+    if (msg.msgbytes <= DebugMsg::PAYLOAD) {
+        stream->write(msg.data, msg.msgbytes);
+        auto str = stream->str();
+        logger.log(msg.vchannel, str);
+        stream->str(std::string());
+        stream->clear();
+    } else {
+        stream->write(msg.data, DebugMsg::PAYLOAD);
     }
     debugOut.finishRecv(handle);
   }
