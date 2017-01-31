@@ -37,7 +37,6 @@ namespace mythos {
       PhysPtr<void> start;
       size_t size;
       bool writable;
-      bool executable;
     };
 
     virtual ~IFrame() {}
