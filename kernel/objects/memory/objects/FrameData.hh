@@ -41,7 +41,7 @@ namespace mythos {
     static constexpr size_t FRAME_SIZE_SHIFT = 9;
     static constexpr size_t FRAME_SIZE_FACTOR = 1ull << FRAME_SIZE_SHIFT;
     static constexpr size_t MAX_FRAME_CLASS = 3;
-    static constexpr size_t MAX_REGION_SIZE = MIN_FRAME_SIZE * (1ull << 28); // 28bits for offset
+    static constexpr size_t MAX_REGION_SIZE = MIN_FRAME_SIZE * (1ull << 29); // 29bits for offset
 
     constexpr static size_t sizeFromIndex(size_t index) {
       return MIN_FRAME_SIZE << (index*FRAME_SIZE_SHIFT);
