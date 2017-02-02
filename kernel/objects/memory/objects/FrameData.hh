@@ -65,7 +65,6 @@ namespace mythos {
   BITFIELD_DEF(CapData, FrameData)
   typedef protocol::Frame::FrameReq FrameReq;
   BoolField<value_t, base_t, 0> writable;
-  //BoolField<value_t, base_t, 1> executable;
   UIntField<value_t, base_t, 1, 2> sizeIndex;
   UIntField<value_t, base_t, 3, 29> offset;
   FrameData() : value(0) { writable = true; }

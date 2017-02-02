@@ -33,7 +33,7 @@ namespace mythos {
                           PageMap as, CapMap cs, CapPtr sched,
                           void* stack, StartFun start, void* userctx)
   {
-    if (!pr.isOpen()) return std::move(pr);
+    if (!pr.isOpen()) return pr;
     // prepare stack
     uintptr_t* tos = reinterpret_cast<uintptr_t*>(uintptr_t(stack) & ~0xF); // align
     *--tos = 0; // dummy return address
@@ -46,7 +46,7 @@ namespace mythos {
     msg->regs.fs_base = 0; /// @todo set fs, gs according to environment
     msg->regs.gs_base = 0;
     pr.invoke(kmem.cap());
-    return std::move(pr);
+    return pr;
   }
 
   void ExecutionContext::start(StartFun main, void* userctx)
