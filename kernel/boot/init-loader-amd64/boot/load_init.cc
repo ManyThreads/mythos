@@ -206,7 +206,7 @@ optional<void> InitLoader::mapDirectory(size_t target, size_t entry, size_t inde
 {
   TypedCap<IPageMap> pm(_cspace->get(target));
   auto tableEntry = _cspace->get(entry);
-  auto req = protocol::PageMap::MapFlags().writable(true);
+  auto req = protocol::PageMap::MapFlags().writable(true).configurable(true);
   if (!pm) return pm;
   return pm->mapTable(tableEntry, req, index);
 }
@@ -280,7 +280,7 @@ optional<void> InitLoader::createEC()
   MLOG_INFO(mlog::boot, "create and initialize EC");
   auto ec = create<ExecutionContext,ExecutionContextFactory>(_cspace->get(EC));
   if (!ec) return ec;
-  _portal->setOwner(_cspace->get(EC), 0x1337);
+  _portal->setOwner(_cspace->get(EC));
   optional<void> res(Error::SUCCESS);
   if (res) res = ec->setCapSpace(_cspace->get(CSPACE));
   if (res) res = ec->setAddressSpace(_cspace->get(PML4));
