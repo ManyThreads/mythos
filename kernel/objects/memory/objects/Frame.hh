@@ -44,7 +44,7 @@ public:
 public: // IFrame interface
   Info getFrameInfo(Cap self) const override {
     FrameData c(self);
-    return {PhysPtr<void>(c.addr(start)), c.size(), c.writable, c.executable};
+    return {PhysPtr<void>(c.addr(start)), c.size(), c.writable};
   }
 
 public: // IKernelObject interface
@@ -80,7 +80,6 @@ public: // IKernelObject interface
     data->addr = c.addr(start);
     data->size = c.size();
     data->writable = c.writable;
-    data->executable = c.executable;
     return Error::SUCCESS;
   }
 

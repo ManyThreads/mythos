@@ -41,7 +41,7 @@ namespace mythos {
     static constexpr size_t FRAME_SIZE_SHIFT = 9;
     static constexpr size_t FRAME_SIZE_FACTOR = 1ull << FRAME_SIZE_SHIFT;
     static constexpr size_t MAX_FRAME_CLASS = 3;
-    static constexpr size_t MAX_REGION_SIZE = MIN_FRAME_SIZE * (1ull << 28); // 28bits for offset
+    static constexpr size_t MAX_REGION_SIZE = MIN_FRAME_SIZE * (1ull << 29); // 29bits for offset
 
     constexpr static size_t sizeFromIndex(size_t index) {
       return MIN_FRAME_SIZE << (index*FRAME_SIZE_SHIFT);
@@ -65,10 +65,9 @@ namespace mythos {
   BITFIELD_DEF(CapData, FrameData)
   typedef protocol::Frame::FrameReq FrameReq;
   BoolField<value_t, base_t, 0> writable;
-  BoolField<value_t, base_t, 1> executable;
-  UIntField<value_t, base_t, 2, 2> sizeIndex;
-  UIntField<value_t, base_t, 4, 28> offset;
-  FrameData() : value(0) { executable = true; writable = true; }
+  UIntField<value_t, base_t, 1, 2> sizeIndex;
+  UIntField<value_t, base_t, 3, 29> offset;
+  FrameData() : value(0) { writable = true; }
   FrameData(Cap cap) : value(cap.data()) {}
   size_t size() const { return FrameSize::sizeFromIndex(sizeIndex); }
   void setSize(size_t size) { sizeIndex = FrameSize::maxIndexFromSize(size); }
@@ -79,19 +78,19 @@ namespace mythos {
   bool isAligned() const { return (addr(0)/size())*size() == addr(0); }
 
   Cap referenceRegion(Cap self, FrameReq r) const {
-    FrameData res = this->executable(executable && r.executable).writable(writable && r.writable);
+    FrameData res = this->writable(writable && r.writable);
     return self.asReference().withData(res);
   }
 
   optional<Cap> deriveRegion(Cap self, IKernelObject& frame, FrameReq r, size_t maxSize) const {
-    FrameData res = this->executable(executable && r.executable).writable(writable && r.writable)
+    FrameData res = this->writable(writable && r.writable)
       .offset(r.offset).sizeIndex(r.size);
     if (res.end(0)>maxSize || !res.isAligned()) return Error::UNALIGNED;
     return self.asDerived().withPtr(&frame).withData(res);
   }
 
   optional<Cap> referenceFrame(Cap self, FrameReq r) const {
-    FrameData res = this->executable(executable && r.executable).writable(writable && r.writable)
+    FrameData res = writable(writable && r.writable)
       .offset(r.offset).sizeIndex(r.size);
     if (res.addr(0)<addr(0) || res.end(0)>end(0) || !res.isAligned()) return Error::INVALID_REQUEST;
     return self.asReference().withData(res);

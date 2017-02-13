@@ -40,9 +40,8 @@ namespace mythos {
 
       BITFIELD_DEF(CapRequest, FrameReq)
       BoolField<value_t,base_t,0> writable;
-      BoolField<value_t,base_t,1> executable;
-      UIntField<value_t,base_t,2,2> size;
-      UIntField<value_t,base_t,4,28> offset;
+      UIntField<value_t,base_t,1,2> size;
+      UIntField<value_t,base_t,3,29> offset;
       enum Sizes { PAGE_4KB = 0, PAGE_2MB, PAGE_1GB, PAGE_512GB };
       FrameReq() : value(0) {}
       BITFIELD_END
