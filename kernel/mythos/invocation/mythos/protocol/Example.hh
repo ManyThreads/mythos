@@ -31,14 +31,14 @@
 
 namespace mythos {
   namespace protocol {
-    
+
     struct Example {
       constexpr static uint8_t proto = EXAMPLE;
 
       enum Methods : uint8_t {
         PRINT_MESSAGE,
       };
-      
+
       struct PrintMessage : public InvocationBase {
         typedef InvocationBase response_type;
         constexpr static uint16_t label = (proto<<8) + PRINT_MESSAGE;
@@ -57,7 +57,7 @@ namespace mythos {
       struct Create : public UntypedMemory::CreateBase {
         Create(CapPtr dst, CapPtr factory) : CreateBase(dst, factory) {}
       };
-      
+
       template<class IMPL, class... ARGS>
       static Error dispatchRequest(IMPL* obj, uint8_t m, ARGS const&...args) {
 	switch(Methods(m)) {
@@ -66,7 +66,7 @@ namespace mythos {
 	}
       }
 
-    };   
-  
+    };
+
   } // namespace protocol
 } // namespace mythos

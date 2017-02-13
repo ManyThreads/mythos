@@ -78,12 +78,12 @@ namespace mythos {
   public:
     enum State : uint8_t { OPEN, INVOKING, REPLYING };
 
-    Portal(IAsyncFree* memory);
+    Portal(IAsyncFree* memory) : memory(memory) {}
     virtual ~Portal() {}
 
     optional<void> setInvocationBuf(optional<CapEntry*> frame, uint32_t offset);
     void unsetInvocationBuf() { _ib.reset(); }
-    optional<void> setOwner(optional<CapEntry*> ec, uintptr_t uctx);
+    optional<void> setOwner(optional<CapEntry*> ec);
     void unsetOwner() { _owner.reset(); }
 
   public: // INotification interface
@@ -95,7 +95,7 @@ namespace mythos {
     }
 
   public: // IPortal interface
-    optional<void> sendInvocation(Cap self, CapPtr dest, uint64_t user) override;
+    optional<void> sendInvocation(Cap self, CapPtr dest, uint64_t uctx) override;
 
   public: // IInvocation interface
     void replyResponse(optional<void> error) override;
@@ -137,15 +137,15 @@ namespace mythos {
 
   private:
     CapRef<Portal, IFrame> _ib;
-    InvocationBuf* ib;
-    InvocationBuf* ibNew;
+    InvocationBuf* ib = nullptr;
+    InvocationBuf* ibNew = nullptr;
     CapRef<Portal, IPortalUser> _owner;
-    uintptr_t uctx;
+    uintptr_t uctx = 0;
     INotifiable::handle_t notificationHandle = {this};
 
     Tasklet mytask;
 
-    std::atomic<uint8_t> portalState;
+    std::atomic<uint8_t> portalState = {OPEN};
     Error replyError;
     CapEntryRef currentDest;
     Cap destCap;

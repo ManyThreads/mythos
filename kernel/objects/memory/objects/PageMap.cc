@@ -224,7 +224,7 @@ namespace mythos {
   optional<void> PageMap::operateFrame<1>(PageTableEntry* table, FrameOp& op)
   {
     size_t startIndex = (op.vaddr()/pageSize(1)) % 512; // the part inside current table
-    size_t numEntries = (op.vaddr()+op.vsize())/pageSize(1) - op.vaddr()/pageSize(1) + 1;
+    size_t numEntries = (op.vaddr()+op.vsize()+pageSize(1)-1)/pageSize(1) - op.vaddr()/pageSize(1);
     if (numEntries > 512-startIndex) numEntries = 512-startIndex;
     for (size_t i=0; i < numEntries; i++) {
       op.level = 1;
@@ -241,11 +241,13 @@ namespace mythos {
   optional<void> PageMap::operateFrame(PageTableEntry* table, FrameOp& op)
   {
     size_t startIndex = (op.vaddr()/pageSize(LEVEL)) % 512; // the part inside current table
-    size_t numEntries = (op.vaddr()+op.vsize())/pageSize(LEVEL) - op.vaddr()/pageSize(LEVEL) + 1;
+    size_t numEntries = (op.vaddr()+op.vsize()+pageSize(LEVEL)-1)/pageSize(LEVEL) - op.vaddr()/pageSize(LEVEL);
     if (numEntries > 512-startIndex) numEntries = 512-startIndex;
     for (size_t i=0; i < numEntries; i++) {
       op.level = LEVEL;
       auto pme = table[startIndex+i];
+      MLOG_DETAIL(mlog::cap, "operateFrame", DVARhex(op.vaddr()), DVARhex(op.vsize()),
+                  DVARhex(op.offset()), DVAR(op.level));
       if (pme.present && !pme.page) { // recurse into lower page map
         if (!pme.configurable) return Error::PAGEMAP_NOCONF; /// @todo or just skip?
         auto res = operateFrame<LEVEL-1>(phys2kernel<PageTableEntry>(pme.getAddr()), op);

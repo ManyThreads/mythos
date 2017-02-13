@@ -26,6 +26,7 @@
 #pragma once
 
 #include "mythos/protocol/common.hh"
+#include "mythos/protocol/UntypedMemory.hh"
 
 namespace mythos {
   namespace protocol {
@@ -39,9 +40,9 @@ namespace mythos {
 
       struct Bind : public InvocationBase {
         constexpr static uint16_t label = (proto<<8) + BIND;
-        Bind(CapPtr ib, uint32_t offset, CapPtr owner, uintptr_t uctx)
+        Bind(CapPtr ib, uint32_t offset, CapPtr owner)
           : InvocationBase(label,getLength(this)),
-            uctx(uctx), offset(offset)
+            offset(offset)
         {
           addExtraCap(ib);
           addExtraCap(owner);
@@ -49,9 +50,12 @@ namespace mythos {
 
         CapPtr ib() const { return this->capPtrs[0]; }
         CapPtr owner() const { return this->capPtrs[1]; }
-        
-        uintptr_t uctx;
+
         uint32_t offset;
+      };
+
+      struct Create : public UntypedMemory::CreateBase {
+        Create(CapPtr dst, CapPtr factory) : CreateBase(dst, factory) {}
       };
 
       template<class IMPL, class... ARGS>

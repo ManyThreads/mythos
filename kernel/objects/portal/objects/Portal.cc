@@ -32,11 +32,6 @@ namespace mlog {
 
 namespace mythos {
 
-  Portal::Portal(IAsyncFree* memory)
-    : ib(nullptr), ibNew(nullptr), uctx(0), portalState(OPEN), memory(memory)
-  {
-  }
-
   optional<void> Portal::setInvocationBuf(optional<CapEntry*> fe, uint32_t offset)
   {
     MLOG_INFO(mlog::portal, "Portal::setInvocationBuf", DVAR(fe), DVAR(offset));
@@ -61,9 +56,9 @@ namespace mythos {
     ib = nullptr; // but do not overwrite ibNew before the bind() method!
   }
 
-  optional<void> Portal::setOwner(optional<CapEntry*> ece, uintptr_t uctx)
+  optional<void> Portal::setOwner(optional<CapEntry*> ece)
   {
-    MLOG_INFO(mlog::portal, "Portal::setOwner", DVAR(ece), DVARhex(uctx));
+    MLOG_INFO(mlog::portal, "Portal::setOwner", DVAR(ece));
     TypedCap<IPortalUser> ec(ece);
     if (!ec) return ec;
     return _owner.set(this, *ece, ec.cap());
@@ -89,7 +84,7 @@ namespace mythos {
     return ref->entry;
   }
 
-  optional<void> Portal::sendInvocation(Cap self, CapPtr dest, uint64_t user)
+  optional<void> Portal::sendInvocation(Cap self, CapPtr dest, uint64_t uctx)
   {
     MLOG_INFO(mlog::portal, "Portal::sendInvocation", DVAR(self), DVAR(dest));
     TypedCap<IPortalUser> owner(_owner.cap());
@@ -104,7 +99,7 @@ namespace mythos {
     if (!portalState.compare_exchange_strong(expected, INVOKING)) return Error::PORTAL_NOT_OPEN;
 
     currentDest.acquire();
-    this->uctx = user;
+    this->uctx = uctx;
     destCap.getPtr()->invoke(&mytask, destCap, this);
     return Error::SUCCESS;
   }
@@ -189,18 +184,18 @@ namespace mythos {
 
     if (data.ib() == delete_cap) { unsetInvocationBuf(); }
     else if (data.ib() != null_cap) {
-      auto err = setInvocationBuf(msg->lookupEntry(data.ib(), false), data.offset);
+      auto err = setInvocationBuf(msg->lookupEntry(data.ib()), data.offset);
       if (!err) return err.state();
     }
 
     if (data.owner() == delete_cap) { unsetOwner(); }
     else if (data.owner() != null_cap) {
-      auto err = setOwner(msg->lookupEntry(data.owner(), false), data.uctx);
+      auto err = setOwner(msg->lookupEntry(data.owner()));
       if (!err) return err.state();
     }
     return Error::SUCCESS;
   }
-  
+
   optional<Portal*>
   PortalFactory::factory(CapEntry* dstEntry, CapEntry* memEntry, Cap memCap, IAllocator* mem)
   {
@@ -209,7 +204,7 @@ namespace mythos {
     Cap cap(*obj); /// @todo should have Portal specific rights
     auto res = cap::inherit(*memEntry, *dstEntry, memCap, cap);
     if (!res) {
-      mem->free(*obj); // mem->release(obj) goes throug IKernelObject deletion mechanism
+      mem->free(*obj); // mem->release(obj) goes through IKernelObject deletion mechanism
       return res.state();
     }
     return *obj;
