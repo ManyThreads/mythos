@@ -99,9 +99,9 @@ void test_Portal()
   // map the frame into our address space
   MLOG_INFO(mlog::app, "test_Portal: map frame");
   auto res3 = myAS.mmap(res2.reuse(), f, vaddr, 2*1024*1024, 0x1);
+  res3.wait();
   MLOG_INFO(mlog::app, "mmap frame", DVAR(res3.state()),
             DVARhex(res3->vaddr), DVARhex(res3->size), DVAR(res3->level));
-  res3.wait();
   ASSERT(res3);
 
   // bind the portal in order to receive responses
@@ -128,9 +128,13 @@ int main()
   char const str[] = "hello world!";
   char const end[] = "bye, cruel world!";
   mythos::syscall_debug(str, sizeof(str)-1);
+  MLOG_ERROR(mlog::app, "application has started, at least :)", DVARhex(msg_ptr), DVARhex(initstack_top));
 
-  test_Example();
-  test_Portal();
+  for (int run=1; run<=100; run++) {
+    MLOG_ERROR(mlog::app, "beginning test run", run);
+    test_Example();
+    test_Portal();
+  }
 
   mythos::ExecutionContext ec1(mythos::init::APP_CAP_START);
   auto res1 = ec1.create(portal, kmem, mythos::init::EXECUTION_CONTEXT_FACTORY,
