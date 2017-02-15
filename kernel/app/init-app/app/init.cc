@@ -54,8 +54,9 @@ char* thread2stack_top = threadstack+stacksize;
 
 void* thread_main(void* ctx)
 {
-  char const str[] = "hello thread!";
-  mythos::syscall_debug(str, sizeof(str)-1);
+  MLOG_INFO(mlog::app, "hello thread!", DVAR(ctx));
+  mythos::ISysretHandler::handle(mythos::syscall_wait());
+  MLOG_INFO(mlog::app, "thread resumed from wait", DVAR(ctx));
   return 0;
 }
 
@@ -129,8 +130,8 @@ int main()
   char const end[] = "bye, cruel world!";
   mythos::syscall_debug(str, sizeof(str)-1);
 
-  test_Example();
-  test_Portal();
+  //test_Example();
+  //test_Portal();
 
   mythos::ExecutionContext ec1(mythos::init::APP_CAP_START);
   auto res1 = ec1.create(portal, kmem, mythos::init::EXECUTION_CONTEXT_FACTORY,
@@ -145,6 +146,14 @@ int main()
                          thread2stack_top, &thread_main, nullptr);
   res2.wait();
   ASSERT(res2.state() == mythos::Error::SUCCESS);
+
+  for (volatile int i=0; i<100000; i++) {
+    for (volatile int j=0; j<1000; j++) {}
+  }
+
+  MLOG_INFO(mlog::app, "sending notifications");
+  mythos::syscall_notify(ec1.cap());
+  mythos::syscall_notify(ec2.cap());
 
   mythos::syscall_debug(end, sizeof(end)-1);
 

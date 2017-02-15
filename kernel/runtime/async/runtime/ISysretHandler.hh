@@ -37,9 +37,8 @@ namespace mythos {
     virtual void sysret(uint64_t code) = 0;
 
     /** helper function to handle poll and wait syscall return values. */
-    static bool handle(KEvent ev) {
+    static void handle(KEvent ev) {
       if (ev.user) reinterpret_cast<ISysretHandler*>(ev.user)->sysret(ev.state);
-      return ev.user;
     }
   };
 
