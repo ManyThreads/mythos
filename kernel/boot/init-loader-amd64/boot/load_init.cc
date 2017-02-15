@@ -139,9 +139,9 @@ optional<void> InitLoader::csSet(CapPtr dst, IKernelObject& obj)
 optional<void> InitLoader::initCSpace()
 {
   MLOG_INFO(mlog::boot, "create initial cspace ...");
-  ASSERT(CapMap::cap_count(10) == CSpaceLayout::SIZE);
+  ASSERT(CapMap::cap_count(12) == CSpaceLayout::SIZE);
   auto ocspace = CapMapFactory::initial(_memEntry, _memEntry->cap(), _mem,
-				       CapPtrDepth(10), CapPtrDepth(22), CapPtr(0));
+				       CapPtrDepth(12), CapPtrDepth(20), CapPtr(0));
   if (!ocspace) return ocspace;
   _cspace = *ocspace;
 

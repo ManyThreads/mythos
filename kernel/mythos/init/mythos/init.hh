@@ -55,7 +55,7 @@ namespace init {
     STATIC_MEM_START,
     SCHEDULERS_START = 512,
     APP_CAP_START = 768,
-    SIZE = 1024
+    SIZE = 4096
   };
 
 } // namespace init
