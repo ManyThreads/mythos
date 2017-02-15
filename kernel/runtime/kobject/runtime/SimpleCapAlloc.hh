@@ -1,4 +1,4 @@
-/* -*- mode:C++; -*- */
+/* -*- mode:C++; indent-tabs-mode:nil; -*- */
 /* MyThOS: The Many-Threads Operating System
  *
  * Permission is hereby granted, free of charge, to any person
@@ -21,42 +21,57 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  *
- * Copyright 2016 Randolf Rotta, BTU Cottbus-Senftenberg
+ * Copyright 2016 Randolf Rotta, Robert Kuban, and contributors, BTU Cottbus-Senftenberg
  */
 #pragma once
 
-#include <cstdint>
+#include "runtime/CapMap.hh"
+#include "runtime/Portal.hh"
+#include "util/optional.hh"
 
 namespace mythos {
 
-  enum struct Error : uint8_t
+  class SimpleCapAlloc
   {
-    SUCCESS = 0,
-    UNSET = 1,    // the error value never has been set, do not use as return value
-    INHIBIT,      // not really an error, just tells that result will be sent later
-    GENERIC_ERROR, /// @todo eliminate this and replace by useful information
-    INVALID_CAPABILITY,
-    INVALID_ARGUMENT,
-    NON_CANONICAL_ADDRESS,
-    UNALIGNED,
-    INSUFFICIENT_RESOURCES,
-    LOST_RACE,
-    RETRY,
-    NO_NOTIFICATION,
-    TYPE_MISMATCH,
-    NOT_IMPLEMENTED,
-    CAP_NONEMPTY,
-    NOT_KERNELMEM,
-    CYCLIC_DEPENDENCY,
-    PORTAL_NOT_OPEN,
-    PORTAL_NOT_INVOKED,
-    PORTAL_NO_BUFFER,
-    PORTAL_NO_ENDPOINT,
-    NO_LOOKUP,
-    INVALID_REQUEST,
-    REQUEST_DENIED,
-    PAGEMAP_MISSING,
-    PAGEMAP_NOCONF
+  public:
+    SimpleCapAlloc(Portal* portal, CapMap cm, uint32_t start, uint32_t count)
+      : portal(portal), cm(cm), start(start), end(start+count), mark(start) {}
+
+    optional<CapPtr> alloc() {
+      if (mark >= end) return Error::INSUFFICIENT_RESOURCES;
+      mark++;
+      return CapPtr(mark-1);
+    }
+
+    void freeObject(KObject p) { freeObject(p.cap()); }
+
+    void freeObject(CapPtr p) {
+      ASSERT(start <= p && p < mark);
+      auto res = cm.deleteCap(*portal, p);
+      res.wait();
+      ASSERT(res);
+      freePtr(p);
+      res.close();
+    }
+
+    void freePtr(CapPtr) {}
+
+    void freeAllObjects() {
+      for (uint32_t i=start; i < mark; i++) {
+        auto res = cm.deleteCap(*portal, CapPtr(i));
+        res.wait();
+        freePtr(CapPtr(i));
+        res.close();
+      }
+      mark = start;
+    }
+
+  protected:
+    Portal* portal;
+    CapMap cm;
+    uint32_t start;
+    uint32_t end;
+    uint32_t mark;
   };
 
 } // namespace mythos
