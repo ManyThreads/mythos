@@ -102,7 +102,7 @@ namespace mythos {
     optional<void const*> vcast(TypeId id) const override {
       if (id == TypeId::id<ISchedulable>()) return static_cast<ISchedulable const*>(this);
       if (id == TypeId::id<IPortalUser>()) return static_cast<IPortalUser const*>(this);
-      return Error::TYPE_MISMATCH;
+      THROW(Error::TYPE_MISMATCH);
     }
     optional<void> deleteCap(Cap self, IDeleter& del) override;
     void deleteObject(Tasklet* t, IResult<void>* r) override;

@@ -50,19 +50,19 @@ public: // IFrame interface
 public: // IKernelObject interface
   optional<void const*> vcast(TypeId id) const override {
     if (id == TypeId::id<IFrame>()) return static_cast<IFrame const*>(this);
-    return Error::TYPE_MISMATCH;
+    THROW(Error::TYPE_MISMATCH);
   }
 
   optional<Cap> mint(Cap self, CapRequest request, bool derive) override {
     if (!derive) return FrameData(self).referenceFrame(self, FrameReq(request));
-    else return Error::INVALID_REQUEST;
+    else THROW(Error::INVALID_REQUEST);
   }
 
   Range<uintptr_t> addressRange(Cap self) override {
     return {FrameData(self).addr(start), FrameData(self).end(start)};
   }
 
-  optional<void> deleteCap(Cap, IDeleter&) override { return Error::SUCCESS; };
+  optional<void> deleteCap(Cap, IDeleter&) override { RETURN(Error::SUCCESS); };
 
   void invoke(Tasklet* t, Cap self, IInvocation* msg) override {
     Error err = Error::NOT_IMPLEMENTED;

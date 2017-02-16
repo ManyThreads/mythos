@@ -51,13 +51,13 @@ namespace mythos {
   {
     /// @todo check bits
     auto ptr = mem->alloc(CapMap::size(indexbits), 64);
-    if (!ptr) return ptr.state();
+    if (!ptr) RETHROW(ptr);
     auto obj = new(*ptr) CapMap(mem, indexbits, guardbits, guard);
     auto cap = Cap(obj).withData(CapMapData().writable(true));
     auto res = cap::inherit(*memEntry, obj->getRoot(), memCap, cap);
     if (!res) {
       mem->free(*ptr, CapMap::size(indexbits));
-      return res.state();
+      RETHROW(res);
     }
     return obj;
   }
@@ -67,11 +67,11 @@ namespace mythos {
                         CapPtrDepth indexbits, CapPtrDepth guardbits, CapPtr guard)
   {
     auto obj = initial(memEntry, memCap, mem, indexbits, guardbits, guard);
-    if (!obj) return obj.state();
+    if (!obj) RETHROW(obj);
     auto& root = obj->getRoot();
     auto cap = root.cap();
     auto res = cap::inherit(root, *dstEntry, cap, cap.asReference());
-    if (!res) return res.state(); // the object was deleted concurrently
+    if (!res) RETHROW(res); // the object was deleted concurrently
     return obj;
   }
 
@@ -93,18 +93,18 @@ namespace mythos {
       // only delete if all subentries are deleted
       del.deleteObject(del_handle);
     }
-    return Error::SUCCESS;
+    RETURN(Error::SUCCESS);
   }
 
   optional<CapEntryRef> CapMap::lookup(Cap self, CapPtr ptr, CapPtrDepth depth, bool writable)
   {
-    if (writable && !CapMapData(self.data()).writable) { return Error::NO_LOOKUP; }
+    if (writable && !CapMapData(self.data()).writable) { THROW(Error::NO_LOOKUP); }
     CapPtr guard = this->guard;
     CapPtrDepth guardbits = this->guardbits;
     if (depth < guardbits+indexbits)
-      return Error::INVALID_CAPABILITY; // ptr is too small
+      THROW(Error::INVALID_CAPABILITY); // ptr is too small
     if (ptr >> (ptrbits-guardbits) != guard)
-      return Error::INVALID_CAPABILITY; // guard not matching
+      THROW(Error::INVALID_CAPABILITY); // guard not matching
     depth = CapPtrDepth(depth - guardbits);
     ptr <<= guardbits; // strip guard from address
     CapPtr index = ptr >> (ptrbits-indexbits); // get index
@@ -113,7 +113,7 @@ namespace mythos {
     CapEntry* entry = caps()+index;
     if (depth == 0) return CapEntryRef(entry, this); // reached end of address => return entry
     TypedCap<ICapMap> sub(entry->cap());
-    if (!sub) return sub.state();
+    if (!sub) RETHROW(sub.state());
     return sub.lookup(ptr, depth, writable); // recursive lookup
   }
 
@@ -144,11 +144,11 @@ namespace mythos {
       // The destination cspace must be looked up from the ECs cspace
       // because the source and destination capmaps can be completely unrelated.
       TypedCap<ICapMap> dstMap(msg->lookupEntry(cspace));
-      if (!dstMap) return dstMap.state();
-      return dstMap.lookup(data.dstPtr(), data.dstDepth, true);
+      if (!dstMap) RETHROW(dstMap);
+      RETURN(dstMap.lookup(data.dstPtr(), data.dstDepth, true));
     } else {
       // source = dest
-      return this->lookup(self, data.dstPtr(), data.dstDepth, true);
+      RETURN(this->lookup(self, data.dstPtr(), data.dstDepth, true));
     }
   }
 
@@ -223,6 +223,6 @@ namespace mythos {
   optional<void const*> CapMap::vcast(TypeId id) const
   {
     if (id == TypeId::id<ICapMap>()) { return static_cast<const ICapMap*>(this); }
-    return Error::TYPE_MISMATCH;
+    THROW(Error::TYPE_MISMATCH);
   }
 }  // namespace mythos

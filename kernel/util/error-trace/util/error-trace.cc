@@ -23,11 +23,9 @@
  *
  * Copyright 2014 Randolf Rotta, Maik Krüger, and contributors, BTU Cottbus-Senftenberg
  */
-
-#include "app/mlog.hh"
 #include "util/error-trace.hh"
 
 namespace mlog {
-  Logger<MLOG_APP> app("app");
   Logger<MLOG_ERROR_THROW> throw_error("throw");
-} // namespace mlog
+}
+

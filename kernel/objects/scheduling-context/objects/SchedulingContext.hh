@@ -30,6 +30,7 @@
 #include "objects/IScheduler.hh"
 #include "async/SimpleMonitorHome.hh"
 #include <cstdint>
+#include "util/error-trace.hh"
 
 namespace mythos {
 
@@ -93,10 +94,10 @@ namespace mythos {
     void yield(handle_t* ec_handle) override;
 
   public: // IKernelObject interface
-    optional<void> deleteCap(Cap, IDeleter&) override { return Error::SUCCESS; }
+    optional<void> deleteCap(Cap, IDeleter&) override { RETURN(Error::SUCCESS); }
     optional<void const*> vcast(TypeId id) const override {
       if (id == TypeId::id<IScheduler>()) return static_cast<const IScheduler*>(this);
-      return Error::TYPE_MISMATCH;
+      THROW(Error::TYPE_MISMATCH);
     }
 
   private:

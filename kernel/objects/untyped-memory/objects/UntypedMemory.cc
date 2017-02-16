@@ -54,7 +54,7 @@ optional<void*> UntypedMemory::alloc(size_t length, size_t alignment)
     return reinterpret_cast<void*>(*result);
   } else {
     MLOG_INFO(mlog::um, "alloc failed", DVAR(length), DVARhex(alignment), DVAR(result.state()));
-    return result.state();
+    RETHROW(result);
   }
 }
 
@@ -77,9 +77,9 @@ optional<void> UntypedMemory::alloc(MemoryDescriptor* begin, MemoryDescriptor* e
   }
   if (!result) {
     free(begin, it);
-    return result.state();
+    RETHROW(result);
   } else {
-    return Error::SUCCESS;
+    RETURN(Error::SUCCESS);
   }
 }
 
@@ -183,21 +183,21 @@ void UntypedMemory::free(Tasklet* t, IResult<void>* r, void* start, size_t lengt
                                size_t size, size_t alignment)
   {
     if (!Align4k::is_aligned(alignment) || !AlignmentObject(alignment).is_aligned(size))
-      return Error::UNALIGNED;
+      THROW(Error::UNALIGNED);
     auto region = mem->alloc(size, alignment);
-    if (!region) return region.state();
+    if (!region) RETHROW(region);
     auto obj =
       mem->create<UntypedMemory>(Range<uintptr_t>(uintptr_t(*region), uintptr_t(*region)+size));
     if (!obj) {
       mem->free(*region, size);
-      return obj.state();
+      RETHROW(obj);
     }
     Cap cap(*obj);
     auto res = cap::inherit(*memEntry, *dstEntry, memCap, cap);
     if (!res) {
       mem->free(*obj); // mem->release(obj) goes throug IKernelObject deletion mechanism
       mem->free(*region, size);
-      return res.state();
+      RETHROW(res);
     }
     obj->addRange(PhysPtr<void>::fromKernel(*region), size);
     return obj;

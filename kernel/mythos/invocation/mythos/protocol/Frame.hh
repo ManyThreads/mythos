@@ -27,6 +27,7 @@
 
 #include "mythos/protocol/common.hh"
 #include "mythos/protocol/UntypedMemory.hh"
+#include "util/error-trace.hh"
 
 namespace mythos {
   namespace protocol {

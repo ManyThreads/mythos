@@ -147,7 +147,7 @@ public: // IKernelObject interface
   Range<uintptr_t> addressRange(Cap self) override;
   optional<void const*> vcast(TypeId id) const override {
     if (id == TypeId::id<IPageMap>()) return static_cast<IPageMap const*>(this);
-    return Error::TYPE_MISMATCH;
+    THROW(Error::TYPE_MISMATCH);
   }
 
   optional<void> deleteCap(Cap self, IDeleter& del) override;

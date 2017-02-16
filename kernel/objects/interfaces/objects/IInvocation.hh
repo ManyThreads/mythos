@@ -48,6 +48,7 @@ namespace mythos {
      * released.
      */
     virtual void replyResponse(optional<void> error) = 0;
+    inline void replyResponse(Error err) { replyResponse(optional<void>(err)); };
 
     /** called by the target kernel object in response to having
      * completed the message processing. Tells the portal to initiate

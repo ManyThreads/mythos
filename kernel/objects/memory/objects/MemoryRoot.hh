@@ -43,7 +43,7 @@ namespace mythos {
 
   public: // IKernelObject interface
     Range<uintptr_t> addressRange(Cap) override  { return {0, ~uintptr_t(0)}; }
-    optional<void const*> vcast(TypeId) const override { return Error::TYPE_MISMATCH; }
+    optional<void const*> vcast(TypeId) const override { THROW(Error::TYPE_MISMATCH); }
     optional<void> deleteCap(Cap, IDeleter&) override { PANIC(false); }
     void invoke(Tasklet*, Cap, IInvocation* msg) override {
       OOPS_MSG(false, "Invocation to root object.");

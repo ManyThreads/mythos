@@ -70,19 +70,19 @@ namespace mythos {
   public: // IKernelObject interface
     optional<void const*> vcast(TypeId id) const override {
       if (id == TypeId::id<IAllocator>()) return static_cast<IAllocator const*>(this);
-      return Error::TYPE_MISMATCH;
+      THROW(Error::TYPE_MISMATCH);
     }
 
     Range<uintptr_t> addressRange(Cap) override { return _range; }
 
     optional<Cap> mint(Cap self, CapRequest, bool derive) override {
-      if (derive) return Error::INVALID_REQUEST;
+      if (derive) THROW(Error::INVALID_REQUEST);
       return self;
     }
 
     optional<void> deleteCap(Cap self, IDeleter& del) override {
       if (self.isOriginal()) del.deleteObject(del_handle);
-      return Error::SUCCESS;
+      RETURN(Error::SUCCESS);
     }
 
     /** initiates the asynchronous final deletion of the memory area.

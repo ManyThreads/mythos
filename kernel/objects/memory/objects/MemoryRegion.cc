@@ -42,19 +42,19 @@ namespace mythos {
 			      size_t size, size_t alignment)
   {
     if (!Align4k::is_aligned(alignment) || !AlignmentObject(alignment).is_aligned(size))
-      return Error::UNALIGNED;
+      THROW(Error::UNALIGNED);
     auto region = mem->alloc(size, alignment);
-    if (!region) return region.state();
+    if (!region) RETHROW(region);
     auto obj = mem->create<MemoryRegion>(PhysPtr<void>::fromKernel(*region), size);
     if (!obj) {
       mem->free(*region, size);
-      return obj.state();
+      RETHROW(obj);
     }
     auto res = cap::inherit(*memEntry, *dstEntry, memCap, Cap(*obj, FrameData()));
     if (!res) {
       mem->free(*obj); // mem->release(obj) goes throug IKernelObject deletion mechanism
       mem->free(*region, size);
-      return res.state();
+      RETHROW(res);
     }
     return *obj;
   }

@@ -38,7 +38,7 @@ namespace mythos {
       : portal(portal), cm(cm), start(start), end(start+count), mark(start) {}
 
     optional<CapPtr> alloc() {
-      if (mark >= end) return Error::INSUFFICIENT_RESOURCES;
+      if (mark >= end) THROW(Error::INSUFFICIENT_RESOURCES);
       mark++;
       return CapPtr(mark-1);
     }

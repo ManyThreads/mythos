@@ -45,15 +45,15 @@ namespace mlog {
   if ((logger).isActive(mlog::TextInfo::VERBOSITY)) logger.write<mlog::TextInfo>( \
          PATH, __VA_ARGS__);
 #define MLOG_WARN(logger, ...) \
-  if ((logger).isActive(mlog::TextWarn::VERBOSITY)) logger.write<mlog::TextWarn>( \
+  if ((logger).isActive(mlog::TextWarning::VERBOSITY)) logger.write<mlog::TextWarning>( \
           PATH, __VA_ARGS__);
 #define MLOG_ERROR(logger, ...) \
   if ((logger).isActive(mlog::TextError::VERBOSITY)) logger.write<mlog::TextError>( \
           PATH, __VA_ARGS__);
-  
+
   template<class Filter=FilterAny>
   class Logger
-    : public Filter 
+    : public Filter
   {
   public:
     Logger(char const* name="mlog") : name(name) {}
@@ -65,7 +65,7 @@ namespace mlog {
     void log(ARGS&&... args) const {
       if (this->isActive(MSG::VERBOSITY)) write<MSG, ARGS...>(std::forward<ARGS>(args)...);
     }
-    
+
     template<class MSG, typename... ARGS>
     void write(ARGS&&... args) const NOINLINE;
 

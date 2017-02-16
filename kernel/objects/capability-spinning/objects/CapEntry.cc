@@ -26,6 +26,7 @@
 
 #include "objects/CapEntry.hh"
 #include "objects/mlog.hh"
+#include "util/error-trace.hh"
 
 namespace mythos {
 
@@ -44,7 +45,11 @@ namespace mythos {
   {
     auto expected = Cap::asEmpty().value();
     const auto desired = Cap::asAllocated().value();
-    return _cap.compare_exchange_strong(expected, desired) ? Error::SUCCESS : Error::CAP_NONEMPTY;
+    if (_cap.compare_exchange_strong(expected, desired)) {
+     RETURN(Error::SUCCESS);
+    } else {
+      THROW(Error::CAP_NONEMPTY);
+    }
   }
 
   void CapEntry::commit(const Cap& cap)
@@ -71,14 +76,14 @@ namespace mythos {
     auto curCap = cap();
     if (!curCap.isUsable() || curCap != thisCap) {
       unlock();
-      return Error::LOST_RACE;
+      THROW(Error::LOST_RACE);
     }
     auto nextEntry = Link(_next.load()).ptr();
     nextEntry->_prev.store(Link(&target));
     target._next.store(Link(nextEntry));
     target._prev.store(Link(this));
     this->_next.store(Link(&target));
-    return Error::SUCCESS;
+    RETURN(Error::SUCCESS);
   }
 
   optional<void> CapEntry::moveTo(CapEntry& other)
@@ -87,7 +92,7 @@ namespace mythos {
     ASSERT(!other.isLinked());
     if (!lock_prev()) {
       other.reset();
-      return Error::GENERIC_ERROR;
+      THROW(Error::GENERIC_ERROR);
     }
     lock();
     auto thisCap = cap();
@@ -95,7 +100,7 @@ namespace mythos {
       other.reset();
       unlock();
       unlock_prev();
-      return Error::INVALID_CAPABILITY;
+      THROW(Error::INVALID_CAPABILITY);
     }
 
     auto nextEntry = Link(_next).ptr();
@@ -109,7 +114,7 @@ namespace mythos {
     _prev.store(Link());
     _next.store(Link());
     _cap.store(Cap().value());
-    return Error::SUCCESS;
+    RETURN(Error::SUCCESS);
   }
 
   bool CapEntry::kill()
@@ -134,7 +139,7 @@ namespace mythos {
     prevEntry->_next.store(Link(nextEntry));
     _prev.store(Link());
     _next.store(Link());
-    return Error::SUCCESS;
+    RETURN(Error::SUCCESS);
   }
 
   Error CapEntry::try_lock_prev()

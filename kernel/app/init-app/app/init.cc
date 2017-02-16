@@ -130,8 +130,8 @@ int main()
   char const end[] = "bye, cruel world!";
   mythos::syscall_debug(str, sizeof(str)-1);
 
-  //test_Example();
-  //test_Portal();
+  test_Example();
+  test_Portal();
 
   mythos::ExecutionContext ec1(mythos::init::APP_CAP_START);
   auto res1 = ec1.create(portal, kmem, mythos::init::EXECUTION_CONTEXT_FACTORY,

@@ -25,9 +25,9 @@
  */
 #pragma once
 
+#include <cstring>
 #include "mythos/protocol/common.hh"
 #include "mythos/protocol/UntypedMemory.hh"
-#include <cstring>
 
 namespace mythos {
   namespace protocol {
@@ -60,10 +60,10 @@ namespace mythos {
 
       template<class IMPL, class... ARGS>
       static Error dispatchRequest(IMPL* obj, uint8_t m, ARGS const&...args) {
-	switch(Methods(m)) {
-	case PRINT_MESSAGE: return obj->printMessage(args...);
-	default: return Error::NOT_IMPLEMENTED;
-	}
+        switch(Methods(m)) {
+          case PRINT_MESSAGE: return obj->printMessage(args...);
+          default: return Error::NOT_IMPLEMENTED;
+        }
       }
 
     };

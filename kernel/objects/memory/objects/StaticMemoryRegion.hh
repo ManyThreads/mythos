@@ -64,10 +64,10 @@ public: // IFrame interface
 public: // IKernelObject interface
   optional<void const*> vcast(TypeId id) const override {
     if (TypeId::id<IFrame>() == id) return static_cast<const IFrame*>(this);
-    return Error::TYPE_MISMATCH;
+    THROW(Error::TYPE_MISMATCH);
   }
 
-  optional<void> deleteCap(Cap, IDeleter&) override { return Error::SUCCESS; }
+  optional<void> deleteCap(Cap, IDeleter&) override { RETURN(Error::SUCCESS); }
 
   optional<Cap> mint(Cap self, CapRequest request, bool derive) override {
     if (!derive) return FrameData(self).referenceRegion(self, FrameReq(request));

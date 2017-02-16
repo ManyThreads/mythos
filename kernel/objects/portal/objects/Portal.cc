@@ -36,12 +36,12 @@ namespace mythos {
   {
     MLOG_INFO(mlog::portal, "Portal::setInvocationBuf", DVAR(fe), DVAR(offset));
     TypedCap<IFrame> frame(fe);
-    if (!frame) return frame;
+    if (!frame) RETHROW(frame);
     auto info = frame.getFrameInfo();
-    if (!info.start.kernelmem() || !info.writable) return Error::INVALID_CAPABILITY;
-    if (offset+sizeof(InvocationBuf) >= info.size) return Error::INSUFFICIENT_RESOURCES;
+    if (!info.start.kernelmem() || !info.writable) THROW(Error::INVALID_CAPABILITY);
+    if (offset+sizeof(InvocationBuf) >= info.size) THROW(Error::INSUFFICIENT_RESOURCES);
     ibNew = reinterpret_cast<InvocationBuf*>(info.start.logint()+offset);
-    return _ib.set(this, *fe, frame.cap());
+    RETURN(_ib.set(this, *fe, frame.cap()));
   }
 
   void Portal::bind(optional<IFrame*> obj)
@@ -60,8 +60,8 @@ namespace mythos {
   {
     MLOG_INFO(mlog::portal, "Portal::setOwner", DVAR(ece));
     TypedCap<IPortalUser> ec(ece);
-    if (!ec) return ec;
-    return _owner.set(this, *ece, ec.cap());
+    if (!ec) RETHROW(ec);
+    RETURN(_owner.set(this, *ece, ec.cap()));
   }
 
   void Portal::unbind(optional<IPortalUser*> obj)
@@ -73,14 +73,14 @@ namespace mythos {
   optional<CapEntryRef> Portal::lookupRef(CapPtr ptr, CapPtrDepth ptrDepth, bool writable)
   {
     auto owner = _owner.get();
-    if (!owner) return owner.state();
+    if (!owner) RETHROW(owner);
     return owner->lookupRef(ptr, ptrDepth, writable);
   }
 
   optional<CapEntry*> Portal::lookupEntry(CapPtr ptr, CapPtrDepth ptrDepth, bool writable)
   {
     auto ref = this->lookupRef(ptr, ptrDepth, writable);
-    if (!ref) return ref.state();
+    if (!ref) RETHROW(ref);
     return ref->entry;
   }
 
@@ -88,20 +88,20 @@ namespace mythos {
   {
     MLOG_INFO(mlog::portal, "Portal::sendInvocation", DVAR(self), DVAR(dest));
     TypedCap<IPortalUser> owner(_owner.cap());
-    if (!owner) return owner.state();
+    if (!owner) RETHROW(owner);
     auto dref = owner->lookupRef(dest, 32, false);
-    if (!dref) return dref.state();
+    if (!dref) RETHROW(dref);
     currentDest = *dref;
     destCap = currentDest.entry->cap();
-    if (!destCap.isUsable()) return Error::NO_LOOKUP;
+    if (!destCap.isUsable()) THROW(Error::NO_LOOKUP);
 
     uint8_t expected = OPEN;
-    if (!portalState.compare_exchange_strong(expected, INVOKING)) return Error::PORTAL_NOT_OPEN;
+    if (!portalState.compare_exchange_strong(expected, INVOKING)) THROW(Error::PORTAL_NOT_OPEN);
 
     currentDest.acquire();
     this->uctx = uctx;
     destCap.getPtr()->invoke(&mytask, destCap, this);
-    return Error::SUCCESS;
+    RETURN(Error::SUCCESS);
   }
 
   void Portal::replyResponse(optional<void> error)
@@ -148,14 +148,14 @@ namespace mythos {
       if (!revokeOp.acquire()) {
         // we are currently deleting, so abort in order to prevent a deadlock
         // this should be resolvable (if no livelocking) when restarted from user level
-        return Error::RETRY;
+        THROW(Error::RETRY);
       } // otherwise, no new deletes/revokes can be started now
 
       _ib.reset();
       _owner.reset();
       del.deleteObject(del_handle);
     }
-    return Error::SUCCESS;
+    RETURN(Error::SUCCESS);
   }
 
   void Portal::invoke(Tasklet* t, Cap self, IInvocation* msg)
@@ -200,12 +200,12 @@ namespace mythos {
   PortalFactory::factory(CapEntry* dstEntry, CapEntry* memEntry, Cap memCap, IAllocator* mem)
   {
     auto obj = mem->create<Portal>();
-    if (!obj) return obj.state();
+    if (!obj) RETHROW(obj);
     Cap cap(*obj); /// @todo should have Portal specific rights
     auto res = cap::inherit(*memEntry, *dstEntry, memCap, cap);
     if (!res) {
       mem->free(*obj); // mem->release(obj) goes through IKernelObject deletion mechanism
-      return res.state();
+      RETHROW(res);
     }
     return *obj;
   }

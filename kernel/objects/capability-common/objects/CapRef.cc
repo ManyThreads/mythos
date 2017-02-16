@@ -37,14 +37,14 @@ namespace mythos {
   optional<void> CapRefBase::set(void* subject, CapEntry& src, Cap srcCap)
   {
     this->reset();
-    return cap::setReference(
+    RETURN(cap::setReference(
         [=](){
           this->orig.store(srcCap.asReference().value());
           this->binding(subject, srcCap.asReference());
         },
         this->entry,
         srcCap.asReference(this, kernel2phys(subject)),
-        src, srcCap);
+        src, srcCap));
   }
 
   void CapRefBase::reset()
@@ -68,7 +68,7 @@ namespace mythos {
     // orig.getPtr()->deleteCap(orig, del);
     this->unbinding(phys2kernel<void>(self.data()), Cap(orig.load()));
     this->orig.store(Cap().value());
-    return Error::SUCCESS;
+    RETURN(Error::SUCCESS);
   }
 
 } // namespace mythos
