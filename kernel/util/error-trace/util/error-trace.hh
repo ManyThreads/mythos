@@ -39,11 +39,10 @@ namespace mlog {
 
 } //  mlog
 
-// Make sure the arguments are only evaluated once!!
-
 #define THROW(...) do { return ::mythos::throw_error(PATH, __VA_ARGS__);} while (false)
 #define RETHROW(...) do { return ::mythos::rethrow_error(PATH, __VA_ARGS__); } while (false)
 
+#ifndef NDEBUG
 #define RETURN(value) \
   do { \
     auto val = ::mythos::boxError(value); \
@@ -52,10 +51,14 @@ namespace mlog {
     } \
     RETHROW(val); \
   } while (false)
+#else
+#define RETURN(value) do { return ::mythos::boxError(value); } while (false)
+#endif
 
 
 namespace mythos {
 
+#ifndef NDEBUG
   template<class... ARGS>
   inline optional<void> throw_error(const char* path, Error error, ARGS... args)
   {
@@ -63,13 +66,29 @@ namespace mythos {
     for (auto frame : mythos::StackTrace()) { mlog::throw_error.detail("trace", frame.ret); }
     return optional<void>(error);
   }
+#else
+  template<class... ARGS>
+  inline optional<void> throw_error(const char*, Error error, ARGS...)
+  {
+    return optional<void>(error);
+  }
+#endif
 
+
+#ifndef NDEBUG
   template<class... ARGS>
   inline optional<void> rethrow_error(const char* path, Error error, ARGS... args)
   {
     mlog::throw_error.warn(path, DVAR(error), args...);
     return optional<void>(error);
   }
+#else
+  template<class... ARGS>
+  inline optional<void> rethrow_error(const char*, Error error, ARGS...)
+  {
+    return optional<void>(error);
+  }
+#endif
 
   template<class OPT, class... ARGS>
   inline optional<void> rethrow_error(const char* path, OPT opt, ARGS... args)
