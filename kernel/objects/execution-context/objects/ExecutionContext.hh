@@ -59,7 +59,7 @@ namespace mythos {
       NO_SCHED   = 1<<3, // set if scheduler is missing
       IS_EXITED  = 1<<4, // set by exit() syscall
       IN_WAIT    = 1<<5, // EC is in wait() syscall, next sysret should return a KEvent
-      IS_NOTIFD  = 1<<6, // used by notify() syscall for binary semaphore
+      IS_NOTIFIED     = 1<<6, // used by notify() syscall for binary semaphore
       REGISTER_ACCESS = 1<<7, // accessing registers
       BLOCK_MASK = IS_WAITING | IS_TRAPPED | NO_AS | NO_SCHED | IS_EXITED | REGISTER_ACCESS
     };

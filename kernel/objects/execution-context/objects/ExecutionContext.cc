@@ -343,7 +343,7 @@ namespace mythos {
       case SYSCALL_WAIT: {
         auto prevState = setFlag(IN_WAIT | IS_WAITING);
         MLOG_INFO(mlog::syscall, "wait", DVARhex(prevState));
-        if (!notificationQueue.empty() || (prevState & IS_NOTIFD))
+        if (!notificationQueue.empty() || (prevState & IS_NOTIFIED))
           clearFlag(IS_WAITING); // because of race with notifier
         break;
       }
@@ -394,7 +394,7 @@ namespace mythos {
 
   void ExecutionContext::semaphoreNotify()
   {
-    auto prev = setFlag(IS_NOTIFD);
+    auto prev = setFlag(IS_NOTIFIED);
     MLOG_DETAIL(mlog::syscall, "receiving notify syscall", DVARhex(prev));
     clearFlagResume(IS_WAITING);
   }
@@ -414,7 +414,7 @@ namespace mythos {
     MLOG_DETAIL(mlog::ec, "try to resume", DVARhex(prevState));
     if (prevState & IN_WAIT) {
       MLOG_DETAIL(mlog::ec, "try to resume from wait state");
-      clearFlag(IS_NOTIFD);
+      clearFlag(IS_NOTIFIED); // this is safe because we wake up anyway
       auto e = notificationQueue.pull();
       if (e) {
         auto ev = e->get()->deliver();
