@@ -8,10 +8,10 @@
  * modify, merge, publish, distribute, sublicense, and/or sell copies
  * of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
  * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
@@ -20,8 +20,8 @@
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
- * 
- * Copyright 2014 Randolf Rotta, Maik Krüger, and contributors, BTU Cottbus-Senftenberg 
+ *
+ * Copyright 2014 Randolf Rotta, Maik Krüger, and contributors, BTU Cottbus-Senftenberg
  */
 #pragma once
 
@@ -41,19 +41,19 @@ namespace mythos {
    * silently drops them.
    */
   template<size_t S, unsigned N>
-  class PCIeRingChannel 
+  class PCIeRingChannel
   {
   public:
     typedef uint16_t handle_t;
     constexpr static handle_t SLOTS=N;
     constexpr static size_t SIZE=S;
     constexpr static size_t DATASIZE = (SIZE-sizeof(std::atomic<handle_t>));
-               
+
     struct Slot{
       std::atomic<handle_t> seq;
       char data[DATASIZE];
-    }; 
-            
+    };
+
     /** initialise the sequence counters in the slots */
     void init() { for (handle_t i=0; i<SLOTS; i++) slots[i].seq=handle_t(i<<1); }
     Slot& getSlot(handle_t handle) { return slots[handle%SLOTS]; }
@@ -83,11 +83,11 @@ namespace mythos {
     optional<handle_t> tryAquireRecv() {
       handle_t temp(readPos);
       if(channel->isReadable(temp)){
-	if(readPos.compare_exchange_strong(temp,readPos+1))
-	  return temp;
+  if(readPos.compare_exchange_strong(temp,readPos+1))
+    return temp;
       }
       cpu::clflush(&channel->getSlot(temp));
-      return Error::INHIBIT;
+      RETURN(Error::INHIBIT);
     }
 
     handle_t acquireRecv() {
@@ -96,9 +96,9 @@ namespace mythos {
         cpu::clflush(&channel->getSlot(rp));
         hwthread_pause(400);
       }
-      return rp; 
+      return rp;
     }
-    
+
     template<class T>
     T& get(handle_t handle) { return *channel->template getData<T>(handle); }
     char const* getPtr(handle_t handle) const { return channel->template getData<char>(handle); }
@@ -123,11 +123,11 @@ namespace mythos {
     optional<handle_t> tryAquireSend() {
       handle_t temp=writePos;
       if(channel->isWriteable(temp)){
-	if(writePos->compare_exchange_strong(temp,writePos+1))
-	  return temp;
+  if(writePos->compare_exchange_strong(temp,writePos+1))
+    return temp;
       }
       cpu::clflush(&channel->getSlot(temp));
-      return Error::INHIBIT;
+      RETURN(Error::INHIBIT);
     }
 
     handle_t acquireSend() {
@@ -142,13 +142,13 @@ namespace mythos {
     template<class T>
     T& get(handle_t handle) { return *channel->template getData<T>(handle); }
     char* getPtr(handle_t handle) { return channel->template getData<char>(handle); }
-      
+
     void finishSend(handle_t handle, size_t bytes=CHANNEL::DATASIZE) {
       ASSERT(bytes <= CHANNEL::DATASIZE);
       channel->setReadable(handle);
       channel->flush(handle, bytes);
     }
-    
+
   protected:
     CHANNEL* channel;
     std::atomic<handle_t> writePos;

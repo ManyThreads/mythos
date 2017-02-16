@@ -28,6 +28,7 @@
 #include "objects/CapEntry.hh"
 #include "mythos/caps.hh"
 #include "objects/IKernelObject.hh"
+#include "util/error-trace.hh"
 
 namespace mythos {
   namespace cap {
@@ -65,35 +66,35 @@ namespace mythos {
   optional<void> inherit(CapEntry& thisEntry, CapEntry& newEntry, Cap thisCap, Cap newCap)
   {
     MLOG_DETAIL(mlog::cap, "inherit caps", DVAR(thisCap), DVAR(newCap),
-		    DVAR(isParentOf(thisCap, newCap)), DVAR(isParentOf(newCap, thisCap)));
+      DVAR(isParentOf(thisCap, newCap)), DVAR(isParentOf(newCap, thisCap)));
     ASSERT(newEntry.cap().isAllocated());
     ASSERT(implies(thisCap.isReference(), !isParentOf(thisCap, newCap) && !isParentOf(newCap, thisCap)));
-    ASSERT(implies(!thisCap.isReference(), isParentOf(thisCap, newCap)));  
+    ASSERT(implies(!thisCap.isReference(), isParentOf(thisCap, newCap)));
     // try to insert into the resource tree
     // insertAfter checks if thisCap is stored in thisEntry after locking
     // and fails if it is not ...
     auto result = thisEntry.insertAfter(thisCap, newEntry);
     if (result) newEntry.commit(newCap); // release the entry as usable
     else newEntry.reset(); // release exclusive usage and revert to an empty entry
-    return result;
+    RETURN(result);
   }
 
   optional<void> derive(CapEntry& thisEntry, CapEntry& newEntry, Cap thisCap, CapRequest request)
   {
-    if (!thisCap.isUsable() || thisCap.isDerived()) return Error::INVALID_CAPABILITY;
+    if (!thisCap.isUsable() || thisCap.isDerived()) THROW(Error::INVALID_CAPABILITY);
     auto minted = thisCap.getPtr()->mint(thisCap, request, true);
-    if (!minted) return minted.state();
-    if (!newEntry.acquire()) return Error::LOST_RACE; // try to acquire exclusive usage
-    return inherit(thisEntry, newEntry, thisCap, (*minted).stripReference().asDerived());
+    if (!minted) RETHROW(minted);
+    if (!newEntry.acquire()) THROW(Error::LOST_RACE); // try to acquire exclusive usage
+    RETURN(inherit(thisEntry, newEntry, thisCap, (*minted).stripReference().asDerived()));
   }
 
   optional<void> reference(CapEntry& thisEntry, CapEntry& newEntry, Cap thisCap, CapRequest request)
   {
-    if (!thisCap.isUsable()) return Error::INVALID_CAPABILITY;
+    if (!thisCap.isUsable()) THROW(Error::INVALID_CAPABILITY);
     auto minted = thisCap.getPtr()->mint(thisCap, request, false);
-    if (!minted) return minted.state();
-    if (!newEntry.acquire()) return Error::LOST_RACE; // try to acquire exclusive usage
-    return inherit(thisEntry, newEntry, thisCap, (*minted).asReference());
+    if (!minted) RETHROW(minted);
+    if (!newEntry.acquire()) THROW(Error::LOST_RACE); // try to acquire exclusive usage
+    RETURN(inherit(thisEntry, newEntry, thisCap, (*minted).asReference()));
   }
 
   } // namespace cap

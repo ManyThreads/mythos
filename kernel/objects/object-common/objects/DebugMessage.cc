@@ -28,6 +28,7 @@
 #include "objects/IInvocation.hh"
 #include "util/MemStreamBuf.hh"
 #include "util/ostream.hh"
+#include "util/error-trace.hh"
 
 namespace mythos {
 

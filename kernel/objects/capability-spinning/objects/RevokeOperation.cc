@@ -33,7 +33,7 @@ namespace mythos {
   optional<void> RevokeOperation::deleteEntry(CapEntry& entry)
   {
     if (entry.isDeleted()) {
-      return Error::SUCCESS;
+      RETURN(Error::SUCCESS);
     }
     optional<void> result;
     do {
@@ -43,7 +43,7 @@ namespace mythos {
         if (entry.kill()) {
           result = _delete(&entry, entry.cap());
           if (!result) { break; } // we cannot recover from this
-          result = Error::RETRY; // retry to acquire after delete
+          result = optional<void>(Error::RETRY); // retry to acquire after delete
         } else {
           // not acquirable nor killable
           // just wait a little
@@ -115,7 +115,7 @@ namespace mythos {
           root->finishRevoke();
           root->unlock();
           root->unlock_prev();
-          return Error::SUCCESS;
+          RETURN(Error::SUCCESS);
         }
         auto leafCap = leaf->cap();
         ASSERT(leafCap.isZombie());
@@ -123,7 +123,7 @@ namespace mythos {
           leaf->unlock();
           leaf->unlock_prev();
           // attempted to delete guarded object
-          return Error::CYCLIC_DEPENDENCY;
+          RETURN(Error::CYCLIC_DEPENDENCY);
         }
         auto delRes = leafCap.getPtr()->deleteCap(leafCap, *this);
         if (delRes) {
@@ -134,12 +134,12 @@ namespace mythos {
           // or tried to to delete _guarded via a recursive call.
           leaf->unlock();
           leaf->unlock_prev();
-          return delRes.state();
+          RETHROW(delRes);
         }
-      } else return Error::SUCCESS; // could not restart, must be done
+      } else RETURN(Error::SUCCESS); // could not restart, must be done
     } while (leaf != root);
     // deleted root
-    return Error::SUCCESS;
+    RETURN(Error::SUCCESS);
   }
 
   bool RevokeOperation::_startTraversal(CapEntry* root, Cap rootCap)

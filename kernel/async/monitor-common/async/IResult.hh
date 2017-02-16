@@ -38,6 +38,7 @@ namespace mythos {
     public:
       virtual ~IResult() {}
       virtual void response(Tasklet*, optional<T>) = 0;
+      inline void response(Tasklet* t, Error err) { response(t, optional<T>(err)); }
     };
 
     template<>
@@ -47,6 +48,7 @@ namespace mythos {
       virtual ~IResult() {}
       void response(Tasklet* t) { response(t, Error::SUCCESS); }
       virtual void response(Tasklet*, optional<void>) = 0;
+      inline void response(Tasklet* t, Error err) { response(t, optional<void>(err)); }
     };
 
     // use as: MSink<MyClass, ResType, &MyClass::fooResponse> fooSink{this};

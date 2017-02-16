@@ -85,14 +85,14 @@ namespace mythos {
   optional<Cap> deriveRegion(Cap self, IKernelObject& frame, FrameReq r, size_t maxSize) const {
     FrameData res = this->writable(writable && r.writable)
       .offset(r.offset).sizeIndex(r.size);
-    if (res.end(0)>maxSize || !res.isAligned()) return Error::UNALIGNED;
+    if (res.end(0)>maxSize || !res.isAligned()) THROW(Error::UNALIGNED);
     return self.asDerived().withPtr(&frame).withData(res);
   }
 
   optional<Cap> referenceFrame(Cap self, FrameReq r) const {
     FrameData res = writable(writable && r.writable)
       .offset(r.offset).sizeIndex(r.size);
-    if (res.addr(0)<addr(0) || res.end(0)>end(0) || !res.isAligned()) return Error::INVALID_REQUEST;
+    if (res.addr(0)<addr(0) || res.end(0)>end(0) || !res.isAligned()) THROW(Error::INVALID_REQUEST);
     return self.asReference().withData(res);
   }
   BITFIELD_END
