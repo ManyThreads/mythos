@@ -25,7 +25,7 @@
  */
 #pragma once
 
-#include "util/optional.hh"
+#include "util/error-trace.hh"
 
 namespace mythos {
 
@@ -64,19 +64,19 @@ namespace mythos {
     optional<T*> cast() {
       auto o = this->vcast(TypeId::id<T>());
       if (o) return const_cast<T*>(reinterpret_cast<T const*>(*o));
-      else return o.state();
+      else RETHROW(o);
     }
 
     template<class T>
     optional<T const*> cast() const {
       auto o = this->vcast(TypeId::id<T>());
       if (o) return reinterpret_cast<T const*>(*o);
-      return o.state();
+      RETHROW(o);
     }
   };
 
   inline optional<void const*> ICastable::vcast(TypeId) const {
-    return Error::TYPE_MISMATCH;
+    THROW(Error::TYPE_MISMATCH);
   }
-  
+
 } // namespace mythos

@@ -27,7 +27,7 @@
 
 #include "objects/Cap.hh"
 #include "objects/CapEntry.hh"
-#include "util/optional.hh"
+#include "util/error-trace.hh"
 
 namespace mythos {
 
@@ -47,10 +47,10 @@ namespace mythos {
     optional<void> setReference(const FUN fun, CapEntry& dst, Cap dstCap, CapEntry& src, Cap srcCap)
     {
       ASSERT(dstCap.isReference());
-      if (!dst.acquire().isSuccess()) return Error::LOST_RACE;
+      if (!dst.acquire().isSuccess()) THROW(Error::LOST_RACE);
       // was empty => insert new reference
       fun();
-      return inherit(src, dst, srcCap, dstCap);
+      RETURN(inherit(src, dst, srcCap, dstCap));
     }
 
     template<class FUN>

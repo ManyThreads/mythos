@@ -1,4 +1,4 @@
-/* -*- mode:C++; -*- */
+/* -*- mode:C++; indent-tabs-mode:nil; -*- */
 /* MyThOS: The Many-Threads Operating System
  *
  * Permission is hereby granted, free of charge, to any person
@@ -25,38 +25,53 @@
  */
 #pragma once
 
-#include "cstddef"
-#include "mythos/caps.hh"
-#include "mythos/InvocationBuf.hh"
+#include "runtime/CapMap.hh"
+#include "runtime/Portal.hh"
+#include "util/optional.hh"
 
 namespace mythos {
-namespace init {
 
-  enum CSpaceLayout : CapPtr {
-    NULLCAP = 0,
-    UM,
-    CSPACE,
-    EC,
-    PORTAL,
-    EXAMPLE_FACTORY,
-    MEMORY_REGION_FACTORY,
-    EXECUTION_CONTEXT_FACTORY,
-    PORTAL_FACTORY,
-    CAPMAP_FACTORY,
-    PAGEMAP_FACTORY,
-    UNTYPED_MEMORY_FACTORY,
-    CAP_ALLOC_START,
-    CAP_ALLOC_END = 250,
-    MSG_FRAME,
-    DYNAMIC_REGION,
-    PML2,
-    PML3,
-    PML4,
-    STATIC_MEM_START,
-    SCHEDULERS_START = 512,
-    APP_CAP_START = 768,
-    SIZE = 4096
+  class SimpleCapAlloc
+  {
+  public:
+    SimpleCapAlloc(Portal* portal, CapMap cm, uint32_t start, uint32_t count)
+      : portal(portal), cm(cm), start(start), end(start+count), mark(start) {}
+
+    optional<CapPtr> alloc() {
+      if (mark >= end) THROW(Error::INSUFFICIENT_RESOURCES);
+      mark++;
+      return CapPtr(mark-1);
+    }
+
+    void freeObject(KObject p) { freeObject(p.cap()); }
+
+    void freeObject(CapPtr p) {
+      ASSERT(start <= p && p < mark);
+      auto res = cm.deleteCap(*portal, p);
+      res.wait();
+      ASSERT(res);
+      freePtr(p);
+      res.close();
+    }
+
+    void freePtr(CapPtr) {}
+
+    void freeAllObjects() {
+      for (uint32_t i=start; i < mark; i++) {
+        auto res = cm.deleteCap(*portal, CapPtr(i));
+        res.wait();
+        freePtr(CapPtr(i));
+        res.close();
+      }
+      mark = start;
+    }
+
+  protected:
+    Portal* portal;
+    CapMap cm;
+    uint32_t start;
+    uint32_t end;
+    uint32_t mark;
   };
 
-} // namespace init
 } // namespace mythos

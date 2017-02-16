@@ -32,6 +32,7 @@
 #include "objects/ops.hh"
 #include "objects/DebugMessage.hh"
 #include "objects/IPageMap.hh"
+#include "util/error-trace.hh"
 
 namespace mythos {
 
@@ -54,10 +55,10 @@ namespace mythos {
   void ExecutionContext::clearFlagResume(uint8_t f)
   {
     auto prev = clearFlag(f);
-    MLOG_INFO(mlog::ec, "cleared flag", DVAR(this), DVARhex(f), DVARhex(prev), DVARhex(flags.load()), isReady());
+    MLOG_DETAIL(mlog::ec, "cleared flag", DVAR(this), DVARhex(f), DVARhex(prev), DVARhex(flags.load()), isReady());
     if (isBlocked(prev) && isReady()) {
       auto sched = _sched.get();
-      MLOG_INFO(mlog::ec, "trying to wake up the scheduler");
+      MLOG_DETAIL(mlog::ec, "trying to wake up the scheduler");
       if (sched) sched->ready(&ec_handle);
     }
   }
@@ -66,9 +67,9 @@ namespace mythos {
   {
     MLOG_INFO(mlog::ec, "setAddressSpace", DVAR(this), DVAR(pme));
     TypedCap<IPageMap> obj(pme);
-    if (!obj) return obj.state();
-    if (!obj->getPageMapInfo(obj.cap()).isRootMap()) return Error::INVALID_CAPABILITY;
-    return _as.set(this, *pme, obj.cap());
+    if (!obj) RETHROW(obj);
+    if (!obj->getPageMapInfo(obj.cap()).isRootMap()) THROW(Error::INVALID_CAPABILITY);
+    RETURN(_as.set(this, *pme, obj.cap()));
   }
 
   void ExecutionContext::bind(optional<IPageMap*>)
@@ -87,8 +88,8 @@ namespace mythos {
   {
     MLOG_INFO(mlog::ec, "setScheduler", DVAR(this), DVAR(sce));
     TypedCap<IScheduler> obj(sce);
-    if (!obj) return obj.state();
-    return _sched.set(this, *sce, obj.cap());
+    if (!obj) RETHROW(obj);
+    RETURN(_sched.set(this, *sce, obj.cap()));
   }
 
   void ExecutionContext::bind(optional<IScheduler*>)
@@ -109,8 +110,9 @@ namespace mythos {
   {
     MLOG_INFO(mlog::ec, "setCapSpace", DVAR(this), DVAR(cse));
     TypedCap<ICapMap> obj(cse);
-    if (!obj) return obj.state();
-    return _cs.set(this, *cse, obj.cap());
+    if (!obj) RETHROW(obj);
+    RETURN(_cs.set(this, *cse, obj.cap()));
+
   }
 
   void ExecutionContext::setEntryPoint(uintptr_t rip)
@@ -123,8 +125,8 @@ namespace mythos {
   optional<CapEntryRef> ExecutionContext::lookupRef(CapPtr ptr, CapPtrDepth ptrDepth, bool writable)
   {
     TypedCap<ICapMap> cs(_cs.cap());
-    if (!cs) return cs.state();
-    return cs.lookup(ptr, ptrDepth, writable);
+    if (!cs) RETHROW(cs);
+    RETURN(cs.lookup(ptr, ptrDepth, writable));
   }
 
   Error ExecutionContext::invokeConfigure(Tasklet*, Cap, IInvocation* msg)
@@ -160,7 +162,7 @@ namespace mythos {
     setFlag(REGISTER_ACCESS);
     auto sched = _sched.get();
     if (sched) sched->preempt(t, &readSleepResponse, &ec_handle);
-    else readThreadRegisters(t, Error::SUCCESS);
+    else readThreadRegisters(t, optional<void>(Error::SUCCESS));
     return Error::INHIBIT;
   }
 
@@ -202,7 +204,7 @@ namespace mythos {
     if (data.resume) clearFlag(IS_TRAPPED);
     auto sched = _sched.get();
     if (sched) sched->preempt(t, &writeSleepResponse, &ec_handle);
-    else writeThreadRegisters(t, Error::SUCCESS);
+    else writeThreadRegisters(t, optional<void>(Error::SUCCESS));
     return Error::INHIBIT;
   }
 
@@ -245,10 +247,10 @@ namespace mythos {
   optional<void> ExecutionContext::setBaseRegisters(uint64_t fs, uint64_t gs)
   {
     if (!PhysPtr<void>(fs).canonical() || !PhysPtr<void>(gs).canonical())
-      return Error::NON_CANONICAL_ADDRESS;
+      THROW(Error::NON_CANONICAL_ADDRESS);
     threadState.fs_base = fs;
     threadState.gs_base = gs;
-    return Error::SUCCESS;
+    RETURN(Error::SUCCESS);
   }
 
   Error ExecutionContext::invokeResume(Tasklet*, Cap, IInvocation*)
@@ -263,7 +265,7 @@ namespace mythos {
     setFlag(IS_TRAPPED);
     auto sched = _sched.get();
     if (sched) sched->preempt(t, &sleepResponse, &ec_handle);
-    else suspendThread(t, Error::SUCCESS);
+    else suspendThread(t, optional<void>(Error::SUCCESS));
     return Error::INHIBIT;
   }
 
@@ -340,11 +342,13 @@ namespace mythos {
         setFlag(IN_WAIT);
         break;
 
-      case SYSCALL_WAIT:
-        MLOG_INFO(mlog::syscall, "wait");
-        setFlag(IN_WAIT | IS_WAITING);
-        if (!notificationQueue.empty()) clearFlag(IS_WAITING); // because of race with notifier
+      case SYSCALL_WAIT: {
+        auto prevState = setFlag(IN_WAIT | IS_WAITING);
+        MLOG_INFO(mlog::syscall, "wait", DVARhex(prevState));
+        if (!notificationQueue.empty() || (prevState & IS_NOTIFIED))
+          clearFlag(IS_WAITING); // because of race with notifier
         break;
+      }
 
       case SYSCALL_INVOKE:
         MLOG_INFO(mlog::syscall, "invoke", DVAR(portal), DVAR(kobj), DVARhex(userctx));
@@ -374,24 +378,45 @@ namespace mythos {
         break;
       }
 
+      case SYSCALL_NOTIFY: {
+        TypedCap<ICapMap> cs(_cs); // .cap()
+        if (!cs) { code = uint64_t(cs.state()); break; }
+        TypedCap<ISchedulable> th(cs.lookup(CapPtr(portal), 32, false));
+        if (!th) { code = uint64_t(th.state()); break; }
+        MLOG_INFO(mlog::syscall, "semaphore notify syscall", DVAR(portal), DVAR(th.obj()));
+        th->semaphoreNotify();
+        code = uint64_t(Error::SUCCESS);
+        break;
+      }
+
       default: break;
     }
     MLOG_DETAIL(mlog::syscall, DVARhex(userctx), DVAR(code));
   }
 
+  void ExecutionContext::semaphoreNotify()
+  {
+    auto prev = setFlag(IS_NOTIFIED);
+    MLOG_DETAIL(mlog::syscall, "receiving notify syscall", DVARhex(prev));
+    clearFlagResume(IS_WAITING);
+  }
+
   optional<void> ExecutionContext::syscallInvoke(CapPtr portal, CapPtr dest, uint64_t user)
   {
     TypedCap<ICapMap> cs(_cs.cap());
-    if (!cs) return cs;
+    if (!cs) RETHROW(cs);
     TypedCap<IPortal> p(cs.lookup(portal, 32, false));
-    if (!p) return p;
-    return p.sendInvocation(dest, user);
+    if (!p) RETHROW(p);
+    RETURN(p.sendInvocation(dest, user));
   }
 
   void ExecutionContext::resume() {
     if (!isReady()) return;
-    if (clearFlag(IN_WAIT) & IN_WAIT) {
+    auto prevState = clearFlag(IN_WAIT);
+    MLOG_DETAIL(mlog::ec, "try to resume", DVARhex(prevState));
+    if (prevState & IN_WAIT) {
       MLOG_DETAIL(mlog::ec, "try to resume from wait state");
+      clearFlag(IS_NOTIFIED); // this is safe because we wake up anyway
       auto e = notificationQueue.pull();
       if (e) {
         auto ev = e->get()->deliver();
@@ -399,7 +424,7 @@ namespace mythos {
         threadState.rdi = ev.state;
       } else {
         threadState.rsi = 0;
-        threadState.rdi = uint64_t(Error::NO_NOTIFICATION);
+        threadState.rdi = uint64_t(Error::NO_MESSAGE);
       }
       MLOG_DETAIL(mlog::syscall, DVARhex(threadState.rsi), DVAR(threadState.rdi));
     }
@@ -446,7 +471,7 @@ namespace mythos {
       _sched.reset();
       del.deleteObject(del_handle);
     }
-    return Error::SUCCESS;
+    RETURN(Error::SUCCESS);
   }
 
   void ExecutionContext::deleteObject(Tasklet* t, IResult<void>* r)
@@ -483,28 +508,28 @@ namespace mythos {
         IAllocator* mem, message_type* data, IInvocation* msg)
     {
       auto obj = mem->create<ExecutionContext>();
-      if (!obj) return obj.state();
+      if (!obj) RETHROW(obj);
       Cap cap(*obj); /// @todo should have EC specific rights
       auto res = cap::inherit(*memEntry, *dstEntry, memCap, cap);
       if (!res) {
         mem->free(*obj); // mem->release(obj) goes through IKernelObject deletion mechanism
-        return res.state();
+        RETHROW(res);
       }
       if (data) {// configure according to message
         ASSERT(implies(data, msg));
         auto regRes = obj->setRegisters(data->regs);
-        if (!regRes) return regRes.state();
+        if (!regRes) RETHROW(regRes);
         if (data->as()) {
           auto res = obj->setAddressSpace(msg->lookupEntry(data->as()));
-          if (!res) return res.state();
+          if (!res) RETHROW(res);
         }
         if (data->cs()) {
           auto res = obj->setCapSpace(msg->lookupEntry(data->cs()));
-          if (!res) return res.state();
+          if (!res) RETHROW(res);
         }
         if (data->sched()) {
           auto res = obj->setSchedulingContext(msg->lookupEntry(data->sched()));
-          if (!res) return res.state();
+          if (!res) RETHROW(res);
         }
         if (data->start) {
           obj->setEntryPoint(data->regs.rip);

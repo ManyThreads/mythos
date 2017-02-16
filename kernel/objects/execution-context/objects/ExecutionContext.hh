@@ -53,13 +53,14 @@ namespace mythos {
 
     enum Flags : uint8_t
     {
-      IS_WAITING = 0x01,
-      IS_TRAPPED = 0x02,
-      NO_AS      = 0x04,
-      NO_SCHED   = 0x08,
-      IS_EXITED  = 0x10,
-      IN_WAIT    = 0x20, // EC is in wait() syscall, next sysret should return a KEvent
-      REGISTER_ACCESS    = 0x40, // accessing registers
+      IS_WAITING = 1<<0, // used by wait() syscall
+      IS_TRAPPED = 1<<1, // used by suspend/resume invocations and trap/exception handler
+      NO_AS      = 1<<2, // set if address space is missing
+      NO_SCHED   = 1<<3, // set if scheduler is missing
+      IS_EXITED  = 1<<4, // set by exit() syscall
+      IN_WAIT    = 1<<5, // EC is in wait() syscall, next sysret should return a KEvent
+      IS_NOTIFIED     = 1<<6, // used by notify() syscall for binary semaphore
+      REGISTER_ACCESS = 1<<7, // accessing registers
       BLOCK_MASK = IS_WAITING | IS_TRAPPED | NO_AS | NO_SCHED | IS_EXITED | REGISTER_ACCESS
     };
 
@@ -92,6 +93,7 @@ namespace mythos {
     void handleSyscall(cpu::ThreadState* ctx) override;
     optional<void> syscallInvoke(CapPtr portal, CapPtr dest, uint64_t user);
     void unload() override;
+    void semaphoreNotify() override;
 
   public: // IPortalUser interface
     optional<CapEntryRef> lookupRef(CapPtr ptr, CapPtrDepth ptrDepth, bool writeable) override;
@@ -100,7 +102,7 @@ namespace mythos {
     optional<void const*> vcast(TypeId id) const override {
       if (id == TypeId::id<ISchedulable>()) return static_cast<ISchedulable const*>(this);
       if (id == TypeId::id<IPortalUser>()) return static_cast<IPortalUser const*>(this);
-      return Error::TYPE_MISMATCH;
+      THROW(Error::TYPE_MISMATCH);
     }
     optional<void> deleteCap(Cap self, IDeleter& del) override;
     void deleteObject(Tasklet* t, IResult<void>* r) override;

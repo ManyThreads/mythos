@@ -21,42 +21,11 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  *
- * Copyright 2016 Randolf Rotta, Robert Kuban, and contributors, BTU Cottbus-Senftenberg
+ * Copyright 2014 Randolf Rotta, Maik Krüger, and contributors, BTU Cottbus-Senftenberg
  */
-#pragma once
+#include "util/error-trace.hh"
 
-#include "cstddef"
-#include "mythos/caps.hh"
-#include "mythos/InvocationBuf.hh"
+namespace mlog {
+  Logger<MLOG_ERROR_THROW> throw_error("throw");
+}
 
-namespace mythos {
-namespace init {
-
-  enum CSpaceLayout : CapPtr {
-    NULLCAP = 0,
-    UM,
-    CSPACE,
-    EC,
-    PORTAL,
-    EXAMPLE_FACTORY,
-    MEMORY_REGION_FACTORY,
-    EXECUTION_CONTEXT_FACTORY,
-    PORTAL_FACTORY,
-    CAPMAP_FACTORY,
-    PAGEMAP_FACTORY,
-    UNTYPED_MEMORY_FACTORY,
-    CAP_ALLOC_START,
-    CAP_ALLOC_END = 250,
-    MSG_FRAME,
-    DYNAMIC_REGION,
-    PML2,
-    PML3,
-    PML4,
-    STATIC_MEM_START,
-    SCHEDULERS_START = 512,
-    APP_CAP_START = 768,
-    SIZE = 4096
-  };
-
-} // namespace init
-} // namespace mythos

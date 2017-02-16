@@ -64,6 +64,10 @@ protected:
 #endif
 };
 
+template<typename T> struct optional;
+template<class T> struct optional<T*>;
+template<> struct optional<void>;
+
 template<typename T>
 struct optional
   : public OptionalBase
@@ -73,10 +77,11 @@ public:
   static_assert(!std::is_pointer<T>::value, "pointers not supported");
   typedef T value_t;
   optional() : OptionalBase(Error::UNSET) {}
-  optional(Error merror) : OptionalBase(merror)
-  { OOPS(merror==Error::SUCCESS || merror==Error::INHIBIT); }
+
+  explicit optional(Error merror) : OptionalBase(merror) {}
   optional(T const& w) : OptionalBase(Error::SUCCESS), value(w) {}
   optional(optional const& rhs) : OptionalBase(rhs.merror), value(rhs.value) {}
+
   optional& operator= (optional const& rhs) { merror=rhs.merror; value=rhs.value; return *this; }
   //optional& operator= (optional&& rhs) { merror=rhs.merror; value=rhs.value; return *this; }
   optional& operator= (T const& w) { merror = Error::SUCCESS; value=w; return *this; }
@@ -93,9 +98,12 @@ struct optional<void>
 {
 public:
   optional() : OptionalBase(Error::UNSET) {}
-  optional(Error merror) : OptionalBase(merror)
-  { OOPS(merror==Error::SUCCESS || merror==Error::INHIBIT); }
+  explicit optional(Error merror) : OptionalBase(merror) {}
   template<class T> optional(optional<T> const& rhs) : OptionalBase(rhs.state()) {}
+  template<class T> operator optional<T>() {
+    ASSERT(merror!=Error::SUCCESS && merror!=Error::INHIBIT);
+    return optional<T>(state());
+  }
 };
 
 template<typename T>
@@ -105,9 +113,7 @@ struct optional<T*>
 public:
   typedef T* value_t;
   optional() : OptionalBase(Error::UNSET) {}
-  optional(Error merror) : OptionalBase(merror) {
-    OOPS(merror==Error::SUCCESS || merror==Error::INHIBIT);
-  }
+  explicit optional(Error merror) : OptionalBase(merror) {}
   optional(T* w) : OptionalBase(Error::SUCCESS), value(w) {}
   optional(optional const& rhs) : OptionalBase(rhs.merror), value(rhs.value) {}
   optional& operator= (optional const& rhs) { merror=rhs.merror; value=rhs.value; return *this; }
@@ -131,5 +137,10 @@ protected:
     else out << "OE" << static_cast<int>(e.state());
     return out;
   }
+
+  inline optional<void> boxError(const Error& err) { return optional<void>(err); }
+
+  template<class T>
+  inline optional<T> boxError(const optional<T>& opt) { return opt; }
 
 } // namespace mythos

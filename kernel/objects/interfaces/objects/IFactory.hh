@@ -25,7 +25,7 @@
  */
 #pragma once
 
-#include "util/optional.hh"
+#include "util/error-trace.hh"
 #include "objects/Cap.hh"
 #include "objects/IKernelObject.hh"
 
@@ -62,10 +62,10 @@ namespace mythos {
   public:
     optional<void const*> vcast(TypeId id) const override {
       if (id == TypeId::id<IFactory>()) return static_cast<IFactory const*>(this);
-      return Error::TYPE_MISMATCH;
+      THROW(Error::TYPE_MISMATCH);
     }
 
-    optional<void> deleteCap(Cap, IDeleter&) override { return Error::SUCCESS; }
+    optional<void> deleteCap(Cap, IDeleter&) override { RETURN(Error::SUCCESS); }
   };
 
 } // namespace mythos

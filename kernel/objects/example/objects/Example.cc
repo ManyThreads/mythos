@@ -34,6 +34,7 @@
 #include "objects/UntypedMemory.hh"
 #include "boot/memory-root.hh"
 #include "objects/DebugMessage.hh"
+#include "util/error-trace.hh"
 
 namespace mythos {
 
@@ -43,7 +44,7 @@ namespace mythos {
   {
     mlogex.info("vcast", DVAR(this), DVAR(id.debug()));
     if (id == TypeId::id<ExampleObj>()) return /*static_cast<ExampleObj const*>*/(this);
-    return Error::TYPE_MISMATCH;
+    THROW(Error::TYPE_MISMATCH);
   }
 
   optional<void> ExampleObj::deleteCap(Cap self, IDeleter& del)
@@ -52,7 +53,7 @@ namespace mythos {
     if (self.isOriginal()) {
       del.deleteObject(del_handle);
     }
-    return Error::SUCCESS;
+    RETURN(Error::SUCCESS);
   }
 
   void ExampleObj::deleteObject(Tasklet* t, IResult<void>* r)
@@ -101,12 +102,12 @@ namespace mythos {
                          IAllocator* mem)
   {
     auto obj = mem->create<ExampleObj>();
-    if (!obj) return obj.state();
+    if (!obj) RETHROW(obj);
     Cap cap(*obj);
     auto res = cap::inherit(*memEntry, *dstEntry, memCap, cap);
     if (!res) {
       mem->free(*obj); // mem->release(obj) goes throug IKernelObject deletion mechanism
-      return res.state();
+      RETHROW(res);
     }
     return *obj;
   }

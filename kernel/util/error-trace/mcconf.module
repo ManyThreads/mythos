@@ -1,0 +1,4 @@
+# -*- mode:toml; -*-
+[module.error-trace]
+    incfiles = [ "util/error-trace.hh" ]
+    kernelfiles = [ "util/error-trace.cc" ]

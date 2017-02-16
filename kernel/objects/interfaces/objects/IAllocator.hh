@@ -25,9 +25,10 @@
  */
 #pragma once
 
-#include "async/IResult.hh"
 #include <cstddef>
 #include <new>
+#include "async/IResult.hh"
+#include "util/error-trace.hh"
 
 namespace mythos {
 
@@ -73,10 +74,10 @@ namespace mythos {
     template<class T, size_t ALIGN=64, class... ARGS>
     optional<T*> create(ARGS const&... args) {
       auto ptr = alloc(sizeof(T), ALIGN);
-      if (!ptr) return ptr.state();
+      if (!ptr) RETHROW(ptr);
       return new(*ptr) T(this, args...);
     }
-    
+
     using IAsyncFree::free;
     virtual void free(void* ptr, size_t length) = 0;
     virtual void free(MemoryDescriptor* begin, MemoryDescriptor* end) = 0;

@@ -107,7 +107,7 @@ namespace mythos {
     optional<Object*> get() const {
       Cap obj = Cap(this->orig.load());
       if (obj.isUsable()) return obj.getPtr()->cast<Object>();
-      else return Error::GENERIC_ERROR;
+      else THROW(Error::GENERIC_ERROR);
     }
 
   protected:

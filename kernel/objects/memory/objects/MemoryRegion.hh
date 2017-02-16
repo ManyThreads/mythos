@@ -56,12 +56,12 @@ public: // IFrame interface
 public: // IKernelObject interface
   optional<void const*> vcast(TypeId id) const override {
     if (TypeId::id<IFrame>() == id) return static_cast<const IFrame*>(this);
-    return Error::TYPE_MISMATCH;
+    THROW(Error::TYPE_MISMATCH);
   }
 
   optional<void> deleteCap(Cap self, IDeleter& del) override {
     if (self.isOriginal()) { del.deleteObject(_deleteHandle); }
-    return Error::SUCCESS;
+    RETURN(Error::SUCCESS);
   }
 
   void deleteObject(Tasklet* t, IResult<void>* r) override {

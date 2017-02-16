@@ -40,8 +40,7 @@ namespace mythos {
     /// @todo should switch coroutine when implemented
     /// @todo there can be more wakeup reasons then syscall results => kernel notification support
     while (_error == Error::UNSET) {
-      if (!ISysretHandler::handle(syscall_wait()))
-        return false; // the notification was removed after waking up the thread :(
+      ISysretHandler::handle(syscall_wait());
     }
     return true;
   }

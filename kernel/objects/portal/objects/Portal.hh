@@ -117,7 +117,7 @@ namespace mythos {
 
     optional<void const*> vcast(TypeId id) const override {
       if (id == TypeId::id<IPortal>()) return static_cast<IPortal const*>(this);
-      return Error::TYPE_MISMATCH;
+      THROW(Error::TYPE_MISMATCH);
     }
     optional<void> deleteCap(Cap self, IDeleter& del) override;
 
