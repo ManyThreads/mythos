@@ -32,6 +32,7 @@
 #include "runtime/Example.hh"
 #include "runtime/PageMap.hh"
 #include "runtime/UntypedMemory.hh"
+#include "runtime/SimpleCapAlloc.hh"
 #include "app/mlog.hh"
 #include <cstdint>
 #include "util/optional.hh"
@@ -79,17 +80,19 @@ void test_Example()
 void test_Portal()
 {
   MLOG_ERROR(mlog::app, "test_Portal begin");
+  mythos::SimpleCapAlloc ca(&portal, myCS, mythos::init::APP_CAP_START,
+                           mythos::init::SIZE-mythos::init::APP_CAP_START);
   MLOG_INFO(mlog::app, "test_Portal: allocate portal");
   uintptr_t vaddr = 20*1024*1024;
   // allocate a portal
-  mythos::Portal p2(mythos::init::APP_CAP_START, (void*)vaddr);
+  mythos::Portal p2(*ca.alloc(), (void*)vaddr);
   auto res1 = p2.create(portal, kmem);
   res1.wait();
   ASSERT(res1);
 
   // allocate a 2MiB frame
   MLOG_INFO(mlog::app, "test_Portal: allocate frame");
-  mythos::Frame f(mythos::init::APP_CAP_START+1);
+  mythos::Frame f(*ca.alloc());
   auto res2 = f.create(res1.reuse(), kmem, mythos::init::MEMORY_REGION_FACTORY,
                        2*1024*1024, 2*1024*1024);
   res2.wait();
@@ -111,14 +114,11 @@ void test_Portal()
   ASSERT(res4);
 
   // and delete everything again
+  res4.close();
   MLOG_INFO(mlog::app, "test_Portal: delete frame");
-  auto res5 = myCS.deleteCap(res4.reuse(), f);
-  res5.wait();
-  ASSERT(res5);
+  ca.freeObject(f);
   MLOG_INFO(mlog::app, "test_Portal: delete portal");
-  auto res6 = myCS.deleteCap(res5.reuse(), p2);
-  res6.wait();
-  ASSERT(res6);
+  ca.freeObject(p2);
   MLOG_ERROR(mlog::app, "test_Portal end");
 }
 

@@ -86,7 +86,7 @@ namespace mythos {
       return *this;
     }
 
-    void close() { if (_portal) _portal->release(); }
+    void close() { if (_portal) _portal->release(); _portal = nullptr; }
     bool isOpen() const { return _portal; }
 
     template<class MSG, class... ARGS>
