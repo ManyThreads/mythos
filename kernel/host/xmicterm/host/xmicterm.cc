@@ -44,6 +44,9 @@ using namespace mythos;
 static const constexpr char* ENV_UID = "SUDO_UID";
 static const constexpr char* ENV_GID = "SUDO_GID";
 
+// State File for micctrl
+static const constexpr char* MIC_CTRL = "/sys/class/mic/mic0/state";
+
   template<typename T>
 void parsenum(char const *str, T& val)
 {
@@ -129,6 +132,53 @@ class file_logger {
     std::unordered_map<uint16_t, std::unique_ptr<std::ofstream>> files;
 };
 
+class mic_ctrl {
+public:
+    mic_ctrl(int adapter_)
+      :file(MIC_CTRL, std::ios::out | std::ios::trunc), adapter(adapter_){
+      }
+
+
+    void boot() {
+      std::stringstream ss;
+      ss << "sudo sh -c \"echo \\\"boot:elf:`pwd`/boot64.elf\\\" > /sys/class/mic/mic";
+      ss << adapter;
+      ss << "/state\"";
+      system(ss.str().c_str());
+    }
+
+    void reset_wait () {
+      std::stringstream ss;
+      ss << "sudo micctrl -r --wait mic";
+      ss << adapter;
+      system(ss.str().c_str());
+    }
+
+    void status() {
+      system("sudo micctrl -s");
+    }
+
+    void reset() {
+      mic_command("reset");
+    }
+
+    void reset_force() {
+      mic_command("reset:force");
+    }
+
+private:
+    void mic_command(const char* command) {
+      if (file.is_open()) {
+        file << command << "\n";
+      } else {
+        std::cerr << "Could not write to state file\n";
+      }
+    }
+
+    std::ofstream file;
+    int adapter;
+};
+
 int main(int argc, char** argv)
 {
   int adapter;
@@ -139,6 +189,10 @@ int main(int argc, char** argv)
   parsenum(argv[1], adapter);
   std::cerr << "will read from adapter " << adapter
     << " file " << deviceKNC(adapter) << std::endl;
+  mic_ctrl ctrl(adapter);
+  ctrl.reset_wait();
+  ctrl.status();
+  ctrl.boot();
   MemMapperPci micmem(deviceKNC(adapter));
 
   // wait until the _host_info_ptr pointer at address 2MiB actually contains something
@@ -159,6 +213,9 @@ int main(int argc, char** argv)
   auto debugOutChannel = micmem.access(PhysPtr<HostInfoTable::DebugChannel>(info->debugOut));
   PCIeRingConsumer<HostInfoTable::DebugChannel> debugOut(debugOutChannel.addr());
 
+
+  // open micctrl file before dropping root
+
   // drop root to allow file logger access to user specific directories
   drop_root();
 
@@ -175,17 +232,17 @@ int main(int argc, char** argv)
 
     auto &stream = messages[msg.vchannel];
     if (!stream) {
-        stream = std::unique_ptr<std::stringstream>(new std::stringstream());
+      stream = std::unique_ptr<std::stringstream>(new std::stringstream());
     }
 
     if (msg.msgbytes <= DebugMsg::PAYLOAD) {
-        stream->write(msg.data, msg.msgbytes);
-        auto str = stream->str();
-        logger.log(msg.vchannel, str);
-        stream->str(std::string());
-        stream->clear();
+      stream->write(msg.data, msg.msgbytes);
+      auto str = stream->str();
+      logger.log(msg.vchannel, str);
+      stream->str(std::string());
+      stream->clear();
     } else {
-        stream->write(msg.data, DebugMsg::PAYLOAD);
+      stream->write(msg.data, DebugMsg::PAYLOAD);
     }
     debugOut.finishRecv(handle);
   }
