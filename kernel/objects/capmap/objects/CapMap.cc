@@ -119,7 +119,7 @@ namespace mythos {
 
   void CapMap::invoke(Tasklet* t, Cap self, IInvocation* msg)
   {
-    // TODO: Monitor might not be neccessary for derive, reference, move
+    /// @todo Monitor might not be neccessary for derive, reference, move
     monitor.request(t, [=](Tasklet* t){
         Error err = Error::NOT_IMPLEMENTED;
         switch (msg->getProtocol()) {
@@ -203,8 +203,8 @@ namespace mythos {
     auto data = msg->getMessage()->read<protocol::CapMap::Delete>();
     auto ref = this->lookup(cap, data.srcPtr(), data.srcDepth, true);
     if (!ref) return ref.state();
-    // delete
-    msg->deletionResponse(ref->entry, true);
+    MLOG_INFO(mlog::cap, "invokeDelete", DVAR(data.srcPtr()), DVAR(ref->entry->cap()));
+    msg->deletionResponse(ref->entry, true); // delete
     monitor.requestDone();
     return Error::INHIBIT;
   }
@@ -214,8 +214,8 @@ namespace mythos {
     auto data = msg->getMessage()->read<protocol::CapMap::Delete>();
     auto ref = this->lookup(cap, data.srcPtr(), data.srcDepth, true);
     if (!ref) return ref.state();
-    // revoke
-    msg->deletionResponse(ref->entry, false);
+    MLOG_INFO(mlog::cap, "invokeRevoke", DVAR(data.srcPtr()), DVAR(ref->entry->cap()));
+    msg->deletionResponse(ref->entry, false); // revoke
     monitor.requestDone();
     return Error::INHIBIT;
   }

@@ -85,9 +85,11 @@ namespace mythos {
   optional<void> PageMap::deleteCap(Cap self, IDeleter& del)
   {
     if (PageMapData(self).mapped) {
+      MLOG_DETAIL(mlog::cap, "delete mapped Frame or PageMap", PageMapData(self).index);
       _pm_table(PageMapData(self).index).reset();
     } else {
       if (self.isOriginal()) {
+        MLOG_DETAIL(mlog::cap, "delete PageMap", self);
         for (size_t i = 0; i < num_caps(); ++i) {
           auto res = del.deleteEntry(_cap_table(i));
           ASSERT_MSG(res, "Mapped entries must be deletable.");
