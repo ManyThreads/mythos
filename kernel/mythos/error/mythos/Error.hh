@@ -34,7 +34,7 @@ namespace mythos {
     SUCCESS = 0,
     UNSET = 1,    // the error value never has been set, do not use as return value
     INHIBIT,      // not really an error, just tells that result will be sent later
-    GENERIC_ERROR,
+    GENERIC_ERROR, /// @todo eliminate this and replace by useful information
     INVALID_CAPABILITY,
     INVALID_ARGUMENT,
     NON_CANONICAL_ADDRESS,
