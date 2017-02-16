@@ -33,7 +33,7 @@
 namespace mlog {
 
 #ifndef MLOG_ERROR_THROW
-#define MLOG_ERROR_THROW FilterInfo
+#define MLOG_ERROR_THROW FilterAny
 #endif
   extern Logger<MLOG_ERROR_THROW> throw_error;
 
@@ -62,7 +62,7 @@ namespace mythos {
   template<class... ARGS>
   inline optional<void> throw_error(const char* path, Error error, ARGS... args)
   {
-    mlog::throw_error.warn(path, DVAR(error), args...);
+    mlog::throw_error.error(path, DVAR(error), args...);
     for (auto frame : mythos::StackTrace()) { mlog::throw_error.detail("trace", frame.ret); }
     return optional<void>(error);
   }

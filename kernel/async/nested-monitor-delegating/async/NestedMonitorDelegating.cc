@@ -48,7 +48,7 @@ namespace async {
     auto tsk = waitq.pull(); // try to run the next waiting request
     MLOG_DETAIL(mlog::async, "NMD",this, "requestDone", DVAR(myPlace), DVAR(tsk));
     if (tsk != nullptr) {
-      myPlace->runLocal(tsk, Place::MAYINLINE); // exploit tail recursion
+      myPlace->runLocal(tsk);
     } else { // try to release
       if (waitq.tryRelease()) { // successfully released
         home.compare_exchange_strong(myPlace, nullptr, std::memory_order_relaxed, std::memory_order_relaxed); // CAREFUL: next pushing thread may already updated home
@@ -56,7 +56,7 @@ namespace async {
       } else { // else retry by processing next task
         tsk = waitq.pull(); // has to be successfull because of failed release
         ASSERT(tsk != nullptr);
-        myPlace->runLocal(tsk, Place::MAYINLINE); // exploit tail recursion
+        myPlace->runLocal(tsk);
       }
     }
   }

@@ -55,10 +55,10 @@ namespace mythos {
   void ExecutionContext::clearFlagResume(uint8_t f)
   {
     auto prev = clearFlag(f);
-    MLOG_INFO(mlog::ec, "cleared flag", DVAR(this), DVARhex(f), DVARhex(prev), DVARhex(flags.load()), isReady());
+    MLOG_DETAIL(mlog::ec, "cleared flag", DVAR(this), DVARhex(f), DVARhex(prev), DVARhex(flags.load()), isReady());
     if (isBlocked(prev) && isReady()) {
       auto sched = _sched.get();
-      MLOG_INFO(mlog::ec, "trying to wake up the scheduler");
+      MLOG_DETAIL(mlog::ec, "trying to wake up the scheduler");
       if (sched) sched->ready(&ec_handle);
     }
   }
@@ -342,11 +342,13 @@ namespace mythos {
         setFlag(IN_WAIT);
         break;
 
-      case SYSCALL_WAIT:
-        MLOG_INFO(mlog::syscall, "wait");
-        setFlag(IN_WAIT | IS_WAITING);
-        if (!notificationQueue.empty()) clearFlag(IS_WAITING); // because of race with notifier
+      case SYSCALL_WAIT: {
+        auto prevState = setFlag(IN_WAIT | IS_WAITING);
+        MLOG_INFO(mlog::syscall, "wait", DVARhex(prevState));
+        if (!notificationQueue.empty() || (prevState & IS_NOTIFIED))
+          clearFlag(IS_WAITING); // because of race with notifier
         break;
+      }
 
       case SYSCALL_INVOKE:
         MLOG_INFO(mlog::syscall, "invoke", DVAR(portal), DVAR(kobj), DVARhex(userctx));
@@ -376,9 +378,27 @@ namespace mythos {
         break;
       }
 
+      case SYSCALL_NOTIFY: {
+        TypedCap<ICapMap> cs(_cs); // .cap()
+        if (!cs) { code = uint64_t(cs.state()); break; }
+        TypedCap<ISchedulable> th(cs.lookup(CapPtr(portal), 32, false));
+        if (!th) { code = uint64_t(th.state()); break; }
+        MLOG_INFO(mlog::syscall, "semaphore notify syscall", DVAR(portal), DVAR(th.obj()));
+        th->semaphoreNotify();
+        code = uint64_t(Error::SUCCESS);
+        break;
+      }
+
       default: break;
     }
     MLOG_DETAIL(mlog::syscall, DVARhex(userctx), DVAR(code));
+  }
+
+  void ExecutionContext::semaphoreNotify()
+  {
+    auto prev = setFlag(IS_NOTIFIED);
+    MLOG_DETAIL(mlog::syscall, "receiving notify syscall", DVARhex(prev));
+    clearFlagResume(IS_WAITING);
   }
 
   optional<void> ExecutionContext::syscallInvoke(CapPtr portal, CapPtr dest, uint64_t user)
@@ -392,8 +412,11 @@ namespace mythos {
 
   void ExecutionContext::resume() {
     if (!isReady()) return;
-    if (clearFlag(IN_WAIT) & IN_WAIT) {
+    auto prevState = clearFlag(IN_WAIT);
+    MLOG_DETAIL(mlog::ec, "try to resume", DVARhex(prevState));
+    if (prevState & IN_WAIT) {
       MLOG_DETAIL(mlog::ec, "try to resume from wait state");
+      clearFlag(IS_NOTIFIED); // this is safe because we wake up anyway
       auto e = notificationQueue.pull();
       if (e) {
         auto ev = e->get()->deliver();
@@ -401,7 +424,7 @@ namespace mythos {
         threadState.rdi = ev.state;
       } else {
         threadState.rsi = 0;
-        threadState.rdi = uint64_t(Error::NO_NOTIFICATION);
+        threadState.rdi = uint64_t(Error::NO_MESSAGE);
       }
       MLOG_DETAIL(mlog::syscall, DVARhex(threadState.rsi), DVAR(threadState.rdi));
     }
