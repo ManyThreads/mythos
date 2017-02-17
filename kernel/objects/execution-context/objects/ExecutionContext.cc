@@ -358,17 +358,18 @@ namespace mythos {
       case SYSCALL_INVOKE_POLL:
         MLOG_INFO(mlog::syscall, "invoke_poll", DVAR(portal), DVAR(kobj), DVARhex(userctx));
         code = uint64_t(syscallInvoke(CapPtr(portal), CapPtr(kobj), userctx).state());
-        if (Error(code) != Error::SUCCESS) break;
-        setFlag(IN_WAIT);
+        if (Error(code) == Error::SUCCESS) setFlag(IN_WAIT); // else return the error code
         break;
 
-      case SYSCALL_INVOKE_WAIT:
+      case SYSCALL_INVOKE_WAIT: {
         MLOG_INFO(mlog::syscall, "invoke_wait", DVAR(portal), DVAR(kobj), DVARhex(userctx));
         code = uint64_t(syscallInvoke(CapPtr(portal), CapPtr(kobj), userctx).state());
-        if (Error(code) != Error::SUCCESS) break;
-        setFlag(IN_WAIT | IS_WAITING);
-        if (!notificationQueue.empty()) clearFlag(IS_WAITING); // because of race with notifier
+        if (Error(code) != Error::SUCCESS) break; // just return the error code
+        auto prevState = setFlag(IN_WAIT | IS_WAITING);
+        if (!notificationQueue.empty() || (prevState & IS_NOTIFIED))
+          clearFlag(IS_WAITING); // because of race with notifier
         break;
+      }
 
       case SYSCALL_DEBUG: {
         MLOG_INFO(mlog::syscall, "debug", DVARhex(userctx), DVAR(portal));
