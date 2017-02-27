@@ -37,15 +37,13 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <memory>
+#include <signal.h>
 
 using namespace mythos;
 
 // Environmental variables set if program is called by sudo
 static const constexpr char* ENV_UID = "SUDO_UID";
 static const constexpr char* ENV_GID = "SUDO_GID";
-
-// State File for micctrl
-static const constexpr char* MIC_CTRL = "/sys/class/mic/mic0/state";
 
   template<typename T>
 void parsenum(char const *str, T& val)
@@ -135,7 +133,12 @@ class file_logger {
 class mic_ctrl {
 public:
     mic_ctrl(int adapter_)
-      :file(MIC_CTRL, std::ios::out | std::ios::trunc), adapter(adapter_){
+        :adapter(adapter_){
+          std::stringstream s;
+          s << "/sys/class/mic/mic";
+          s << adapter;
+          s << "/state";
+          filename = s.str();
       }
 
 
@@ -168,6 +171,7 @@ public:
 
 private:
     void mic_command(const char* command) {
+      std::ofstream file{filename, std::ios::out};
       if (file.is_open()) {
         file << command << "\n";
       } else {
@@ -175,9 +179,21 @@ private:
       }
     }
 
-    std::ofstream file;
+    std::string filename;
     int adapter;
 };
+
+struct sigaction sigact;
+mic_ctrl *ctrl;
+
+void signal_handler(int sig_type) {
+  if (sig_type == SIGINT) {
+    printf("sigint received\n");
+    ctrl->reset_force();
+    ctrl->status();
+  }
+  exit(0);
+}
 
 int main(int argc, char** argv)
 {
@@ -186,13 +202,19 @@ int main(int argc, char** argv)
     std::cerr << argv[0] << " adapter" << std::endl;
     return -1;
   }
+
+  sigact.sa_handler = signal_handler;
+  sigemptyset(&sigact.sa_mask);
+  sigact.sa_flags = 0;
+  sigaction(SIGINT, &sigact, nullptr);
+
   parsenum(argv[1], adapter);
   std::cerr << "will read from adapter " << adapter
     << " file " << deviceKNC(adapter) << std::endl;
-  mic_ctrl ctrl(adapter);
-  ctrl.reset_wait();
-  ctrl.status();
-  ctrl.boot();
+  ctrl = new mic_ctrl(adapter);
+  ctrl->reset_wait();
+  ctrl->status();
+  ctrl->boot();
   MemMapperPci micmem(deviceKNC(adapter));
 
   // wait until the _host_info_ptr pointer at address 2MiB actually contains something
