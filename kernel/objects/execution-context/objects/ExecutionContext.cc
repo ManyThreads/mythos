@@ -41,6 +41,7 @@ namespace mythos {
   {
     setFlag(IS_EXITED | NO_AS | NO_SCHED);
     memset(&threadState, 0, sizeof(threadState));
+    threadState.rflags = x86::FLAG_IF;
   }
 
   void ExecutionContext::setFlagSuspend(uint8_t f)
