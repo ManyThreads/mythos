@@ -41,7 +41,7 @@ public:
   void acquireRef() { refcount++; }
 
   void releaseRef() {
-    auto result = refcount.fetch_sub(1);
+    auto result = --refcount;
     if (result == 0 && deleteTask != nullptr) {
       MLOG_DETAIL(mlog::async, this, "schedule delete task");
       getLocalPlace().pushShared(deleteTask);
