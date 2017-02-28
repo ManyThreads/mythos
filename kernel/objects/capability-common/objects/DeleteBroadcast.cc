@@ -56,7 +56,7 @@ namespace mythos {
     while (pnext != start && !pnext->home->isActive()) pnext = pnext->next;
     if (pnext != start) {
       MLOG_DETAIL(mlog::cap, "relay delete broadcast");
-      pnext->home->run(t->set( [=](Tasklet* t){ broadcast(t, res, start); } ));
+      pnext->home->run(t->set( [=](Tasklet* t){ pnext->broadcast(t, res, start); } ));
     } else {
       MLOG_DETAIL(mlog::cap, "end delete broadcast");
       res->response(t);
