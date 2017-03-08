@@ -12,12 +12,12 @@ MyThOS results in a new distributed OS micro-kernel which is designed and built 
 
 Reference application scenarios addressed in MyThOS originate from the areas of molecular simulations, computational fluid dynamics and multimedia.
 
-## Sponsored by BMBF
+## Funding
  
 ![BMBF]({{site.baseurl}}/logo_bmbf.png){:class="img-logoright"}
 ![DLR]({{site.baseurl}}/logo_dlr.png){:class="img-logoright"}
 
-The MyThOS project was funded by the Federal Ministry of Education and Research (BMBF) under [Grant No. 01/H13003](https://gauss-allianz.de/en/project/title/MyThOS) from October 2013 to September 2016. The grant was part of the 3rd HPC-Call of the Gauss Allianz.
+The MyThOS project was funded by the Federal Ministry of Education and Research (BMBF) of Germany under [Grant No. 01IH13003](https://gauss-allianz.de/en/project/title/MyThOS) from October 2013 to September 2016. The grant was part of the 3rd HPC-Call of the Gauss Allianz.
 
 ### Partners
 
