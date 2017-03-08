@@ -16,6 +16,8 @@ object monitors. Granting and revoking access rights (object
 capabilities) affects just a small set of rights in order to minimise
 synchronisation.
 
+* https://manythreads.github.io/mythos/
+
 ## Current State of Implementation
 
 * Supports x86-64 (aka amd64) emulators like QEMU and Bochs.
