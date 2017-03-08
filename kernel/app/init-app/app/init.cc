@@ -84,7 +84,7 @@ void test_Portal()
   mythos::SimpleCapAlloc ca(&portal, myCS, mythos::init::APP_CAP_START,
                            mythos::init::SIZE-mythos::init::APP_CAP_START);
   MLOG_INFO(mlog::app, "test_Portal: allocate portal");
-  uintptr_t vaddr = 20*1024*1024;
+  uintptr_t vaddr = 21*1024*1024; // choose address different from invokation buffer
   // allocate a portal
   mythos::Portal p2(*ca.alloc(), (void*)vaddr);
   auto res1 = p2.create(portal, kmem);
