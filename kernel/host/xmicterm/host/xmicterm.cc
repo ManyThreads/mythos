@@ -40,10 +40,14 @@
 #include <signal.h>
 
 using namespace mythos;
+class mic_ctrl;
 
 // Environmental variables set if program is called by sudo
 static const constexpr char* ENV_UID = "SUDO_UID";
 static const constexpr char* ENV_GID = "SUDO_GID";
+
+struct sigaction sigact;
+mic_ctrl *ctrl;
 
   template<typename T>
 void parsenum(char const *str, T& val)
@@ -75,14 +79,24 @@ void drop_root() {
     std::cerr << "No environment variables. Application has to be run with sudo.\n";
     return;
   }
-  if (setgid(atoi(std::getenv(ENV_GID))) != 0) {
+  if (setregid(-1, atoi(std::getenv(ENV_GID))) != 0) {
     std::cerr << "Could not restore Group ID.\n";
   }
-  if (setuid(atoi(std::getenv(ENV_UID))) != 0) {
+  if (setreuid(-1, atoi(std::getenv(ENV_UID))) != 0) {
     std::cerr << "Could not restore User ID.\n";
   }
-  if (getuid() == 0) {
+  if (geteuid() == 0) {
     std::cerr << "Dropping root unsuccessful\n";
+  }
+}
+
+void restore_root() {
+  if (seteuid(0) != 0) {
+    std::cerr << "Could not restore root \n";
+  }
+
+  if (setegid(0) != 0) {
+    std::cerr << "Could not restore root\n";
   }
 }
 
@@ -130,15 +144,11 @@ class file_logger {
     std::unordered_map<uint16_t, std::unique_ptr<std::ofstream>> files;
 };
 
+/// Wrapper to the micctrl application, that controls the xeon phi coprocessor
 class mic_ctrl {
 public:
     mic_ctrl(int adapter_)
-        :adapter(adapter_){
-          std::stringstream s;
-          s << "/sys/class/mic/mic";
-          s << adapter;
-          s << "/state";
-          filename = s.str();
+        :adapter(adapter_) {
       }
 
 
@@ -154,46 +164,38 @@ public:
       std::stringstream ss;
       ss << "sudo micctrl -r --wait mic";
       ss << adapter;
+      ss << " mic";
+      ss << adapter;
+      system(ss.str().c_str());
+    }
+
+    void reset() {
+      std::stringstream ss;
+      ss << "sudo micctrl -r mic";
+      ss << adapter;
       system(ss.str().c_str());
     }
 
     void status() {
-      system("sudo micctrl -s");
-    }
-
-    void reset() {
-      mic_command("reset");
-    }
-
-    void reset_force() {
-      mic_command("reset:force");
+      std::stringstream ss;
+      ss << "sudo micctrl -s mic";
+      ss << adapter;
+      system(ss.str().c_str());
     }
 
 private:
-    void mic_command(const char* command) {
-      std::ofstream file{filename, std::ios::out};
-      if (file.is_open()) {
-        file << command << "\n";
-      } else {
-        std::cerr << "Could not write to state file\n";
-      }
-    }
-
-    std::string filename;
     int adapter;
 };
 
-struct sigaction sigact;
-mic_ctrl *ctrl;
-
 void signal_handler(int sig_type) {
   if (sig_type == SIGINT) {
-    printf("sigint received\n");
-    ctrl->reset_force();
+    restore_root();
+    ctrl->reset();
     ctrl->status();
   }
   exit(0);
 }
+
 
 int main(int argc, char** argv)
 {
