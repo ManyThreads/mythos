@@ -154,32 +154,26 @@ public:
 
     void boot() {
       std::stringstream ss;
-      ss << "sudo sh -c \"echo \\\"boot:elf:`pwd`/boot64.elf\\\" > /sys/class/mic/mic";
-      ss << adapter;
-      ss << "/state\"";
+      ss << "sudo sh -c \"echo \\\"boot:elf:`pwd`/boot64.elf\\\" > /sys/class/mic/mic"
+          << adapter << "/state\"";
       system(ss.str().c_str());
     }
 
     void reset_wait () {
       std::stringstream ss;
-      ss << "sudo micctrl -r --wait mic";
-      ss << adapter;
-      ss << " mic";
-      ss << adapter;
+      ss << "sudo micctrl -r --wait mic" << adapter << " mic" << adapter;
       system(ss.str().c_str());
     }
 
     void reset() {
       std::stringstream ss;
-      ss << "sudo micctrl -r mic";
-      ss << adapter;
+      ss << "sudo micctrl -r mic" << adapter;
       system(ss.str().c_str());
     }
 
     void status() {
       std::stringstream ss;
-      ss << "sudo micctrl -s mic";
-      ss << adapter;
+      ss << "sudo micctrl -s mic" << adapter;
       system(ss.str().c_str());
     }
 
@@ -236,9 +230,6 @@ int main(int argc, char** argv)
 
   auto debugOutChannel = micmem.access(PhysPtr<HostInfoTable::DebugChannel>(info->debugOut));
   PCIeRingConsumer<HostInfoTable::DebugChannel> debugOut(debugOutChannel.addr());
-
-
-  // open micctrl file before dropping root
 
   // drop root to allow file logger access to user specific directories
   drop_root();
