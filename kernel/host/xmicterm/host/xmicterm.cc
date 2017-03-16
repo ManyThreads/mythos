@@ -38,6 +38,7 @@
 #include <sys/stat.h>
 #include <memory>
 #include <signal.h>
+#include <fcntl.h>
 
 using namespace mythos;
 class mic_ctrl;
@@ -149,12 +150,16 @@ class mic_ctrl {
 public:
     mic_ctrl(int adapter_)
         :adapter(adapter_) {
+          //fd = open("/sys/class/mic/mic0/state", O_RDWR | O_SYNC);
+          //if (fd < 0) {
+          //  std::cerr << "Could not open state file\n";
+          //}
       }
 
 
     void boot() {
       std::stringstream ss;
-      ss << "sudo sh -c \"echo \\\"boot:elf:`pwd`/boot64.elf\\\" > /sys/class/mic/mic"
+      ss << "sudo sh -c \"echo \\\"boot:linux:`pwd`/boot64.elf\\\" > /sys/class/mic/mic"
           << adapter << "/state\"";
       system(ss.str().c_str());
     }
@@ -179,6 +184,7 @@ public:
 
 private:
     int adapter;
+    int fd;
 };
 
 void signal_handler(int sig_type) {
