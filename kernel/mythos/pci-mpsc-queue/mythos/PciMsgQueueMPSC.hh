@@ -63,10 +63,12 @@ namespace mythos {
     bool isReadable(handle_t handle) { return getSlot(handle).seq==handle_t((handle<<1)|1); }
     void setReadable(handle_t handle) { getSlot(handle).seq=handle_t((handle<<1)|1); }
     void setWriteable(handle_t handle) { getSlot(handle).seq=handle_t((handle+SLOTS)<<1); }
+
     void flush(handle_t handle, size_t bytes=SIZE) {
       auto help=reinterpret_cast<char*>(&getSlot(handle));
       for (uintptr_t i=0; i<bytes; i+=cpu::CACHELINESIZE) cpu::clflush(help+i);
     }
+
   private:
     alignas(64) Slot slots[SLOTS];
   };
@@ -83,11 +85,11 @@ namespace mythos {
     optional<handle_t> tryAquireRecv() {
       handle_t temp(readPos);
       if(channel->isReadable(temp)){
-  if(readPos.compare_exchange_strong(temp,readPos+1))
-    return temp;
+        if(readPos.compare_exchange_strong(temp,readPos+1))
+          return temp;
       }
       cpu::clflush(&channel->getSlot(temp));
-      RETURN(Error::INHIBIT);
+      return optional<handle_t>(Error::INHIBIT);
     }
 
     handle_t acquireRecv() {
@@ -123,11 +125,11 @@ namespace mythos {
     optional<handle_t> tryAquireSend() {
       handle_t temp=writePos;
       if(channel->isWriteable(temp)){
-  if(writePos->compare_exchange_strong(temp,writePos+1))
-    return temp;
+        if(writePos->compare_exchange_strong(temp,writePos+1))
+          return temp;
       }
       cpu::clflush(&channel->getSlot(temp));
-      RETURN(Error::INHIBIT);
+      return optional<handle_t>(Error::INHIBIT);
     }
 
     handle_t acquireSend() {
