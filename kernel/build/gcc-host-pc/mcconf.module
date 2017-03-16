@@ -2,7 +2,7 @@
 [module.gcc-host-pc]
     incfiles = [ "util/compiler.hh" ]
     requires = [ "tag/platform/pc", "tag/mode/host", "tag/compiler/gcc" ]
-    provides = [ "assert.h", "iostream", "sstream", "sys/stat.h", "sys/types.h", "sys/mman.h", "unistd.h", "cstdio", "fcntl.h", "cstdlib", "cstring", "cstdint", "cstddef", "algorithm", "stdexcept", "string", "atomic", "utility", "array", "new", "type_traits", "bits/stl_algobase.h", "fstream", "unordered_map", "memory" ]
+    provides = [ "assert.h", "iostream", "sstream", "sys/stat.h", "sys/types.h", "sys/mman.h", "unistd.h", "cstdio", "fcntl.h", "cstdlib", "cstring", "cstdint", "cstddef", "algorithm", "stdexcept", "string", "atomic", "utility", "array", "new", "type_traits", "bits/stl_algobase.h", "fstream", "unordered_map", "memory", "signal.h" ]
 
     makefile_head = '''
 HOST_CXX = $(CXX)

@@ -37,12 +37,148 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <memory>
+#include <signal.h>
+#include <fcntl.h>
 
 using namespace mythos;
+class mic_ctrl;
+class file_logger;
 
 // Environmental variables set if program is called by sudo
 static const constexpr char* ENV_UID = "SUDO_UID";
 static const constexpr char* ENV_GID = "SUDO_GID";
+
+struct sigaction sigact;
+mic_ctrl *ctrl;
+file_logger *logger;
+
+struct InfoPtr {
+  uint64_t info;
+  uint64_t debug;
+};
+
+/// Class logs into files, opening new file for every sending channel id.
+class file_logger {
+  public:
+
+    file_logger(const char *directory_)
+      :directory(directory_) {
+        std::stringstream s;
+        s << getenv("PWD") << "/" << directory;
+        if (mkdir(s.str().c_str(),
+              S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH) != 0)
+        {
+          std::cerr << "Error creating directory for logs.\n";
+        }
+      }
+
+    ~file_logger() {
+      for (auto &c : files) {
+        c.second.reset();
+      }
+    }
+
+    void log(uint16_t vchannel, const std::string &msg) {
+      std::cout << vchannel << ": " << msg << "\n";
+
+      auto &filestream = files[vchannel];
+      if (!filestream) {
+        std::stringstream s;
+        s << directory << "/" << vchannel;
+        filestream = std::unique_ptr<std::ofstream>(
+            new std::ofstream(s.str(), std::ios::out | std::ios::trunc)
+            );
+        if (!filestream->is_open()) {
+          std::cerr << "Could not open file " << (std::to_string(vchannel)) << "\n";
+          return;
+        }
+      }
+      *filestream << msg << "\n";
+    }
+
+  private:
+    const std::string directory;
+    std::unordered_map<uint16_t, std::unique_ptr<std::ofstream>> files;
+};
+
+/// Wrapper to the micctrl application, that controls the xeon phi coprocessor
+class mic_ctrl {
+public:
+    mic_ctrl(int adapter_, char *kernel_image_path_)
+        :adapter(adapter_), kernel_image_path(kernel_image_path_) {
+          std::stringstream ss;
+          ss << "/sys/class/mic/mic" << adapter << "/state";
+          fd = open("/sys/class/mic/mic0/state", O_RDWR);
+          if (fd < 0) {
+            std::cerr << "Could not open state file\n";
+          }
+    }
+
+    ~mic_ctrl() {
+      close(fd);
+    }
+
+
+    void boot() {
+      std::stringstream ss;
+      ss << "boot:linux:" << kernel_image_path;
+      if (write_state(ss.str().c_str()) < 0) {
+        std::cout << "Cannot write to state file for booting.\n";
+        exit(-1);
+      }
+    }
+
+    void reset_wait () {
+      std::cout << "Reset and wait for getting ready.\n";
+      char buf[255];
+      read_state(buf, sizeof(buf));
+      if (strcmp(buf, "ready") == 0) {
+        return;
+      }
+      write_state("reset");
+      time_t start = time(nullptr);
+      do {
+
+        if (time(nullptr) > start + 5 || read_state(buf, sizeof(buf)) < 0) {
+          break;
+        }
+      } while(strcmp(buf, "ready") != 0 && strcmp(buf, "boot") != 0);
+    }
+
+    void reset() {
+      write_state("reset");
+    }
+
+    void status() {
+      char buf[255];
+      read_state(buf, 255);
+      printf("%s\n", &buf[0]);
+    }
+
+private:
+
+    ssize_t write_state(const char *cmd) {
+      ssize_t ret = -1;
+      if ((ret = pwrite(fd, cmd, strlen(cmd), 0)) < 0) {
+        perror("Could not write state file:");
+      }
+      fsync(fd);
+      return ret;
+    }
+
+    ssize_t read_state(char *buf, int len) {
+      ssize_t ret = -1;
+      if ((ret = pread(fd, buf, len, 0)) < 0) {
+        perror("Could not read state file:");
+      }
+      buf[ret] = 0;
+      return ret;
+    }
+
+    int adapter;
+    char *kernel_image_path;
+    int fd;
+};
 
   template<typename T>
 void parsenum(char const *str, T& val)
@@ -74,71 +210,45 @@ void drop_root() {
     std::cerr << "No environment variables. Application has to be run with sudo.\n";
     return;
   }
-  if (setgid(atoi(std::getenv(ENV_GID))) != 0) {
+  if (setregid(-1, atoi(std::getenv(ENV_GID))) != 0) {
     std::cerr << "Could not restore Group ID.\n";
   }
-  if (setuid(atoi(std::getenv(ENV_UID))) != 0) {
+  if (setreuid(-1, atoi(std::getenv(ENV_UID))) != 0) {
     std::cerr << "Could not restore User ID.\n";
   }
-  if (getuid() == 0) {
+  if (geteuid() == 0) {
     std::cerr << "Dropping root unsuccessful\n";
   }
 }
 
-struct InfoPtr {
-  uint64_t info;
-  uint64_t debug;
-};
+void signal_handler(int sig_type) {
+  if (sig_type == SIGINT) {
+    ctrl->reset_wait();
+  }
+  delete ctrl;
+  delete logger;
+  exit(0);
+}
 
-/// Class logs into files, opening new file for every sending channel id.
-class file_logger {
-  public:
-
-    file_logger(const char *directory_)
-      :directory(directory_) {
-        std::stringstream s;
-        s << getenv("PWD") << "/" << directory;
-        if (mkdir(s.str().c_str(),
-              S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH) != 0)
-        {
-          std::cerr << "Error creating directory for logs.\n";
-        }
-      }
-
-    void log(uint16_t vchannel, const std::string &msg) {
-      std::cout << vchannel << ": " << msg << "\n";
-
-      auto &filestream = files[vchannel];
-      if (!filestream) {
-        std::stringstream s;
-        s << directory << "/" << vchannel;
-        filestream = std::unique_ptr<std::ofstream>(
-            new std::ofstream(s.str(), std::ios::out | std::ios::trunc)
-            );
-        if (!filestream->is_open()) {
-          std::cerr << "Could not open file " << (std::to_string(vchannel)) << "\n";
-          return;
-        }
-      }
-      *filestream << msg << "\n";
-      filestream->flush();
-    }
-
-  private:
-    const std::string directory;
-    std::unordered_map<uint16_t, std::unique_ptr<std::ofstream>> files;
-};
 
 int main(int argc, char** argv)
 {
   int adapter;
-  if (argc < 2) {
-    std::cerr << argv[0] << " adapter" << std::endl;
+  if (argc < 3) {
+    std::cerr << argv[0] << " adapter path/to/kernel/image.elf" << std::endl;
     return -1;
   }
+  sigact.sa_handler = signal_handler;
+  sigemptyset(&sigact.sa_mask);
+  sigact.sa_flags = 0;
+  sigaction(SIGINT, &sigact, nullptr);
+
   parsenum(argv[1], adapter);
   std::cerr << "will read from adapter " << adapter
     << " file " << deviceKNC(adapter) << std::endl;
+  ctrl = new mic_ctrl(adapter, argv[2]);
+  ctrl->reset_wait();
+  ctrl->boot();
   MemMapperPci micmem(deviceKNC(adapter));
 
   // wait until the _host_info_ptr pointer at address 2MiB actually contains something
@@ -166,7 +276,7 @@ int main(int argc, char** argv)
   std::unordered_map<uint16_t, std::unique_ptr<std::stringstream> > messages;
 
   // log to directory debug
-  file_logger logger("debug");
+  logger = new file_logger("debug");
 
   while (true) {
     //typedef HostInfoTable::DebugChannel::handle_t handle_t;
@@ -175,17 +285,17 @@ int main(int argc, char** argv)
 
     auto &stream = messages[msg.vchannel];
     if (!stream) {
-        stream = std::unique_ptr<std::stringstream>(new std::stringstream());
+      stream = std::unique_ptr<std::stringstream>(new std::stringstream());
     }
 
     if (msg.msgbytes <= DebugMsg::PAYLOAD) {
-        stream->write(msg.data, msg.msgbytes);
-        auto str = stream->str();
-        logger.log(msg.vchannel, str);
-        stream->str(std::string());
-        stream->clear();
+      stream->write(msg.data, msg.msgbytes);
+      auto str = stream->str();
+      logger->log(msg.vchannel, str);
+      stream->str(std::string());
+      stream->clear();
     } else {
-        stream->write(msg.data, DebugMsg::PAYLOAD);
+      stream->write(msg.data, DebugMsg::PAYLOAD);
     }
     debugOut.finishRecv(handle);
   }
