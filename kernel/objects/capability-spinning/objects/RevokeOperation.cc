@@ -60,9 +60,10 @@ namespace mythos {
 
   void RevokeOperation::_delete(Tasklet* t, result_t* res, CapEntry& entry, IKernelObject* guarded)
   {
+    MLOG_ERROR(mlog::cap, "_delete", DVAR(t), DVAR(res), DVAR(entry.cap()), DVAR(guarded));
     _res = res;
     _guarded = guarded;
-    if (!acquire()) {
+    if (!acquire()) { /// @todo should never fail because of the outer monitored request! ?
       res->response(t, Error::LOST_RACE);
       monitor.requestDone();
       return;
@@ -110,8 +111,9 @@ namespace mythos {
     do {
       if (_startTraversal(root, rootCap)) {
         leaf = _findLockedLeaf(root);
+        MLOG_DETAIL(mlog::cap, "_findLockedLeaf returned", DVAR(*leaf), DVAR(rootCap));
         if (leaf == root && !rootCap.isZombie()) {
-          // is revoke and no more children ... we are done
+          // this is a revoke, do not delete the root. no more children -> we are done
           root->finishRevoke();
           root->unlock();
           root->unlock_prev();
@@ -123,7 +125,7 @@ namespace mythos {
           leaf->unlock();
           leaf->unlock_prev();
           // attempted to delete guarded object
-          RETURN(Error::CYCLIC_DEPENDENCY);
+          THROW(Error::CYCLIC_DEPENDENCY);
         }
         auto delRes = leafCap.getPtr()->deleteCap(leafCap, *this);
         if (delRes) {
@@ -146,7 +148,7 @@ namespace mythos {
   {
     if (!root->lock_prev()) {
       // start is currently unlinked
-      // must be the work of another deleter ... sucess!
+      // must be the work of another deleter ... success!
       return false;
     }
     if (root->prev() == root) {
@@ -160,7 +162,7 @@ namespace mythos {
     // compare only value, not the zombie state
     if (root->cap().asZombie() != rootCap.asZombie()) {
       // start has a new value
-      // must be the work of another deleter ... sucess!
+      // must be the work of another deleter ... success!
       root->unlock();
       root->unlock_prev();
       return false;

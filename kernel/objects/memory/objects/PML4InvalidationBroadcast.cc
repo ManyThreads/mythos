@@ -63,7 +63,7 @@ namespace mythos {
     while (pnext != start && pnext->home->getCR3() != pml4) pnext = pnext->next;
     if (pnext != start) {
       MLOG_DETAIL(mlog::cap, "relay pml4 invalidation");
-      pnext->home->run(t->set( [=](Tasklet* t){ broadcast(t, res, pml4,  start); } ));
+      pnext->home->run(t->set( [=](Tasklet* t){ pnext->broadcast(t, res, pml4,  start); } ));
     } else {
       MLOG_DETAIL(mlog::cap, "end pml4 invalidation");
       res->response(t);

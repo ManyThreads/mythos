@@ -119,7 +119,7 @@ namespace mythos {
 
   void Portal::deletionResponse(CapEntry* entry, bool delRoot)
   {
-    MLOG_INFO(mlog::portal, "Portal::deletionResponse", DVAR(delRoot));
+    MLOG_INFO(mlog::portal, "Portal::deletionResponse", DVAR(entry->cap()), DVAR(delRoot));
     ASSERT(portalState == INVOKING);
     currentDest.release();
     if (delRoot) {
