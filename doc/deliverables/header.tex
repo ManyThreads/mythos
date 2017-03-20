@@ -64,6 +64,8 @@
 
 % ------------------------------------------------------------------------------
 % graphics
+\usepackage{siunitx}
+\sisetup{scientific-notation = true}%
 \usepackage[usenames,dvipsnames]{xcolor}
 \usepackage{graphicx}
 \usepackage{subfigure}
@@ -71,6 +73,11 @@
 \usetikzlibrary{calc,trees,positioning,arrows,chains,shapes.geometric,%
     decorations.pathreplacing,decorations.pathmorphing,shapes,%
     matrix,shapes.symbols}
+\usepackage{pgfplots}
+\pgfplotsset{compat=newest}
+\usetikzlibrary{pgfplots.statistics} % For Box plots
+\usepgfplotslibrary{units} % Allows to enter the units nicely
+
 
 % ------------------------------------------------------------------------------
 % listings
@@ -177,4 +184,3 @@
 \usepackage{marginnote}
 \renewcommand*{\marginfont}{\footnotesize}
 \typearea[current]{last}		% recalculate type area
-
