@@ -64,8 +64,6 @@
 
 % ------------------------------------------------------------------------------
 % graphics
-\usepackage{siunitx}
-\sisetup{scientific-notation = true}%
 \usepackage[usenames,dvipsnames]{xcolor}
 \usepackage{graphicx}
 \usepackage{subfigure}
@@ -184,3 +182,11 @@
 \usepackage{marginnote}
 \renewcommand*{\marginfont}{\footnotesize}
 \typearea[current]{last}		% recalculate type area
+
+% units and numbers
+\usepackage{siunitx}
+\sisetup{scientific-notation = true}%
+\sisetup{
+  round-mode          = places,
+  round-precision     = 2,
+}
