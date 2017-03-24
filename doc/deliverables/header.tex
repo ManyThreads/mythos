@@ -71,6 +71,11 @@
 \usetikzlibrary{calc,trees,positioning,arrows,chains,shapes.geometric,%
     decorations.pathreplacing,decorations.pathmorphing,shapes,%
     matrix,shapes.symbols}
+\usepackage{pgfplots}
+\pgfplotsset{compat=newest}
+\usetikzlibrary{pgfplots.statistics} % For Box plots
+\usepgfplotslibrary{units} % Allows to enter the units nicely
+
 
 % ------------------------------------------------------------------------------
 % listings
@@ -178,3 +183,10 @@
 \renewcommand*{\marginfont}{\footnotesize}
 \typearea[current]{last}		% recalculate type area
 
+% units and numbers
+\usepackage{siunitx}
+\sisetup{scientific-notation = true}%
+\sisetup{
+  round-mode          = places,
+  round-precision     = 2,
+}

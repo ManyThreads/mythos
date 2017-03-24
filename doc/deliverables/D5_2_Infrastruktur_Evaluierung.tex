@@ -1,0 +1,243 @@
+\input{header}
+
+\title{MyThOS D5.2 Infrastruktur und Evaluierungsergebnisse}
+\author{Stefan Bonfert, Vladimir Nikolov, Robert Kuban, Randolf Rotta}
+
+\hypersetup{
+  pdftitle={MyThOS D5.2 Infrastruktur und Evaluierungsergebnisse},
+  pdfsubject={MyThOS Deliverable},
+  pdfauthor={Stefan Bonfert, Vladimir Nikolov, Robert Kuban, Randolf Rotta},
+  pdfkeywords={MyThOS} % comma separated
+}
+
+\begin{document}
+\selectlanguage{ngerman}
+\maketitle
+
+\begin{abstract}
+
+Dieses Deliverable beschreibt die Infrastruktur für die diversen Tests und
+dokumentiert die erzielten Evaluierungsergebnisse.
+
+\end{abstract}
+
+\newpage
+\tableofcontents
+% --- content ------------------------------------------------------------------
+
+\selectlanguage{UKenglish}
+
+\section{Introduction}
+\label{sec:introduction}
+In this document, we describe the infrastructure used for the evaluation of
+MyThOS along with the results of its evaluation. As an operating system tailored
+to both HPC applications and computing cloud scenarios, MyThOS mainly aims at
+fast thread instantiation times along with fast and flexible system call
+execution for dynamic and flexible resource sharing among applications.
+Therefore, we evaluated the latency for the creation of new ECs (software
+threads) as well as the latency of different system call variants for
+interaction with the operating system and the customization of its behavior.
+
+\section{Infrastructure}
+\label{sec:infrastructure}
+For the evaluation of MyThOS we utilized a server equipped with an
+Intel\textcopyright Xeon Phi\texttrademark 5100 series coprocessor card. MyThOS
+is executed as an independent operating system on the coprocessor. The host
+computer is used to trigger the execution of a MyThOS application and to collect
+debug outputs containing evaluation results.
+
+The Xeon Phi card is considered as a well suited evaluation platform due to its
+large number of independent control flows. It features 60 cores with 4 hardware
+threads per core. Therefore it can be used to evaluate the scalability of
+individual algorithms, entire applications or operating systems.
+
+\section{Evaluation Results}
+\label{sec:evaluation}
+
+For the creation of new threads we capture three different values: The creation
+time, the deployment time and the time until execution. The creation time
+includes the allocation of memory buffers, different memory mappings, setup of
+communication structures and the setup of the thread itself. Therefore, it
+includes the overhead of five system calls and their execution. The deployment
+time describes the latency to communicate with the designated hardware thread,
+deploying the thread and report the operation's success back to the original
+one. The time until code execution is the time from the call of the thread
+creation function until the execution of the first line of user code in the
+newly created thread. The results of the creation of 5000 threads spread
+over all available hardware threads are shown in Figure~\ref{fig:EC-creation}.
+
+\begin{figure}[ht!]
+  \begin{center}
+    \begin{tikzpicture}
+      \begin{axis}[
+          width=\linewidth, % Scale the plot to \linewidth
+          grid=major, % Display a grid
+          grid style={dashed,gray!30}, % Set the style
+          %xlabel=, % Set the labels
+          ylabel=Latency,
+          %x unit=\si{\volt}, % Set the respective units
+          y unit=cycles,
+          legend style={at={(0.5,-0.2)},anchor=north}, % Put the legend below the plot
+          %x tick label style={rotate=90,anchor=east}, % Display labels sideways
+          boxplot/draw direction=y,
+          xtick={1,2,3},
+          xticklabels={create, run, first code execution}
+        ]
+        \addplot+[boxplot prepared={median=57942, upper quartile=59038, lower quartile=5.728850e+04, upper whisker=6.123605e+04, lower whisker=56482 }, ] coordinates {};\addplot+[boxplot prepared={median=107257, upper quartile=107486, lower quartile=107108, upper whisker=1.080460e+05, lower whisker=1.067950e+05 }, ] coordinates {};\addplot+[boxplot prepared={median=70064, upper quartile=7.430950e+04, lower quartile=69025, upper whisker=8.067007e+04, lower whisker=6.774688e+04 }, ] coordinates {};
+        %\legend{Plot}
+      \end{axis}
+    \end{tikzpicture}
+    \caption{Latency to create and run an execution context}
+    \label{fig:EC-creation}
+  \end{center}
+\end{figure}
+
+On average, the creation of a new thread in \mythos including all supporting
+structures takes \num{57942} CPU cycles. All involved operations can be executed
+on the local core. In contrast, for deployment of the thread to a destination
+hardware thread, remote communication is required. The deployment time also
+includes the time for the transmission of the kernel-internal tasklet to the
+destination and back to the initiator to return the result of the operation.
+Therefore, the deployment is significantly more costly and takes \num{107257}
+cycles.
+On the destination hardware thread, code can be executed right after the tasklet
+arrived there and before its transmission back to the sender. This allows the
+duration until the first code execution to be shorter than the deployment
+latency with \num{70064} cycles.
+For comparison, we measured the duration from the creation of a new thread until
+the first code execution in Linux using pthreads. Similar to the \mythos case,
+this includes the setup of all required data structures as well as the
+deployment of the thread. On average, this operation takes \num{3.615135e+05}
+cycles in Linux on the same hardware platform. This gives \mythos a performance
+gain of factor \num{5}.
+
+To evaluate the system call performance, we benchmarked two system call variants. For the first one we instantiate a kernel object on a fixed hardware thread. All calls to this kernel object are pinned to this hardware thread and therefore are only executed there. For the benchmarks, we used a dummy kernel object, that immediately returns inside the system call handler. Thereby, we are able to measure the pure overhead of a system call. We measured the latency for a system call to this object, including the transmission of the reply, over different distances. The results are shown in Figure~\ref{fig:syscall-latency-fixed-location}
+
+\begin{figure}[ht!]
+  \begin{center}
+    \begin{tikzpicture}
+      \begin{semilogyaxis}[
+          width=\linewidth, % Scale the plot to \linewidth
+          grid=major, % Display a grid
+          grid style={dashed,gray!30}, % Set the style
+          xlabel=Destination, % Set the labels
+          ylabel=Response Latency,
+          %x unit=\si{\volt}, % Set the respective units
+          y unit=cycles,
+          legend style={at={(0.5,-0.2)},anchor=north}, % Put the legend below the plot
+          %x tick label style={rotate=90,anchor=east}, % Display labels sideways
+          boxplot/draw direction=y,
+          xtick={1,2,3},
+          xticklabels={local, same core, remote}
+        ]
+        \addplot+[boxplot prepared={median=2571, upper quartile=2583, lower quartile=2560, upper whisker=2605, lower whisker=2539 }, ] coordinates {};\addplot+[boxplot prepared={median=102267, upper quartile=102280, lower quartile=102254, upper whisker=102303, lower whisker=102230 }, ] coordinates {};\addplot+[boxplot prepared={median=105929, upper quartile=106070, lower quartile=105722, upper whisker=106464, lower whisker=105593 }, ] coordinates {};        %\legend{Plot}
+      \end{semilogyaxis}
+    \end{tikzpicture}
+    \caption{Response Latency for a kernel object with fixed location over different distances}
+    \label{fig:syscall-latency-fixed-location}
+  \end{center}
+\end{figure}
+
+A call to a kernel object located on the same hardware thread as the caller EC
+requires no communication and takes \num{2571} cycles. In the case of remote
+system call execution, additionally endpoint resolution and communication costs
+play a major role, which is why the response times are much higher in these
+cases. For system call execution on a different hardware thread on the same core
+we measure a latency of \num{102267} cycles, which is only a little lower than
+in the case of execution on a different core with \num{105929} cycles. The
+ability for the user to specify the location of execution for a kernel object is
+a major difference between \mythos and Linux, since Linux does neither support
+such fine-grained control over the execution of system calls nor the remote
+execution of them. Therefore, no fair comparison to Linux can be made in this
+respect.
+
+The second system call variant we benchmarked includes mobile kernel obejcts.
+These objects are executed wherever they are first called to increase the
+spatial locality from caller to callee. If they are already in execution at a
+different location, the request is enqueued at this location in order to reduce
+the number of cache misses and thereby increase temporal locality. This
+execution semantic leads to different behavior, when looking at different
+workloads within the system call handler. We therefore benchmarked the call
+latency with both no workload and a loop counting from \num{1} to \num{100000}.
+The latter represents a system call carrying out some work within the kernel. We
+used this kernel object to issue system calls with a varying number of
+concurrently active ECs, that are iteratively using the kernel object. This
+setup was chosen to evaluate the scalability properties of MyThOS' system calls.
+The results are shown in Figures~\ref{fig:system-call-mobile-return} and \ref{fig:system-call-mobile-reply}.
+
+\begin{figure}[ht!]
+  \begin{center}
+    \begin{tikzpicture}
+      \begin{loglogaxis}[
+          width=\linewidth, % Scale the plot to \linewidth
+          grid=major, % Display a grid
+          grid style={dashed,gray!30}, % Set the style
+          xlabel=ECs, % Set the labels
+          ylabel=Latency,
+          %x unit=\si{\volt}, % Set the respective units
+          y unit=cycles,
+          legend style={at={(0.5,-0.2)},anchor=north}, % Put the legend below the plot
+          %x tick label style={rotate=90,anchor=east}, % Display labels sideways
+          xticklabel={
+            \pgfkeys{/pgf/fpu=true}
+            \pgfmathparse{exp(\tick)}%
+            \pgfmathprintnumber[fixed relative, precision=3]{\pgfmathresult}
+            \pgfkeys{/pgf/fpu=false}
+          },
+          xtick={1,2,4,8,16,32,64,128,240}
+        ]
+        \addplot+ table[x=hwts,y=returnTicks,col sep=comma]{data/mobileObjectLowWorkloadMeans.csv}; \addlegendentry{Low Workload};
+        \addplot+ table[x=hwts,y=returnTicks,col sep=comma]{data/mobileObjectHighWorkloadMeans.csv}; \addlegendentry{High Workload};
+        %\legend{Plot}
+      \end{loglogaxis}
+    \end{tikzpicture}
+    \caption{Latency of system call to a kernel object}
+    \label{fig:system-call-mobile-return}
+  \end{center}
+\end{figure}
+
+\begin{figure}[ht!]
+  \begin{center}
+    \begin{tikzpicture}
+      \begin{loglogaxis}[
+          width=\linewidth, % Scale the plot to \linewidth
+          grid=major, % Display a grid
+          grid style={dashed,gray!30}, % Set the style
+          xlabel=ECs, % Set the labels
+          ylabel=Latency,
+          %x unit=\si{\volt}, % Set the respective units
+          y unit=cycles,
+          legend style={at={(0.5,-0.2)},anchor=north}, % Put the legend below the plot
+          %x tick label style={rotate=90,anchor=east}, % Display labels sideways
+          xticklabel={
+            \pgfkeys{/pgf/fpu=true}
+            \pgfmathparse{exp(\tick)}%
+            \pgfmathprintnumber[fixed relative, precision=3]{\pgfmathresult}
+            \pgfkeys{/pgf/fpu=false}
+          },
+          xtick={1,2,4,8,16,32,64,128,240}
+        ]
+        \addplot+ table[x=hwts,y=replyTicks,col sep=comma]{data/mobileObjectLowWorkloadMeans.csv}; \addlegendentry{Low Workload};
+        \addplot+ table[x=hwts,y=replyTicks,col sep=comma]{data/mobileObjectHighWorkloadMeans.csv}; \addlegendentry{High Workload};
+        %\legend{Plot}
+      \end{loglogaxis}
+    \end{tikzpicture}
+    \caption{Duration until a reply is received}
+    \label{fig:system-call-mobile-reply}
+  \end{center}
+\end{figure}
+
+Figure~\ref{fig:system-call-mobile-return} shows the latency until the system call initially returns to the caller. At this point, the system call was not necessarily executed, but it has been registered inside the kernel and delegated to the responsible hardware thread for execution. In the case of low workload in the system call, its execution is finished quickly and the object's execution can be moved to the caller. Therefore, for low workload no remote communication is necessary and the call returns to the caller in the order of \num{1e4} CPU cycles with no dramatic increase if more ECs are concurrently accessing the object.
+In the case of high workload in the kernel object, the kernel object tends to stay at its current point of execution across multiple calls, because one call is not done processing when the next call arrives at the object. Thereby, temporal locality is increased. Therefore, in this case remote communication between different hardware threads is required, leading to higher initial return times in the order of \num{1e6}, during which the caller is blocked. However, there is almost no increase of this latency with a growing number of concurrent accesses to the kernel object. This indicates good scalability of the system calls implemented in MyThOS, as a single EC is not blocked longer, if more other ECs are accessing a operating system service at the same time.
+
+Figure~\ref{fig:system-call-mobile-reply} shows the latency until a reply from the kernel object is received, i.e., the duration until the system call was processed and the result was transmitted back. These numbers include the return latency that was described above and therefore represent the complete processing time of a system call from the initial call of the function in userspace, until the reply is available to the application.
+In the case of low workload we experience the same behavior as for the initial return. The call's results are quickly available, because there is no contention at the kernel object. The system exhibits good scalability properties with only a slight increase in the measured latency, while the numbers stay in the area of \num{1e4}.
+In the case of high workload, a linear increase in reply latency was observed. In this case, the kernel object is temporarily blocked by a previous call, whenever a call arrives. Therefore, an arriving call first has to wait until all previous calls have been processed. Since the length of this queue is proportional to the number of concurrent accesses, the observed latencies behave in the described linear fashion. Again, this indicates good scalability of the system call architecture, since no other bottlenecks are limiting the execution. The serialized execution can not be avoided by the operating system and a linear increase therefore is the best possible result.
+However, the user can create multiple instances of a kernel object and thereby reduce the time until the result is available. The approach of MyThOS is not to include this decision into the operating system, but leave it up to the user to configure the operating system to fit its needs as good as possible.
+
+
+% ------------------------------------------------------------------------------
+% \bibliographystyle{alpha}
+% \bibliography{literature}
+
+\end{document}
