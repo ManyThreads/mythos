@@ -190,3 +190,19 @@
   round-mode          = places,
   round-precision     = 2,
 }
+
+% ------------------------------------------------------------------------------
+% funding notice on title page
+\newcommand\blfootnote[1]{%
+  \begingroup
+  \renewcommand\thefootnote{}\footnote{#1}%
+  \addtocounter{footnote}{-1}%
+  \endgroup
+}
+
+\makeatletter
+\g@addto@macro{\maketitle}{\blfootnote{Das diesem Bericht zugrunde liegende Vorhaben wurde mit
+  Mitteln des Bundesministerium für Bildung und Forschung unter dem
+  Förderkennzeichen 01IH13003 gefördert. Die Verantwortung für den
+  Inhalt dieser Veröffentlichung liegt bei den Autoren.}}
+\makeatother
