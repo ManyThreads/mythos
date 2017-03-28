@@ -9,6 +9,9 @@ permalink: /doc/
 * [D2.2 Gesamtarchitektur]({{site.baseurl}}/doc/D2_2_Gesamtarchitektur.pdf)
 * [D2.3 Architekturplan]({{site.baseurl}}/doc/D2_3_Architekturplan.pdf)
 * [D3.3 Entwicklungsplan]({{site.baseurl}}/doc/D3_3_Entwicklungsplan.pdf)
+* [D4.2.2 Developer Tools]({{site.baseurl}}/doc/D4_2_2_Developer_Tools.pdf)
+* [D4.3 Developer Cookbook]({{site.baseurl}}/doc/D4_3_Developer_Cookbook.pdf)
+* [D5.2 Infrastructure Evaluierung]({{site.baseurl}}/doc/D5_2_Infrastruktur_Evaluierung.pdf)
 
 * [Software Architectures]({{site.baseurl}}/doc/whitepaper-software-architecture-fundamentals.pdf)
 * [Many-Core Architectures]({{site.baseurl}}/doc/whitepaper-many-core-hardware-architectures.pdf)
