@@ -28,10 +28,11 @@
 
 namespace mythos {
 
-  PortalFutureRef<void>
-  ExecutionContext::create(PortalRef pr, UntypedMemory kmem, CapPtr factory,
+  PortalFuture<void>
+  ExecutionContext::create(PortalLock pr, UntypedMemory kmem,
                           PageMap as, CapMap cs, CapPtr sched,
-                          void* stack, StartFun start, void* userctx)
+                          void* stack, StartFun start, void* userctx,
+                          CapPtr factory)
   {
     if (!pr.isOpen()) return pr;
     // prepare stack
@@ -52,37 +53,6 @@ namespace mythos {
   void ExecutionContext::start(StartFun main, void* userctx)
   {
     syscall_exit(uintptr_t(main(userctx)));
-  }
-
-  PortalFutureRef<void>
-  ExecutionContext::configure(PortalRef pr, PageMap as, CapMap cs, CapPtr sched)
-  {
-    return pr.tryInvoke<protocol::ExecutionContext::Configure>(_cap, as.cap(), cs.cap(), sched);
-  }
-
-  ExecutionContext::RegsRef ExecutionContext::readRegisters(PortalRef pr, bool suspend)
-  {
-    return pr.tryInvoke<protocol::ExecutionContext::ReadRegisters>(_cap, suspend);
-  }
-
-  PortalFutureRef<void> ExecutionContext::writeRegisters(PortalRef pr, register_t regs, bool resume)
-  {
-    return pr.tryInvoke<protocol::ExecutionContext::WriteRegisters>(_cap, resume, regs);
-  }
-
-  PortalFutureRef<void> ExecutionContext::setFSGS(PortalRef pr, uintptr_t fs, uintptr_t gs)
-  {
-    return pr.tryInvoke<protocol::ExecutionContext::SetFSGS>(_cap, fs,gs);
-  }
-
-  PortalFutureRef<void> ExecutionContext::resume(PortalRef pr)
-  {
-    return pr.tryInvoke<protocol::ExecutionContext::Resume>(_cap);
-  }
-
-  PortalFutureRef<void> ExecutionContext::suspend(PortalRef pr)
-  {
-    return pr.tryInvoke<protocol::ExecutionContext::Suspend>(_cap);
   }
 
 } // namespace mythos

@@ -1,4 +1,4 @@
-/* -*- mode:C++; indent-tabs-mode:nil; -*- */
+/* -*- mode:C++; -*- */
 /* MyThOS: The Many-Threads Operating System
  *
  * Permission is hereby granted, free of charge, to any person
@@ -21,26 +21,41 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  *
- * Copyright 2016 Randolf Rotta, Robert Kuban, and contributors, BTU Cottbus-Senftenberg
+ * Copyright 2016 Randolf Rotta, Robert Kuban, Maik Krüger, and contributors, BTU Cottbus-Senftenberg
  */
 #pragma once
 
-#include "app/mlog.hh"
-#include "mythos/syscall.hh"
+#include <cstddef>
+#include "util/Logger.hh"
 
 namespace mythos {
 
-  /** Promise interface for system calls. */
-  class ISysretHandler
+  class IPlugin
   {
   public:
-    virtual ~ISysretHandler() {}
-    virtual void sysret(uint64_t code) = 0;
+    virtual void initGlobal() {}
+    virtual void initThread(size_t /*threadid*/) {}
+  };
 
-    /** helper function to handle poll and wait syscall return values. */
-    static void handle(KEvent ev) {
-      if (ev.user) reinterpret_cast<ISysretHandler*>(ev.user)->sysret(ev.state);
+  class Plugin
+    : public IPlugin
+  {
+  public:
+    Plugin(const char* name = "plugin") : log(name)
+    {
+      this->next = first;
+      first = this;
     }
+
+    static void initPluginsGlobal();
+    static void initPluginsOnThread(size_t threadid);
+
+  protected:
+    mlog::Logger<mlog::FilterAny> log;
+
+  private:
+    Plugin* next;
+    static Plugin* first;
   };
 
 } // namespace mythos

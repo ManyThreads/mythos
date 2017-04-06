@@ -28,6 +28,7 @@
 #include "runtime/PortalBase.hh"
 #include "mythos/protocol/Frame.hh"
 #include "runtime/UntypedMemory.hh"
+#include "mythos/init.hh"
 
 namespace mythos {
 
@@ -36,13 +37,27 @@ namespace mythos {
   public:
     Frame(CapPtr cap) : KObject(cap) {}
 
-    PortalFutureRef<void> create(PortalRef pr, UntypedMemory kmem, CapPtr factory,
-                                 size_t size, size_t alignment) {
-      return pr.tryInvoke<protocol::Frame::Create>(kmem.cap(), _cap, factory, size, alignment);
+    PortalFuture<void> create(PortalLock pr, UntypedMemory kmem,
+                              size_t size, size_t alignment,
+                              CapPtr factory = init::MEMORY_REGION_FACTORY) {
+      return pr.invoke<protocol::Frame::Create>(kmem.cap(), _cap, factory, size, alignment);
     }
 
-    PortalFutureRef<protocol::Frame::Info> info(PortalRef pr) {
-      return pr.tryInvoke<protocol::Frame::Info>(_cap);
+    struct Info {
+      Info() {}
+      Info(InvocationBuf* ib) {
+        auto msg = ib->cast<protocol::Frame::Info>();
+        addr = msg->addr;
+        size = msg->size;
+        writable = msg->writable;
+      }
+      uint64_t addr = 0;
+      uint64_t size = 0;
+      bool writable = false;
+    };
+
+    PortalFuture<Info> info(PortalLock pr) {
+      return pr.invoke<protocol::Frame::Info>(_cap);
     }
   };
 

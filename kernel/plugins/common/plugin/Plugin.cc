@@ -1,4 +1,4 @@
-/* -*- mode:asm; indent-tabs-mode:nil; -*- */
+/* -*- mode:C++; -*- */
 /* MyThOS: The Many-Threads Operating System
  *
  * Permission is hereby granted, free of charge, to any person
@@ -21,37 +21,28 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  *
- * Copyright 2016 Randolf Rotta, Robert Kuban, and contributors, BTU Cottbus-Senftenberg
+ * Copyright 2016 Randolf Rotta, Robert Kuban, Maik Krüger, and contributors, BTU Cottbus-Senftenberg
  */
 
-.extern initstack_top
-.extern main
-.extern msg_ptr
-.extern __libc_init_array
-.extern exit
+#include "plugin/Plugin.hh"
+#include "boot/mlog.hh"
 
-.align 8
-.global _start
-_start:
-        mov initstack_top, %rsp
-        xor %rbp, %rbp
-        mov %rdi, msg_ptr
-        call __libc_init_array
-        call main
-        mov $0, %rdi
-        call exit
-1:      jmp 1b
+namespace mythos {
 
-.section .init
-.global _init
-.type _init,@function
-_init:
-        push %rbp
-	mov %rsp, %rbp
+  Plugin* Plugin::first = nullptr;
 
-.section .fini
-.global _fini
-.type _fini,@function
-_fini:
-        push %rbp
-	mov %rsp, %rbp
+  void Plugin::initPluginsGlobal() {
+    for (Plugin* c = first; c != nullptr; c = c->next) {
+      MLOG_DETAIL(mlog::boot, "initPluginsGlobal", c);
+      c->initGlobal();
+    }
+  }
+
+  void Plugin::initPluginsOnThread(size_t threadid) {
+    for (Plugin* c = first; c != nullptr; c = c->next) {
+      MLOG_DETAIL(mlog::boot, "initPluginsOnThread", c, threadid);
+      c->initThread(threadid);
+    }
+  }
+
+} // namespace mythos

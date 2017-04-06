@@ -1,4 +1,4 @@
-/* -*- mode:C++; indent-tabs-mode:nil; -*- */
+/* -*- mode:asm; indent-tabs-mode:nil; -*- */
 /* MyThOS: The Many-Threads Operating System
  *
  * Permission is hereby granted, free of charge, to any person
@@ -23,24 +23,36 @@
  *
  * Copyright 2016 Randolf Rotta, Robert Kuban, and contributors, BTU Cottbus-Senftenberg
  */
-#pragma once
 
-#include "app/mlog.hh"
-#include "mythos/syscall.hh"
+.extern initstack_top
+.extern main
+.extern msg_ptr
+.extern __libc_init_array
+.extern exit
 
-namespace mythos {
+.align 8
+.global _start
+_start:
+        mov initstack_top, %rsp
+        xor %rbp, %rbp
+        mov %rdi, msg_ptr       // store first argument to global variable
+        fninit                  // initialize the FPU
+        call __libc_init_array
+        call main
+        mov $0, %rdi
+        call exit
+1:      jmp 1b
 
-  /** Promise interface for system calls. */
-  class ISysretHandler
-  {
-  public:
-    virtual ~ISysretHandler() {}
-    virtual void sysret(uint64_t code) = 0;
+.section .init
+.global _init
+.type _init,@function
+_init:
+        push %rbp
+	mov %rsp, %rbp
 
-    /** helper function to handle poll and wait syscall return values. */
-    static void handle(KEvent ev) {
-      if (ev.user) reinterpret_cast<ISysretHandler*>(ev.user)->sysret(ev.state);
-    }
-  };
-
-} // namespace mythos
+.section .fini
+.global _fini
+.type _fini,@function
+_fini:
+        push %rbp
+	mov %rsp, %rbp

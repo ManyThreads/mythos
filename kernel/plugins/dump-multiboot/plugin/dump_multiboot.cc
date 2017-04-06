@@ -21,26 +21,37 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  *
- * Copyright 2016 Randolf Rotta, Robert Kuban, and contributors, BTU Cottbus-Senftenberg
+ * Copyright 2017 Randolf Rotta, Robert Kuban, and contributors, BTU Cottbus-Senftenberg
  */
-#pragma once
-
-#include "app/mlog.hh"
-#include "mythos/syscall.hh"
+#include "plugin/Plugin.hh"
+#include "util/PhysPtr.hh"
+#include "util/MultiBoot.hh"
 
 namespace mythos {
 
-  /** Promise interface for system calls. */
-  class ISysretHandler
+  class PluginDumpMultiboot
+    : public Plugin
   {
   public:
-    virtual ~ISysretHandler() {}
-    virtual void sysret(uint64_t code) = 0;
-
-    /** helper function to handle poll and wait syscall return values. */
-    static void handle(KEvent ev) {
-      if (ev.user) reinterpret_cast<ISysretHandler*>(ev.user)->sysret(ev.state);
-    }
+    void initGlobal() override;
   };
 
+  PluginDumpMultiboot plugin_dump_multiboot;
+
+  extern uint64_t _mboot_magic SYMBOL("_mboot_magic");
+  extern uint64_t _mboot_table SYMBOL("_mboot_table");
+
+  void PluginDumpMultiboot::initGlobal()
+  {
+    auto mboot_magic = *physPtr(&_mboot_magic);
+    auto mboot_table = *physPtr(&_mboot_table);
+
+    MLOG_INFO(log, DVARhex(mboot_magic), DVARhex(mboot_table));
+
+    //MultiBootInfo mbi(mboot_table);
+    //MLOG_INFO(log, DVARhex(mbi->flags));
+
+  }
+
 } // namespace mythos
+

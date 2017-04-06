@@ -145,6 +145,8 @@ optional<void> InitLoader::initCSpace()
   if (!ocspace) RETHROW(ocspace);
   _cspace = *ocspace;
 
+  initLoaderEvent.trigger_before(*this);
+
   MLOG_INFO(mlog::boot, "... create cspace reference in cap", CSPACE);
   auto res = csSet(CSPACE, _cspace->getRoot());
   if (!res) RETHROW(res);
@@ -182,6 +184,9 @@ optional<void> InitLoader::initCSpace()
     auto res = csSet(CapPtr(SCHEDULERS_START+i), boot::getScheduler(cpu::enumerateHwThreadID(i)));
     if (!res) RETHROW(res);
   }
+
+  initLoaderEvent.trigger_after(*this);
+
   RETURN(Error::SUCCESS);
 }
 

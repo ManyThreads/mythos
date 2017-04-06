@@ -21,26 +21,30 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  *
- * Copyright 2016 Randolf Rotta, Robert Kuban, and contributors, BTU Cottbus-Senftenberg
+ * Copyright 2017 Randolf Rotta, Robert Kuban, and contributors, BTU Cottbus-Senftenberg
  */
 #pragma once
 
-#include "app/mlog.hh"
-#include "mythos/syscall.hh"
+#include "async/NestedMonitorDelegating.hh"
+#include "objects/IKernelObject.hh"
 
 namespace mythos {
 
-  /** Promise interface for system calls. */
-  class ISysretHandler
-  {
-  public:
-    virtual ~ISysretHandler() {}
-    virtual void sysret(uint64_t code) = 0;
+class CpuDriverKNC
+  : public IKernelObject
+{
+public:
+  optional<void const*> vcast(TypeId) const override { THROW(Error::TYPE_MISMATCH); }
+  optional<void> deleteCap(Cap, IDeleter&) override { RETURN(Error::SUCCESS); }
+  void deleteObject(Tasklet*, IResult<void>*) override {}
+  void invoke(Tasklet* t, Cap self, IInvocation* msg) override;
 
-    /** helper function to handle poll and wait syscall return values. */
-    static void handle(KEvent ev) {
-      if (ev.user) reinterpret_cast<ISysretHandler*>(ev.user)->sysret(ev.state);
-    }
-  };
+public:
+  Error invoke_setInitMem(Tasklet*, Cap, IInvocation* msg);
+
+protected:
+  /// @todo or one instance per hardware thread with HomeMonitor?
+  async::NestedMonitorDelegating monitor;
+};
 
 } // namespace mythos

@@ -30,6 +30,7 @@
 #include "util/alignments.hh"
 #include "objects/CapEntry.hh"
 #include "objects/IPageMap.hh"
+#include "plugin/events.hh"
 
 namespace mythos {
 
@@ -46,7 +47,7 @@ namespace mythos {
       InitLoader(char* image);
       ~InitLoader();
       optional<void> load();
-    private:
+
       typedef Align2M PageAlign;
 
       optional<void> initCSpace();
@@ -90,10 +91,11 @@ namespace mythos {
       /// allocates a capability entry in CAP_ALLOC_START..CAP_ALLOC_END
       CapPtr allocCap();
 
-      /// allocates a consecutive frames in the dynamic memory region
+      /// allocates a consecutive frame in the dynamic memory region
       size_t allocFrame();
     };
 
+    HookRegistry<InitLoader> initLoaderEvent;
 
     /** sets up the initial application based on the embedded elf
      * image. Returns true if the loading was successful.

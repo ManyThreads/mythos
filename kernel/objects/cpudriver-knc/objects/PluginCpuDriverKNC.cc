@@ -21,26 +21,37 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  *
- * Copyright 2016 Randolf Rotta, Robert Kuban, and contributors, BTU Cottbus-Senftenberg
+ * Copyright 2017 Randolf Rotta, Robert Kuban, and contributors, BTU Cottbus-Senftenberg
  */
-#pragma once
 
-#include "app/mlog.hh"
-#include "mythos/syscall.hh"
+#include "objects/CpuDriverKNC.hh"
+#include "plugin/Plugin.hh"
+#include "boot/load_init.hh"
+#include "mythos/init.hh"
 
 namespace mythos {
 
-  /** Promise interface for system calls. */
-  class ISysretHandler
+  class PluginCpuDriverKNC
+    : public Plugin, protected EventHook<boot::InitLoader>
   {
   public:
-    virtual ~ISysretHandler() {}
-    virtual void sysret(uint64_t code) = 0;
-
-    /** helper function to handle poll and wait syscall return values. */
-    static void handle(KEvent ev) {
-      if (ev.user) reinterpret_cast<ISysretHandler*>(ev.user)->sysret(ev.state);
+    virtual ~PluginCpuDriverKNC() {}
+    void initGlobal() override {
+      MLOG_ERROR(mlog::boot, "registering init loader event hook");
+      boot::initLoaderEvent.register_hook(this);
     }
+  protected:
+    EventCtrl before(boot::InitLoader& event) override;
+    CpuDriverKNC cpudrv;
   };
+
+  EventCtrl PluginCpuDriverKNC::before(boot::InitLoader& loader)
+  {
+    auto res = loader.csSet(init::CPUDRIVER, cpudrv);
+    if (!res) ASSERT(res);
+    return EventCtrl::OK;
+  }
+
+  PluginCpuDriverKNC pluginCpuDriverKNC;
 
 } // namespace mythos

@@ -21,26 +21,37 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  *
- * Copyright 2016 Randolf Rotta, Robert Kuban, and contributors, BTU Cottbus-Senftenberg
+ * Copyright 2017 Randolf Rotta, Robert Kuban, and contributors, BTU Cottbus-Senftenberg
  */
 #pragma once
 
-#include "app/mlog.hh"
-#include "mythos/syscall.hh"
+#include "mythos/protocol/common.hh"
 
 namespace mythos {
+  namespace protocol {
 
-  /** Promise interface for system calls. */
-  class ISysretHandler
-  {
-  public:
-    virtual ~ISysretHandler() {}
-    virtual void sysret(uint64_t code) = 0;
+    struct CpuDriverKNC {
+      constexpr static uint8_t proto = CPUDRIVERKNC;
 
-    /** helper function to handle poll and wait syscall return values. */
-    static void handle(KEvent ev) {
-      if (ev.user) reinterpret_cast<ISysretHandler*>(ev.user)->sysret(ev.state);
-    }
-  };
+      enum Methods : uint8_t {
+        SETINITMEM
+      };
 
-} // namespace mythos
+      struct SetInitMem : public InvocationBase {
+        constexpr static uint16_t label = (proto<<8) + SETINITMEM;
+        SetInitMem(CapPtr frame) : InvocationBase(label,getLength(this)) {
+          addExtraCap(frame);
+        }
+      };
+
+      template<class IMPL, class... ARGS>
+      static Error dispatchRequest(IMPL* obj, uint8_t m, ARGS const&...args) {
+        switch(Methods(m)) {
+          case SETINITMEM: return obj->invoke_setInitMem(args...);
+          default: return Error::NOT_IMPLEMENTED;
+        }
+      }
+    };
+
+  }// namespace protocol
+}// namespace mythos

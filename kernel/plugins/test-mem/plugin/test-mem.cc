@@ -23,12 +23,11 @@
  *
  * Copyright 2016 Randolf Rotta, Robert Kuban, and contributors, BTU Cottbus-Senftenberg
  */
-#include "plugins/test-mem.hh"
+#include "plugin/test-mem.hh"
 
 #include "cpu/hwthreadid.hh"
 #include "objects/IKernelObject.hh"
 #include "objects/ops.hh"
-#include "plugins/test-macros.hh"
 #include "objects/StaticMemoryRegion.hh"
 #include "objects/MemoryRegion.hh"
 #include "objects/FrameData.hh"

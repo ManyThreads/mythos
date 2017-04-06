@@ -32,7 +32,7 @@
 namespace mythos {
 
   namespace protocol {
-    
+
     enum CoreProtocols : uint8_t {
       KERNEL_OBJECT = 1,
       UNTYPED_MEMORY,
@@ -41,7 +41,8 @@ namespace mythos {
       CAPMAP,
       EXECUTION_CONTEXT,
       PORTAL,
-      EXAMPLE
+      EXAMPLE,
+      CPUDRIVERKNC,
     };
 
   } // namespace protocol

@@ -54,7 +54,8 @@ namespace init {
     PML4,
     STATIC_MEM_START,
     SCHEDULERS_START = 512,
-    APP_CAP_START = 768,
+    CPUDRIVER = 768,
+    APP_CAP_START = 769,
     SIZE = 4096
   };
 

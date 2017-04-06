@@ -29,6 +29,7 @@
 #include "mythos/protocol/PageMap.hh"
 #include "runtime/Frame.hh"
 #include "runtime/UntypedMemory.hh"
+#include "mythos/init.hh"
 
 namespace mythos {
 
@@ -40,39 +41,52 @@ namespace mythos {
 
     PageMap(CapPtr cap) : KObject(cap) {}
 
-    PortalFutureRef<void> create(PortalRef pr, UntypedMemory kmem, CapPtr factory,
-                                 size_t level) {
-      return pr.tryInvoke<protocol::PageMap::Create>(kmem.cap(), _cap, factory, level);
+    PortalFuture<void> create(PortalLock pr, UntypedMemory kmem, size_t level,
+                              CapPtr factory = init::PAGEMAP_FACTORY) {
+      return pr.invoke<protocol::PageMap::Create>(kmem.cap(), _cap, factory, level);
     }
 
-    PortalFutureRef<protocol::PageMap::Result>
-    installMap(PortalRef pr, PageMap pagemap, uintptr_t vaddr, size_t level, MapFlags flags) {
-      return pr.tryInvoke<protocol::PageMap::InstallMap>(_cap, pagemap.cap(), vaddr, level, flags);
+    struct Result {
+      Result() {}
+      Result(InvocationBuf* ib) {
+        auto msg = ib->cast<protocol::PageMap::Result>();
+        vaddr = msg->vaddr;
+	size = msg->size;
+        level = msg->level;
+      }
+      uintptr_t vaddr = 0;
+      size_t size = 0;
+      size_t level = 0;
+    };
+
+    PortalFuture<Result>
+    installMap(PortalLock pr, PageMap pagemap, uintptr_t vaddr, size_t level, MapFlags flags) {
+      return pr.invoke<protocol::PageMap::InstallMap>(_cap, pagemap.cap(), vaddr, level, flags);
     }
 
-    PortalFutureRef<protocol::PageMap::Result>
-    removeMap(PortalRef pr, uintptr_t vaddr, size_t level) {
-      return pr.tryInvoke<protocol::PageMap::RemoveMap>(_cap, vaddr, level);
+    PortalFuture<Result>
+    removeMap(PortalLock pr, uintptr_t vaddr, size_t level) {
+      return pr.invoke<protocol::PageMap::RemoveMap>(_cap, vaddr, level);
     }
 
-    PortalFutureRef<protocol::PageMap::Result>
-    mmap(PortalRef pr, Frame frame, uintptr_t vaddr, size_t size, MapFlags flags) {
-      return pr.tryInvoke<protocol::PageMap::Mmap>(_cap, frame.cap(), vaddr, size, flags);
+    PortalFuture<Result>
+    mmap(PortalLock pr, Frame frame, uintptr_t vaddr, size_t size, MapFlags flags) {
+      return pr.invoke<protocol::PageMap::Mmap>(_cap, frame.cap(), vaddr, size, flags);
     }
 
-    PortalFutureRef<protocol::PageMap::Result>
-    remap(PortalRef pr, uintptr_t sourceAddr, uintptr_t destAddr, size_t size) {
-      return pr.tryInvoke<protocol::PageMap::Remap>(_cap, sourceAddr, destAddr, size);
+    PortalFuture<Result>
+    remap(PortalLock pr, uintptr_t sourceAddr, uintptr_t destAddr, size_t size) {
+      return pr.invoke<protocol::PageMap::Remap>(_cap, sourceAddr, destAddr, size);
     }
 
-    PortalFutureRef<protocol::PageMap::Result>
-    mprotect(PortalRef pr, uintptr_t vaddr, size_t size, MapFlags flags) {
-      return pr.tryInvoke<protocol::PageMap::Mprotect>(_cap, vaddr, size, flags);
+    PortalFuture<Result>
+    mprotect(PortalLock pr, uintptr_t vaddr, size_t size, MapFlags flags) {
+      return pr.invoke<protocol::PageMap::Mprotect>(_cap, vaddr, size, flags);
     }
 
-    PortalFutureRef<protocol::PageMap::Result>
-    munmap(PortalRef pr, uintptr_t vaddr, size_t size) {
-      return pr.tryInvoke<protocol::PageMap::Munmap>(_cap, vaddr, size);
+    PortalFuture<Result>
+    munmap(PortalLock pr, uintptr_t vaddr, size_t size) {
+      return pr.invoke<protocol::PageMap::Munmap>(_cap, vaddr, size);
     }
   };
 
