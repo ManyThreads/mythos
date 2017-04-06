@@ -77,7 +77,7 @@ public:
 
   virtual void response(Tasklet* t, optional<void> res) override
   {
-    ASSERT(res.isSuccess());
+    ASSERT(res);
     monitor.response(t, [=](Tasklet* t) {
         MLOG_DETAIL(mlog::cap, "received broadcast or delete response");
         _deleteObject(t);

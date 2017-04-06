@@ -25,7 +25,7 @@
  */
 #pragma once
 
-#include "plugin/Plugin.hh"
+#include "plugins/Plugin.hh"
 
 namespace mythos {
 

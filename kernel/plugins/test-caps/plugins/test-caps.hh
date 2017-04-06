@@ -4,16 +4,16 @@
 #include "async/NestedMonitorDelegating.hh"
 #include "objects/CapEntry.hh"
 #include "objects/RevokeOperation.hh"
-#include "plugin/TestPlugin.hh"
-#include "objects/IPageMap.hh"
+#include "plugins/TestPlugin.hh"
 
 namespace mythos {
-namespace test_mem {
+class UntypedMemory;
+namespace test_caps {
 
-class TestMem : public TestPlugin, public IResult<void>
+class TestCaps : public TestPlugin, public IResult<void>
   {
   public:
-    TestMem();
+    TestCaps();
     void printCaps();
     virtual void initThread(size_t /*threadid*/) override;
     virtual void initGlobal() override;
@@ -21,8 +21,9 @@ class TestMem : public TestPlugin, public IResult<void>
     virtual void response(Tasklet* t, optional<void> res) override;
 
   private:
-    CapEntry* caps;
-    CapEntry _caps[20];
+    CapEntry& root_cap;
+    CapEntry* test_caps;
+    CapEntry _caps[10];
 
     size_t state;
     void proto();
@@ -30,17 +31,7 @@ class TestMem : public TestPlugin, public IResult<void>
     Tasklet tasklet;
     async::NestedMonitorDelegating monitor;
     RevokeOperation op;
-
-    IPageMap* pml4map;
-    IPageMap* pml3map;
-    IPageMap* pml2map;
-    IPageMap* pml1map;
-
-    void createRegions();
-    void createFrames();
-    void createMaps();
-    void createMappings();
   };
 
-} // test_mem
+} // test_caps
 } // mythos

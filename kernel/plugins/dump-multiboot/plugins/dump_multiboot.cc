@@ -1,4 +1,4 @@
-/* -*- mode:C++; -*- */
+/* -*- mode:C++; indent-tabs-mode:nil; -*- */
 /* MyThOS: The Many-Threads Operating System
  *
  * Permission is hereby granted, free of charge, to any person
@@ -21,13 +21,37 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  *
- * Copyright 2016 Randolf Rotta, Robert Kuban, Maik Krüger, and contributors, BTU Cottbus-Senftenberg
+ * Copyright 2017 Randolf Rotta, Robert Kuban, and contributors, BTU Cottbus-Senftenberg
  */
-
-#include "util/Plugin.hh"
+#include "plugins/Plugin.hh"
+#include "util/PhysPtr.hh"
+#include "util/MultiBoot.hh"
 
 namespace mythos {
 
-  Plugin* Plugin::first = nullptr;
+  class PluginDumpMultiboot
+    : public Plugin
+  {
+  public:
+    void initGlobal() override;
+  };
+
+  PluginDumpMultiboot plugin_dump_multiboot;
+
+  extern uint64_t _mboot_magic SYMBOL("_mboot_magic");
+  extern uint64_t _mboot_table SYMBOL("_mboot_table");
+
+  void PluginDumpMultiboot::initGlobal()
+  {
+    auto mboot_magic = *physPtr(&_mboot_magic);
+    auto mboot_table = *physPtr(&_mboot_table);
+
+    MLOG_INFO(log, DVARhex(mboot_magic), DVARhex(mboot_table));
+
+    //MultiBootInfo mbi(mboot_table);
+    //MLOG_INFO(log, DVARhex(mbi->flags));
+
+  }
 
 } // namespace mythos
+

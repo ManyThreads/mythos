@@ -31,9 +31,9 @@
 extern "C" NORETURN bool __assert_fail(char const* file, unsigned int line, const char* expr, char const * message) {
   mlog::Logger<> logassert("assert");
   if (message)
-    logassert.error("ASSERTION in",file,":",line,"failed:",expr,"-",message);
+    logassert.error("KERNEL ASSERTION in",file,":",line,"failed:",expr,"-",message);
   else
-    logassert.error("ASSERTION in",file,":",line,"failed:",expr);
+    logassert.error("KERNEL ASSERTION in",file,":",line,"failed:",expr);
   for (auto frame : mythos::StackTrace()) { logassert.info("trace", frame.ret); }
   mythos::sleep_infinitely();
 }

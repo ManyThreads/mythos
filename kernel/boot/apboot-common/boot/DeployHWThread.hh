@@ -27,7 +27,7 @@
 
 #include <cstddef>
 #include <cstdint>
-#include "util/Plugin.hh"
+#include "plugins/Plugin.hh"
 #include "util/compiler.hh"
 #include "util/assert.hh"
 #include "cpu/GdtAmd64.hh"

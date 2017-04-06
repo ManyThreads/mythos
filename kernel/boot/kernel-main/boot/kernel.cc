@@ -120,7 +120,7 @@ void mythos::cpu::sleeping_failed()
 void mythos::cpu::syscall_entry_cxx(mythos::cpu::ThreadState* ctx)
 {
   mythos::async::getLocalPlace().enterKernel();
-  MLOG_DETAIL(mlog::boot, "user system call", DVAR(ctx->rdi), DVAR(ctx->rsi),
+  MLOG_DETAIL(mlog::boot, "user system call", DVARhex(ctx->rdi), DVARhex(ctx->rsi),
       DVARhex(ctx->rip), DVARhex(ctx->rsp));
   mythos::handle_syscall(ctx);
   runUser();
@@ -129,7 +129,7 @@ void mythos::cpu::syscall_entry_cxx(mythos::cpu::ThreadState* ctx)
 void mythos::cpu::irq_entry_user(mythos::cpu::ThreadState* ctx)
 {
   mythos::async::getLocalPlace().enterKernel();
-  MLOG_DETAIL(mlog::boot, "user interrupt", DVAR(ctx->irq), DVAR(ctx->error),
+  MLOG_DETAIL(mlog::boot, "user interrupt", DVARhex(ctx->irq), DVARhex(ctx->error),
       DVARhex(ctx->rip), DVARhex(ctx->rsp));
   if (ctx->irq<32) {
     mythos::handle_trap(ctx); // handle traps, exceptions, bugs from user mode
@@ -142,7 +142,7 @@ void mythos::cpu::irq_entry_user(mythos::cpu::ThreadState* ctx)
 
 void mythos::cpu::irq_entry_kernel(mythos::cpu::KernelIRQFrame* ctx)
 {
-  MLOG_DETAIL(mlog::boot, "kernel interrupt", DVAR(ctx->irq), DVAR(ctx->error),
+  MLOG_DETAIL(mlog::boot, "kernel interrupt", DVARhex(ctx->irq), DVARhex(ctx->error),
       DVARhex(ctx->rip), DVARhex(ctx->rsp));
   bool wasbug = handle_bugirqs(ctx);
   bool nested = mythos::async::getLocalPlace().enterKernel();

@@ -30,7 +30,7 @@
 #include "util/alignments.hh"
 #include "objects/CapEntry.hh"
 #include "objects/IPageMap.hh"
-#include "plugin/events.hh"
+#include "plugins/events.hh"
 
 namespace mythos {
 

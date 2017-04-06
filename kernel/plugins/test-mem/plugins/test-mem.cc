@@ -23,7 +23,7 @@
  *
  * Copyright 2016 Randolf Rotta, Robert Kuban, and contributors, BTU Cottbus-Senftenberg
  */
-#include "plugin/test-mem.hh"
+#include "plugins/test-mem.hh"
 
 #include "cpu/hwthreadid.hh"
 #include "objects/IKernelObject.hh"

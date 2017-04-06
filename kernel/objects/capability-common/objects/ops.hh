@@ -47,7 +47,7 @@ namespace mythos {
     optional<void> setReference(const FUN fun, CapEntry& dst, Cap dstCap, CapEntry& src, Cap srcCap)
     {
       ASSERT(dstCap.isReference());
-      if (!dst.acquire().isSuccess()) THROW(Error::LOST_RACE);
+      if (!dst.acquire()) THROW(Error::LOST_RACE);
       // was empty => insert new reference
       fun();
       RETURN(inherit(src, dst, srcCap, dstCap));

@@ -161,7 +161,7 @@ int main()
     uintptr_t vaddr = 22*1024*1024;
     auto res2 = myAS.mmap(pl, hostChannelFrame, vaddr, 2*1024*1024, 0x1).wait();
     MLOG_INFO(mlog::app, "mmap hostChannel frame", DVAR(res2.state()),
-              DVARhex(res2->vaddr), DVARhex(res2->size), DVAR(res2->level));
+              DVARhex(res2.get().vaddr), DVARhex(res2.get().size), DVAR(res2.get().level));
     ASSERT(res2);
 
     // initialise the memory

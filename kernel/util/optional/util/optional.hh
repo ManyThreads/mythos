@@ -40,11 +40,11 @@ class OptionalBase {
 public:
   OptionalBase(Error merror) : merror(merror) {}
   Error state() const { setChecked(); return merror; }
-  bool isUnset() const { return merror == Error::UNSET; }
-  bool isSuccess() const { return state() == Error::SUCCESS; }
-  bool isError() const { return !isSuccess(); }
+  // bool isUnset() const { return merror == Error::UNSET; }
+  // bool isSuccess() const { return state() == Error::SUCCESS; }
+  bool isError() const { return state() != Error::SUCCESS; }
   bool operator! () const { return isError(); }
-  explicit operator bool() const { return isSuccess(); }
+  explicit operator bool() const { return !isError(); }
 
 protected:
   Error merror;
@@ -53,11 +53,17 @@ protected:
   void setChecked() const {};
   bool isChecked() const { return true; }
   void _check() const {}
+  void _force() const {}
 #else
   mutable bool mchecked = false;
   void setChecked() const { mchecked = true; };
   bool isChecked() const { return mchecked; }
   void _check() const {
+    // ASSERT(isChecked());
+    OOPS_MSG(isChecked(), "Unchecked use of optional value.");
+  }
+  void _force() const {
+    // ASSERT(isChecked());
     OOPS_MSG(isChecked(), "Unchecked use of optional value.");
     ASSERT_MSG(merror == Error::SUCCESS, "no optional value");
   }
@@ -79,6 +85,8 @@ public:
   optional() : OptionalBase(Error::UNSET) {}
 
   explicit optional(Error merror) : OptionalBase(merror) {}
+  optional(Error merror, T const& w) : OptionalBase(merror), value(w) {}
+  optional(Error merror, T&& w) : OptionalBase(merror), value(std::move(w)) {}
   optional(T const& w) : OptionalBase(Error::SUCCESS), value(w) {}
   optional(optional const& rhs) : OptionalBase(rhs.merror), value(rhs.value) {}
 
@@ -87,6 +95,7 @@ public:
   optional& operator= (T const& w) { merror = Error::SUCCESS; value=w; return *this; }
   T const* operator-> () const { _check(); return &value; }
   T const& operator* () const { _check(); return value; }
+  T const& get () const { return value; }
 
 protected:
   T value;
@@ -119,8 +128,9 @@ public:
   optional& operator= (optional const& rhs) { merror=rhs.merror; value=rhs.value; return *this; }
   //optional& operator= (optional&& rhs) { merror=rhs.merror; value=rhs.value; return *this; }
   optional& operator= (T* w) { merror = Error::SUCCESS; value=w; return *this; }
-  T* operator-> () const { _check(); return value; }
-  T* operator* () const { _check(); return value; }
+  T* operator-> () const { _force(); return value; }
+  T* operator* () const { _force(); return value; }
+  T* get () const { return value; }
 
 protected:
   T* value;
@@ -134,8 +144,13 @@ protected:
   template<class S, class T>
   ostream_base<S>& operator<< (ostream_base<S>& out, optional<T> const& e) {
     if (e) out << "O-" << *e;
-    else out << "OE" << static_cast<int>(e.state());
+    else out << "O" << e.state();
     return out;
+  }
+
+  template<class S>
+  ostream_base<S>& operator<< (ostream_base<S>& out, optional<void> const& e) {
+    return out << e.state();
   }
 
   inline optional<void> boxError(const Error& err) { return optional<void>(err); }

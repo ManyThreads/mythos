@@ -24,7 +24,7 @@
  * Copyright 2016 Randolf Rotta, Robert Kuban, Maik Krüger, and contributors, BTU Cottbus-Senftenberg
  */
 
-#include "plugin/Plugin.hh"
+#include "plugins/Plugin.hh"
 #include "boot/mlog.hh"
 
 namespace mythos {
