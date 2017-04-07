@@ -1,0 +1,4 @@
+# -*- mode:toml; -*-
+[module.host-init-channel]
+    incfiles = [ "host/InitChannel.hh" ]
+    hostfiles = [ "host/InitChannel.cc" ]
