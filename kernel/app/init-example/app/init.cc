@@ -34,6 +34,7 @@
 #include "runtime/Example.hh"
 #include "runtime/PageMap.hh"
 #include "runtime/UntypedMemory.hh"
+#include "runtime/SimpleCapAlloc.hh"
 #include "app/mlog.hh"
 #include <cstdint>
 #include "util/optional.hh"
@@ -49,6 +50,8 @@ mythos::Portal portal(mythos::init::PORTAL, msg_ptr);
 mythos::CapMap myCS(mythos::init::CSPACE);
 mythos::PageMap myAS(mythos::init::PML4);
 mythos::UntypedMemory kmem(mythos::init::UM);
+mythos::SimpleCapAllocDel capAlloc(portal, myCS, mythos::init::APP_CAP_START,
+                                  mythos::init::SIZE-mythos::init::APP_CAP_START);
 
 char threadstack[stacksize];
 char* thread1stack_top = threadstack+stacksize/2;
@@ -67,16 +70,12 @@ void test_Example()
   char const obj[] = "hello object!";
   MLOG_ERROR(mlog::app, "test_Example begin");
   mythos::PortalLock pl(portal); // future access will fail if the portal is in use already
-  mythos::Example example(mythos::init::APP_CAP_START);
-  auto res1 = example.create(pl, kmem).wait(); // use default mythos::init::EXAMPLE_FACTORY
+  mythos::Example example(capAlloc());
+  ASSERT(example.create(pl, kmem).wait()); // use default mythos::init::EXAMPLE_FACTORY
   // wait() waits until the result is ready and returns a copy of the data and state.
   // hence, the contents of res1 are valid even after the next use of the portal
-  ASSERT(res1);
-  //res1.release(); // implicit by its destructor
-  auto res2 = example.printMessage(pl, obj, sizeof(obj)-1).wait();
-  ASSERT(res2);
-  auto res3 = myCS.deleteCap(pl, example).wait();
-  ASSERT(res3);
+  ASSERT(example.printMessage(pl, obj, sizeof(obj)-1).wait());
+  ASSERT(capAlloc.free(example,pl));
   // pl.release(); // implicit by PortalLock's destructor
   MLOG_ERROR(mlog::app, "test_Example end");
 }
@@ -86,14 +85,14 @@ void test_Portal()
   MLOG_ERROR(mlog::app, "test_Portal begin");
   mythos::PortalLock pl(portal); // future access will fail if the portal is in use already
   MLOG_INFO(mlog::app, "test_Portal: allocate portal");
-  uintptr_t vaddr = 21*1024*1024; // choose address different from invokation buffer
+  uintptr_t vaddr = 22*1024*1024; // choose address different from invokation buffer
   // allocate a portal
-  mythos::Portal p2(mythos::init::APP_CAP_START, (void*)vaddr);
+  mythos::Portal p2(capAlloc(), (void*)vaddr);
   auto res1 = p2.create(pl, kmem).wait();
   ASSERT(res1);
   // allocate a 2MiB frame
   MLOG_INFO(mlog::app, "test_Portal: allocate frame");
-  mythos::Frame f(mythos::init::APP_CAP_START+1);
+  mythos::Frame f(capAlloc());
   auto res2 = f.create(pl, kmem, 2*1024*1024, 2*1024*1024).wait();
   MLOG_INFO(mlog::app, "alloc frame", DVAR(res2.state()));
   ASSERT(res2);
@@ -109,11 +108,9 @@ void test_Portal()
   ASSERT(res4);
   // and delete everything again
   MLOG_INFO(mlog::app, "test_Portal: delete frame");
-  auto res5 = myCS.deleteCap(pl, f).wait();
-  ASSERT(res5);
+  ASSERT(capAlloc.free(f, pl));
   MLOG_INFO(mlog::app, "test_Portal: delete portal");
-  auto res6 = myCS.deleteCap(pl, p2).wait();
-  ASSERT(res6);
+  ASSERT(capAlloc.free(p2, pl));
   MLOG_ERROR(mlog::app, "test_Portal end");
 }
 
@@ -146,13 +143,14 @@ int main()
   mythos::syscall_debug(str, sizeof(str)-1);
   MLOG_ERROR(mlog::app, "application is starting :)", DVARhex(msg_ptr), DVARhex(initstack_top));
 
-  // test_Example();
-  // test_Portal();
+  test_float();
+  test_Example();
+  test_Portal();
 
   {
     mythos::PortalLock pl(portal); // future access will fail if the portal is in use already
     // allocate a 2MiB frame
-    mythos::Frame hostChannelFrame(mythos::init::APP_CAP_START);
+    mythos::Frame hostChannelFrame(capAlloc());
     auto res1 = hostChannelFrame.create(pl, kmem, 2*1024*1024, 2*1024*1024).wait();
     MLOG_INFO(mlog::app, "alloc hostChannel frame", DVAR(res1.state()));
     ASSERT(res1);
@@ -176,8 +174,8 @@ int main()
     //ASSERT(res3.state() == mythos::Error::SUCCESS);
   }
 
-  mythos::ExecutionContext ec1(mythos::init::APP_CAP_START+1);
-  mythos::ExecutionContext ec2(mythos::init::APP_CAP_START+2);
+  mythos::ExecutionContext ec1(capAlloc());
+  mythos::ExecutionContext ec2(capAlloc());
   {
     MLOG_INFO(mlog::app, "test_EC: create ec1");
     mythos::PortalLock pl(portal); // future access will fail if the portal is in use already
