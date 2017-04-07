@@ -24,7 +24,7 @@
  * Copyright 2014 Randolf Rotta, Maik Krüger, and contributors, BTU Cottbus-Senftenberg
  */
 
-#include "util/Plugin.hh"
+#include "plugins/Plugin.hh"
 #include "async/Place.hh"
 #include "async/NestedMonitorHome.hh"
 #include "async/NestedMonitorDelegating.hh"

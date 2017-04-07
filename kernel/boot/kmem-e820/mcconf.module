@@ -1,4 +1,4 @@
 [module.kmem-e820]
-    incfiles = [ "boot/E820.hh", "boot/kmem.hh" ]
+    incfiles = [ "boot/kmem.hh" ]
     kernelfiles = [ "boot/kmem.cc" ]
     requires = [ "tag/boot/e820" ]

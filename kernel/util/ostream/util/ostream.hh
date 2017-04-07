@@ -47,13 +47,16 @@ namespace mythos {
     ostream_base& write(char const* s, streamsize count) { buf->sputn(s, count); return *this; }
     ostream_base& flush() { buf->pubsync(); return *this; }
 
+    ostream_base& operator<< (unsigned char c) { return format(c); }
+    ostream_base& operator<< (unsigned short i) { return format(i); }
+    ostream_base& operator<< (unsigned int i) { return format(i); }
+    ostream_base& operator<< (unsigned long i) { return format(i); }
+    ostream_base& operator<< (unsigned long long i) { return format(i); }
     ostream_base& operator<< (char c) { return put(c); }
-    ostream_base& operator<< (uint16_t i) { return format(i); }
-    ostream_base& operator<< (uint32_t i) { return format(i); }
-    ostream_base& operator<< (uint64_t i) { return format(i); }
-    ostream_base& operator<< (int16_t i) { return signedFormat(i); }
-    ostream_base& operator<< (int32_t i) { return signedFormat(i); }
-    ostream_base& operator<< (int64_t i) { return signedFormat(i); }
+    ostream_base& operator<< (short i) { return signedFormat(i); }
+    ostream_base& operator<< (int i) { return signedFormat(i); }
+    ostream_base& operator<< (long i) { return signedFormat(i); }
+    ostream_base& operator<< (long long i) { return signedFormat(i); }
     ostream_base& operator<< (void const* i) { return write("0x",2).format(uintptr_t(i), 16,2*sizeof(i)); }
 
     template<class... ARGS>

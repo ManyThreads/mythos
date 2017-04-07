@@ -1,0 +1,3 @@
+[module.plugin-dump-multiboot]
+    kernelfiles = [ "plugins/dump_multiboot.cc" ]
+    requires = [ "symbol/_mboot_table", "symbol/_mboot_magic" ]

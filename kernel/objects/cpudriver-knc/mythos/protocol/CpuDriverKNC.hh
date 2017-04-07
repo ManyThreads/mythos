@@ -1,4 +1,4 @@
-/* -*- mode:C++; -*- */
+/* -*- mode:C++; indent-tabs-mode:nil; -*- */
 /* MyThOS: The Many-Threads Operating System
  *
  * Permission is hereby granted, free of charge, to any person
@@ -21,13 +21,37 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  *
- * Copyright 2016 Randolf Rotta, Robert Kuban, Maik Krüger, and contributors, BTU Cottbus-Senftenberg
+ * Copyright 2017 Randolf Rotta, Robert Kuban, and contributors, BTU Cottbus-Senftenberg
  */
+#pragma once
 
-#include "util/Plugin.hh"
+#include "mythos/protocol/common.hh"
 
 namespace mythos {
+  namespace protocol {
 
-  Plugin* Plugin::first = nullptr;
+    struct CpuDriverKNC {
+      constexpr static uint8_t proto = CPUDRIVERKNC;
 
-} // namespace mythos
+      enum Methods : uint8_t {
+        SETINITMEM
+      };
+
+      struct SetInitMem : public InvocationBase {
+        constexpr static uint16_t label = (proto<<8) + SETINITMEM;
+        SetInitMem(CapPtr frame) : InvocationBase(label,getLength(this)) {
+          addExtraCap(frame);
+        }
+      };
+
+      template<class IMPL, class... ARGS>
+      static Error dispatchRequest(IMPL* obj, uint8_t m, ARGS const&...args) {
+        switch(Methods(m)) {
+          case SETINITMEM: return obj->invoke_setInitMem(args...);
+          default: return Error::NOT_IMPLEMENTED;
+        }
+      }
+    };
+
+  }// namespace protocol
+}// namespace mythos

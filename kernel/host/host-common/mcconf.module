@@ -1,4 +1,4 @@
 # -*- mode:toml; -*-
 [module.host-common]
-    incfiles = [ "util/alignments.hh", "util/PhysPtr.hh", "util/assert.hh" ]
+    incfiles = [ "util/alignments.hh", "util/PhysPtr.hh", "util/assert.hh", "util/FDSender.hh", "util/FDReceiver.hh" ]
     requires = [ "tag/mode/host" ]

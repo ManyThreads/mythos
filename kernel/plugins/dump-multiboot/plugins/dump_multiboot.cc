@@ -1,4 +1,4 @@
-/* -*- mode:C++; -*- */
+/* -*- mode:C++; indent-tabs-mode:nil; -*- */
 /* MyThOS: The Many-Threads Operating System
  *
  * Permission is hereby granted, free of charge, to any person
@@ -21,45 +21,37 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  *
- * Copyright 2016 Randolf Rotta, Robert Kuban, Maik Krüger, and contributors, BTU Cottbus-Senftenberg
+ * Copyright 2017 Randolf Rotta, Robert Kuban, and contributors, BTU Cottbus-Senftenberg
  */
-#pragma once
-
-#include <cstddef>
-#include "boot/mlog.hh"
+#include "plugins/Plugin.hh"
+#include "util/PhysPtr.hh"
+#include "util/MultiBoot.hh"
 
 namespace mythos {
 
-  class IPlugin
+  class PluginDumpMultiboot
+    : public Plugin
   {
   public:
-    virtual void initGlobal() {}
-    virtual void initThread(size_t /*threadid*/) {}
+    void initGlobal() override;
   };
-  
-  class Plugin
-    : public IPlugin
+
+  PluginDumpMultiboot plugin_dump_multiboot;
+
+  extern uint64_t _mboot_magic SYMBOL("_mboot_magic");
+  extern uint64_t _mboot_table SYMBOL("_mboot_table");
+
+  void PluginDumpMultiboot::initGlobal()
   {
-  public:
-    Plugin() { this->next = first; first = this; }
+    auto mboot_magic = *physPtr(&_mboot_magic);
+    auto mboot_table = *physPtr(&_mboot_table);
 
-    static void initPluginsGlobal() {
-      for (Plugin* c = first; c != nullptr; c = c->next) {
-	MLOG_INFO(mlog::boot, "initPluginsGlobal", c);
-	c->initGlobal();
-      }
-    }
+    MLOG_INFO(log, DVARhex(mboot_magic), DVARhex(mboot_table));
 
-    static void initPluginsOnThread(size_t threadid) {
-      for (Plugin* c = first; c != nullptr; c = c->next) {
-	MLOG_INFO(mlog::boot, "initPluginsOnThread", c, threadid);
-	c->initThread(threadid);
-      }
-    }
-    
-  protected:
-    Plugin* next;
-    static Plugin* first;
-  };
+    //MultiBootInfo mbi(mboot_table);
+    //MLOG_INFO(log, DVARhex(mbi->flags));
+
+  }
 
 } // namespace mythos
+

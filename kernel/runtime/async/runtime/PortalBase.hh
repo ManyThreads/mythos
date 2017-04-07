@@ -25,10 +25,13 @@
  */
 #pragma once
 
+#include "app/mlog.hh"
 #include "runtime/FutureBase.hh"
 #include "runtime/ISysretHandler.hh"
 #include "mythos/InvocationBuf.hh"
 #include "mythos/protocol/Portal.hh"
+#include "util/optional.hh"
+#include "util/error-trace.hh"
 #include <atomic>
 #include <utility>
 
@@ -59,35 +62,42 @@ namespace mythos {
 
     void invoke(CapPtr kobj) {
       FutureBase::reset();
-      ISysretHandler::handle(syscall_invoke_poll(_cap, kobj, (ISysretHandler*)this));
+      auto result = syscall_invoke_poll(_cap, kobj, (ISysretHandler*)this);
+      ISysretHandler::handle(result);
     }
 
   protected:
-    void sysret(uint64_t e) override { FutureBase::assign(Error(e)); }
+
+    void sysret(uint64_t e) override {
+      FutureBase::assign(Error(e));
+    }
 
   protected:
     InvocationBuf* _buf;
     std::atomic<int> refcount = {0};
   };
 
-  class PortalRef
+  class PortalLock
   {
   public:
-    PortalRef() {}
-    PortalRef(PortalBase& p) { if (p.acquire()) _portal = &p; }
-    PortalRef(PortalRef const& p) : _portal(p._portal) { if (_portal) _portal->incref(); }
-    PortalRef(PortalRef&& p) : _portal(p._portal) { p._portal = nullptr; }
-    ~PortalRef() { close(); }
+    PortalLock() {}
+    explicit PortalLock(PortalBase& p) { if (p.acquire()) _portal = &p; }
+    PortalLock(PortalLock const& p) : _portal(p._portal) { if (_portal) _portal->incref(); }
+    PortalLock(PortalLock&& p) : _portal(p._portal) { p._portal = nullptr; }
+    ~PortalLock() { release(); }
 
-    PortalRef& operator= (PortalRef&& p) {
-      close();
+    PortalLock& operator= (PortalLock&& p) {
+      release();
       _portal = p._portal;
       p._portal = nullptr;
       return *this;
     }
 
-    void close() { if (_portal) _portal->release(); _portal = nullptr; }
+    void release() { if (_portal) _portal->release(); _portal = nullptr; }
     bool isOpen() const { return _portal; }
+
+    bool operator! () const { return !isOpen(); }
+    explicit operator bool() const { return isOpen(); }
 
     template<class MSG, class... ARGS>
     MSG* write(ARGS const&... args) { ASSERT(_portal); return _portal->buf()->write<MSG>(args...); }
@@ -95,11 +105,10 @@ namespace mythos {
     void invoke(CapPtr kobj) { ASSERT(_portal); _portal->invoke(kobj); }
 
     template<class MSG, class... ARGS>
-    PortalRef tryInvoke(CapPtr kobj, ARGS const&... args) {
-      if (_portal) {
-        _portal->buf()->write<MSG>(args...);
-        _portal->invoke(kobj);
-      }
+    PortalLock invoke(CapPtr kobj, ARGS const&... args) {
+      ASSERT(_portal);
+      _portal->buf()->write<MSG>(args...);
+      _portal->invoke(kobj);
       return *this;
     }
 
@@ -107,41 +116,53 @@ namespace mythos {
     PortalBase* _portal = nullptr;
   };
 
-  class PortalFutureRefBase
-    : protected PortalRef
+
+  class PortalFutureBase
+    : public PortalLock
   {
   public:
-    PortalFutureRefBase(PortalRef&& p) : PortalRef(std::move(p)) {}
-    void close() { PortalRef::close(); }
-    PortalRef&& reuse() { return std::move(*this); }
+    PortalFutureBase(PortalLock&& p) : PortalLock(std::move(p)) {}
+    void release() { PortalLock::release(); }
 
     bool operator! () const { return !isOpen(); }
     explicit operator bool() const { return isOpen(); }
     bool poll() const { return isOpen() ? _portal->poll() : true; }
     bool wait() const { return isOpen() ? _portal->wait() : true; }
-    Error state() const { return !isOpen() ? Error::PORTAL_NOT_OPEN : _portal->error(); }
-
-    void then(Tasklet& t) { ASSERT(isOpen()); _portal->then(t); close(); }
+    //Error state() const { return !isOpen() ? Error::PORTAL_NOT_OPEN : _portal->error(); }
+    void then(Tasklet& t) { ASSERT(isOpen()); _portal->then(t); release(); }
   };
 
   template<class T>
-  class PortalFutureRef
-    : public PortalFutureRefBase
+  class PortalFuture
+    : public PortalFutureBase
   {
   public:
-    PortalFutureRef(PortalRef&& p) : PortalFutureRefBase(std::move(p)) {}
+    PortalFuture(PortalLock&& p) : PortalFutureBase(std::move(p)) {}
+
+    optional<T> wait() {
+      if (!isOpen()) THROW(Error::PORTAL_NOT_OPEN);
+      if (_portal->wait()) return optional<T>(_portal->error(), T(_portal->buf()));
+      else THROW(Error::UNSET);
+    }
 
     /** quick access to the invocation result */
-    T const* operator-> () const { return _portal->buf()->cast<T>(); }
-    T const& operator* () const { return *_portal->buf()->cast<T>(); }
+    // does not work this way!
+    // T const* operator-> () const { return _portal->buf()->cast<T>(); }
+    // T const& operator* () const { return *_portal->buf()->cast<T>(); }
   };
 
   template<>
-  class PortalFutureRef<void>
-    : public PortalFutureRefBase
+  class PortalFuture<void>
+    : public PortalFutureBase
   {
   public:
-    PortalFutureRef(PortalRef&& p) : PortalFutureRefBase(std::move(p)) {}
+    PortalFuture(PortalLock&& p) : PortalFutureBase(std::move(p)) {}
+
+    optional<void> wait() {
+      if (!isOpen()) THROW(Error::PORTAL_NOT_OPEN);
+      if (_portal->wait()) RETURN(_portal->error());
+      else THROW(Error::UNSET);
+    }
   };
 
 } // namespace mythos

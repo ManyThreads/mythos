@@ -36,6 +36,6 @@ namespace mythos {
 
     /** maps a kernel stack to the given physical address and returns the logical address */
     uintptr_t initKernelStack(size_t idx, uintptr_t paddr);
-    
-  } // boot
+
+  } // namespace boot
 } // namespace mythos

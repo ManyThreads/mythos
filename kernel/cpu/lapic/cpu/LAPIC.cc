@@ -33,7 +33,7 @@ namespace mythos {
   LAPIC lapic;
 
   void LAPIC::init() {
-    MLOG_INFO(mlog::boot, "initializing local xAPIC");
+    MLOG_DETAIL(mlog::boot, "initializing local xAPIC");
     Register value;
 
     // init the Destination Format Register and the Logical
@@ -154,7 +154,7 @@ namespace mythos {
 
   bool LAPIC::sendIRQ(size_t destination, uint8_t vector)
   {
-    MLOG_ERROR(mlog::boot, "send IRQ:", DVAR(destination), DVAR(vector));
+    MLOG_INFO(mlog::boot, "send IRQ:", DVAR(destination), DVAR(vector));
     write(REG_ESR, 0); // Be paranoid about clearing APIC errors.
     read(REG_ESR);
     writeIPI(destination, edgeIPI(ICR_DESTSHORT_NO, MODE_FIXED, vector));

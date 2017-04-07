@@ -23,10 +23,9 @@
  *
  * Copyright 2016 Randolf Rotta, Maik Krüger, Robert Kuban, and contributors, BTU Cottbus-Senftenberg
  */
-#include "host/MemMapperPci.hh"
-#include "mythos/HostInfoTable.hh"
-#include "mythos/PciMsgQueueMPSC.hh"
-#include "cpu/clflush.hh"
+
+#include "host/InitChannel.hh"
+#include "util/FDSender.hh"
 #include <iostream>
 #include <sstream>
 #include <string>
@@ -39,6 +38,7 @@
 #include <memory>
 #include <signal.h>
 #include <fcntl.h>
+#include <thread>
 
 using namespace mythos;
 class mic_ctrl;
@@ -51,11 +51,6 @@ static const constexpr char* ENV_GID = "SUDO_GID";
 struct sigaction sigact;
 mic_ctrl *ctrl;
 file_logger *logger;
-
-struct InfoPtr {
-  uint64_t info;
-  uint64_t debug;
-};
 
 /// Class logs into files, opening new file for every sending channel id.
 class file_logger {
@@ -100,6 +95,18 @@ class file_logger {
     const std::string directory;
     std::unordered_map<uint16_t, std::unique_ptr<std::ofstream>> files;
 };
+
+void shareDeviceMemoryFD(int fd){
+  FDSender sender;
+
+  if(sender.awaitConnection("../mythos_device_memory.ds")){
+    printf("Domain socket connected\n");
+  }else{
+	printf("Domain socket connection failed!");
+  }
+
+  sender.sendFD(fd);
+}
 
 /// Wrapper to the micctrl application, that controls the xeon phi coprocessor
 class mic_ctrl {
@@ -180,7 +187,7 @@ private:
     int fd;
 };
 
-  template<typename T>
+template<typename T>
 void parsenum(char const *str, T& val)
 {
   std::stringstream s;
@@ -249,28 +256,30 @@ int main(int argc, char** argv)
   ctrl = new mic_ctrl(adapter, argv[2]);
   ctrl->reset_wait();
   ctrl->boot();
-  MemMapperPci micmem(deviceKNC(adapter));
+  auto deviceFile = deviceKNC(adapter);
+  InitChannel micmem(deviceFile.c_str());
 
-  // wait until the _host_info_ptr pointer at address 2MiB actually contains something
-  auto info_ptr = micmem.access(PhysPtr<InfoPtr>(0x200000ull));
+  // wait until the host_info_ptr structure contains something
   do {
-    cpu::clflush(info_ptr.addr());
-    std::cout << "info: " << (void*)info_ptr->info << " debug: " << (void*)info_ptr->debug << " " << info_ptr->debug << std::endl;
-    if (info_ptr->info == 0) sleep(1);
-  } while (info_ptr->info == 0);
-  std::cerr << "host info is at physical address "
-    << (void*)info_ptr->info << std::endl;
-
-  auto info = micmem.access(PhysPtr<HostInfoTable>(info_ptr->info));
-  cpu::clflush(info.addr());
+    auto info = micmem.getHITptr();
+    std::cerr << "info: " << (void*)info->info
+             << " debug: " << (void*)info->debug << " " << info->debug << std::endl;
+    if (info->info == 0) sleep(1);
+    else std::cerr << "host info is at physical address " << (void*)info->info << std::endl;
+  } while (!micmem.getHIT());
   std::cerr << "debug stream is at physical address "
-    << (void*)info->debugOut << std::endl;
-
-  auto debugOutChannel = micmem.access(PhysPtr<HostInfoTable::DebugChannel>(info->debugOut));
-  PCIeRingConsumer<HostInfoTable::DebugChannel> debugOut(debugOutChannel.addr());
+           << (void*)micmem.getHIT()->debugOut << std::endl;
+  PCIeRingConsumer<HostInfoTable::DebugChannel> debugOut(micmem.getDebugOut());
 
   // drop root to allow file logger access to user specific directories
   drop_root();
+
+  std::thread fdThread(shareDeviceMemoryFD, micmem.getFD());
+
+  // auto data_ptr = (char*)micmem.map(0x0, 8ull*1024*1024*1024);
+  // std::ofstream data_file("memdump.bin", std::ios::out | std::ios::trunc);
+  // data_file.write(data_ptr, 8ull*1024*1024*1024);
+  // data_file.close();
 
   // collect messages until whole message arrived
   std::unordered_map<uint16_t, std::unique_ptr<std::stringstream> > messages;
@@ -279,7 +288,6 @@ int main(int argc, char** argv)
   logger = new file_logger("debug");
 
   while (true) {
-    //typedef HostInfoTable::DebugChannel::handle_t handle_t;
     auto handle = debugOut.acquireRecv();
     auto& msg = debugOut.get<DebugMsg>(handle);
 

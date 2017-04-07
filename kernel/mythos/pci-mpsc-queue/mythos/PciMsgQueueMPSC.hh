@@ -28,6 +28,7 @@
 #include <atomic>
 #include <cstddef>
 #include <cstdint>
+#include <new>
 #include "util/optional.hh"
 #include "cpu/hwthread_pause.hh"
 #include "cpu/clflush.hh"
@@ -54,23 +55,22 @@ namespace mythos {
       char data[DATASIZE];
     };
 
-    /** initialise the sequence counters in the slots */
-    void init() { for (handle_t i=0; i<SLOTS; i++) slots[i].seq=handle_t(i<<1); }
-    Slot& getSlot(handle_t handle) { return slots[handle%SLOTS]; }
+    /** initialise the sequence counters in the slotz */
+    void init() { for (handle_t i=0; i<SLOTS; i++) slotz[i].seq=handle_t(i<<1); }
+    Slot& getSlot(handle_t handle) { return slotz[handle%SLOTS]; }
     template<class T>
     T* getData(handle_t handle) { return reinterpret_cast<T*>(getSlot(handle).data); }
     bool isWriteable(handle_t handle) { return getSlot(handle).seq==handle_t(handle<<1); }
     bool isReadable(handle_t handle) { return getSlot(handle).seq==handle_t((handle<<1)|1); }
     void setReadable(handle_t handle) { getSlot(handle).seq=handle_t((handle<<1)|1); }
     void setWriteable(handle_t handle) { getSlot(handle).seq=handle_t((handle+SLOTS)<<1); }
-
     void flush(handle_t handle, size_t bytes=SIZE) {
       auto help=reinterpret_cast<char*>(&getSlot(handle));
       for (uintptr_t i=0; i<bytes; i+=cpu::CACHELINESIZE) cpu::clflush(help+i);
     }
-
   private:
-    alignas(64) Slot slots[SLOTS];
+    // this array is named slotz because QT has a macro named slots. Thank you!
+    alignas(64) Slot slotz[SLOTS];
   };
 
   template<class CHANNEL>
@@ -78,11 +78,13 @@ namespace mythos {
   {
   public:
     typedef typename CHANNEL::handle_t handle_t;
-    PCIeRingConsumer(CHANNEL* channel) : channel(channel), readPos(0) {}
+    PCIeRingConsumer() {}
+    PCIeRingConsumer(CHANNEL* channel) : channel(channel) {}
 
+    void setChannel(CHANNEL* channel) { this->channel = channel; }
     bool hasMessages() { return channel->isReadable(readPos); }
 
-    optional<handle_t> tryAquireRecv() {
+    optional<handle_t> tryAcquireRecv() {
       handle_t temp(readPos);
       if(channel->isReadable(temp)){
         if(readPos.compare_exchange_strong(temp,readPos+1))
@@ -110,9 +112,26 @@ namespace mythos {
       channel->flush(handle);
     }
 
+    template<class T>
+    optional<T> tryRecv() {
+      auto h = tryAcquireRecv();
+      if (!h) return optional<T>(Error::UNSET);
+      T msg(get<T>(*h));
+      finishRecv(*h);
+      return msg;
+    }
+
+    template<class T>
+    T recv() {
+      auto h = acquireRecv();
+      T msg(get<T>(h));
+      finishRecv(h);
+      return msg;
+    }
+
   protected:
-    CHANNEL* channel;
-    std::atomic<handle_t> readPos;
+    CHANNEL* channel = nullptr;
+    std::atomic<handle_t> readPos = {0};
   };
 
   template<class CHANNEL>
@@ -120,9 +139,12 @@ namespace mythos {
   {
   public:
     typedef typename CHANNEL::handle_t handle_t;
-    PCIeRingProducer(CHANNEL* channel) : channel(channel), writePos(0) {}
+    PCIeRingProducer() {}
+    PCIeRingProducer(CHANNEL* channel) : channel(channel) {}
 
-    optional<handle_t> tryAquireSend() {
+    void setChannel(CHANNEL* channel) { this->channel = channel; }
+
+    optional<handle_t> tryAcquireSend() {
       handle_t temp=writePos;
       if(channel->isWriteable(temp)){
         if(writePos->compare_exchange_strong(temp,writePos+1))
@@ -151,9 +173,25 @@ namespace mythos {
       channel->flush(handle, bytes);
     }
 
+    template<class T>
+    bool trySend(T const& msg) {
+      auto h = tryAcquireSend();
+      if (!h) return false;
+      new (&get<T>(*h)) T(msg);
+      finishSend(*h, sizeof(T));
+      return true;
+    }
+
+    template<class T>
+    void send(T const& msg) {
+      auto h = acquireSend();
+      new (&get<T>(h)) T(msg);
+      finishSend(h, sizeof(T));
+    }
+
   protected:
-    CHANNEL* channel;
-    std::atomic<handle_t> writePos;
+    CHANNEL* channel = nullptr;
+    std::atomic<handle_t> writePos = {0};
   };
 
 } // namespace mythos

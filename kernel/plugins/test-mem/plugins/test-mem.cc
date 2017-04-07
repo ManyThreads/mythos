@@ -28,7 +28,6 @@
 #include "cpu/hwthreadid.hh"
 #include "objects/IKernelObject.hh"
 #include "objects/ops.hh"
-#include "plugins/test-macros.hh"
 #include "objects/StaticMemoryRegion.hh"
 #include "objects/MemoryRegion.hh"
 #include "objects/FrameData.hh"

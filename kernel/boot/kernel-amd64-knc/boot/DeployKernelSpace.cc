@@ -39,8 +39,8 @@ namespace mythos {
 
     void initKernelSpace() {
       // map XeonPhi MMIO area
-      static_assert(MMIO_ADDR == 0xffff800100400000, "failed assumption about kernel layout");
-      devices_pml2[2] = CD + PRESENT + WRITE + ACCESSED + DIRTY + ISPAGE + GLOBAL + MMIO_PHYS;
+      static_assert(MMIO_ADDR == 0xffff800100600000, "failed assumption about kernel layout");
+      devices_pml2[3] = CD + PRESENT + WRITE + ACCESSED + DIRTY + ISPAGE + GLOBAL + MMIO_PHYS;
 
       // initialise the communication channels
       debugOut.init();
@@ -56,7 +56,7 @@ namespace mythos {
 
       // tell the host's loader kernel module, that booting is finished
       auto scratch2 = reinterpret_cast<uint32_t*>(MMIO_ADDR+SBOX_BASE+SBOX_SCRATCH2);
-      *scratch2 = 1;
+      *scratch2 |= 1;
     }
 
   } // boot

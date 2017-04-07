@@ -28,6 +28,7 @@
 #include "runtime/PortalBase.hh"
 #include "mythos/protocol/CapMap.hh"
 #include "runtime/UntypedMemory.hh"
+#include "mythos/init.hh"
 
 namespace mythos {
 
@@ -36,42 +37,43 @@ namespace mythos {
   public:
     CapMap(CapPtr cap) : KObject(cap) {}
 
-    PortalFutureRef<void> create(PortalRef pr, UntypedMemory kmem, CapPtr factory,
-                                 CapPtrDepth indexbits, CapPtrDepth guardbits, CapPtr guard) {
-      return pr.tryInvoke<protocol::CapMap::Create>(kmem.cap(), _cap, factory,
-                                                  indexbits, guardbits, guard);
+    PortalFuture<void> create(PortalLock pr, UntypedMemory kmem,
+                              CapPtrDepth indexbits, CapPtrDepth guardbits, CapPtr guard,
+                              CapPtr factory = init::CAPMAP_FACTORY) {
+      return pr.invoke<protocol::CapMap::Create>(kmem.cap(), _cap, factory,
+                                               indexbits, guardbits, guard);
     }
 
-    PortalFutureRef<void> derive(PortalRef pr, CapPtr src, CapPtrDepth srcDepth,
+    PortalFuture<void> derive(PortalLock pr, CapPtr src, CapPtrDepth srcDepth,
                                  CapPtr dstCs, CapPtr dst, CapPtrDepth dstDepth,
                                  CapRequest req) {
-      return pr.tryInvoke<protocol::CapMap::Derive>(_cap, src, srcDepth, dstCs, dst, dstDepth, req);
+      return pr.invoke<protocol::CapMap::Derive>(_cap, src, srcDepth, dstCs, dst, dstDepth, req);
     }
 
-    PortalFutureRef<void> reference(PortalRef pr, CapPtr src, CapPtrDepth srcDepth,
+    PortalFuture<void> reference(PortalLock pr, CapPtr src, CapPtrDepth srcDepth,
                                     CapPtr dstCs, CapPtr dst, CapPtrDepth dstDepth,
                                     CapRequest req) {
-      return pr.tryInvoke<protocol::CapMap::Reference>(_cap, src, srcDepth, dstCs, dst, dstDepth, req);
+      return pr.invoke<protocol::CapMap::Reference>(_cap, src, srcDepth, dstCs, dst, dstDepth, req);
     }
 
-    PortalFutureRef<void> move(PortalRef pr, CapPtr src, CapPtrDepth srcDepth,
+    PortalFuture<void> move(PortalLock pr, CapPtr src, CapPtrDepth srcDepth,
                                  CapPtr dstCs, CapPtr dst, CapPtrDepth dstDepth) {
-      return pr.tryInvoke<protocol::CapMap::Move>(_cap, src, srcDepth, dstCs, dst, dstDepth);
+      return pr.invoke<protocol::CapMap::Move>(_cap, src, srcDepth, dstCs, dst, dstDepth);
     }
 
-    PortalFutureRef<void> deleteCap(PortalRef pr, CapPtr src, CapPtrDepth srcDepth) {
-      return pr.tryInvoke<protocol::CapMap::Delete>(_cap, src, srcDepth);
+    PortalFuture<void> deleteCap(PortalLock pr, CapPtr src, CapPtrDepth srcDepth) {
+      return pr.invoke<protocol::CapMap::Delete>(_cap, src, srcDepth);
     }
 
-    PortalFutureRef<void> deleteCap(PortalRef pr, KObject src) {
+    PortalFuture<void> deleteCap(PortalLock pr, KObject src) {
       return deleteCap(pr, src.cap(), mythos::max_cap_depth);
     }
 
-    PortalFutureRef<void> revokeCap(PortalRef pr, CapPtr src, CapPtrDepth srcDepth) {
-      return pr.tryInvoke<protocol::CapMap::Revoke>(_cap, src, srcDepth);
+    PortalFuture<void> revokeCap(PortalLock pr, CapPtr src, CapPtrDepth srcDepth) {
+      return pr.invoke<protocol::CapMap::Revoke>(_cap, src, srcDepth);
     }
 
-    PortalFutureRef<void> revokeCap(PortalRef pr, KObject src) {
+    PortalFuture<void> revokeCap(PortalLock pr, KObject src) {
       return revokeCap(pr, src.cap(), mythos::max_cap_depth);
     }
   };

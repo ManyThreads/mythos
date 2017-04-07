@@ -1,3 +1,0 @@
-# -*- mode:toml; -*-
-[module.util-elf64]
-    incfiles = [ "util/elf64.hh" ]

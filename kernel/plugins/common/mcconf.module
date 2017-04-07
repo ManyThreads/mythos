@@ -1,0 +1,3 @@
+[module.plugin-common]
+    incfiles = [ "plugins/Plugin.hh", "plugins/TestPlugin.hh", "plugins/events.hh" ]
+    kernelfiles = [ "plugins/Plugin.cc" ]

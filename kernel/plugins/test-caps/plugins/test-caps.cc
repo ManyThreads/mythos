@@ -30,7 +30,6 @@
 #include "objects/ops.hh"
 #include "objects/Example.hh"
 #include "objects/UntypedMemory.hh"
-#include "plugins/test-macros.hh"
 #include "objects/InvocationMock.hh"
 
 namespace mythos {

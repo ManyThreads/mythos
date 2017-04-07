@@ -30,6 +30,7 @@
 #include "runtime/CapMap.hh"
 #include "runtime/PageMap.hh"
 #include "runtime/UntypedMemory.hh"
+#include "mythos/init.hh"
 
 namespace mythos {
 
@@ -41,31 +42,37 @@ namespace mythos {
 
     ExecutionContext(CapPtr cap) : KObject(cap) {}
 
-    PortalFutureRef<void> create(PortalRef pr, UntypedMemory kmem, CapPtr factory,
-                                 PageMap as, CapMap cs, CapPtr sched,
-                                 void* stack, StartFun start, void* userctx);
+    PortalFuture<void> create(PortalLock pr, UntypedMemory kmem,
+                              PageMap as, CapMap cs, CapPtr sched,
+                              void* stack, StartFun start, void* userctx,
+                              CapPtr factory = init::EXECUTION_CONTEXT_FACTORY);
 
-    PortalFutureRef<void> configure(PortalRef pr, PageMap as, CapMap cs, CapPtr sched);
+    PortalFuture<void> configure(PortalLock pr, PageMap as, CapMap cs, CapPtr sched) {
+      return pr.invoke<protocol::ExecutionContext::Configure>(_cap, as.cap(), cs.cap(), sched);
+    }
 
-    class RegsRef : public PortalFutureRefBase
-    {
-    public:
-      RegsRef(PortalRef&& p) : PortalFutureRefBase(std::move(p)) {}
-
-      /** quick access to the invocation result */
-      register_t* operator-> () const {
-        return &_portal->buf()->cast<protocol::ExecutionContext::WriteRegisters>()->regs;
-      }
-      register_t& operator* () const {
-        return _portal->buf()->cast<protocol::ExecutionContext::WriteRegisters>()->regs;
-      }
+    struct Registers : register_t {
+      Registers() {}
+      Registers(InvocationBuf* ib)
+        : register_t(ib->cast<protocol::ExecutionContext::WriteRegisters>()->regs)
+      {}
     };
 
-    RegsRef readRegisters(PortalRef pr, bool suspend);
-    PortalFutureRef<void> writeRegisters(PortalRef pr, register_t regs, bool resume);
-    PortalFutureRef<void> setFSGS(PortalRef pr, uintptr_t fs, uintptr_t gs);
-    PortalFutureRef<void> resume(PortalRef pr);
-    PortalFutureRef<void> suspend(PortalRef pr);
+    PortalFuture<Registers> readRegisters(PortalLock pr, bool suspend) {
+      return pr.invoke<protocol::ExecutionContext::ReadRegisters>(_cap, suspend);
+    }
+    PortalFuture<void> writeRegisters(PortalLock pr, register_t const& regs, bool resume) {
+      return pr.invoke<protocol::ExecutionContext::WriteRegisters>(_cap, resume, regs);
+    }
+    PortalFuture<void> setFSGS(PortalLock pr, uintptr_t fs, uintptr_t gs) {
+      return pr.invoke<protocol::ExecutionContext::SetFSGS>(_cap, fs,gs);
+    }
+    PortalFuture<void> resume(PortalLock pr) {
+      return pr.invoke<protocol::ExecutionContext::Resume>(_cap);
+    }
+    PortalFuture<void> suspend(PortalLock pr) {
+      return pr.invoke<protocol::ExecutionContext::Suspend>(_cap);
+    }
 
   protected:
     static void start(StartFun main, void* userctx);

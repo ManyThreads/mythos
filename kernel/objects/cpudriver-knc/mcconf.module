@@ -1,0 +1,7 @@
+# -*- mode:toml; -*-
+[module.objects-cpudriver-knc]
+    incfiles = [ "objects/CpuDriverKNC.hh", "mythos/protocol/CpuDriverKNC.hh" ]
+    kernelfiles = [ "objects/CpuDriverKNC.cc" ]
+
+[module.plugin-cpudriver-knc]
+    kernelfiles = [ "objects/PluginCpuDriverKNC.cc" ]

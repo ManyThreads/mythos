@@ -30,7 +30,7 @@
 #include "cpu/LAPIC.hh"
 #include "cpu/ctrlregs.hh"
 #include "boot/memory-layout.h"
-#include "boot/ACPIApicTopology.hh"
+#include "util/ACPIApicTopology.hh"
 #include "boot/DeployHWThread.hh"
 
 namespace mythos {

@@ -47,7 +47,7 @@ namespace mythos {
 
     void freeObject(CapPtr p) {
       ASSERT(start <= p && p < mark);
-      auto res = cm.deleteCap(*portal, p);
+      auto res = cm.deleteCap(*portal, p, 32);
       res.wait();
       ASSERT(res);
       freePtr(p);

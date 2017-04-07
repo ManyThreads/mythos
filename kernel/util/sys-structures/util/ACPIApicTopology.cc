@@ -23,8 +23,8 @@
  * 
  * Copyright 2014 Randolf Rotta, Maik Krüger, and contributors, BTU Cottbus-Senftenberg 
  */
-#include "boot/ACPIApicTopology.hh"
-#include "boot/ACPI.hh"
+#include "util/ACPIApicTopology.hh"
+#include "util/ACPI.hh"
 #include "boot/mlog.hh"
 
 namespace mythos {

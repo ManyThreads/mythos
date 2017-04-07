@@ -88,8 +88,6 @@ namespace mythos {
 
     PhysPtr& operator=(PhysPtr rhs) { ptr = rhs.ptr; return *this; }
 
-    operator size_t () const = delete;
-    //void* phys() const { return reinterpret_cast<void*>(ptr); }
     uintptr_t physint() const { return ptr; }
 
     uintptr_t logint() const {

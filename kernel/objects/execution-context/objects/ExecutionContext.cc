@@ -428,7 +428,7 @@ namespace mythos {
         threadState.rsi = 0;
         threadState.rdi = uint64_t(Error::NO_MESSAGE);
       }
-      MLOG_DETAIL(mlog::syscall, DVARhex(threadState.rsi), DVAR(threadState.rdi));
+      //MLOG_DETAIL(mlog::ec, DVARhex(threadState.rsi), DVAR(threadState.rdi));
     }
 
     // remove myself from the last place's current_ec if still there
@@ -448,11 +448,12 @@ namespace mythos {
       lastPlace = thisPlace;
       thisPlace->store(this);
       auto info = as->getPageMapInfo(as.cap());
-      MLOG_INFO(mlog::ec, "load addrspace", DVAR(this), DVARhex(info.table.physint()));
+      MLOG_DETAIL(mlog::ec, "load addrspace", DVAR(this), DVARhex(info.table.physint()));
       getLocalPlace().setCR3(info.table);
       /// @todo restore FPU and vector state
     }
 
+    MLOG_INFO(mlog::ec, "resuming", DVAR(this), DVARhex(threadState.rip), DVARhex(threadState.rsp));
     cpu::return_to_user();
   }
 
