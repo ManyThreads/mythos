@@ -67,6 +67,6 @@
 #define KERNELSTACKS_ADDR   0xffff800100200000
 
 #define BOOT_STACK_SIZE     2*4096
-#define CORE_STACK_SIZE     4096
+#define CORE_STACK_SIZE     2*4096
 #define NMI_STACK_SIZE      512
 #define BOOT_MAX_THREADS    256

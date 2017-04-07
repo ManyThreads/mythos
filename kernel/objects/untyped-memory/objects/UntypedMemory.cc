@@ -152,11 +152,13 @@ void UntypedMemory::free(Tasklet* t, IResult<void>* r, void* start, size_t lengt
       } );
   }
 
+  /// @todo return optional<void> instead of Error and use RETHROW instead of return x.state()
   Error UntypedMemory::invokeCreate(Tasklet*, Cap self, IInvocation* msg)
   {
     auto ib = msg->getMessage();
     auto data = ib->read<protocol::UntypedMemory::CreateBase>();
 
+    MLOG_DETAIL(mlog::um, "create", DVAR(data.dstSpace()), DVAR(data.dstPtr));
     optional<CapEntry*> dstEntry;
     if (data.dstSpace() == null_cap) { // direct address
       dstEntry = msg->lookupEntry(data.dstPtr, 32, true); // lookup for write access
@@ -169,9 +171,11 @@ void UntypedMemory::free(Tasklet* t, IResult<void>* r, void* start, size_t lengt
       dstEntry = dstEntryRef->entry;
     }
 
+    MLOG_DETAIL(mlog::um, "create", DVAR(*dstEntry), DVAR(data.factory()));
     TypedCap<IFactory> factory(msg->lookupEntry(data.factory()));
-    if (!factory) return factory.state();
+    if (!factory) return factory;
 
+    MLOG_DETAIL(mlog::um, "create", DVAR(*factory));
     if (!dstEntry->acquire()) return Error::LOST_RACE;
     auto res = factory->factory(*dstEntry, msg->getCapEntry(), self, this, msg);
     if (res != Error::SUCCESS) dstEntry->reset();

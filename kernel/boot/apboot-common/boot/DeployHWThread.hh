@@ -55,7 +55,7 @@ namespace mythos {
 
 struct DeployHWThread
 {
-  ALIGN_4K static char stackspace[CORE_STACK_SIZE*BOOT_MAX_THREADS] ;
+  ALIGN_4K static char stackspace[CORE_STACK_SIZE*BOOT_MAX_THREADS];
   ALIGN_4K static char nmistackspace[NMI_STACK_SIZE*BOOT_MAX_THREADS];
 
   /** pointers to the AP stacks indexed by APIC ID */

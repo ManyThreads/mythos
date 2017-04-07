@@ -71,11 +71,11 @@ void mapLapic(uintptr_t phys)
 
 uintptr_t initKernelStack(size_t idx, uintptr_t paddr)
 {
-  static_assert(CORE_STACK_SIZE == 4096, "failed assumption about kernel layout");
-  idx = 2*idx+1;
-  devices_pml1[512 + idx] = PRESENT + WRITE + ACCESSED + DIRTY + GLOBAL + paddr;
-  return KERNELSTACKS_ADDR + 4096*idx + CORE_STACK_SIZE;
+  static_assert(CORE_STACK_SIZE == 2*4096, "failed assumption about kernel layout");
+  devices_pml1[512 + 3*idx + 1] = PRESENT + WRITE + ACCESSED + DIRTY + GLOBAL + paddr;
+  devices_pml1[512 + 3*idx + 2] = PRESENT + WRITE + ACCESSED + DIRTY + GLOBAL + paddr;
+  return KERNELSTACKS_ADDR + 4096*(3*idx + 3); // return uppermost vaddr of the stack
 }
 
-  } // boot
+  } // namespace boot
 } // namespace mythos

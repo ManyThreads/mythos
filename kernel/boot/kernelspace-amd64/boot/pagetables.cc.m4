@@ -39,12 +39,13 @@ namespace mythos {
 namespace boot {
 
 ALIGN_4K uint64_t devices_pml1[] = {
-  INVALID, // dummy entry to get distance to the kernel memory
+  INVALID, // dummy entry to separate from the kernel memory
   // vaddr 0xffff8001 00001000 (LAPIC_ADDR)
   INVALID, // LAPIC mapping
 forloop(`i',2,511,`  INVALID, // i'NL)dnl
 
-  // kernel stacks: 4KiB for each hardware thread with a free page inbetween
+  // kernel stacks: 16KiB for each hardware thread with a free page inbetween, max 340 stacks
+  forloop(`i',0,511,`  INVALID, // i'NL)dnl
   forloop(`i',0,511,`  INVALID, // i'NL)dnl
 };
 
@@ -53,8 +54,9 @@ ALIGN_4K uint64_t devices_pml2[] = {
   PRESENT + WRITE + USER + ACCESSED + table_to_phys_addr(devices_pml1,0), // LAPIC
   // vaddr 0xffff8001 00200000 (KERNELSTACKS_ADDR)
   PRESENT + WRITE + USER + ACCESSED + table_to_phys_addr(devices_pml1,1), // kernel stacks
-  // vaddr 0xffff8001 00400000 (usable for additional hardware like XeonPhi's MMIO registers)
-forloop(`i',2,511,`  INVALID, // i'NL)dnl
+  PRESENT + WRITE + USER + ACCESSED + table_to_phys_addr(devices_pml1,2), // kernel stacks
+  // vaddr 0xffff8001 00600000 (usable for additional hardware like XeonPhi's MMIO registers)
+forloop(`i',3,511,`  INVALID, // i'NL)dnl
 };
 
   /// @todo add more functions like initKernelStack, but compute index from logical address, including  assertions.

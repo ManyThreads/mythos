@@ -3,7 +3,7 @@
     incfiles = [ "boot/memory-layout.h", "boot/DeployKernelSpace.hh", "boot/mlog.hh" ]
     kernelfiles = [ "boot/start.S", "boot/DeployKernelSpace.cc", "boot/mlog.cc" ]
     requires = [ "tag/platform/knc", "symbol/entry_ap", "symbol/entry_bsp", ] # "symbol/host_info"
-    provides = [ "boot64.elf", "symbol/host_info_ptr" ]
+    provides = [ "boot64.elf", "symbol/host_info_ptr", "symbol/_mboot_table", "symbol/_mboot_magic" ]
 
     makefile_head = '''
 TARGETS += boot64.elf

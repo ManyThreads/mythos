@@ -27,7 +27,7 @@
 #include "boot/kmem.hh"
 #include "boot/kmem-common.hh"
 #include "util/PhysPtr.hh"
-#include "boot/MultiBoot.hh"
+#include "util/MultiBoot.hh"
 #include "boot/mlog.hh"
 
 namespace mythos {
@@ -36,7 +36,7 @@ namespace mythos {
 extern uint64_t _mboot_magic SYMBOL("_mboot_magic");
 extern uint64_t _mboot_table SYMBOL("_mboot_table");
 extern char KERN_END SYMBOL("KERN_END");
-    
+
 void initKernelMemory(UntypedMemory& um)
 {
   KernelMemoryRange<30> usable_mem;
@@ -58,9 +58,8 @@ void initKernelMemory(UntypedMemory& um)
 
   usable_mem.removeKernelReserved();
   usable_mem.addToUM(um);
-  // TODO create array of frame objects for remaining memory above 4GiB
+  /// @todo create array of frame objects for remaining memory above 4GiB
 }
-
 
   } // namespace boot
 } // namespace mythos

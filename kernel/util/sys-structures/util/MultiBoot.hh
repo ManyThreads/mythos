@@ -8,10 +8,10 @@
  * modify, merge, publish, distribute, sublicense, and/or sell copies
  * of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
  * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
@@ -20,8 +20,8 @@
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
- * 
- * Copyright 2014 Randolf Rotta, Maik Krüger, and contributors, BTU Cottbus-Senftenberg 
+ *
+ * Copyright 2014 Randolf Rotta, Maik Krüger, and contributors, BTU Cottbus-Senftenberg
  */
 #pragma once
 
@@ -29,7 +29,7 @@
 #include <cstdint> // for uint64_t
 
 namespace mythos {
-  
+
   namespace MultiBoot {
     enum Constants {
       MAGIC=0x2BADB002
@@ -61,15 +61,15 @@ namespace mythos {
       uint32_t type;
     } __attribute__((packed));
 
-    struct Info {
-      uint32_t getFlags() const { return flags; }
+    struct Info
+    {
       bool hasMemorySize() const { return flags & (1 << 0); }
       bool hasBootDevice() const { return flags & (1 << 1); }
       bool hasCommandLine() const { return flags & (1 << 2); }
       bool hasModules() const { return flags & (1 << 3); }
       bool hasSymbols() const { return flags & (3 << 4); }
       bool hasMMap() const { return flags & (1 << 6); }
-      
+
       uint64_t getLowMemorySize() const { return mem_lower*1024l; }
       uint64_t getHighMemorySize() const { return mem_upper*1024l; }
 
@@ -81,8 +81,8 @@ namespace mythos {
       uint32_t mods_count;
       uint32_t mods_addr;
       union {
-	AOutSymbols aout_sym;
-	ELFHeader elf_sec;
+        AOutSymbols aout_sym;
+        ELFHeader elf_sec;
       } u;
       uint32_t mmap_length;
       PhysPtr32<MMapEntry> mmap_addr;
@@ -106,7 +106,7 @@ namespace mythos {
   public:
     typedef MultiBoot::MMapEntry const MMapEntry;
     typedef MultiBoot::Info const Info;
-    
+
     MultiBootInfo(uint64_t multiboot_table)
       : mbi(multiboot_table)
     {}
@@ -126,6 +126,8 @@ namespace mythos {
         f(m);
       }
     }
+
+    Info* operator-> () const { return mbi.log(); }
 
   protected:
     PhysPtr<Info> mbi;

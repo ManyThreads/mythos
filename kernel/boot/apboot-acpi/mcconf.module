@@ -1,5 +1,5 @@
 # -*- mode:toml; -*-
 [module.apboot-acpi]
-    incfiles = [ "boot/apboot.hh", "boot/ACPI.hh", "boot/ACPIApicTopology.hh" ]
-    kernelfiles = [ "boot/apboot.cc", "boot/ACPIApicTopology.cc" ]
+    incfiles = [ "boot/apboot.hh" ]
+    kernelfiles = [ "boot/apboot.cc" ]
     requires = [ "tag/boot/acpi" ]

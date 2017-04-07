@@ -37,13 +37,14 @@ namespace mythos {
     for (size_t i=0; i<SIZE; i++)
       table[i].setKernelIRQ(interrupt_entry_table[i], SEGMENT_KERNEL_CS, 0);
   }
-  
+
   void IdtAmd64::init() {
     MLOG_DETAIL(mlog::boot, "init IDT with entry handlers at", (void*)interrupt_entry_table[0]);
     initEarly();
     // mark interrupts that shall be executed on the nmi stack
     table[2].setIST(1); // NMI Non-Maskable Interrupt
     table[8].setIST(1); // DF Double Fault
+    table[0xe].setIST(1); // Page Fault, because the kernel stack might be full
   }
 
 } // namespace mythos

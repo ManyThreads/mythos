@@ -27,7 +27,7 @@
 #include "boot/kmem.hh"
 #include "boot/kmem-common.hh"
 #include "util/PhysPtr.hh"
-#include "boot/E820.hh"
+#include "util/E820.hh"
 #include "boot/mlog.hh"
 
 namespace mythos {

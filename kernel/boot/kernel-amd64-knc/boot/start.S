@@ -45,6 +45,26 @@ _host_info_ptr:
 _host_debug_info:
         .quad   0
 
+/** magic number for the Multiboot header. */
+#define MULTIBOOT_HEADER_MAGIC          0x1BADB002
+
+/** multiboot flags towards the bootloader.
+ *
+ * https://www.gnu.org/software/grub/manual/multiboot/multiboot.html
+ * If bit 0 in the ‘flags’ word is set, then all boot modules loaded along with the operating system must be aligned on page (4KB) boundaries.
+ * If bit 1 in the ‘flags’ word is set, then information on available memory via at least the ‘mem_*’ fields of the Multiboot information structure must be included. If the boot loader is capable of passing a memory map (the ‘mmap_*’ fields) and one exists, then it may be included as well.
+ * If bit 2 in the ‘flags’ word is set, information about the video mode table must be available to the kernel.
+ * If bit 16 in the ‘flags’ word is set, then the fields at offsets 12-28 in the Multiboot header are valid, and the boot loader should use them instead of the fields in the actual executable header to calculate where to load the OS image. This information does not need to be provided if the kernel image is in elf format.
+ */
+#define MULTIBOOT_HEADER_FLAGS          0x00000000
+        
+.align  4
+/** multiboot header: just magic, flags and checksum without the optional fields */
+_mboot_header:
+        .long MULTIBOOT_HEADER_MAGIC
+        .long MULTIBOOT_HEADER_FLAGS
+        .long -(MULTIBOOT_HEADER_MAGIC+MULTIBOOT_HEADER_FLAGS)
+        
 /** Global Descriptor Table (GDT) during boot wiht five segments.
  * see 3.4.5.1 Code- and Data-Segment Descriptor Types in Intel 253668-048US.
  * granularity 0xa0 = 10100000b => limit granularity 4kb, operand size unset, 64bit mode
@@ -70,13 +90,25 @@ _boot_gdt:
         .word   _boot_gdt_end - _boot_gdt_start - 1     // limit: length of the GDT
         .quad   _boot_gdt_start                 // base
 
+.align 8
+.global _mboot_table
+_mboot_table:   .quad   0
+.global _mboot_magic
+_mboot_magic:   .quad   0
+
 /* start code for the bootstrap processor BSP, i.e. the first core */
 .code64
 .align  8
 .global _start_bsp
 .type _start_bsp, @function
 _start_bsp:
-        // movq $__LINE__, _host_debug_info
+        movq $__LINE__, _host_debug_info
+        // eax and ebx contains the multiboot magic and table pointer,
+        // lets store this for later.
+        mov %rax, _mboot_magic
+        mov %rbx, _mboot_table
+
+        movq $__LINE__, _host_debug_info
         // activate the initial page table
         mov     $0xc0000080, %rcx       // select the EFER MSR
         rdmsr                           // read EFER

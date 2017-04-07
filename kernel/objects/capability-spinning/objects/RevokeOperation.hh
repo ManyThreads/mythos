@@ -63,7 +63,7 @@ public:
   void revokeCap(Tasklet* t, result_t* res, CapEntry& entry, IKernelObject* guarded)
   {
     monitor.request(t, [=, &entry](Tasklet* t) {
-      MLOG_ERROR(mlog::cap, "revoke cap called");
+      MLOG_INFO(mlog::cap, "revoke cap called");
       _revoke(t, res, entry, guarded);
     });
   }
@@ -71,6 +71,7 @@ public:
   void deleteCap(Tasklet* t, result_t* res, CapEntry& entry, IKernelObject* guarded)
   {
     monitor.request(t, [=, &entry](Tasklet* t) {
+      MLOG_INFO(mlog::cap, "delete cap called");
       _delete(t, res, entry, guarded);
     });
   }
@@ -86,12 +87,12 @@ public:
 
   bool acquire() {
     auto result = !_lock.test_and_set();
-    MLOG_ERROR(mlog::cap, DVAR(this), "acquire ops =>", result);
+    //MLOG_ERROR(mlog::cap, "acquire ops =>", result);
     return result;
   }
 
   void release() {
-    MLOG_ERROR(mlog::cap, DVAR(this), "release ops");
+    //MLOG_ERROR(mlog::cap, "release ops");
     _lock.clear();
   };
 
