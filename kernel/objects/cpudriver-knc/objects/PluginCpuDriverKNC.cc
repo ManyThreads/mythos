@@ -25,7 +25,7 @@
  */
 
 #include "objects/CpuDriverKNC.hh"
-#include "plugin/Plugin.hh"
+#include "plugins/Plugin.hh"
 #include "boot/load_init.hh"
 #include "mythos/init.hh"
 

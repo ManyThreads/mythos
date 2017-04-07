@@ -38,6 +38,7 @@
 #include <memory>
 #include <signal.h>
 #include <fcntl.h>
+#include <thread>
 
 using namespace mythos;
 class mic_ctrl;
