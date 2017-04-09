@@ -8,10 +8,10 @@
  * modify, merge, publish, distribute, sublicense, and/or sell copies
  * of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
  * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
@@ -20,10 +20,9 @@
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
- * 
- * Copyright 2014 Randolf Rotta, Maik Krüger, and contributors, BTU Cottbus-Senftenberg 
+ *
+ * Copyright 2014 Randolf Rotta, Maik Krüger, and contributors, BTU Cottbus-Senftenberg
  */
-/* -*- mode:C++; -*- */
 
 #include "host/MemMapperPci.hh"
 #include "util/alignments.hh"
@@ -36,7 +35,6 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <cstdlib>
-#include <sys/stat.h>
 #include <unistd.h> // for close()
 #include <stdexcept>
 
@@ -47,18 +45,18 @@ namespace mythos {
     aper_fd = ::open(resource.c_str(), O_RDWR);
     if (aper_fd == -1) throw std::runtime_error("could not open memory");
   }
-  
+
   MemMapperPci::~MemMapperPci()
   {
     ::close(aper_fd);
   }
-    
+
   void* MemMapperPci::map(PhysPtr<void> paddr, size_t len)
   {
     size_t base = Align4k::round_down(paddr.physint());
-    size_t pagelen = Align4k::round_up(len+paddr.physint()-base);
+    size_t pagelen = Align4k::round_up(len+paddr.physint())-base;
     void* aper_va = ::mmap(0, pagelen, PROT_READ|PROT_WRITE, MAP_SHARED, aper_fd, base);
-    std::cout << "mmap " << (void*)paddr.physint() << " size " << len
+    std::cerr << "mmap " << (void*)paddr.physint() << " size " << len
 	      << " base " << (void*)base << " pagelen " << pagelen
 	      << " aper_va " << aper_va << std::endl;
     if (aper_va == MAP_FAILED) throw std::runtime_error("mmap failed");
@@ -68,7 +66,7 @@ namespace mythos {
   void MemMapperPci::unmap(void const* vaddr, size_t len)
   {
     size_t base = Align4k::round_down(size_t(vaddr));
-    size_t pagelen = Align4k::round_up(len+size_t(vaddr)-base);
+    size_t pagelen = Align4k::round_up(len+size_t(vaddr))-base;
     ::munmap((void*)base, pagelen);
   }
 

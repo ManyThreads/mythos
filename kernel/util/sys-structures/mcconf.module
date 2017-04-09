@@ -1,0 +1,19 @@
+# -*- mode:toml; -*-
+[module.util-elf64]
+    incfiles = [ "util/elf64.hh" ]
+
+[module.util-e820]
+    incfiles = [ "util/E820.hh" ]
+
+[module.util-multiboot]
+    incfiles = [ "util/MultiBoot.hh" ]
+
+[module.util-sfi]
+    incfiles = [ "util/SFI.hh" ]
+
+[module.util-acpi]
+    incfiles = [ "util/ACPI.hh", "util/ACPIApicTopology.hh"  ]
+    kernelfiles = [ "util/ACPIApicTopology.cc" ]
+
+[module.util-intelmp]
+    incfiles = [ "util/MPApicTopology.hh" ]

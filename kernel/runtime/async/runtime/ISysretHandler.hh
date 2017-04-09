@@ -25,6 +25,7 @@
  */
 #pragma once
 
+#include "app/mlog.hh"
 #include "mythos/syscall.hh"
 
 namespace mythos {

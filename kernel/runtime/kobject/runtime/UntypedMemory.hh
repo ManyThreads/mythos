@@ -27,6 +27,7 @@
 
 #include "runtime/PortalBase.hh"
 #include "mythos/protocol/UntypedMemory.hh"
+#include "mythos/init.hh"
 
 namespace mythos {
 
@@ -35,9 +36,10 @@ namespace mythos {
   public:
     UntypedMemory(CapPtr cap) : KObject(cap) {}
 
-    PortalFutureRef<void> create(PortalRef pr, UntypedMemory kmem, CapPtr factory,
-                                 size_t size, size_t alignment) {
-      return pr.tryInvoke<protocol::UntypedMemory::Create>(kmem.cap(), _cap, factory, size, alignment);
+    PortalFuture<void> create(PortalLock pr, UntypedMemory kmem,
+                              size_t size, size_t alignment,
+                              CapPtr factory=init::UNTYPED_MEMORY_FACTORY) {
+      return pr.invoke<protocol::UntypedMemory::Create>(kmem.cap(), _cap, factory, size, alignment);
     }
   };
 

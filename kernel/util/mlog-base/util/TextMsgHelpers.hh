@@ -76,13 +76,13 @@ namespace mlog {
   template<class S, class T>
   inline ostream_base<S>& operator<< (ostream_base<S>& out,
 				      DebugVarHex<mythos::PhysPtr<T>> const& v) {
-    out << v.name << "=" << v.value.phys(); return out;
+    out << v.name << "=" << v.value.physint(); return out;
   }
 
   template<class S, class T>
   inline ostream_base<S>& operator<< (ostream_base<S>& out,
 				      DebugVarHex<mythos::PhysPtr32<T>> const& v) {
-    out << v.name << "=" << v.value.phys(); return out;
+    out << v.name << "=" << v.value.physint(); return out;
   }
 
 #define DVARhex(var) mlog::DebugVarHex<decltype(var)>(#var,var)

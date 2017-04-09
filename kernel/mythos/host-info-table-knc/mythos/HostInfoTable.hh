@@ -25,7 +25,6 @@
  */
 #pragma once
 
-#include "util/PhysPtr.hh"
 #include "mythos/PciMsgQueueMPSC.hh"
 
 namespace mythos {
@@ -37,6 +36,8 @@ namespace mythos {
     typedef PCIeRingChannel<128,8> CtrlChannel;
     uintptr_t ctrlOut;
     uintptr_t ctrlIn;
+    uintptr_t initMem;
+    uint64_t  initMemSize;
   };
 
   struct DebugMsg
@@ -48,5 +49,5 @@ namespace mythos {
       HostInfoTable::DebugChannel::DATASIZE-2*sizeof(uint64_t)-sizeof(uint16_t);
     char data[PAYLOAD];
   };
-  
+
 } // namespace mythos

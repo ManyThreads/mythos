@@ -33,22 +33,25 @@
 
 .section .init, "awx"  // the following code and data is in the low memory init section
 
-/* The magic number for the Multiboot header. */
+/** magic number for the Multiboot header. */
 #define MULTIBOOT_HEADER_MAGIC          0x1BADB002
-//#define MULTIBOOT_HEADER_FLAGS          0x00000003
+
+/** multiboot flags towards the bootloader.
+ *
+ * https://www.gnu.org/software/grub/manual/multiboot/multiboot.html
+ * If bit 0 in the ‘flags’ word is set, then all boot modules loaded along with the operating system must be aligned on page (4KB) boundaries.
+ * If bit 1 in the ‘flags’ word is set, then information on available memory via at least the ‘mem_*’ fields of the Multiboot information structure must be included. If the boot loader is capable of passing a memory map (the ‘mmap_*’ fields) and one exists, then it may be included as well.
+ * If bit 2 in the ‘flags’ word is set, information about the video mode table must be available to the kernel.
+ * If bit 16 in the ‘flags’ word is set, then the fields at offsets 12-28 in the Multiboot header are valid, and the boot loader should use them instead of the fields in the actual executable header to calculate where to load the OS image. This information does not need to be provided if the kernel image is in elf format.
+ */
 #define MULTIBOOT_HEADER_FLAGS          0x00000000
 
-/* This seems to be useful but not necessary, works without in bochs and qemu, conflicts in gem5.
- * If bit 0 in the ‘flags’ word is set, then all boot modules loaded along with the operating system must be aligned on page (4KB) boundaries. Some operating systems expect to be able to map the pages containing boot modules directly into a paged address space during startup, and thus need the boot modules to be page-aligned.
- * If bit 1 in the ‘flags’ word is set, then information on available memory via at least the ‘mem_*’ fields of the Multiboot information structure (see Boot information format) must be included. If the boot loader is capable of passing a memory map (the ‘mmap_*’ fields) and one exists, then it may be included as well.
-*/
-
 .align  4
+/** multiboot header: just magic, flags and checksum without the optional fields */
 _mboot_header:
         .long MULTIBOOT_HEADER_MAGIC
         .long MULTIBOOT_HEADER_FLAGS
         .long -(MULTIBOOT_HEADER_MAGIC+MULTIBOOT_HEADER_FLAGS)
-
 
 /** Global Descriptor Table (GDT) during boot wiht five segments.
  * see 3.4.5.1 Code- and Data-Segment Descriptor Types in Intel 253668-048US.
@@ -78,6 +81,10 @@ _boot_gdt:
 _mboot_table:   .quad   0
 .global _mboot_magic
 _mboot_magic:   .quad   0
+
+/* just for testing */
+.global _host_info_ptr
+_host_info_ptr:   .quad   0
 
 /* start code for the bootstrap processor BSP, i.e. the first core */
 .code32

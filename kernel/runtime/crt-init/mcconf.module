@@ -1,0 +1,15 @@
+# -*- mode:toml; -*-
+[module.app-common]
+    crtfiles = [ "app/start.S", "app/crtend.S", "app/crtbegin.cc" ]
+    provides = [ "crtbegin" ]
+    requires = [ "runtime/cxxsupport.cc", "runtime/DebugSink.cc" ]
+
+    makefile_head = '''
+# disable features which might require runtime support we don't have
+APP_CXXFLAGS += -fno-exceptions -fno-rtti -fno-stack-protector
+
+CRT_CXX = $(APP_CXX)
+CRT_AS = $(APP_AS)
+CRT_CXXFLAGS = $(APP_CXXFLAGS)
+CRT_CPPFLAGS = $(APP_CPPFLAGS)
+'''

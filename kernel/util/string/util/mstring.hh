@@ -38,12 +38,9 @@ namespace mythos {
     return dst;
   }
 
-  inline void* memset(void* dst, int value, size_t count) {
+  inline void* memset(void* dst, char value, size_t count) {
     char* d = reinterpret_cast<char*>(dst);
-    char s = (char)value;
-    for(size_t index = 0; index < count; index++){
-      d[index] = s;
-    }
+    for(size_t index = 0; index < count; index++) d[index] = value;
     return dst;
   }
 
@@ -63,6 +60,6 @@ namespace mythos {
   }
 
   template<size_t N>
-    inline size_t strlen(const char[N]) { return N; }
-  
+  inline size_t strlen(const char[N]) { return N; }
+
 } // namespace mythos

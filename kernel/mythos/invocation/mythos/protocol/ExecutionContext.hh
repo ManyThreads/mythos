@@ -66,6 +66,7 @@ namespace mythos {
         uint64_t fs_base, gs_base;
       };
 
+      // has WriteRegisters message as result
       struct ReadRegisters : public InvocationBase {
         constexpr static uint16_t label = (proto<<8) + READ_REGISTERS;
         ReadRegisters(bool suspend)

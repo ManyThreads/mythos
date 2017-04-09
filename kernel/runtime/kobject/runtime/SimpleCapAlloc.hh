@@ -28,50 +28,63 @@
 #include "runtime/CapMap.hh"
 #include "runtime/Portal.hh"
 #include "util/optional.hh"
+#include <atomic>
 
 namespace mythos {
 
   class SimpleCapAlloc
   {
   public:
-    SimpleCapAlloc(Portal* portal, CapMap cm, uint32_t start, uint32_t count)
-      : portal(portal), cm(cm), start(start), end(start+count), mark(start) {}
+    SimpleCapAlloc(uint32_t start, uint32_t count)
+      : start(start), end(uint64_t(start)+count), mark(start) {}
 
-    optional<CapPtr> alloc() {
-      if (mark >= end) THROW(Error::INSUFFICIENT_RESOURCES);
-      mark++;
-      return CapPtr(mark-1);
+    CapPtr alloc() {
+      uint64_t o = mark;
+      do {
+        if (o>=end) return mythos::init::NULLCAP;
+      } while (!mark.compare_exchange_weak(o, o+1));
+      return CapPtr(o);
     }
 
-    void freeObject(KObject p) { freeObject(p.cap()); }
+    CapPtr operator() () { return alloc(); }
 
-    void freeObject(CapPtr p) {
+  protected:
+    uint64_t start;
+    uint64_t end;
+    std::atomic<uint64_t> mark;
+  };
+
+  class SimpleCapAllocDel : public SimpleCapAlloc
+  {
+  public:
+    SimpleCapAllocDel(Portal& portal, CapMap cs, uint32_t start, uint32_t count)
+      : SimpleCapAlloc(start, count), portal(&portal), cs(cs) {}
+
+    optional<void> free(KObject p, PortalLock& pl) { return free(p.cap(), pl); }
+    optional<void> free(CapPtr p, PortalLock& pl) {
       ASSERT(start <= p && p < mark);
-      auto res = cm.deleteCap(*portal, p);
-      res.wait();
-      ASSERT(res);
-      freePtr(p);
-      res.close();
+      return optional<void>(cs.deleteCap(pl, p).wait().state());
     }
-
-    void freePtr(CapPtr) {}
-
-    void freeAllObjects() {
+    void freeAll(PortalLock& pl) {
       for (uint32_t i=start; i < mark; i++) {
-        auto res = cm.deleteCap(*portal, CapPtr(i));
-        res.wait();
-        freePtr(CapPtr(i));
-        res.close();
+        cs.deleteCap(pl, CapPtr(i)).wait();
       }
       mark = start;
     }
 
+    optional<void> free(KObject p) { return free(p.cap()); }
+    optional<void> free(CapPtr p) {
+      mythos::PortalLock pl(*portal);
+      return free(p, pl);
+    }
+    void freeAll() {
+      mythos::PortalLock pl(*portal);
+      freeAll(pl);
+    }
+
   protected:
     Portal* portal;
-    CapMap cm;
-    uint32_t start;
-    uint32_t end;
-    uint32_t mark;
+    CapMap cs;
   };
 
 } // namespace mythos

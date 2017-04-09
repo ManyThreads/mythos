@@ -29,7 +29,7 @@
 #include "cpu/LAPIC.hh"
 #include "cpu/ctrlregs.hh"
 #include "boot/memory-layout.h"
-#include "boot/SFI.hh"
+#include "util/SFI.hh"
 #include "boot/DeployHWThread.hh"
 
 namespace mythos {

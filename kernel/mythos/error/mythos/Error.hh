@@ -31,32 +31,32 @@ namespace mythos {
 
   enum struct Error : uint8_t
   {
-    SUCCESS = 0,
-    UNSET = 1,    // the error value never has been set, do not use as return value
-    INHIBIT,      // not really an error, just tells that result will be sent later
-    GENERIC_ERROR, /// @todo eliminate this and replace by useful information
-    INVALID_CAPABILITY,
-    INVALID_ARGUMENT,
-    NON_CANONICAL_ADDRESS,
-    UNALIGNED,
-    INSUFFICIENT_RESOURCES,
-    LOST_RACE,
-    RETRY,
-    NO_MESSAGE,
-    TYPE_MISMATCH,
-    NOT_IMPLEMENTED,
-    CAP_NONEMPTY,
-    NOT_KERNELMEM,
-    CYCLIC_DEPENDENCY,
-    PORTAL_NOT_OPEN,
-    PORTAL_NOT_INVOKED,
-    PORTAL_NO_BUFFER,
-    PORTAL_NO_ENDPOINT,
-    NO_LOOKUP,
-    INVALID_REQUEST,
-    REQUEST_DENIED,
-    PAGEMAP_MISSING,
-    PAGEMAP_NOCONF
+    SUCCESS                = 0,
+    UNSET                  = 1, // the error value never has been set, do not use as return value
+    INHIBIT                = 2, // not really an error, just tells that result will be sent later
+    GENERIC_ERROR          = 3, /// @todo eliminate this and replace by useful information
+    INVALID_CAPABILITY     = 4,
+    INVALID_ARGUMENT       = 5,
+    NON_CANONICAL_ADDRESS  = 6,
+    UNALIGNED              = 7,
+    INSUFFICIENT_RESOURCES = 8,
+    LOST_RACE              = 9,
+    RETRY                  = 10,
+    NO_MESSAGE             = 11,
+    TYPE_MISMATCH          = 12,
+    NOT_IMPLEMENTED        = 13,
+    CAP_NONEMPTY           = 14,
+    NOT_KERNELMEM          = 15,
+    CYCLIC_DEPENDENCY      = 16,
+    PORTAL_NOT_OPEN        = 17,
+    PORTAL_NOT_INVOKED     = 18,
+    PORTAL_NO_BUFFER       = 19,
+    PORTAL_NO_ENDPOINT     = 20,
+    NO_LOOKUP              = 21,
+    INVALID_REQUEST        = 22,
+    REQUEST_DENIED         = 23,
+    PAGEMAP_MISSING        = 24,
+    PAGEMAP_NOCONF         = 25
   };
 
 } // namespace mythos

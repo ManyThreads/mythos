@@ -54,7 +54,8 @@ namespace async {
       }
       msg = queue.pull();
     }
-    ASSERT(!queue.isLocked());
+    // this assertion races with concurrent push operations
+    //OOPS(!queue.isLocked());
     nestingMonitor.store(false); // release?
   }
 

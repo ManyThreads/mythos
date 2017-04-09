@@ -27,7 +27,7 @@
 
 #include "boot/memory-layout-common.h"
 
-#define MMIO_ADDR           0xffff800100400000
+#define MMIO_ADDR           0xffff800100600000
 #define MMIO_PHYS           0x0000000800600000
 #define MMIO_SIZE           0x0000000000200000 /* 2MiB */
 #define SBOX_BASE           0x00000000001D0000
