@@ -1,0 +1,5 @@
+COMPILE:
+gcc smd_pthraed.c -O2 -lpthread -lm -o smd
+
+RUN:
+smd NumberAtoms NumberIterations [THREADS]
