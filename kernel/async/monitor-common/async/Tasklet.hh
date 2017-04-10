@@ -36,7 +36,7 @@ namespace mythos {
 class TaskletBase
 {
 public:
-  std::atomic<TaskletBase*> nextTasklet;
+  std::atomic<uintptr_t> nextTasklet;
 };
 
 /** Actual Tasklet implementation. All users of Tasklets expect at least the size of one cacheline. */
@@ -45,6 +45,11 @@ class alignas(64) Tasklet
 {
 public:
   static constexpr size_t CLSIZE = 64;
+  constexpr static uintptr_t FREE = 0; // used by TaskletQueue
+  constexpr static uintptr_t INCOMPLETE = 1; // used by TaskletQueue: insertion is still in progress
+  constexpr static uintptr_t LOCKED = 2; // used by TaskletQueue
+  constexpr static uintptr_t UNUSED = 3; // the Tasklet is neither initialised nor in a queue
+  constexpr static uintptr_t INIT = 4; // the Tasklet is initialised
 
   typedef void(*FunPtr)(Tasklet*);
 
@@ -53,6 +58,18 @@ public:
   Tasklet() : handler(nullptr) {}
 
   Tasklet(const Tasklet&) = delete;
+
+#ifdef NDEBUG
+    bool isInit() { return true; }
+    void setInit() {}
+    bool isUnused() { return true; }
+    void setUnused() {}
+#else
+    bool isInit() { return nextTasklet == INIT; }
+    void setInit() { nextTasklet = INIT; }
+    bool isUnused() { return nextTasklet == UNUSED; }
+    void setUnused() { nextTasklet = UNUSED; }
+#endif
 
   void run() {
     ASSERT(handler > FunPtr(VIRT_ADDR));

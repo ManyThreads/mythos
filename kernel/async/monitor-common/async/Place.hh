@@ -72,8 +72,9 @@ public:
   }
 
   void pushShared(Tasklet* msg) {
-    //MLOG_DETAIL(mlog::async, this, "push shared", msg);
-    if (queue.push(msg)) wakeup();
+    ASSERT(msg);
+    MLOG_DETAIL(mlog::async, this, "push shared", msg);
+    if (queue.push(*msg)) wakeup();
   }
 
   /** prepare the kernel's task processing. returns true if nested entry. */
@@ -93,8 +94,9 @@ public:
 protected:
   void pushPrivate(Tasklet* msg) {
     ASSERT(isLocal());
-    //MLOG_DETAIL(mlog::async, this, "push private", msg);
-    queue.pushPrivate(msg);
+    ASSERT(msg);
+    MLOG_DETAIL(mlog::async, this, "push private", msg);
+    queue.pushPrivate(*msg);
   }
 
   void wakeup() { mythos::lapic.sendIRQ(apicID, 32); }
@@ -102,8 +104,8 @@ protected:
 protected:
   size_t apicID; //< for wakeup signals
   std::atomic<bool> nestingMonitor;
-  TaskletQueue queue; //< for pending tasks
-  char padding[64-sizeof(apicID)-sizeof(nestingMonitor)-sizeof(queue)]; // TODO to ensure separate cache lines
+  TaskletQueueImpl<TaskletQueueBaseAligned> queue; //< for pending tasks
+  char padding[(sizeof(apicID)-sizeof(nestingMonitor)-sizeof(queue)) % 64]; // TODO to ensure separate cache lines
 
   PhysPtr<void> _cr3;
 };
