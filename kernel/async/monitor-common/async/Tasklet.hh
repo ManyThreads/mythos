@@ -55,7 +55,7 @@ public:
 
   static constexpr size_t PAYLOAD_SIZE = CLSIZE - sizeof(TaskletBase) - sizeof(FunPtr);
 
-  Tasklet() : handler(nullptr) {}
+  Tasklet() : handler(nullptr) { TaskletBase::nextTasklet = UNUSED; }
 
   Tasklet(const Tasklet&) = delete;
 
@@ -81,7 +81,7 @@ public:
   template<class FUNCTOR>
   Tasklet* set(FUNCTOR fun) {
     static_assert(sizeof(FUNCTOR) <= sizeof(payload), "tasklet payload is too big");
-    //ASSERT(isUnused());
+    ASSERT(isUnused());
     setInit();
     new(payload) FUNCTOR(std::move(fun));
     this->handler = &wrapper<FUNCTOR>;
