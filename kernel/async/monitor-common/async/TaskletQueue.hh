@@ -35,61 +35,44 @@ namespace async {
 
   class TaskletQueueBaseDefault {
   public:
-    TaskletQueueBaseDefault()
-      :privateTail_(Tasklet::FREE), sharedTail_(Tasklet::FREE)
-    {}
-
-    std::atomic<uintptr_t>& privateTail() {
-      return privateTail_;
-    }
-
-    std::atomic<uintptr_t>& sharedTail() {
-      return sharedTail_;
-    }
+    std::atomic<uintptr_t>& privateTail() { return privateTail_; }
+    std::atomic<uintptr_t>& sharedTail() { return sharedTail_; }
 
   private:
-    std::atomic<uintptr_t> privateTail_;
-    std::atomic<uintptr_t> sharedTail_;
+    std::atomic<uintptr_t> privateTail_ {Tasklet::FREE};
+    std::atomic<uintptr_t> sharedTail_ {Tasklet::FREE};
   };
 
   class TaskletQueueBaseAligned {
   public:
-    TaskletQueueBaseAligned()
-      :privateTail_(Tasklet::FREE), sharedTail_(Tasklet::FREE)
-    {}
-
-    std::atomic<uintptr_t>& privateTail() {
-      return privateTail_;
-    }
-
-    std::atomic<uintptr_t>& sharedTail() {
-      return sharedTail_;
-    }
+    std::atomic<uintptr_t>& privateTail() { return privateTail_; }
+    std::atomic<uintptr_t>& sharedTail() { return sharedTail_; }
 
   private:
-    alignas(64) std::atomic<uintptr_t> privateTail_;
-    alignas(64) std::atomic<uintptr_t> sharedTail_;
+    alignas(64) std::atomic<uintptr_t> privateTail_ {Tasklet::FREE};
+    alignas(64) std::atomic<uintptr_t> sharedTail_ {Tasklet::FREE};
   };
 
   template<typename BASE>
-  class TaskletQueueImpl
+  class TaskletQueueImpl : protected BASE
   {
-  private:
-    BASE base;
   public:
+    using BASE::sharedTail;
+    using BASE::privateTail;
+
     TaskletQueueImpl() {}
     TaskletQueueImpl(TaskletQueueImpl const&) = delete;
 
     ~TaskletQueueImpl() {
-      ASSERT(base.sharedTail() == Tasklet::FREE || base.sharedTail() == Tasklet::LOCKED);
-      ASSERT(base.privateTail() == Tasklet::FREE);
+      ASSERT(sharedTail() == Tasklet::FREE || sharedTail() == Tasklet::LOCKED);
+      ASSERT(privateTail() == Tasklet::FREE);
     }
 
-    bool isLocked() { return base.sharedTail() != Tasklet::FREE; }
+    bool isLocked() { return sharedTail() != Tasklet::FREE; }
 
     bool tryAcquire() {
       uintptr_t oldtail = Tasklet::FREE;
-      return base.sharedTail().compare_exchange_strong(oldtail, Tasklet::LOCKED, std::memory_order_relaxed);
+      return sharedTail().compare_exchange_strong(oldtail, Tasklet::LOCKED, std::memory_order_relaxed);
     }
 
     /** pushed a task into the shared queue and implicitly tries to
@@ -97,15 +80,13 @@ namespace async {
      * exclusive access because it was the first pushed task.
      */
     bool push(Tasklet& t) {
-
-      // TODO Some place injects an uninitialized Tasklet to the queue
-      // ASSERT(t.isInit());
+      ASSERT(t.isInit());
 
       // mark new Tasklets next pointer as incomplete
       t.nextTasklet.store(Tasklet::INCOMPLETE, std::memory_order_relaxed); // mark as incomplete push
 
       // replace sharedTail with "incomplete tasklet" and store previous shared tail in oldtail
-      uintptr_t oldtail = base.sharedTail().exchange(reinterpret_cast<uintptr_t>(&t), std::memory_order_release); // replace the tail
+      uintptr_t oldtail = sharedTail().exchange(reinterpret_cast<uintptr_t>(&t), std::memory_order_release); // replace the tail
 
       // overwrite the new tasklets "incomplete" with the previous tail value
       t.nextTasklet.store(oldtail, std::memory_order_relaxed); // complete the push
@@ -120,19 +101,19 @@ namespace async {
      */
     Tasklet* pull() {
       // try to retrieve from the private queue
-      uintptr_t oldtail = base.privateTail().exchange(Tasklet::FREE, std::memory_order_relaxed); // avoid load()
+      uintptr_t oldtail = privateTail().exchange(Tasklet::FREE, std::memory_order_relaxed); // avoid load()
 
       // not 0, so we have a tasklet in oldtail
       if (oldtail != Tasklet::FREE) {
           auto t = reinterpret_cast<Tasklet*>(oldtail);
           // take what is stored in the tasklets next pointer and store in privateTail
-          base.privateTail().store(t->nextTasklet.load(std::memory_order_relaxed),
+          privateTail().store(t->nextTasklet.load(std::memory_order_relaxed),
                             std::memory_order_relaxed); // remove old tail from private queue
           t->setInit();
           return t;
       }
       // else try to retrieve from the shared queue
-      oldtail = base.sharedTail().exchange(Tasklet::LOCKED, std::memory_order_relaxed); // detach tail and mark as locked
+      oldtail = sharedTail().exchange(Tasklet::LOCKED, std::memory_order_relaxed); // detach tail and mark as locked
 
       // FREE if was empty or LOCKED from command above
       if (oldtail == Tasklet::FREE || oldtail == Tasklet::LOCKED) return nullptr; // nothing was in the shared queue, but now it is locked
@@ -148,7 +129,7 @@ namespace async {
         // directly return last task from old shared queue else push it into the private queue
         if (next == Tasklet::FREE || next == Tasklet::LOCKED) break;
 
-        t->nextTasklet.store(base.privateTail().exchange(oldtail, std::memory_order_relaxed),
+        t->nextTasklet.store(privateTail().exchange(oldtail, std::memory_order_relaxed),
                                      std::memory_order_relaxed);
         oldtail = next;
       }
@@ -162,7 +143,7 @@ namespace async {
      */
     bool tryRelease() {
       uintptr_t oldtail = Tasklet::LOCKED;
-      return base.sharedTail().compare_exchange_strong(oldtail, Tasklet::FREE, std::memory_order_relaxed);
+      return sharedTail().compare_exchange_strong(oldtail, Tasklet::FREE, std::memory_order_relaxed);
     }
 
     /** May be used to add local tasks for LIFO processing. Shall be
@@ -170,7 +151,7 @@ namespace async {
      */
     bool pushPrivate(Tasklet& t) {
       ASSERT(t.isInit());
-      uintptr_t oldtail = base.privateTail().exchange(reinterpret_cast<uintptr_t>(&t), std::memory_order_relaxed);
+      uintptr_t oldtail = privateTail().exchange(reinterpret_cast<uintptr_t>(&t), std::memory_order_relaxed);
       t.nextTasklet.store(oldtail, std::memory_order_relaxed);
       return oldtail == Tasklet::FREE; // true if this was the first message in the queue
     }

@@ -73,13 +73,17 @@ public:
 
   void run() {
     ASSERT(handler > FunPtr(VIRT_ADDR));
+    ASSERT(isInit());
+    setUnused();
     handler(this);
   }
 
   template<class FUNCTOR>
   Tasklet* set(FUNCTOR fun) {
     static_assert(sizeof(FUNCTOR) <= sizeof(payload), "tasklet payload is too big");
-    new(payload) FUNCTOR(fun); // copy-construct
+    //ASSERT(isUnused());
+    setInit();
+    new(payload) FUNCTOR(std::move(fun));
     this->handler = &wrapper<FUNCTOR>;
     return this;
   }
@@ -94,7 +98,7 @@ protected:
       MSG msg;
     };
     cast_t* caster = reinterpret_cast<cast_t*>(payload);
-    return MSG(caster->msg);
+    return MSG(std::move(caster->msg));
   }
 
 public:

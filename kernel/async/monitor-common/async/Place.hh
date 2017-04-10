@@ -105,8 +105,6 @@ protected:
   size_t apicID; //< for wakeup signals
   std::atomic<bool> nestingMonitor;
   TaskletQueueImpl<TaskletQueueBaseAligned> queue; //< for pending tasks
-  char padding[(sizeof(apicID)-sizeof(nestingMonitor)-sizeof(queue)) % 64]; // TODO to ensure separate cache lines
-
   PhysPtr<void> _cr3;
 };
 
