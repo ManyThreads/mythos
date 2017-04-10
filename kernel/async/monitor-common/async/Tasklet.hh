@@ -56,7 +56,7 @@ public:
 
   static constexpr size_t PAYLOAD_SIZE = CLSIZE - sizeof(TaskletBase) - sizeof(FunPtr);
 
-  Tasklet() : handler(nullptr) {}
+  Tasklet() {}
 
   Tasklet(const Tasklet&) = delete;
 
@@ -118,7 +118,7 @@ protected:
   static void wrapper(Tasklet* msg) { msg->get<FUNCTOR>()(msg); }
 
 private:
-  FunPtr handler;
+  FunPtr handler = nullptr;
   char payload[PAYLOAD_SIZE];
 };
 
