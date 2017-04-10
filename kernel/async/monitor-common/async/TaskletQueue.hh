@@ -36,21 +36,21 @@ namespace async {
   class TaskletQueueBaseDefault {
   public:
     std::atomic<uintptr_t>& privateTail() { return privateTail_; }
-    std::atomic<uintptr_t>& sharedTail() { return sharedTail_; }
+    std::atomic<uintptr_t>& sharedTail()  { return sharedTail_; }
 
   private:
-    std::atomic<uintptr_t> privateTail_ {Tasklet::FREE};
-    std::atomic<uintptr_t> sharedTail_ {Tasklet::FREE};
+    std::atomic<uintptr_t> privateTail_ = {Tasklet::FREE};
+    std::atomic<uintptr_t> sharedTail_  = {Tasklet::FREE};
   };
 
   class TaskletQueueBaseAligned {
   public:
     std::atomic<uintptr_t>& privateTail() { return privateTail_; }
-    std::atomic<uintptr_t>& sharedTail() { return sharedTail_; }
+    std::atomic<uintptr_t>& sharedTail()  { return sharedTail_; }
 
   private:
-    alignas(64) std::atomic<uintptr_t> privateTail_ {Tasklet::FREE};
-    alignas(64) std::atomic<uintptr_t> sharedTail_ {Tasklet::FREE};
+    alignas(64) std::atomic<uintptr_t> privateTail_ = {Tasklet::FREE};
+    alignas(64) std::atomic<uintptr_t> sharedTail_  = {Tasklet::FREE};
   };
 
   template<typename BASE>
