@@ -36,7 +36,13 @@ namespace mythos {
 class TaskletBase
 {
 public:
-  std::atomic<TaskletBase*> nextTasklet;
+  constexpr static uintptr_t FREE = 0; // used by TaskletQueue
+  constexpr static uintptr_t INCOMPLETE = 1; // used by TaskletQueue: insertion is still in progress
+  constexpr static uintptr_t LOCKED = 2; // used by TaskletQueue
+  constexpr static uintptr_t UNUSED = 3; // the Tasklet is neither initialised nor in a queue
+  constexpr static uintptr_t INIT = 4; // the Tasklet is initialised
+
+  std::atomic<uintptr_t> nextTasklet = {UNUSED};
 };
 
 /** Actual Tasklet implementation. All users of Tasklets expect at least the size of one cacheline. */
@@ -50,19 +56,37 @@ public:
 
   static constexpr size_t PAYLOAD_SIZE = CLSIZE - sizeof(TaskletBase) - sizeof(FunPtr);
 
-  Tasklet() : handler(nullptr) {}
+  Tasklet() {}
 
   Tasklet(const Tasklet&) = delete;
 
+  ~Tasklet() { ASSERT(isUnused()); }
+
+#ifdef NDEBUG
+    bool isInit() { return true; }
+    void setInit() {}
+    bool isUnused() { return true; }
+    void setUnused() {}
+#else
+    bool isInit() { return nextTasklet == INIT; }
+    void setInit() { nextTasklet = INIT; }
+    bool isUnused() { return nextTasklet == UNUSED; }
+    void setUnused() { nextTasklet = UNUSED; }
+#endif
+
   void run() {
     ASSERT(handler > FunPtr(VIRT_ADDR));
+    ASSERT(isInit());
+    setUnused();
     handler(this);
   }
 
   template<class FUNCTOR>
   Tasklet* set(FUNCTOR fun) {
     static_assert(sizeof(FUNCTOR) <= sizeof(payload), "tasklet payload is too big");
-    new(payload) FUNCTOR(fun); // copy-construct
+    ASSERT(isUnused());
+    setInit();
+    new(payload) FUNCTOR(std::move(fun));
     this->handler = &wrapper<FUNCTOR>;
     return this;
   }
@@ -77,7 +101,7 @@ protected:
       MSG msg;
     };
     cast_t* caster = reinterpret_cast<cast_t*>(payload);
-    return MSG(caster->msg);
+    return MSG(std::move(caster->msg));
   }
 
 public:
@@ -94,7 +118,7 @@ protected:
   static void wrapper(Tasklet* msg) { msg->get<FUNCTOR>()(msg); }
 
 private:
-  FunPtr handler;
+  FunPtr handler = nullptr;
   char payload[PAYLOAD_SIZE];
 };
 

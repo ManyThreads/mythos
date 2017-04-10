@@ -31,7 +31,8 @@ namespace mythos {
 namespace async {
 
   void NestedMonitorDelegating::request(Tasklet* msg) {
-    if (waitq.push(msg)) { // first push, acquired exclusive access
+    ASSERT(msg);
+    if (waitq.push(*msg)) { // first push, acquired exclusive access
       this->acquireRef(); // mark object as used
       Place* myPlace = &getLocalPlace();
       MLOG_DETAIL(mlog::async, "NMD",this, "req acquired waitq", DVAR(msg), DVAR(myPlace));
