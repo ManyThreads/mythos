@@ -57,7 +57,6 @@ const double ARsigma = 3.405; // Angstroms
 const double AReps   = 119.8; // Kelvins
 const double CellDim = 12.0;  // Angstroms
 const int    NPartPerCell = 20; // Number of atoms per cell
-double WallTime(void);
 
 
 int _nextP = 0;
@@ -75,8 +74,15 @@ tri* acs;
 tri* ves;
 
 
+typedef struct {
+  int* particles;
+  uint np;
+} Cell;
+
+Cell** cells;
+
 // A Simple timer for measuring the walltime
-double WallTime(void){
+double WallTime(void) {
   static long zsec =0;
   static long zusec = 0;
   double esec;
@@ -110,32 +116,25 @@ double update(int p) {
 }
 
 
-typedef struct {
-  int* particles;
-  uint np;
-} Cell;
 
-Cell** cells;
 
 void cellInit(Cell* c, int x, int y, int z, uint nParticles) {
   c->np = nParticles;
   c->particles = (int*) malloc(sizeof(int) *nParticles);
   int* particles = c->particles;
 
-
   for (uint i = 0; i< nParticles; i++) {
     particles[i] = _nextP;
     _nextP++;
   }
 
-
   
   //  We will be filling the cells, making sure than
   //  No atom is less than 2 Angstroms from another
-  double rcelldim = double(CellDim);
-  double centerx = rcelldim*double(x) + 0.5*rcelldim;
-  double centery = rcelldim*double(y) + 0.5*rcelldim;
-  double centerz = rcelldim*double(z) + 0.5*rcelldim;
+  double rcelldim = ((double)CellDim);
+  double centerx = rcelldim*((double)x) + 0.5*rcelldim;
+  double centery = rcelldim*((double)y) + 0.5*rcelldim;
+  double centerz = rcelldim*((double)z) + 0.5*rcelldim;
    
   // Randomly initialize particles to be some distance 
   // from the center of the square
@@ -350,7 +349,7 @@ int main(int argc,char* argv[]){
   }
   
 
-  int Dimension   = int(pow(NumParticles/double(NPartPerCell), 1.0/3.0));
+  int Dimension   = (int)pow(NumParticles/((double)NPartPerCell), 1.0/3.0);
   int TotalCells  = Dimension*Dimension*Dimension;
   D1_N = Dimension;
   D2_N = Dimension;
@@ -470,6 +469,21 @@ int main(int argc,char* argv[]){
   double TimeEnd = WallTime();
   printf("\nTime for %d  is %f\n", NumIterations, TimeEnd-TimeStart);
 
+  
+  // Free Memory
+  for (int k = 0; k < D3_N; k++) {
+    for (int j = 0; j < D2_N; j++) {
+      for (int i = 0; i < D1_N; i++) {
+	free(cells[INDEX(i, j, k)]->particles);
+      }
+    }
+  }
+  
+  free(pos);
+  free(fos);
+  free(acs);
+  free(ves);
+  free(CellSizes);
     
   return 0;
 }
