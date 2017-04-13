@@ -32,35 +32,29 @@
 
 namespace mythos {
 
+class Tasklet;
+
 /** Base class for dummy Tasklet objects, which are sometimes needed for queue management. */
 class TaskletBase
 {
 public:
+
+  typedef void(*FunPtr)(TaskletBase*);
+
   constexpr static uintptr_t FREE = 0; // used by TaskletQueue
   constexpr static uintptr_t INCOMPLETE = 1; // used by TaskletQueue: insertion is still in progress
   constexpr static uintptr_t LOCKED = 2; // used by TaskletQueue
   constexpr static uintptr_t UNUSED = 3; // the Tasklet is neither initialised nor in a queue
   constexpr static uintptr_t INIT = 4; // the Tasklet is initialised
 
-  std::atomic<uintptr_t> nextTasklet = {UNUSED};
-};
+  ~TaskletBase() { ASSERT(isUnused()); }
 
-/** Actual Tasklet implementation. All users of Tasklets expect at least the size of one cacheline. */
-class alignas(64) Tasklet
-  : public TaskletBase
-{
-public:
-  static constexpr size_t CLSIZE = 64;
-
-  typedef void(*FunPtr)(Tasklet*);
-
-  static constexpr size_t PAYLOAD_SIZE = CLSIZE - sizeof(TaskletBase) - sizeof(FunPtr);
-
-  Tasklet() {}
-
-  Tasklet(const Tasklet&) = delete;
-
-  ~Tasklet() { ASSERT(isUnused()); }
+  void run() {
+    ASSERT(handler > FunPtr(VIRT_ADDR));
+    ASSERT(isInit());
+    setUnused();
+    handler(this);
+  }
 
 #ifdef NDEBUG
     bool isInit() { return true; }
@@ -74,12 +68,25 @@ public:
     void setUnused() { nextTasklet = UNUSED; }
 #endif
 
-  void run() {
-    ASSERT(handler > FunPtr(VIRT_ADDR));
-    ASSERT(isInit());
-    setUnused();
-    handler(this);
-  }
+  std::atomic<uintptr_t> nextTasklet = {UNUSED};
+
+protected:
+
+  FunPtr handler = nullptr;
+
+};
+
+/** Actual Tasklet implementation. All users of Tasklets expect at least the size of one cacheline. */
+class alignas(64) Tasklet
+  : public TaskletBase
+{
+public:
+  static constexpr size_t CLSIZE = 64;
+  static constexpr size_t PAYLOAD_SIZE = CLSIZE - sizeof(TaskletBase);
+
+  Tasklet() {}
+  Tasklet(const Tasklet&) = delete;
+
 
   template<class FUNCTOR>
   Tasklet* set(FUNCTOR fun) {
@@ -115,10 +122,13 @@ public:
 
 protected:
   template<class FUNCTOR>
-  static void wrapper(Tasklet* msg) { msg->get<FUNCTOR>()(msg); }
+  static void wrapper(TaskletBase* msg)
+  {
+    auto t = static_cast<Tasklet*>(msg);
+    t->get<FUNCTOR>()(t);
+  }
 
 private:
-  FunPtr handler = nullptr;
   char payload[PAYLOAD_SIZE];
 };
 

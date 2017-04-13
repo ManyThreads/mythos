@@ -39,8 +39,8 @@ namespace async {
     std::atomic<uintptr_t>& sharedTail()  { return sharedTail_; }
 
   private:
-    std::atomic<uintptr_t> privateTail_ = {Tasklet::FREE};
-    std::atomic<uintptr_t> sharedTail_  = {Tasklet::FREE};
+    std::atomic<uintptr_t> privateTail_ = {TaskletBase::FREE};
+    std::atomic<uintptr_t> sharedTail_  = {TaskletBase::FREE};
   };
 
   class TaskletQueueBaseAligned {
@@ -49,8 +49,8 @@ namespace async {
     std::atomic<uintptr_t>& sharedTail()  { return sharedTail_; }
 
   private:
-    alignas(64) std::atomic<uintptr_t> privateTail_ = {Tasklet::FREE};
-    alignas(64) std::atomic<uintptr_t> sharedTail_  = {Tasklet::FREE};
+    alignas(64) std::atomic<uintptr_t> privateTail_ = {TaskletBase::FREE};
+    alignas(64) std::atomic<uintptr_t> sharedTail_  = {TaskletBase::FREE};
   };
 
   template<typename BASE>
@@ -64,26 +64,26 @@ namespace async {
     TaskletQueueImpl(TaskletQueueImpl const&) = delete;
 
     ~TaskletQueueImpl() {
-      ASSERT(sharedTail() == Tasklet::FREE || sharedTail() == Tasklet::LOCKED);
-      ASSERT(privateTail() == Tasklet::FREE);
+      ASSERT(sharedTail() == TaskletBase::FREE || sharedTail() == TaskletBase::LOCKED);
+      ASSERT(privateTail() == TaskletBase::FREE);
     }
 
-    bool isLocked() { return sharedTail() != Tasklet::FREE; }
+    bool isLocked() { return sharedTail() != TaskletBase::FREE; }
 
     bool tryAcquire() {
-      uintptr_t oldtail = Tasklet::FREE;
-      return sharedTail().compare_exchange_strong(oldtail, Tasklet::LOCKED, std::memory_order_relaxed);
+      uintptr_t oldtail = TaskletBase::FREE;
+      return sharedTail().compare_exchange_strong(oldtail, TaskletBase::LOCKED, std::memory_order_relaxed);
     }
 
     /** pushed a task into the shared queue and implicitly tries to
      * acquire exclusive access. Returns true if the push acquired
      * exclusive access because it was the first pushed task.
      */
-    bool push(Tasklet& t) {
+    bool push(TaskletBase& t) {
       ASSERT(t.isInit());
 
       // mark new Tasklets next pointer as incomplete
-      t.nextTasklet.store(Tasklet::INCOMPLETE, std::memory_order_relaxed); // mark as incomplete push
+      t.nextTasklet.store(TaskletBase::INCOMPLETE, std::memory_order_relaxed); // mark as incomplete push
 
       // replace sharedTail with "incomplete tasklet" and store previous shared tail in oldtail
       uintptr_t oldtail = sharedTail().exchange(reinterpret_cast<uintptr_t>(&t), std::memory_order_release); // replace the tail
@@ -92,20 +92,20 @@ namespace async {
       t.nextTasklet.store(oldtail, std::memory_order_relaxed); // complete the push
 
       // check if the old tail value was 0 (Free)
-      return oldtail == Tasklet::FREE; // true if this was the first message in the queue
+      return oldtail == TaskletBase::FREE; // true if this was the first message in the queue
     }
 
     /** Pulls a task from the queue in FIFO order. This shall be used
      * only by the single thread that is the current owner. Returns
      * nullptr if the queue seemed to be empty.
      */
-    Tasklet* pull() {
+    TaskletBase* pull() {
       // try to retrieve from the private queue
-      uintptr_t oldtail = privateTail().exchange(Tasklet::FREE, std::memory_order_relaxed); // avoid load()
+      uintptr_t oldtail = privateTail().exchange(TaskletBase::FREE, std::memory_order_relaxed); // avoid load()
 
       // not 0, so we have a tasklet in oldtail
-      if (oldtail != Tasklet::FREE) {
-          auto t = reinterpret_cast<Tasklet*>(oldtail);
+      if (oldtail != TaskletBase::FREE) {
+          auto t = reinterpret_cast<TaskletBase*>(oldtail);
           // take what is stored in the tasklets next pointer and store in privateTail
           privateTail().store(t->nextTasklet.load(std::memory_order_relaxed),
                             std::memory_order_relaxed); // remove old tail from private queue
@@ -113,27 +113,27 @@ namespace async {
           return t;
       }
       // else try to retrieve from the shared queue
-      oldtail = sharedTail().exchange(Tasklet::LOCKED, std::memory_order_relaxed); // detach tail and mark as locked
+      oldtail = sharedTail().exchange(TaskletBase::LOCKED, std::memory_order_relaxed); // detach tail and mark as locked
 
       // FREE if was empty or LOCKED from command above
-      if (oldtail == Tasklet::FREE || oldtail == Tasklet::LOCKED) return nullptr; // nothing was in the shared queue, but now it is locked
+      if (oldtail == TaskletBase::FREE || oldtail == TaskletBase::LOCKED) return nullptr; // nothing was in the shared queue, but now it is locked
 
       while(true) { // oldtail != FREE && oldtail != LOCKED
-        auto t = reinterpret_cast<Tasklet*>(oldtail);
+        auto t = reinterpret_cast<TaskletBase*>(oldtail);
         uintptr_t next;
         do { // wait until the push is no longer marked as incomplete
           // use exchange in order to avoid shared state of cacheline
-          next = t->nextTasklet.exchange(Tasklet::INCOMPLETE, std::memory_order_acquire);
-          if (next == Tasklet::INCOMPLETE) hwthread_pause(); // sleep for a short amount of cycles
-        } while (next == Tasklet::INCOMPLETE);
+          next = t->nextTasklet.exchange(TaskletBase::INCOMPLETE, std::memory_order_acquire);
+          if (next == TaskletBase::INCOMPLETE) hwthread_pause(); // sleep for a short amount of cycles
+        } while (next == TaskletBase::INCOMPLETE);
         // directly return last task from old shared queue else push it into the private queue
-        if (next == Tasklet::FREE || next == Tasklet::LOCKED) break;
+        if (next == TaskletBase::FREE || next == TaskletBase::LOCKED) break;
 
         t->nextTasklet.store(privateTail().exchange(oldtail, std::memory_order_relaxed),
                                      std::memory_order_relaxed);
         oldtail = next;
       }
-      auto t = reinterpret_cast<Tasklet*>(oldtail);
+      auto t = reinterpret_cast<TaskletBase*>(oldtail);
       t->setInit();
       return t;
     }
@@ -142,18 +142,18 @@ namespace async {
      * success. Otherwise, there is an entry for the next pull().
      */
     bool tryRelease() {
-      uintptr_t oldtail = Tasklet::LOCKED;
-      return sharedTail().compare_exchange_strong(oldtail, Tasklet::FREE, std::memory_order_relaxed);
+      uintptr_t oldtail = TaskletBase::LOCKED;
+      return sharedTail().compare_exchange_strong(oldtail, TaskletBase::FREE, std::memory_order_relaxed);
     }
 
     /** May be used to add local tasks for LIFO processing. Shall be
      * used only by a single thread, that is the current owner.
      */
-    bool pushPrivate(Tasklet& t) {
+    bool pushPrivate(TaskletBase& t) {
       ASSERT(t.isInit());
       uintptr_t oldtail = privateTail().exchange(reinterpret_cast<uintptr_t>(&t), std::memory_order_relaxed);
       t.nextTasklet.store(oldtail, std::memory_order_relaxed);
-      return oldtail == Tasklet::FREE; // true if this was the first message in the queue
+      return oldtail == TaskletBase::FREE; // true if this was the first message in the queue
     }
   };
 
