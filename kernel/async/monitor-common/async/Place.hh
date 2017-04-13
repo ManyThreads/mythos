@@ -56,7 +56,7 @@ public:
 
   enum Mode { ASYNC, MAYINLINE };
 
-  void runLocal(Tasklet* msg, Mode mode=ASYNC) {
+  void runLocal(TaskletBase* msg, Mode mode=ASYNC) {
     ASSERT(isLocal());
     if (mode == ASYNC) {
       pushPrivate(msg);
@@ -66,12 +66,12 @@ public:
     }
   }
 
-  void run(Tasklet* msg, Mode mode=ASYNC) {
+  void run(TaskletBase* msg, Mode mode=ASYNC) {
     if (isLocal()) runLocal(msg, mode);
     else pushShared(msg);
   }
 
-  void pushShared(Tasklet* msg) {
+  void pushShared(TaskletBase* msg) {
     ASSERT(msg);
     MLOG_DETAIL(mlog::async, this, "push shared", msg);
     if (queue.push(*msg)) wakeup();
@@ -92,7 +92,7 @@ public:
   bool isActive() const { return nestingMonitor.load(std::memory_order_relaxed); }
 
 protected:
-  void pushPrivate(Tasklet* msg) {
+  void pushPrivate(TaskletBase* msg) {
     ASSERT(isLocal());
     ASSERT(msg);
     MLOG_DETAIL(mlog::async, this, "push private", msg);

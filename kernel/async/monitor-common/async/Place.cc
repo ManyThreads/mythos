@@ -43,7 +43,7 @@ namespace async {
 
   void Place::processTasks()
   {
-    Tasklet* msg = queue.pull();
+    auto msg = queue.pull();
     while (true) {
       if (msg != nullptr) {
         MLOG_DETAIL(mlog::async, this, "run tasklet", msg);
