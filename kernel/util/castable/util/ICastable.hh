@@ -33,17 +33,17 @@ namespace mythos {
   class TypeId
   {
   public:
-    TypeId(void* id) : _id(id) {}
-    void* debug() const { return (void*)_id; }
+    TypeId(void const* id) : _id(id) {}
+    void const* debug() const { return _id; }
     bool operator==(TypeId const& other) { return _id == other._id; }
     bool operator!=(TypeId const& other) { return _id != other._id; }
   private:
-    void* _id;
+    void const* _id;
   };
 
   template<class T>
   TypeId typeId() { 
-    static char foo; // uses uniqueness of static variables to create an identity
+    static char const foo{}; // uses uniqueness of static variables to create an identity
     return TypeId(&foo);
   }
 
