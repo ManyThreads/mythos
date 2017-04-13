@@ -222,7 +222,7 @@ namespace mythos {
 
   optional<void const*> CapMap::vcast(TypeId id) const
   {
-    if (id == TypeId::id<ICapMap>()) { return static_cast<const ICapMap*>(this); }
+    if (id == typeId<ICapMap>()) { return static_cast<const ICapMap*>(this); }
     THROW(Error::TYPE_MISMATCH);
   }
 }  // namespace mythos

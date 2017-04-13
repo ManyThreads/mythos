@@ -61,7 +61,7 @@ namespace mythos {
   {
   public:
     optional<void const*> vcast(TypeId id) const override {
-      if (id == TypeId::id<IFactory>()) return static_cast<IFactory const*>(this);
+      if (id == typeId<IFactory>()) return static_cast<IFactory const*>(this);
       THROW(Error::TYPE_MISMATCH);
     }
 

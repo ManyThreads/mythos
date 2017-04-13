@@ -116,7 +116,7 @@ namespace mythos {
   public: // IKernelObject interface
 
     optional<void const*> vcast(TypeId id) const override {
-      if (id == TypeId::id<IPortal>()) return static_cast<IPortal const*>(this);
+      if (id == typeId<IPortal>()) return static_cast<IPortal const*>(this);
       THROW(Error::TYPE_MISMATCH);
     }
     optional<void> deleteCap(Cap self, IDeleter& del) override;

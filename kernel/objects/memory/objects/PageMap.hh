@@ -146,7 +146,7 @@ public:
 public: // IKernelObject interface
   Range<uintptr_t> addressRange(Cap self) override;
   optional<void const*> vcast(TypeId id) const override {
-    if (id == TypeId::id<IPageMap>()) return static_cast<IPageMap const*>(this);
+    if (id == typeId<IPageMap>()) return static_cast<IPageMap const*>(this);
     THROW(Error::TYPE_MISMATCH);
   }
 

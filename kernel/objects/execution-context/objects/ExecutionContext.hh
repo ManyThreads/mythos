@@ -100,8 +100,8 @@ namespace mythos {
 
   public: // IKernelObject interface
     optional<void const*> vcast(TypeId id) const override {
-      if (id == TypeId::id<ISchedulable>()) return static_cast<ISchedulable const*>(this);
-      if (id == TypeId::id<IPortalUser>()) return static_cast<IPortalUser const*>(this);
+      if (id == typeId<ISchedulable>()) return static_cast<ISchedulable const*>(this);
+      if (id == typeId<IPortalUser>()) return static_cast<IPortalUser const*>(this);
       THROW(Error::TYPE_MISMATCH);
     }
     optional<void> deleteCap(Cap self, IDeleter& del) override;
