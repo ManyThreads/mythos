@@ -69,7 +69,7 @@ namespace mythos {
 
   public: // IKernelObject interface
     optional<void const*> vcast(TypeId id) const override {
-      if (id == TypeId::id<IAllocator>()) return static_cast<IAllocator const*>(this);
+      if (id == typeId<IAllocator>()) return static_cast<IAllocator const*>(this);
       THROW(Error::TYPE_MISMATCH);
     }
 

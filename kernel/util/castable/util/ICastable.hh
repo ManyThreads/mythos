@@ -33,19 +33,18 @@ namespace mythos {
   class TypeId
   {
   public:
-    template<class T> static TypeId id();
-    void* debug() const { return (void*)_id; }
+    TypeId(void const* id) : _id(id) {}
+    void const* debug() const { return _id; }
     bool operator==(TypeId const& other) { return _id == other._id; }
     bool operator!=(TypeId const& other) { return _id != other._id; }
   private:
-    typedef TypeId (*FPtr)();
-    TypeId(FPtr id) : _id(id) {}
-    FPtr _id;
+    void const* _id;
   };
 
   template<class T>
-  TypeId TypeId::id() {
-    return TypeId(&TypeId::id<T>); // uses uniqueness of function addresses to create an identity
+  TypeId typeId() { 
+    static char const foo{}; // uses uniqueness of static variables to create an identity
+    return TypeId(&foo);
   }
 
   class ICastable
@@ -58,25 +57,21 @@ namespace mythos {
      * @param id  identifies the target type of the requested cast.
      * @returns an untyped pointer to the correctly casted object or Error::TYPE_MISMATCH.
      */
-    virtual optional<void const*> vcast(TypeId id) const;
+    virtual optional<void const*> vcast(TypeId) const { THROW(Error::TYPE_MISMATCH); }
 
     template<class T>
     optional<T*> cast() {
-      auto o = this->vcast(TypeId::id<T>());
+      auto o = this->vcast(typeId<T>());
       if (o) return const_cast<T*>(reinterpret_cast<T const*>(*o));
       else RETHROW(o);
     }
 
     template<class T>
     optional<T const*> cast() const {
-      auto o = this->vcast(TypeId::id<T>());
+      auto o = this->vcast(typeId<T>());
       if (o) return reinterpret_cast<T const*>(*o);
       RETHROW(o);
     }
   };
-
-  inline optional<void const*> ICastable::vcast(TypeId) const {
-    THROW(Error::TYPE_MISMATCH);
-  }
 
 } // namespace mythos
