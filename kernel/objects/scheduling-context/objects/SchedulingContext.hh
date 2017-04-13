@@ -96,7 +96,7 @@ namespace mythos {
   public: // IKernelObject interface
     optional<void> deleteCap(Cap, IDeleter&) override { RETURN(Error::SUCCESS); }
     optional<void const*> vcast(TypeId id) const override {
-      if (id == TypeId::id<IScheduler>()) return static_cast<const IScheduler*>(this);
+      if (id == typeId<IScheduler>()) return static_cast<const IScheduler*>(this);
       THROW(Error::TYPE_MISMATCH);
     }
 

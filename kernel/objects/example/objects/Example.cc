@@ -43,7 +43,7 @@ namespace mythos {
   optional<void const*> ExampleObj::vcast(TypeId id) const
   {
     mlogex.info("vcast", DVAR(this), DVAR(id.debug()));
-    if (id == TypeId::id<ExampleObj>()) return /*static_cast<ExampleObj const*>*/(this);
+    if (id == typeId<ExampleObj>()) return /*static_cast<ExampleObj const*>*/(this);
     THROW(Error::TYPE_MISMATCH);
   }
 
