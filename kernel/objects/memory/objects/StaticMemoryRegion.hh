@@ -63,7 +63,7 @@ public: // IFrame interface
 
 public: // IKernelObject interface
   optional<void const*> vcast(TypeId id) const override {
-    if (TypeId::id<IFrame>() == id) return static_cast<const IFrame*>(this);
+    if (typeId<IFrame>() == id) return static_cast<const IFrame*>(this);
     THROW(Error::TYPE_MISMATCH);
   }
 
