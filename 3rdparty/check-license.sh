@@ -23,22 +23,16 @@
 
 # settings
 
-if [ -e COPYING ]
-then
-  licence='COPYING'
-elif [ -e ../COPYING ]
-then
-  licence='../COPYING'
-else
-  echo "Can not find license file." 1>&2
-  exit 1
-fi
+licence='3rdparty/check-license-mit.txt'
 significant_lines=50
 
 extensions="
 h
+hh
+c
 cc
 S
+s
 ld
 rc
 sh
@@ -111,7 +105,7 @@ function scan {
     fi
   done
 }
- 
+
 function scan_all {
   for ext in $extensions
   do
@@ -123,4 +117,4 @@ function scan_all {
 licence_text=`cat $licence | tokenize`
 
 # main
-scan_all 2>&1 >/dev/null 
+scan_all 2>&1 >/dev/null
