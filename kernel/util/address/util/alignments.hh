@@ -1,4 +1,28 @@
-/* -*- mode:C++; -*- */
+/* -*- mode:C++; indent-tabs-mode:nil; -*- */
+/* MIT License -- MyThOS: The Many-Threads Operating System
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use, copy,
+ * modify, merge, publish, distribute, sublicense, and/or sell copies
+ * of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
+ * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *
+ * Copyright 2016 Randolf Rotta, Robert Kuban, and contributors, BTU Cottbus-Senftenberg
+ */
 #pragma once
 
 #include "util/PhysPtr.hh"
@@ -17,13 +41,13 @@ namespace mythos {
     constexpr size_t alignment() const { return Align; }
     constexpr bool is_aligned(size_t addr) const { return (addr % Align == 0); }
     inline constexpr size_t round_up(size_t addr) const { return ((addr+Align-1)/Align)*Align; }
-    inline constexpr size_t round_down(size_t addr) const { return (addr/Align)*Align; }   
+    inline constexpr size_t round_down(size_t addr) const { return (addr/Align)*Align; }
     inline constexpr size_t next(size_t addr) const { return round_down(addr+Align); }
     inline constexpr size_t prev(size_t addr) const { return round_up(addr-Align); }
-    
+
     template<typename T>
     constexpr bool is_aligned(T* addr) const { return is_aligned(size_t(addr)); }
-    
+
     template<typename T>
     constexpr T* round_up(T* addr) const { return reinterpret_cast<T*>(round_up(size_t(addr))); }
 
@@ -40,7 +64,7 @@ namespace mythos {
     inline PhysPtr<T> next(PhysPtr<T> addr) const { return round_down(addr+Align); }
     template<class T>
     inline PhysPtr<T> prev(PhysPtr<T> addr) const { return round_up(addr-Align); }
-    
+
   protected:
     size_t Align;
   };
@@ -55,7 +79,7 @@ namespace mythos {
     static constexpr size_t alignment() { return Align; }
     static constexpr bool is_aligned(size_t addr) { return (addr % Align == 0); }
     static constexpr size_t round_up(size_t addr) { return ((addr+Align-1)/Align)*Align; }
-    static constexpr size_t round_down(size_t addr) { return (addr/Align)*Align; }      
+    static constexpr size_t round_down(size_t addr) { return (addr/Align)*Align; }
     static constexpr size_t next(size_t addr) { return round_up(addr+1); }
     static constexpr size_t prev(size_t addr) { return round_down(addr-1); }
 
@@ -63,7 +87,7 @@ namespace mythos {
     static constexpr bool is_aligned(T* addr) {
       return is_aligned(reinterpret_cast<size_t>(addr));
     }
-    
+
     template<typename T>
     static constexpr T* round_up(T* addr) {
       return reinterpret_cast<T*>(round_up(reinterpret_cast<size_t>(addr)));
@@ -85,7 +109,7 @@ namespace mythos {
     template<class T>
     static inline PhysPtr<T> prev(PhysPtr<T> addr) { return round_up(addr-Align); }
   };
-  
+
   typedef Alignment<(1ull)> AlignByte;
   typedef Alignment<sizeof(size_t)> AlignWord;
   typedef Alignment<sizeof(size_t)*8> AlignLine;
@@ -96,4 +120,3 @@ namespace mythos {
   typedef Alignment<(1ull << 39)> Align512G;
 
 } // namespace mythos
-
