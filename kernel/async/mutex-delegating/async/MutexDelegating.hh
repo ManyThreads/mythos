@@ -66,7 +66,6 @@ namespace async {
 
   protected:
     async::TaskletQueue queue;
-    //Place* owner = nullptr;
   };
 
 } // namespace async

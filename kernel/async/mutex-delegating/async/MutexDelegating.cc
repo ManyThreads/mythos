@@ -37,15 +37,12 @@ namespace async {
 
   void MutexDelegating::process(std::atomic<int>& done)
   {
-    //owner = &async::getLocalPlace();
-
     unsigned handoverCount = 100; /// @todo what is a sensible value?
     while (true) {
       auto msg = queue.pull();
       if (msg != nullptr && handoverCount==0) {
         // hand over processing to another waiting thread after some time
-        // in order to avoid denial of service attack
-        //owner = nullptr;
+        // in order to avoid starvation and denial of service
         msg->setHandover();
         msg->run();
         break;
@@ -53,7 +50,6 @@ namespace async {
         handoverCount--;
         msg->run();
       } else if (queue.tryRelease()) {
-        //owner = nullptr;
         break;
       }
     }
