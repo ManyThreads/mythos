@@ -8,10 +8,10 @@
  * modify, merge, publish, distribute, sublicense, and/or sell copies
  * of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
  * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
@@ -20,8 +20,8 @@
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
- * 
- * Copyright 2014 Randolf Rotta, Maik Krüger, and contributors, BTU Cottbus-Senftenberg 
+ *
+ * Copyright 2014 Randolf Rotta, Maik Krüger, and contributors, BTU Cottbus-Senftenberg
  */
 
 #include "cpu/MLogSinkSerial.hh"
@@ -31,12 +31,14 @@
 namespace mythos {
 
   void MLogSinkSerial::write(char const* msg, size_t length) {
-    ThreadMutex::Lock lock(mutex);
-    mythos::ostream_base<SerialStreamBuf> io(&serial);
-    io << cpu::hwThreadID() << ": ";
-    io.write(msg, length);
-    io << "\n";
-    io.flush();
+    auto id = cpu::hwThreadID();
+    mutex << [this,msg,length,id]() {
+      mythos::ostream_base<SerialStreamBuf> io(&this->serial);
+      io << id << ": ";
+      io.write(msg, length);
+      io << "\n";
+      io.flush();
+    };
   }
 
 } // namespace mythos

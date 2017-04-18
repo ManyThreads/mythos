@@ -1,0 +1,7 @@
+# -*- mode:toml; -*-
+[module.async-mutex-delegating]
+    incfiles = [ "async/MutexDelegating.hh" ]
+    kernelfiles = [ "async/MutexDelegating.cc" ]
+
+[module.thread-mutex-delegating]
+    incfiles = [ "util/ThreadMutex.hh" ]

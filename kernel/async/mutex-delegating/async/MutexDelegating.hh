@@ -1,4 +1,5 @@
-/* MIT License -- MyThOS: The Many-Threads Operating System
+/* -*- mode:C++; indent-tabs-mode:nil; -*- */
+/* MyThOS: The Many-Threads Operating System
  *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
@@ -22,52 +23,50 @@
  *
  * Copyright 2016 Randolf Rotta, Robert Kuban, and contributors, BTU Cottbus-Senftenberg
  */
-#include "async/Place.hh"
+#pragma once
 
-#include "cpu/ctrlregs.hh"
+#include "async/Tasklet.hh"
+#include "async/TaskletQueue.hh"
+#include "util/assert.hh"
+#include <atomic>
 
 namespace mythos {
 namespace async {
 
-  Place places[BOOT_MAX_THREADS];
-  CoreLocal<Place*> localPlace_ KERNEL_CLM_HOT; // for DeployHWThread
-
-  void Place::init(size_t apicID)
+  class MutexDelegating
   {
-    MLOG_INFO(mlog::async, "init Place", DVAR(this), DVAR(apicID));
-    this->apicID = apicID;
-    this->nestingMonitor = true;
-    this->_cr3 = PhysPtr<void>(cpu::getPageTable());
-    this->queue.tryAcquire();
-  }
+    enum DoneFlags { PENDING, DONE, HANDOVER };
+  public:
 
-  void Place::processTasks()
-  {
-    while (true) {
-      auto msg = queue.pull();
-      if (msg != nullptr) msg->run();
-      else if (queue.tryRelease()) break;
+    template<class FUNCTOR>
+    void operator<< (FUNCTOR fun) { atomic(fun); }
+
+    template<class FUNCTOR>
+    void atomic(FUNCTOR fun) {
+      std::atomic<int> done;
+      done.store(PENDING, std::memory_order_relaxed);
+
+      // put the critical section into a Tasklet
+      auto task = makeTasklet( [fun,&done](TaskletBase* t) {
+          fun(); // execute the critical section
+          done.store((t->isHandover()?HANDOVER:DONE), std::memory_order_release);
+        } );
+
+      push(task, done);
     }
-    hwthread_pollpause(); /// @todo wrong place, no polling here!
-    // this assertion races with concurrent push operations
-    //OOPS(!queue.isLocked());
-    nestingMonitor.store(false); // release?
-  }
 
-  void Place::setCR3(PhysPtr<void> value)
-  {
-    ASSERT(isLocal());
-    if (_cr3 != value) {
-      _cr3 = value;
-      cpu::loadPageTable(value.physint());
-    }
-  }
+  protected:
+    void push(TaskletBase& task, std::atomic<int>& done);
 
-  PhysPtr<void> Place::getCR3()
-  {
-    ASSERT(implies(isLocal(), cpu::getPageTable() == _cr3.physint()));
-    return _cr3;
-  }
+    /** got exclusive access and processes all tasks until it hands over */
+    void process(std::atomic<int>& done);
 
-} // async
-} // mythos
+    /** wait for acknowledgement and may take over the processing */
+    void wait(std::atomic<int>& done);
+
+  protected:
+    async::TaskletQueue queue;
+  };
+
+} // namespace async
+} // namespace mythos

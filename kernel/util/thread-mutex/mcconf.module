@@ -1,3 +1,6 @@
 # -*- mode:toml; -*-
-[module.thread-mutex]
-    incfiles = [ "util/TidexMutex.hh", "util/ThreadMutex.hh" ]
+[module.util-mutex-tidex]
+    incfiles = [ "util/TidexMutex.hh" ]
+
+[module.thread-mutex-tidex]
+    incfiles = [ "util/ThreadMutex.hh" ]
