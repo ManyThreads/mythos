@@ -1,4 +1,5 @@
-/* MIT License -- MyThOS: The Many-Threads Operating System
+/* -*- mode:C++; indent-tabs-mode:nil; -*- */
+/* MyThOS: The Many-Threads Operating System
  *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
@@ -22,52 +23,53 @@
  *
  * Copyright 2016 Randolf Rotta, Robert Kuban, and contributors, BTU Cottbus-Senftenberg
  */
-#include "async/Place.hh"
 
-#include "cpu/ctrlregs.hh"
+#include "async/MutexDelegating.hh"
 
 namespace mythos {
 namespace async {
 
-  Place places[BOOT_MAX_THREADS];
-  CoreLocal<Place*> localPlace_ KERNEL_CLM_HOT; // for DeployHWThread
-
-  void Place::init(size_t apicID)
+  void MutexDelegating::push(TaskletBase& task, std::atomic<int>& done)
   {
-    MLOG_INFO(mlog::async, "init Place", DVAR(this), DVAR(apicID));
-    this->apicID = apicID;
-    this->nestingMonitor = true;
-    this->_cr3 = PhysPtr<void>(cpu::getPageTable());
-    this->queue.tryAcquire();
+    if (queue.push(task)) process(done);
+    else wait(done);
   }
 
-  void Place::processTasks()
+  void MutexDelegating::process(std::atomic<int>& done)
   {
+    //owner = &async::getLocalPlace();
+
+    unsigned handoverCount = 100; /// @todo what is a sensible value?
     while (true) {
       auto msg = queue.pull();
-      if (msg != nullptr) msg->run();
-      else if (queue.tryRelease()) break;
+      if (msg != nullptr && handoverCount==0) {
+        // hand over processing to another waiting thread after some time
+        // in order to avoid denial of service attack
+        //owner = nullptr;
+        msg->setHandover();
+        msg->run();
+        break;
+      } else if (msg != nullptr) {
+        handoverCount--;
+        msg->run();
+      } else if (queue.tryRelease()) {
+        //owner = nullptr;
+        break;
+      }
     }
-    hwthread_pollpause(); /// @todo wrong place, no polling here!
-    // this assertion races with concurrent push operations
-    //OOPS(!queue.isLocked());
-    nestingMonitor.store(false); // release?
+
+    ASSERT(done == DONE || done == HANDOVER);
   }
 
-  void Place::setCR3(PhysPtr<void> value)
-  {
-    ASSERT(isLocal());
-    if (_cr3 != value) {
-      _cr3 = value;
-      cpu::loadPageTable(value.physint());
+  void MutexDelegating::wait(std::atomic<int>& done) {
+    while (true) {
+      /// @todo process incoming high-priority tasks?
+      hwthread_pollpause();
+      int state = done.fetch_add(0, std::memory_order_acquire);
+      if (state == HANDOVER) return process(done);
+      if (state == DONE) return;
     }
   }
 
-  PhysPtr<void> Place::getCR3()
-  {
-    ASSERT(implies(isLocal(), cpu::getPageTable() == _cr3.physint()));
-    return _cr3;
-  }
-
-} // async
-} // mythos
+} // namespace async
+} // namespace mythos

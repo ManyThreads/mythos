@@ -29,7 +29,7 @@
 #include "util/TidexMutex.hh"
 
 namespace mythos{
-   
+
   typedef TidexMutex ThreadMutex;
 
-} // namespace Mythos
+} // namespace mythos

@@ -104,11 +104,12 @@ protected:
 protected:
   size_t apicID; //< for wakeup signals
   std::atomic<bool> nestingMonitor;
-  TaskletQueueImpl<TaskletQueueBaseAligned> queue; //< for pending tasks
+  TaskletQueueImpl<ChainFIFOBaseAligned> queue; //< for pending tasks
   PhysPtr<void> _cr3;
 };
 
-/** @todo Should be allocated into local cachelines. */
+/// @todo Should be allocated into local cachelines.
+/// @todo should be moved to the boot/deployment code instead of hardcoding here!
 extern Place places[BOOT_MAX_THREADS];
 inline Place* getPlace(size_t threadid) { return &places[threadid]; }
 

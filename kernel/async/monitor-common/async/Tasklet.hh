@@ -32,49 +32,68 @@
 
 namespace mythos {
 
-class Tasklet;
+namespace async {
 
-/** Base class for dummy Tasklet objects, which are sometimes needed for queue management. */
-class TaskletBase
+class Chainable
 {
 public:
-
-  typedef void(*FunPtr)(TaskletBase*);
-
   constexpr static uintptr_t FREE = 0; // used by TaskletQueue
   constexpr static uintptr_t INCOMPLETE = 1; // used by TaskletQueue: insertion is still in progress
   constexpr static uintptr_t LOCKED = 2; // used by TaskletQueue
-  constexpr static uintptr_t UNUSED = 3; // the Tasklet is neither initialised nor in a queue
-  constexpr static uintptr_t INIT = 4; // the Tasklet is initialised
+  constexpr static uintptr_t UNUSED = 3; // is neither initialised nor in a queue
+  constexpr static uintptr_t INIT = 4; // is initialised
+  constexpr static uintptr_t INIT_HANDOVER = 5; // other thread shall take over
 
+  Chainable() {}
+  Chainable(Chainable&& o) : next(o.next.load(std::memory_order_relaxed)) {
+    //o.setUnused();
+  }
+
+#ifdef NDEBUG
+  bool isInit() const { return true; }
+  void setInit() {}
+  bool isHandover() const { return next == INIT_HANDOVER; }
+  void setHandover() { next = INIT_HANDOVER; }
+  bool isUnused() const { return true; }
+  void setUnused() {}
+#else
+  bool isInit() const { uintptr_t n = next; return n == INIT || n == INIT_HANDOVER; }
+  void setInit() { next = INIT; }
+  bool isHandover() const { return next == INIT_HANDOVER; }
+  void setHandover() { ASSERT(next == INIT); next = INIT_HANDOVER; }
+  bool isUnused() const { return next == UNUSED; }
+  void setUnused() { next = UNUSED; }
+#endif
+
+public:
+  std::atomic<uintptr_t> next = {UNUSED};
+};
+
+
+/** Base class for dummy Tasklet objects, which are sometimes needed for queue management. */
+class TaskletBase
+  : public Chainable
+{
+public:
+  typedef void(*FunPtr)(TaskletBase*);
+
+  TaskletBase() {}
+  TaskletBase(FunPtr handler) : handler(handler) { setInit(); }
+  TaskletBase(TaskletBase&& o) : Chainable(std::move(o)), handler(o.handler) {}
   ~TaskletBase() { ASSERT(isUnused()); }
 
   void run() {
+    MLOG_DETAIL(mlog::async, "run tasklet", this);
     ASSERT(handler > FunPtr(VIRT_ADDR));
     ASSERT(isInit());
     setUnused();
     handler(this);
   }
 
-#ifdef NDEBUG
-    bool isInit() { return true; }
-    void setInit() {}
-    bool isUnused() { return true; }
-    void setUnused() {}
-#else
-    bool isInit() { return nextTasklet == INIT; }
-    void setInit() { nextTasklet = INIT; }
-    bool isUnused() { return nextTasklet == UNUSED; }
-    void setUnused() { nextTasklet = UNUSED; }
-#endif
-
-  std::atomic<uintptr_t> nextTasklet = {UNUSED};
-
 protected:
-
   FunPtr handler = nullptr;
-
 };
+
 
 /** Actual Tasklet implementation. All users of Tasklets expect at least the size of one cacheline. */
 class alignas(64) Tasklet
@@ -87,6 +106,8 @@ public:
   Tasklet() {}
   Tasklet(const Tasklet&) = delete;
 
+  template<class FUNCTOR>
+  Tasklet* operator<< (FUNCTOR fun) { return set(fun); }
 
   template<class FUNCTOR>
   Tasklet* set(FUNCTOR fun) {
@@ -131,5 +152,34 @@ protected:
 private:
   char payload[PAYLOAD_SIZE];
 };
+
+
+template<class FUNCTOR>
+class alignas(64) TaskletFunctor
+  : public TaskletBase
+{
+public:
+  static constexpr size_t CLSIZE = 64;
+
+  TaskletFunctor(FUNCTOR fun) : TaskletBase(&wrapper), fun(fun) {
+    static_assert(sizeof(TaskletFunctor)%CLSIZE == 0, "padding is wrong");
+  }
+  TaskletFunctor(const TaskletFunctor&) = delete;
+  TaskletFunctor(TaskletFunctor&& o) : TaskletBase(std::move(o)), fun(std::move(o.fun)) {}
+
+protected:
+  static void wrapper(TaskletBase* msg) { static_cast<TaskletFunctor*>(msg)->fun(msg); }
+
+protected:
+  FUNCTOR fun;
+  char padding[CLSIZE - (sizeof(FUNCTOR)+sizeof(TaskletBase))%CLSIZE];
+};
+
+template<class FUNCTOR>
+TaskletFunctor<FUNCTOR> makeTasklet(FUNCTOR fun) { return TaskletFunctor<FUNCTOR>(fun); }
+
+} // namespace async
+
+  using async::Tasklet;
 
 } // namespace mythos

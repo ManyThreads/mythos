@@ -33,16 +33,26 @@ namespace mythos {
 
 extern uint64_t tscdelay_MHz;
 
-  inline void hwthread_pause()
-  {
-    asm volatile("pause");
-  }
+  inline void hwthread_pause() { asm volatile("pause"); }
 
   inline void hwthread_pause(size_t n)
   {
-    for (size_t i=0; i<n; i++) asm volatile("pause");
+    for (size_t i=0; i<(n+9/10); i++) {
+      asm volatile("pause");
+      asm volatile("pause");
+      asm volatile("pause");
+      asm volatile("pause");
+      asm volatile("pause");
+      asm volatile("pause");
+      asm volatile("pause");
+      asm volatile("pause");
+      asm volatile("pause");
+      asm volatile("pause");
+    }
   }
-  
+
+  inline void hwthread_pollpause() { hwthread_pause(200); }
+
   inline void hwthread_wait(size_t usec)
   {
     unsigned low,high;
@@ -54,8 +64,8 @@ extern uint64_t tscdelay_MHz;
         uint64_t now = low | uint64_t(high) << 32;
         if (now - start >= nticks) break;
         asm volatile("rep; nop" ::: "memory");
-    } 
-  }   
+    }
+  }
 
   NORETURN inline void sleep_infinitely()
   {
