@@ -32,7 +32,7 @@
 
 namespace mlog {
 
-  extern ISink* sink;
+extern ISink* sink;
 
 #define STRINGIFY(x) #x
 #define TOSTRING(x) STRINGIFY(x)
@@ -51,19 +51,19 @@ namespace mlog {
   if ((logger).isActive(mlog::TextError::VERBOSITY)) logger.write<mlog::TextError>( \
           PATH, __VA_ARGS__);
 
-  template<class Filter=FilterAny>
-  class Logger
+template<class Filter = FilterAny>
+class Logger
     : public Filter
-  {
-  public:
-    Logger(char const* name="mlog") : name(name) {}
+{
+public:
+    Logger(char const* name = "mlog") : name(name) {}
     Logger(char const* name, Filter filter) : Filter(filter), name(name) {}
     Logger(Filter filter) : Filter(filter), name("mlog") {}
     void setName(char const* name) { this->name = name; }
 
     template<class MSG, typename... ARGS>
     void log(ARGS&&... args) const {
-      if (this->isActive(MSG::VERBOSITY)) write<MSG, ARGS...>(std::forward<ARGS>(args)...);
+        if (this->isActive(MSG::VERBOSITY)) write<MSG, ARGS...>(std::forward<ARGS>(args)...);
     }
 
     template<class MSG, typename... ARGS>
@@ -87,15 +87,41 @@ namespace mlog {
     template<typename... ARGS>
     void csv(ARGS&&... args) { log<TextCSV>(std::forward<ARGS>(args)...); }
 
-  protected:
+protected:
     char const* name;
-  };
+};
 
-  template<class Filter>
-  template<class MSG, typename... ARGS>
-  void Logger<Filter>::write(ARGS&&... args) const {
+template<class Filter>
+template<class MSG, typename... ARGS>
+void Logger<Filter>::write(ARGS&&... args) const {
     MSG msg(name, std::forward<ARGS>(args)...);
     sink->write(msg.getData(), msg.getSize());
+}
+
+static Logger<FilterAny> testLog("Test");
+inline static void test_log(const char *file_line, const char *msg, const char *expr) {
+  if (testLog.isActive(mlog::TextError::VERBOSITY)) {
+    testLog.write<mlog::TextError>(file_line, msg, expr);
   }
+}
+
+#define MLOG_TEST_OP(logger, op, val, expected) \
+  if (!((val) op (expected))) MLOG_ERROR(logger, "Failed Test:", \
+  TOSTRING(val), TOSTRING(op), TOSTRING(expected))
+#define MLOG_TEST(logger, expr) if (!(expr)) MLOG_ERROR(logger, "Failed Test:", TOSTRING(expr))
+
+#define MLOG_TEST_EQ(logger, val, expected) MLOG_TEST_OP(logger, ==, val, expected)
+#define MLOG_TEST_NEQ(logger, expr, val) MLOG_TEST_OP(logger, !=, expr, val)
+#define MLOG_TEST_TRUE(logger, expr) MLOG_TEST_OP(logger, ==, expr, true)
+#define MLOG_TEST_FALSE(logger, expr) MLOG_TEST_OP(logger, !=, expr, true)
+
+#define TEST(expr) if (!(expr)) mlog::test_log("[" __FILE__ ":" TOSTRING(__LINE__) "]", "Failed Test:", TOSTRING(expr))
+#define TEST_LOG(op, val, expected) if (!((val) op (expected))) \
+            mlog::test_log("[" __FILE__ ":" TOSTRING(__LINE__) "]", "Failed Test:",\
+            TOSTRING(val) TOSTRING(op) TOSTRING(expected))
+#define TEST_EQ(val, expected) TEST_LOG(==, val, expected)
+#define TEST_NEQ(expr, val) TEST_LOG(!=, expr, val)
+#define TEST_TRUE(expr) TEST_LOG(==, expr, true)
+#define TEST_FALSE(expr) TEST_LOG(!=, expr, true)
 
 } // namespace mlog
