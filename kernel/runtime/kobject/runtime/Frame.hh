@@ -27,7 +27,7 @@
 
 #include "runtime/PortalBase.hh"
 #include "mythos/protocol/Frame.hh"
-#include "runtime/UntypedMemory.hh"
+#include "runtime/KernelMemory.hh"
 #include "mythos/init.hh"
 
 namespace mythos {
@@ -37,7 +37,7 @@ namespace mythos {
   public:
     Frame(CapPtr cap) : KObject(cap) {}
 
-    PortalFuture<void> create(PortalLock pr, UntypedMemory kmem,
+    PortalFuture<void> create(PortalLock pr, KernelMemory kmem,
                               size_t size, size_t alignment,
                               CapPtr factory = init::MEMORY_REGION_FACTORY) {
       return pr.invoke<protocol::Frame::Create>(kmem.cap(), _cap, factory, size, alignment);

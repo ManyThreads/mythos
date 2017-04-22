@@ -29,7 +29,7 @@
 #include "util/PhysPtr.hh"
 #include "boot/mlog.hh"
 #include "boot/memory-layout.h"
-#include "objects/UntypedMemory.hh"
+#include "objects/KernelMemory.hh"
 #include "util/alignments.hh"
 
 namespace mythos {
@@ -56,7 +56,7 @@ namespace mythos {
         this->substract(begin, end);
       }
 
-      void addToUM(UntypedMemory& um) {
+      void addToUM(KernelMemory& um) {
         for (auto& r : *this) {
           MLOG_DETAIL(mlog::boot, "add range", DMRANGE(r.getStart(), r.getSize()), "to untyped memory");
           um.addRange(PhysPtr<void>(r.getStart()), r.getSize());

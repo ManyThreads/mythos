@@ -35,7 +35,7 @@ namespace boot {
 
 extern char KERN_END SYMBOL("KERN_END");
 
-void initKernelMemory(UntypedMemory& um)
+void initKernelMemory(KernelMemory& um)
 {
   KernelMemoryRange<30> usable_mem;
   SFIInfo info;

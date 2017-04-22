@@ -25,7 +25,7 @@
  */
 #pragma once
 
-#include "mythos/protocol/UntypedMemory.hh"
+#include "mythos/protocol/KernelMemory.hh"
 #include "mythos/protocol/common.hh"
 
 namespace mythos {
@@ -100,7 +100,7 @@ namespace mythos {
         Suspend() : InvocationBase(label,getLength(this)) {}
       };
 
-      struct Create : public UntypedMemory::CreateBase {
+      struct Create : public KernelMemory::CreateBase {
         typedef InvocationBase response_type;
         Create(CapPtr dst, CapPtr factory, CapPtr as, CapPtr cs, CapPtr sched, Amd64Registers regs, bool start)
           : CreateBase(dst, factory), regs(regs), start(start)

@@ -34,7 +34,7 @@
 
 namespace mythos {
 
-  class UntypedMemory;
+  class KernelMemory;
   class CapMap;
   class Portal;
   class IFrame;
@@ -72,7 +72,7 @@ namespace mythos {
       PhysPtr<void> _regionStart;
       size_t _frames;
       size_t _maxFrames;
-      UntypedMemory* _mem;
+      KernelMemory* _mem;
       CapEntry* _memEntry;
 
       Portal* _portal;

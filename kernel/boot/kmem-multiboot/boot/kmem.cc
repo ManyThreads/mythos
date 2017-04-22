@@ -37,7 +37,7 @@ extern uint64_t _mboot_magic SYMBOL("_mboot_magic");
 extern uint64_t _mboot_table SYMBOL("_mboot_table");
 extern char KERN_END SYMBOL("KERN_END");
 
-void initKernelMemory(UntypedMemory& um)
+void initKernelMemory(KernelMemory& um)
 {
   KernelMemoryRange<30> usable_mem;
   auto mboot_magic = *physPtr(&_mboot_magic);

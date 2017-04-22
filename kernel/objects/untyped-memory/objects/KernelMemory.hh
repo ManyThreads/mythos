@@ -34,14 +34,14 @@
 #include "objects/CapEntry.hh"
 #include "objects/ops.hh"
 #include "objects/IFactory.hh"
-#include "mythos/protocol/UntypedMemory.hh"
+#include "mythos/protocol/KernelMemory.hh"
 
 #include "async/mlog.hh"
 #include "objects/mlog.hh"
 
 namespace mythos {
 
-  class UntypedMemory final
+  class KernelMemory final
     : public IKernelObject
     , public IAllocator
   {
@@ -49,9 +49,9 @@ namespace mythos {
     /** manages free memory in the range. The range is given in logical
      * addresses of kernel memory and internally converted to the
      * physical range. */
-    UntypedMemory(IAsyncFree* parent, Range<uintptr_t> range);
-    UntypedMemory(const UntypedMemory&) = delete;
-    virtual ~UntypedMemory() {}
+    KernelMemory(IAsyncFree* parent, Range<uintptr_t> range);
+    KernelMemory(const KernelMemory&) = delete;
+    virtual ~KernelMemory() {}
 
     /** called by factories and boot::initKernelMemory to add free memory */
     void addRange(PhysPtr<void> start, size_t length);
@@ -109,16 +109,16 @@ namespace mythos {
     async::NestedMonitorDelegating monitor;
   };
 
-class UntypedMemoryFactory : public FactoryBase
+class KernelMemoryFactory : public FactoryBase
 {
 public:
-  static optional<UntypedMemory*>
+  static optional<KernelMemory*>
   factory(CapEntry* dstEntry, CapEntry* memEntry, Cap memCap, IAllocator* mem,
           size_t size, size_t alignment);
 
   Error factory(CapEntry* dstEntry, CapEntry* memEntry, Cap memCap,
                 IAllocator* mem, IInvocation* msg) const override {
-    auto data = msg->getMessage()->cast<protocol::UntypedMemory::Create>();
+    auto data = msg->getMessage()->cast<protocol::KernelMemory::Create>();
     return factory(dstEntry, memEntry, memCap, mem, data->size, data->alignment).state();
   }
 };

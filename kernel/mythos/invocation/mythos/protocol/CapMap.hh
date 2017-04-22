@@ -26,7 +26,7 @@
 #pragma once
 
 #include "mythos/protocol/common.hh"
-#include "mythos/protocol/UntypedMemory.hh"
+#include "mythos/protocol/KernelMemory.hh"
 
 namespace mythos {
   namespace protocol {
@@ -128,7 +128,7 @@ namespace mythos {
         uint8_t srcDepth;
       };
 
-      struct Create : public UntypedMemory::CreateBase {
+      struct Create : public KernelMemory::CreateBase {
         Create(CapPtr dst, CapPtr factory, CapPtrDepth indexbits, CapPtrDepth guardbits, CapPtr guard)
           : CreateBase(dst, factory), indexbits(indexbits), guardbits(guardbits), guard(guard)
         {}

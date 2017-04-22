@@ -31,13 +31,13 @@
 #include "objects/StaticMemoryRegion.hh"
 #include "objects/MemoryRegion.hh"
 #include "objects/FrameData.hh"
-#include "objects/UntypedMemory.hh"
+#include "objects/KernelMemory.hh"
 #include "objects/PageMap.hh"
 
 namespace mythos {
 
 extern CapEntry* getRootCapEntry();
-extern UntypedMemory* kmem_root();
+extern KernelMemory* kmem_root();
 
 namespace test_mem {
 

@@ -47,7 +47,7 @@
 #include "boot/kmem.hh"
 #include "async/Place.hh"
 #include "boot/load_init.hh"
-#include "objects/UntypedMemory.hh"
+#include "objects/KernelMemory.hh"
 #include "objects/StaticMemoryRegion.hh"
 #include "objects/ISchedulable.hh"
 #include "objects/SchedulingContext.hh"

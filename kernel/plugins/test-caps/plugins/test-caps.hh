@@ -32,7 +32,7 @@
 #include "plugins/TestPlugin.hh"
 
 namespace mythos {
-class UntypedMemory;
+class KernelMemory;
 namespace test_caps {
 
 class TestCaps : public TestPlugin, public IResult<void>

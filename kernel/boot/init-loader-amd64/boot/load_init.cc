@@ -33,7 +33,7 @@
 #include "mythos/init.hh"
 #include "objects/ops.hh"
 #include "objects/CapMap.hh"
-#include "objects/UntypedMemory.hh"
+#include "objects/KernelMemory.hh"
 #include "objects/StaticMemoryRegion.hh"
 #include "objects/MemoryRegion.hh"
 #include "objects/PageMap.hh"
@@ -46,7 +46,7 @@
 
 
 namespace mythos {
-  extern UntypedMemory* kmem_root();
+  extern KernelMemory* kmem_root();
   namespace boot {
 
   using namespace mythos::init;
@@ -107,7 +107,7 @@ namespace factory {
   PortalFactory portal;
   CapMapFactory capmap;
   PageMapFactory pagemap;
-  UntypedMemoryFactory untypedMemory;
+  KernelMemoryFactory untypedMemory;
 } // namespace example
 
 template<class Object, class Factory, class... ARGS>

@@ -26,11 +26,11 @@
 #pragma once
 
 namespace mythos {
-  class UntypedMemory;
+  class KernelMemory;
 
   namespace boot {
 
-    void initKernelMemory(UntypedMemory& um);
+    void initKernelMemory(KernelMemory& um);
 
   } // namespace boot
 } // namespace mythos

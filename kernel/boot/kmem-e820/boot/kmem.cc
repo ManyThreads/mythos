@@ -33,7 +33,7 @@
 namespace mythos {
   namespace boot {
     
-void initKernelMemory(UntypedMemory& um)
+void initKernelMemory(KernelMemory& um)
 {
   KernelMemoryRange<30> usable_mem;
   E820Info ebi;

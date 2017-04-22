@@ -29,7 +29,7 @@
 
 namespace mythos {
   class MemoryRoot;
-  class UntypedMemory;
+  class KernelMemory;
   class StaticMemoryRegion;
   class CapEntry;
 
@@ -40,7 +40,7 @@ namespace mythos {
     MemoryRoot* cap_root();
     StaticMemoryRegion* memory_region(size_t index);
     CapEntry* kmem_root_entry();
-    UntypedMemory* kmem_root();
+    KernelMemory* kmem_root();
 
     void initMemoryRegions();
   } // namespace boot
