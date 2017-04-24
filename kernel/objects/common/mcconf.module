@@ -1,0 +1,27 @@
+# -*- mode:toml; -*-
+
+[module.objects-common]
+incfiles = [
+  "objects/IAllocator.hh",
+  "objects/IPortal.hh",
+  "objects/IFrame.hh",
+  "objects/IPageMap.hh",
+  "objects/ISchedulable.hh",
+  "objects/IDeleter.hh",
+  "objects/IInvocation.hh",
+  "objects/IFactory.hh",
+  "objects/ICapMap.hh",
+  "objects/IScheduler.hh",
+  "objects/INotification.hh",
+  "objects/INotifiable.hh",
+  "objects/TypedCap.hh",
+  "objects/Cap.hh",
+  "objects/IKernelObject.hh",
+  "objects/DebugMessage.hh",
+  "objects/mlog.hh",
+  ]
+kernelfiles = [ 
+  "objects/ISchedulable.cc",
+  "objects/DebugMessage.cc",
+  "objects/mlog.cc",
+]
