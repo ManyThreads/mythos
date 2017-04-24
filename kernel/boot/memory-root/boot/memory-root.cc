@@ -28,7 +28,7 @@
 
 #include "objects/CapEntry.hh"
 #include "objects/ops.hh"
-#include "objects/UntypedMemory.hh"
+#include "objects/KernelMemory.hh"
 #include "objects/StaticMemoryRegion.hh"
 #include "objects/MemoryRoot.hh"
 #include "boot/mlog.hh"
@@ -38,7 +38,7 @@ namespace mythos {
     // be careful with pointers to these objects because they are image addresses
     MemoryRoot _cap_root;
     StaticMemoryRegion _memory_region[STATIC_MEMORY_REGIONS];
-    UntypedMemory _kmem_root(nullptr, Range<uintptr_t>::bySize(KERNELMEM_ADDR, KERNELMEM_SIZE));
+    KernelMemory _kmem_root(nullptr, Range<uintptr_t>::bySize(KERNELMEM_ADDR, KERNELMEM_SIZE));
     CapEntry _kmem_root_entry;
 
     MemoryRoot* cap_root() { return image2kernel(&_cap_root); }
@@ -49,7 +49,7 @@ namespace mythos {
     }
 
     CapEntry* kmem_root_entry() { return image2kernel(&_kmem_root_entry); }
-    UntypedMemory* kmem_root() { return image2kernel(&_kmem_root); }
+    KernelMemory* kmem_root() { return image2kernel(&_kmem_root); }
 
     void initMemoryRegions() {
       MLOG_INFO(mlog::boot, "initialise memory regions");

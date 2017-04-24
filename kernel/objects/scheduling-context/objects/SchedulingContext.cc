@@ -28,7 +28,7 @@
 #include "objects/SchedulingContext.hh"
 #include "objects/ISchedulable.hh"
 #include "objects/CapEntry.hh"
-#include "objects/UntypedMemory.hh"
+#include "objects/KernelMemory.hh"
 #include "objects/mlog.hh"
 #include "boot/memory-root.hh"
 

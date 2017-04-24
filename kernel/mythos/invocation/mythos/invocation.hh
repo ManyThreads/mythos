@@ -29,7 +29,7 @@
 #include "mythos/protocol/KernelObject.hh"
 #include "mythos/protocol/Example.hh"
 #include "mythos/protocol/ExecutionContext.hh"
-#include "mythos/protocol/UntypedMemory.hh"
+#include "mythos/protocol/KernelMemory.hh"
 #include "mythos/protocol/CapMap.hh"
 #include "mythos/protocol/Portal.hh"
 #include "mythos/protocol/Frame.hh"

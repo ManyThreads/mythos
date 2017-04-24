@@ -29,13 +29,13 @@
 #include "objects/IKernelObject.hh"
 #include "objects/ops.hh"
 #include "objects/Example.hh"
-#include "objects/UntypedMemory.hh"
+#include "objects/KernelMemory.hh"
 #include "objects/InvocationMock.hh"
 
 namespace mythos {
 
 extern CapEntry* getRootCapEntry();
-extern UntypedMemory* kmem_root();
+extern KernelMemory* kmem_root();
 
 namespace test_caps {
 

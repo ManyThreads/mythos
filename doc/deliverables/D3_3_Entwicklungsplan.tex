@@ -102,7 +102,7 @@ Capability Transfers zwischen Kommunikationsportalen.
 % \texttt{deleteObject()} carries out the final step of the asynchronous
 % deletion. The object will use its deletion monitor to wait for all
 % outstanding asynchronous request to complete and then asynchronously
-% requests the deletion from the \texttt{UntypedMemory} object it was
+% requests the deletion from the \texttt{KernelMemory} object it was
 % allocated from. An example is shown in
 % Listing~\ref{lst:deleteobject}. The memory's \texttt{release()} method
 % will call the object's \texttt{objectRange()} to query the address
@@ -188,9 +188,9 @@ Capability Transfers zwischen Kommunikationsportalen.
 % The converted pointer is then retrieved via the \texttt{cast()} helper
 % method as shown in Listing~\ref{lst:cast}.
 % 
-% \begin{lstlisting}[float, label=lst:vcast, caption=Example run-time type conversion in the \texttt{UntypedMemory} object.]
+% \begin{lstlisting}[float, label=lst:vcast, caption=Example run-time type conversion in the \texttt{KernelMemory} object.]
 % virtual optional<void const*> vcast(TypeId id) const override {
-%   if (id == TypeId::id<UntypedMemory>()) return this;
+%   if (id == TypeId::id<KernelMemory>()) return this;
 %   if (id == TypeId::id<IAllocator>()) return static_cast<IAllocator const*>(this);
 %   return Error::TYPE_MISMATCH;
 % }
@@ -208,7 +208,7 @@ Capability Transfers zwischen Kommunikationsportalen.
 % \subsection{Object Creation}
 % 
 % Kernel objects are created with memory from a single
-% \texttt{UntypedMemory} via the help of a factory object.  The only
+% \texttt{KernelMemory} via the help of a factory object.  The only
 % exception are a few initial objects that exist statically.  The
 % factory has to implement the \texttt{IFactory} interface, which is
 % shown in Listing~\ref{lst:ifactory}. 
@@ -221,10 +221,10 @@ Capability Transfers zwischen Kommunikationsportalen.
 % };
 % \end{lstlisting}
 % 
-% The \texttt{umcap} capability belongs to the \texttt{UntypedMemory}
+% The \texttt{umcap} capability belongs to the \texttt{KernelMemory}
 % that called the factory.  This value is later needed to complete the
 % insertion into the resource tree.  The \texttt{mem} argument points to
-% the \texttt{IAllocator} interface of the \texttt{UntypedMemory}.
+% the \texttt{IAllocator} interface of the \texttt{KernelMemory}.
 % Because the memory calls the factory the memory's synchronisation
 % monitor has been entered, synchronous calls to \texttt{mem} can be
 % used safely.  The created object has to store \texttt{mem} in order to
@@ -244,7 +244,7 @@ Capability Transfers zwischen Kommunikationsportalen.
 % has to be reset (lines 5--7).
 % 
 % Finally, the original capability of the created object is inserted as
-% child of the \texttt{UntypedMemory} that it was allocated from (line
+% child of the \texttt{KernelMemory} that it was allocated from (line
 % 10).  The parent entry is retrieved from the invocation message and
 % should match \texttt{umcap}.  The operation fails when the parent
 % object was deleted concurrently.  In this case, the object and the

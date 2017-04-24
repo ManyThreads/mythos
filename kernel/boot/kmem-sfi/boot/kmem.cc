@@ -35,7 +35,7 @@ namespace boot {
 
 extern char KERN_END SYMBOL("KERN_END");
 
-void initKernelMemory(UntypedMemory& um)
+void initKernelMemory(KernelMemory& km)
 {
   KernelMemoryRange<30> usable_mem;
   SFIInfo info;
@@ -54,7 +54,7 @@ void initKernelMemory(UntypedMemory& um)
   }
 
   usable_mem.removeKernelReserved();
-  usable_mem.addToUM(um);
+  usable_mem.addToKM(km);
   // TODO create array of frame objects for remaining memory above 4GiB
 }
 

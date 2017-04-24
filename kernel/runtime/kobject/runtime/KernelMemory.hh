@@ -26,20 +26,20 @@
 #pragma once
 
 #include "runtime/PortalBase.hh"
-#include "mythos/protocol/UntypedMemory.hh"
+#include "mythos/protocol/KernelMemory.hh"
 #include "mythos/init.hh"
 
 namespace mythos {
 
-  class UntypedMemory : public KObject
+  class KernelMemory : public KObject
   {
   public:
-    UntypedMemory(CapPtr cap) : KObject(cap) {}
+    KernelMemory(CapPtr cap) : KObject(cap) {}
 
-    PortalFuture<void> create(PortalLock pr, UntypedMemory kmem,
+    PortalFuture<void> create(PortalLock pr, KernelMemory kmem,
                               size_t size, size_t alignment,
                               CapPtr factory=init::UNTYPED_MEMORY_FACTORY) {
-      return pr.invoke<protocol::UntypedMemory::Create>(kmem.cap(), _cap, factory, size, alignment);
+      return pr.invoke<protocol::KernelMemory::Create>(kmem.cap(), _cap, factory, size, alignment);
     }
   };
 

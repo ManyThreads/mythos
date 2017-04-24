@@ -27,7 +27,7 @@
 
 #include <cstring>
 #include "mythos/protocol/common.hh"
-#include "mythos/protocol/UntypedMemory.hh"
+#include "mythos/protocol/KernelMemory.hh"
 
 namespace mythos {
   namespace protocol {
@@ -54,7 +54,7 @@ namespace mythos {
         char message[InvocationBase::maxBytes-2];
       };
 
-      struct Create : public UntypedMemory::CreateBase {
+      struct Create : public KernelMemory::CreateBase {
         Create(CapPtr dst, CapPtr factory) : CreateBase(dst, factory) {}
       };
 

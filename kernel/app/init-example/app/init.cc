@@ -33,7 +33,7 @@
 #include "runtime/CapMap.hh"
 #include "runtime/Example.hh"
 #include "runtime/PageMap.hh"
-#include "runtime/UntypedMemory.hh"
+#include "runtime/KernelMemory.hh"
 #include "runtime/SimpleCapAlloc.hh"
 #include "app/mlog.hh"
 #include <cstdint>
@@ -49,7 +49,7 @@ char* initstack_top = initstack+stacksize;
 mythos::Portal portal(mythos::init::PORTAL, msg_ptr);
 mythos::CapMap myCS(mythos::init::CSPACE);
 mythos::PageMap myAS(mythos::init::PML4);
-mythos::UntypedMemory kmem(mythos::init::UM);
+mythos::KernelMemory kmem(mythos::init::KM);
 mythos::SimpleCapAllocDel capAlloc(portal, myCS, mythos::init::APP_CAP_START,
                                   mythos::init::SIZE-mythos::init::APP_CAP_START);
 

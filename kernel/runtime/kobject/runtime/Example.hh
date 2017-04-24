@@ -27,7 +27,7 @@
 
 #include "runtime/PortalBase.hh"
 #include "mythos/protocol/Example.hh"
-#include "runtime/UntypedMemory.hh"
+#include "runtime/KernelMemory.hh"
 #include "mythos/init.hh"
 
 namespace mythos {
@@ -37,7 +37,7 @@ namespace mythos {
   public:
     Example(CapPtr cap) : KObject(cap) {}
 
-    PortalFuture<void> create(PortalLock pr, UntypedMemory kmem,
+    PortalFuture<void> create(PortalLock pr, KernelMemory kmem,
                               CapPtr factory = init::EXAMPLE_FACTORY) {
       return pr.invoke<protocol::Example::Create>(kmem.cap(), _cap, factory);
     }

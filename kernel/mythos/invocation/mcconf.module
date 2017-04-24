@@ -6,7 +6,7 @@
              "mythos/protocol/ExecutionContext.hh",
              "mythos/protocol/PageMap.hh",
              "mythos/protocol/Frame.hh",
-             "mythos/protocol/UntypedMemory.hh",
+             "mythos/protocol/KernelMemory.hh",
              "mythos/protocol/Example.hh",
              "mythos/protocol/CapMap.hh",
              "mythos/protocol/Portal.hh",

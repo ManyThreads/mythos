@@ -31,5 +31,5 @@ namespace mlog {
   Logger<MLOG_SCHED> sched("sched");
   Logger<MLOG_SYSCALL> syscall("syscall");
   Logger<MLOG_EC> ec("ec");
-  Logger<MLOG_UM> um("um");
+  Logger<MLOG_KM> km("km");
 } // namespace mlog

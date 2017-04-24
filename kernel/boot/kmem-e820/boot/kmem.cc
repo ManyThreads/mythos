@@ -33,7 +33,7 @@
 namespace mythos {
   namespace boot {
     
-void initKernelMemory(UntypedMemory& um)
+void initKernelMemory(KernelMemory& km)
 {
   KernelMemoryRange<30> usable_mem;
   E820Info ebi;
@@ -49,7 +49,7 @@ void initKernelMemory(UntypedMemory& um)
   }
   
   usable_mem.removeKernelReserved();
-  usable_mem.addToUM(um);
+  usable_mem.addToKM(km);
   // TODO create array of frame objects for remaining memory above 4GiB
 }
 

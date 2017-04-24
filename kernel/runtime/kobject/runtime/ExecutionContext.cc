@@ -29,7 +29,7 @@
 namespace mythos {
 
   PortalFuture<void>
-  ExecutionContext::create(PortalLock pr, UntypedMemory kmem,
+  ExecutionContext::create(PortalLock pr, KernelMemory kmem,
                           PageMap as, CapMap cs, CapPtr sched,
                           void* stack, StartFun start, void* userctx,
                           CapPtr factory)

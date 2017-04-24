@@ -31,7 +31,7 @@
 #include "util/alignments.hh"
 #include "objects/Example.hh"
 #include "objects/ops.hh"
-#include "objects/UntypedMemory.hh"
+#include "objects/KernelMemory.hh"
 #include "boot/memory-root.hh"
 #include "objects/DebugMessage.hh"
 #include "util/error-trace.hh"

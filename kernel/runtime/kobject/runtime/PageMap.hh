@@ -28,7 +28,7 @@
 #include "runtime/PortalBase.hh"
 #include "mythos/protocol/PageMap.hh"
 #include "runtime/Frame.hh"
-#include "runtime/UntypedMemory.hh"
+#include "runtime/KernelMemory.hh"
 #include "mythos/init.hh"
 
 namespace mythos {
@@ -41,7 +41,7 @@ namespace mythos {
 
     PageMap(CapPtr cap) : KObject(cap) {}
 
-    PortalFuture<void> create(PortalLock pr, UntypedMemory kmem, size_t level,
+    PortalFuture<void> create(PortalLock pr, KernelMemory kmem, size_t level,
                               CapPtr factory = init::PAGEMAP_FACTORY) {
       return pr.invoke<protocol::PageMap::Create>(kmem.cap(), _cap, factory, level);
     }

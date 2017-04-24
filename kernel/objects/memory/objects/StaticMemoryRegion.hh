@@ -52,7 +52,7 @@ public:
     return cap::inherit(root, _ownRoot, root.cap(), Cap(this,FrameData()));
   }
 
-  /** used to attach the root UntypedMemory as child of a static memory region. */
+  /** used to attach the root KernelMemory as child of a static memory region. */
   CapEntry& getRoot() { return _ownRoot; }
 
 public: // IFrame interface

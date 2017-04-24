@@ -24,7 +24,7 @@
  * Copyright 2016 Randolf Rotta, Robert Kuban, and contributors, BTU Cottbus-Senftenberg
  */
 
-#include "objects/UntypedMemory.hh"
+#include "objects/KernelMemory.hh"
 #include "objects/TypedCap.hh"
 
 #include <new>
@@ -33,32 +33,32 @@
 
 namespace mythos {
 
-UntypedMemory::UntypedMemory(IAsyncFree* parent, Range<uintptr_t> range)
+KernelMemory::KernelMemory(IAsyncFree* parent, Range<uintptr_t> range)
   : _parent(parent)
 {
   _memory[0].ptr = reinterpret_cast<void*>(range.getStart());
   _memory[0].size = range.getSize();
   _memory[1].ptr = this;
-  _memory[1].size = sizeof(UntypedMemory);
+  _memory[1].size = sizeof(KernelMemory);
   _range = Range<uintptr_t>::bySize(
       PhysPtr<void>::fromKernel(_memory[0].ptr).physint(),
       range.getSize());
 }
 
-optional<void*> UntypedMemory::alloc(size_t length, size_t alignment)
+optional<void*> KernelMemory::alloc(size_t length, size_t alignment)
 {
   auto result = heap.alloc(length, alignment);
   if (result) {
-    MLOG_INFO(mlog::um, "alloc", DVAR(length), DVARhex(alignment), DVARhex(*result));
+    MLOG_INFO(mlog::km, "alloc", DVAR(length), DVARhex(alignment), DVARhex(*result));
     monitor.acquireRef();
     return reinterpret_cast<void*>(*result);
   } else {
-    MLOG_INFO(mlog::um, "alloc failed", DVAR(length), DVARhex(alignment), DVAR(result.state()));
+    MLOG_INFO(mlog::km, "alloc failed", DVAR(length), DVARhex(alignment), DVAR(result.state()));
     RETHROW(result);
   }
 }
 
-optional<void> UntypedMemory::alloc(MemoryDescriptor* begin, MemoryDescriptor* end)
+optional<void> KernelMemory::alloc(MemoryDescriptor* begin, MemoryDescriptor* end)
 {
   auto result = optional<uintptr_t>(1);
   auto it = begin;
@@ -67,11 +67,11 @@ optional<void> UntypedMemory::alloc(MemoryDescriptor* begin, MemoryDescriptor* e
     ASSERT(!it->ptr);
     result = heap.alloc(it->size, it->alignment);
     if (result) {
-      MLOG_INFO(mlog::um, "alloc", DVAR(it->size), DVARhex(it->alignment), DVARhex(*result));
+      MLOG_INFO(mlog::km, "alloc", DVAR(it->size), DVARhex(it->alignment), DVARhex(*result));
       monitor.acquireRef();
       it->ptr = reinterpret_cast<void*>(*result);
     } else {
-      MLOG_INFO(mlog::um, "alloc failed", DVAR(it->size), DVARhex(it->alignment), DVAR(result.state()));
+      MLOG_INFO(mlog::km, "alloc failed", DVAR(it->size), DVARhex(it->alignment), DVAR(result.state()));
       break;
     }
   }
@@ -83,22 +83,22 @@ optional<void> UntypedMemory::alloc(MemoryDescriptor* begin, MemoryDescriptor* e
   }
 }
 
-void UntypedMemory::free(void* ptr, size_t length)
+void KernelMemory::free(void* ptr, size_t length)
 {
   auto start = reinterpret_cast<uintptr_t>(ptr);
   auto freeRange = Range<uintptr_t>::bySize(PhysPtr<void>::fromKernel(ptr).physint(), length);
-  MLOG_INFO(mlog::um, "free", DVARhex(ptr), DVARhex(length));
+  MLOG_INFO(mlog::km, "free", DVARhex(ptr), DVARhex(length));
   ASSERT(_range.contains(freeRange));
   monitor.releaseRef();
   heap.free(start, length);
 }
 
-void UntypedMemory::free(MemoryDescriptor* begin, MemoryDescriptor* end)
+void KernelMemory::free(MemoryDescriptor* begin, MemoryDescriptor* end)
 {
   for (auto it = begin; it != end; ++it) free(it->ptr, it->size);
 }
 
-void UntypedMemory::addRange(PhysPtr<void> start, size_t length)
+void KernelMemory::addRange(PhysPtr<void> start, size_t length)
 {
   if (!start.kernelmem()) return;
   Range<uintptr_t> add = Range<uintptr_t>::bySize(start.logint(), length);
@@ -112,10 +112,10 @@ void UntypedMemory::addRange(PhysPtr<void> start, size_t length)
 
 // IAsyncFree interface
 
-void UntypedMemory::free(Tasklet* t, IResult<void>* r,
+void KernelMemory::free(Tasklet* t, IResult<void>* r,
        MemoryDescriptor* begin, MemoryDescriptor* end)
 {
-  MLOG_INFO(mlog::um, "free request", DVAR(t), DVAR(r), DVARhex(begin), DVARhex(end));
+  MLOG_INFO(mlog::km, "free request", DVAR(t), DVAR(r), DVARhex(begin), DVARhex(end));
   monitor.request(t, [=](Tasklet* t){
       this->free(begin, end);
       r->response(t);
@@ -123,9 +123,9 @@ void UntypedMemory::free(Tasklet* t, IResult<void>* r,
     });
 }
 
-void UntypedMemory::free(Tasklet* t, IResult<void>* r, void* start, size_t length)
+void KernelMemory::free(Tasklet* t, IResult<void>* r, void* start, size_t length)
 {
-  MLOG_INFO(mlog::um, "free request", DVAR(t), DVAR(r), DVARhex(start), DVARhex(length));
+  MLOG_INFO(mlog::km, "free request", DVAR(t), DVAR(r), DVARhex(start), DVARhex(length));
   monitor.request(t, [=](Tasklet* t){
       this->free(start, length);
       r->response(t);
@@ -133,7 +133,7 @@ void UntypedMemory::free(Tasklet* t, IResult<void>* r, void* start, size_t lengt
     });
 }
 
-  void UntypedMemory::invoke(Tasklet* t, Cap self, IInvocation* msg)
+  void KernelMemory::invoke(Tasklet* t, Cap self, IInvocation* msg)
   {
     monitor.request(t, [=](Tasklet* t){
         Error err = Error::NOT_IMPLEMENTED;
@@ -141,8 +141,8 @@ void UntypedMemory::free(Tasklet* t, IResult<void>* r, void* start, size_t lengt
         // case protocol::KernelObject::proto:
         //   err = protocol::KernelObject::dispatchRequest(this, msg->getMethod(), t, self, msg);
         //   break;
-        case protocol::UntypedMemory::proto:
-          err = protocol::UntypedMemory::dispatchRequest(this, msg->getMethod(), t, self, msg);
+        case protocol::KernelMemory::proto:
+          err = protocol::KernelMemory::dispatchRequest(this, msg->getMethod(), t, self, msg);
           break;
         }
         if (err != Error::INHIBIT) {
@@ -153,12 +153,12 @@ void UntypedMemory::free(Tasklet* t, IResult<void>* r, void* start, size_t lengt
   }
 
   /// @todo return optional<void> instead of Error and use RETHROW instead of return x.state()
-  Error UntypedMemory::invokeCreate(Tasklet*, Cap self, IInvocation* msg)
+  Error KernelMemory::invokeCreate(Tasklet*, Cap self, IInvocation* msg)
   {
     auto ib = msg->getMessage();
-    auto data = ib->read<protocol::UntypedMemory::CreateBase>();
+    auto data = ib->read<protocol::KernelMemory::CreateBase>();
 
-    MLOG_DETAIL(mlog::um, "create", DVAR(data.dstSpace()), DVAR(data.dstPtr));
+    MLOG_DETAIL(mlog::km, "create", DVAR(data.dstSpace()), DVAR(data.dstPtr));
     optional<CapEntry*> dstEntry;
     if (data.dstSpace() == null_cap) { // direct address
       dstEntry = msg->lookupEntry(data.dstPtr, 32, true); // lookup for write access
@@ -171,19 +171,19 @@ void UntypedMemory::free(Tasklet* t, IResult<void>* r, void* start, size_t lengt
       dstEntry = dstEntryRef->entry;
     }
 
-    MLOG_DETAIL(mlog::um, "create", DVAR(*dstEntry), DVAR(data.factory()));
+    MLOG_DETAIL(mlog::km, "create", DVAR(*dstEntry), DVAR(data.factory()));
     TypedCap<IFactory> factory(msg->lookupEntry(data.factory()));
     if (!factory) return factory;
 
-    MLOG_DETAIL(mlog::um, "create", DVAR(*factory));
+    MLOG_DETAIL(mlog::km, "create", DVAR(*factory));
     if (!dstEntry->acquire()) return Error::LOST_RACE;
     auto res = factory->factory(*dstEntry, msg->getCapEntry(), self, this, msg);
     if (res != Error::SUCCESS) dstEntry->reset();
     return res;
   }
 
-  optional<UntypedMemory*>
-  UntypedMemoryFactory::factory(CapEntry* dstEntry, CapEntry* memEntry, Cap memCap, IAllocator* mem,
+  optional<KernelMemory*>
+  KernelMemoryFactory::factory(CapEntry* dstEntry, CapEntry* memEntry, Cap memCap, IAllocator* mem,
                                size_t size, size_t alignment)
   {
     if (!Align4k::is_aligned(alignment) || !AlignmentObject(alignment).is_aligned(size))
@@ -191,7 +191,7 @@ void UntypedMemory::free(Tasklet* t, IResult<void>* r, void* start, size_t lengt
     auto region = mem->alloc(size, alignment);
     if (!region) RETHROW(region);
     auto obj =
-      mem->create<UntypedMemory>(Range<uintptr_t>(uintptr_t(*region), uintptr_t(*region)+size));
+      mem->create<KernelMemory>(Range<uintptr_t>(uintptr_t(*region), uintptr_t(*region)+size));
     if (!obj) {
       mem->free(*region, size);
       RETHROW(obj);
