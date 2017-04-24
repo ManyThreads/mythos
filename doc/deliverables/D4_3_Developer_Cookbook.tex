@@ -73,7 +73,7 @@ space (\texttt{kmem}), portal (\texttt{portal}) and object factory
 \lstset{language=c++}
 \begin{lstlisting}
 mythos::Portal portal(mythos::init::PORTAL, msg_ptr);
-mythos::KernelMemory kmem(mythos::init::UM);
+mythos::KernelMemory kmem(mythos::init::KM);
 mythos::CapMap myCS(mythos::init::CSPACE); // Capability Space
 ...
 

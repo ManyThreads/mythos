@@ -151,8 +151,8 @@ optional<void> InitLoader::initCSpace()
   auto res = csSet(CSPACE, _cspace->getRoot());
   if (!res) RETHROW(res);
 
-  MLOG_INFO(mlog::boot, "... create UM reference in cap", UM);
-  res = csSet(UM, *_memEntry);
+  MLOG_INFO(mlog::boot, "... create KM reference in cap", KM);
+  res = csSet(KM, *_memEntry);
   if (!res) RETHROW(res);
 
   MLOG_INFO(mlog::boot, "... create portal in cap", PORTAL);

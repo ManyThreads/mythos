@@ -34,7 +34,7 @@ namespace init {
 
   enum CSpaceLayout : CapPtr {
     NULLCAP = 0,
-    UM,
+    KM,
     CSPACE,
     EC,
     PORTAL,

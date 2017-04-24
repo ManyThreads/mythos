@@ -75,7 +75,7 @@ void TestMem::createRegions()
   TEST_NEQ(caps[0].cap(), caps[1].cap());
   printCaps();
 
-  _logger.error("create memory region from UM");
+  _logger.error("create memory region from KM");
   TEST_SUCCESS(MemoryRegion::factory(getRootCapEntry(), getRootCapEntry()->cap(), kmem_root(), 16*4096, 4096, &caps[2]).state());
 
   _logger.error("reference memory region");
@@ -137,7 +137,7 @@ void TestMem::createFrames()
 
 void TestMem::createMaps()
 {
-  _logger.error("create some maps from UM");
+  _logger.error("create some maps from KM");
   TEST_SUCCESS(PML4Map::factory(getRootCapEntry(), getRootCapEntry()->cap(), kmem_root(), &caps[10]).state());
   {
     auto cap = caps[10].cap();

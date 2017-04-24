@@ -49,11 +49,11 @@ optional<void*> KernelMemory::alloc(size_t length, size_t alignment)
 {
   auto result = heap.alloc(length, alignment);
   if (result) {
-    MLOG_INFO(mlog::um, "alloc", DVAR(length), DVARhex(alignment), DVARhex(*result));
+    MLOG_INFO(mlog::km, "alloc", DVAR(length), DVARhex(alignment), DVARhex(*result));
     monitor.acquireRef();
     return reinterpret_cast<void*>(*result);
   } else {
-    MLOG_INFO(mlog::um, "alloc failed", DVAR(length), DVARhex(alignment), DVAR(result.state()));
+    MLOG_INFO(mlog::km, "alloc failed", DVAR(length), DVARhex(alignment), DVAR(result.state()));
     RETHROW(result);
   }
 }
@@ -67,11 +67,11 @@ optional<void> KernelMemory::alloc(MemoryDescriptor* begin, MemoryDescriptor* en
     ASSERT(!it->ptr);
     result = heap.alloc(it->size, it->alignment);
     if (result) {
-      MLOG_INFO(mlog::um, "alloc", DVAR(it->size), DVARhex(it->alignment), DVARhex(*result));
+      MLOG_INFO(mlog::km, "alloc", DVAR(it->size), DVARhex(it->alignment), DVARhex(*result));
       monitor.acquireRef();
       it->ptr = reinterpret_cast<void*>(*result);
     } else {
-      MLOG_INFO(mlog::um, "alloc failed", DVAR(it->size), DVARhex(it->alignment), DVAR(result.state()));
+      MLOG_INFO(mlog::km, "alloc failed", DVAR(it->size), DVARhex(it->alignment), DVAR(result.state()));
       break;
     }
   }
@@ -87,7 +87,7 @@ void KernelMemory::free(void* ptr, size_t length)
 {
   auto start = reinterpret_cast<uintptr_t>(ptr);
   auto freeRange = Range<uintptr_t>::bySize(PhysPtr<void>::fromKernel(ptr).physint(), length);
-  MLOG_INFO(mlog::um, "free", DVARhex(ptr), DVARhex(length));
+  MLOG_INFO(mlog::km, "free", DVARhex(ptr), DVARhex(length));
   ASSERT(_range.contains(freeRange));
   monitor.releaseRef();
   heap.free(start, length);
@@ -115,7 +115,7 @@ void KernelMemory::addRange(PhysPtr<void> start, size_t length)
 void KernelMemory::free(Tasklet* t, IResult<void>* r,
        MemoryDescriptor* begin, MemoryDescriptor* end)
 {
-  MLOG_INFO(mlog::um, "free request", DVAR(t), DVAR(r), DVARhex(begin), DVARhex(end));
+  MLOG_INFO(mlog::km, "free request", DVAR(t), DVAR(r), DVARhex(begin), DVARhex(end));
   monitor.request(t, [=](Tasklet* t){
       this->free(begin, end);
       r->response(t);
@@ -125,7 +125,7 @@ void KernelMemory::free(Tasklet* t, IResult<void>* r,
 
 void KernelMemory::free(Tasklet* t, IResult<void>* r, void* start, size_t length)
 {
-  MLOG_INFO(mlog::um, "free request", DVAR(t), DVAR(r), DVARhex(start), DVARhex(length));
+  MLOG_INFO(mlog::km, "free request", DVAR(t), DVAR(r), DVARhex(start), DVARhex(length));
   monitor.request(t, [=](Tasklet* t){
       this->free(start, length);
       r->response(t);
@@ -158,7 +158,7 @@ void KernelMemory::free(Tasklet* t, IResult<void>* r, void* start, size_t length
     auto ib = msg->getMessage();
     auto data = ib->read<protocol::KernelMemory::CreateBase>();
 
-    MLOG_DETAIL(mlog::um, "create", DVAR(data.dstSpace()), DVAR(data.dstPtr));
+    MLOG_DETAIL(mlog::km, "create", DVAR(data.dstSpace()), DVAR(data.dstPtr));
     optional<CapEntry*> dstEntry;
     if (data.dstSpace() == null_cap) { // direct address
       dstEntry = msg->lookupEntry(data.dstPtr, 32, true); // lookup for write access
@@ -171,11 +171,11 @@ void KernelMemory::free(Tasklet* t, IResult<void>* r, void* start, size_t length
       dstEntry = dstEntryRef->entry;
     }
 
-    MLOG_DETAIL(mlog::um, "create", DVAR(*dstEntry), DVAR(data.factory()));
+    MLOG_DETAIL(mlog::km, "create", DVAR(*dstEntry), DVAR(data.factory()));
     TypedCap<IFactory> factory(msg->lookupEntry(data.factory()));
     if (!factory) return factory;
 
-    MLOG_DETAIL(mlog::um, "create", DVAR(*factory));
+    MLOG_DETAIL(mlog::km, "create", DVAR(*factory));
     if (!dstEntry->acquire()) return Error::LOST_RACE;
     auto res = factory->factory(*dstEntry, msg->getCapEntry(), self, this, msg);
     if (res != Error::SUCCESS) dstEntry->reset();

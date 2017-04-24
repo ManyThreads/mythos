@@ -31,7 +31,7 @@ namespace mythos {
   
   namespace boot {
 
-    void initKernelMemory(KernelMemory& um);
+    void initKernelMemory(KernelMemory& km);
 
   } // namespace boot
 } // namespace mythos

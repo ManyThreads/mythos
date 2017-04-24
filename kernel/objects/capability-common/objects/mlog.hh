@@ -49,9 +49,9 @@ namespace mlog {
 #endif
   extern Logger<MLOG_EC> ec;
 
-#ifndef MLOG_UM
-#define MLOG_UM FilterWarning
+#ifndef MLOG_KM
+#define MLOG_KM FilterWarning
 #endif
-  extern Logger<MLOG_UM> um;
+  extern Logger<MLOG_KM> km;
 
 } // namespace mlog

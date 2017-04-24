@@ -56,10 +56,10 @@ namespace mythos {
         this->substract(begin, end);
       }
 
-      void addToUM(KernelMemory& um) {
+      void addToKM(KernelMemory& km) {
         for (auto& r : *this) {
-          MLOG_DETAIL(mlog::boot, "add range", DMRANGE(r.getStart(), r.getSize()), "to untyped memory");
-          um.addRange(PhysPtr<void>(r.getStart()), r.getSize());
+          MLOG_DETAIL(mlog::boot, "add range", DMRANGE(r.getStart(), r.getSize()), "to kernel memory");
+          km.addRange(PhysPtr<void>(r.getStart()), r.getSize());
         }
       }
     };
