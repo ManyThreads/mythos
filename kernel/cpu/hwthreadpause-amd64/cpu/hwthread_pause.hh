@@ -37,7 +37,7 @@ extern uint64_t tscdelay_MHz;
 
   inline void hwthread_pause(size_t n)
   {
-    for (size_t i=0; i<(n+9/10); i++) {
+    for (size_t i=0; i<(n+9)/10; i++) {
       asm volatile("pause");
       asm volatile("pause");
       asm volatile("pause");
