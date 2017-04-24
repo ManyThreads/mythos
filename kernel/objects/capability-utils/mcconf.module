@@ -1,11 +1,13 @@
 # -*- mode:toml; -*-
 
 [module.capability-utils]
-incfiles = [
-  "objects/CapRef.hh",
-  "objects/ops.hh",
-  ]
-kernelfiles = [
-  "objects/CapRef.cc",
-  "objects/ops.cc",
-  ]
+	incfiles = [
+	  "objects/CapRef.hh",
+	  "objects/ops.hh",
+	  "objects/DeleteBroadcast.hh",
+	  ]
+	kernelfiles = [
+	  "objects/CapRef.cc",
+	  "objects/ops.cc",
+	  "objects/DeleteBroadcast.cc",
+	  ]
