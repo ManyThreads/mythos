@@ -1,6 +1,6 @@
 # -*- mode:toml; -*-
 
-[module.object-interfaces]
+[module.objects-common]
 incfiles = [
   "objects/IAllocator.hh",
   "objects/IPortal.hh",
@@ -14,6 +14,13 @@ incfiles = [
   "objects/IScheduler.hh",
   "objects/INotification.hh",
   "objects/INotifiable.hh",
-  "objects/TypedCap.hh",
+  "objects/Cap.hh",
+  "objects/IKernelObject.hh",
+  "objects/DebugMessage.hh",
+  "objects/mlog.hh",
   ]
-kernelfiles = [ "objects/ISchedulable.cc" ]
+kernelfiles = [ 
+  "objects/ISchedulable.cc",
+  "objects/DebugMessage.cc",
+  "objects/mlog.cc",
+]
