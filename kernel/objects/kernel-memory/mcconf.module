@@ -1,5 +1,4 @@
 # -*- mode:toml; -*-
-
-[module.kernel-memory]
-    incfiles = [ "objects/FirstFitHeap.hh", "objects/KernelMemory.hh" ]
+[module.objects-kernel-memory]
+    incfiles = [ "objects/KernelMemory.hh" ]
     kernelfiles = [ "objects/KernelMemory.cc" ]

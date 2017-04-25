@@ -28,7 +28,7 @@
 #include <array>
 #include "util/assert.hh"
 #include "async/NestedMonitorDelegating.hh"
-#include "objects/FirstFitHeap.hh"
+#include "util/FirstFitHeap.hh"
 #include "objects/IAllocator.hh"
 #include "objects/IKernelObject.hh"
 #include "objects/CapEntry.hh"

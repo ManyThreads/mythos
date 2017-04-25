@@ -5,6 +5,7 @@
 	  "objects/CapRef.hh",
 	  "objects/ops.hh",
 	  "objects/DeleteBroadcast.hh",
+	  "objects/TypedCap.hh",
 	  ]
 	kernelfiles = [
 	  "objects/CapRef.cc",
