@@ -26,9 +26,11 @@
 #pragma once
 
 #include "plugins/Plugin.hh"
+#include "util/Logger.hh"
 
 namespace mythos {
 
+/*
 #define TEST_OP(expr, op, val) \
   do {\
     auto result = (expr); \
@@ -46,6 +48,7 @@ namespace mythos {
 #define TEST_FAILED(expr) TEST_OP(expr, !=, Error::SUCCESS)
 #define TEST_TRUE(expr) TEST_OP(expr, ==, true)
 #define TEST_FALSE(expr) TEST_OP(expr, !=, true)
+*/
 
 class TestPlugin : public Plugin
 {

@@ -2,5 +2,5 @@
 
 [module.invocation-mock]
 incfiles = [
-  "objects/InvocationMock.hh",
+  "plugins/InvocationMock.hh",
   ]

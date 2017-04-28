@@ -53,49 +53,49 @@ extern ISink* sink;
 
 template<class Filter = FilterAny>
 class Logger
-    : public Filter
+  : public Filter
 {
 public:
-    Logger(char const* name = "mlog") : name(name) {}
-    Logger(char const* name, Filter filter) : Filter(filter), name(name) {}
-    Logger(Filter filter) : Filter(filter), name("mlog") {}
-    void setName(char const* name) { this->name = name; }
+  Logger(char const* name = "mlog") : name(name) {}
+  Logger(char const* name, Filter filter) : Filter(filter), name(name) {}
+  Logger(Filter filter) : Filter(filter), name("mlog") {}
+  void setName(char const* name) { this->name = name; }
 
-    template<class MSG, typename... ARGS>
-    void log(ARGS&&... args) const {
-        if (this->isActive(MSG::VERBOSITY)) write<MSG, ARGS...>(std::forward<ARGS>(args)...);
-    }
+  template<class MSG, typename... ARGS>
+  void log(ARGS&&... args) const {
+    if (this->isActive(MSG::VERBOSITY)) write<MSG, ARGS...>(std::forward<ARGS>(args)...);
+  }
 
-    template<class MSG, typename... ARGS>
-    void write(ARGS&&... args) const NOINLINE;
+  template<class MSG, typename... ARGS>
+  void write(ARGS&&... args) const NOINLINE;
 
-    void flush() { sink->flush(); }
+  void flush() { sink->flush(); }
 
-    // syntactic sugar
-    template<typename... ARGS>
-    void detail(ARGS&&... args) { log<TextDetail>(std::forward<ARGS>(args)...); }
+  // syntactic sugar
+  template<typename... ARGS>
+  void detail(ARGS&&... args) { log<TextDetail>(std::forward<ARGS>(args)...); }
 
-    template<typename... ARGS>
-    void info(ARGS&&... args) { log<TextInfo>(std::forward<ARGS>(args)...); }
+  template<typename... ARGS>
+  void info(ARGS&&... args) { log<TextInfo>(std::forward<ARGS>(args)...); }
 
-    template<typename... ARGS>
-    void warn(ARGS&&... args) { log<TextWarning>(std::forward<ARGS>(args)...); }
+  template<typename... ARGS>
+  void warn(ARGS&&... args) { log<TextWarning>(std::forward<ARGS>(args)...); }
 
-    template<typename... ARGS>
-    void error(ARGS&&... args) { log<TextError>(std::forward<ARGS>(args)...); }
+  template<typename... ARGS>
+  void error(ARGS&&... args) { log<TextError>(std::forward<ARGS>(args)...); }
 
-    template<typename... ARGS>
-    void csv(ARGS&&... args) { log<TextCSV>(std::forward<ARGS>(args)...); }
+  template<typename... ARGS>
+  void csv(ARGS&&... args) { log<TextCSV>(std::forward<ARGS>(args)...); }
 
 protected:
-    char const* name;
+  char const* name;
 };
 
 template<class Filter>
 template<class MSG, typename... ARGS>
 void Logger<Filter>::write(ARGS&&... args) const {
-    MSG msg(name, std::forward<ARGS>(args)...);
-    sink->write(msg.getData(), msg.getSize());
+  MSG msg(name, std::forward<ARGS>(args)...);
+  sink->write(msg.getData(), msg.getSize());
 }
 
 static Logger<FilterAny> testLog("Test");
@@ -123,5 +123,7 @@ inline static void test_log(const char *file_line, const char *msg, const char *
 #define TEST_NEQ(expr, val) TEST_LOG(!=, expr, val)
 #define TEST_TRUE(expr) TEST_LOG(==, expr, true)
 #define TEST_FALSE(expr) TEST_LOG(!=, expr, true)
+#define TEST_SUCCESS(expr) TEST_LOG(==, expr, Error::SUCCESS)
+#define TEST_FAILED(expr) TEST_LOG(!=, expr, Error::SUCCESS)
 
 } // namespace mlog

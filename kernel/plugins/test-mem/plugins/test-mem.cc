@@ -52,7 +52,7 @@ TestMem::TestMem()
 void TestMem::printCaps()
 {
   for (uint8_t i = 0; i < 20; ++i) {
-    _logger.detail("cap", i, &caps[i], caps[i], DMDUMP(&caps[i], sizeof(mythos::CapEntry)));
+    log.detail("cap", i, &caps[i], caps[i], DMDUMP(&caps[i], sizeof(mythos::CapEntry)));
   }
 }
 
@@ -67,7 +67,7 @@ void TestMem::initGlobal()
 
 void TestMem::createRegions()
 {
-  _logger.error("create root cap for region 0..1");
+  log.error("create root cap for region 0..1");
   physical_memory[0].initRootCap(caps[0]);
   TEST_NEQ(caps[0].cap(), Cap());
   physical_memory[1].initRootCap(caps[1]);
@@ -75,10 +75,10 @@ void TestMem::createRegions()
   TEST_NEQ(caps[0].cap(), caps[1].cap());
   printCaps();
 
-  _logger.error("create memory region from KM");
+  log.error("create memory region from KM");
   TEST_SUCCESS(MemoryRegion::factory(getRootCapEntry(), getRootCapEntry()->cap(), kmem_root(), 16*4096, 4096, &caps[2]).state());
 
-  _logger.error("reference memory region");
+  log.error("reference memory region");
   TEST_SUCCESS(cap::reference(caps[0], caps[3], caps[0].cap()).state());
   TEST_FAILED(caps[3].cap().getPtr()->cast<IFrame>().state());
 
@@ -86,7 +86,7 @@ void TestMem::createRegions()
 
 void TestMem::createFrames()
 {
-  _logger.error("derive frames from static memory");
+  log.error("derive frames from static memory");
   CapRequest req = REQUEST_1GB | DENY_WRITE | ((1ul << 20) << PAGE_OFFSET_OFFSET);
   TEST_SUCCESS(cap::derive(caps[0], caps[4], caps[0].cap(), req).state());
   { // 1GB frame on 4GB offset
@@ -120,7 +120,7 @@ void TestMem::createFrames()
     TEST_FALSE(framePtr->isKernelMemory(cap));
   }
 
-  _logger.error("derive frames from dynamic memory");
+  log.error("derive frames from dynamic memory");
   req = REQUEST_4KB | (16 << PAGE_OFFSET_OFFSET);
   TEST_FAILED(cap::derive(caps[2], caps[7], caps[2].cap(), req).state());
   req = REQUEST_4KB | (15 << PAGE_OFFSET_OFFSET);
@@ -137,7 +137,7 @@ void TestMem::createFrames()
 
 void TestMem::createMaps()
 {
-  _logger.error("create some maps from KM");
+  log.error("create some maps from KM");
   TEST_SUCCESS(PML4Map::factory(getRootCapEntry(), getRootCapEntry()->cap(), kmem_root(), &caps[10]).state());
   {
     auto cap = caps[10].cap();
@@ -197,12 +197,12 @@ void TestMem::createMaps()
 
 void TestMem::createMappings()
 {
-  _logger.error("map the tables");
+  log.error("map the tables");
    TEST_FAILED(pml4map->mapTable(caps[10].cap(), &caps[11], caps[11].cap(), WRITEABLE + EXECUTABLE, 256).state());
    TEST_SUCCESS(pml4map->mapTable(caps[10].cap(), &caps[11], caps[11].cap(), WRITEABLE + EXECUTABLE, 0).state());
    TEST_SUCCESS(pml3map->mapTable(caps[11].cap(), &caps[12], caps[12].cap(), WRITEABLE + EXECUTABLE, 0).state());
    TEST_SUCCESS(pml2map->mapTable(caps[12].cap(), &caps[13], caps[13].cap(), WRITEABLE + EXECUTABLE, 0).state());
-  _logger.error("map a frames and do some lookup");
+  log.error("map a frames and do some lookup");
    TEST_SUCCESS(pml1map->mapFrame(caps[13].cap(), &caps[7], caps[7].cap(), WRITEABLE + EXECUTABLE, 0, 0).state());
    auto entry1 = pml1map->lookup(0);
    TEST_SUCCESS(entry1.state());
@@ -234,30 +234,30 @@ void TestMem::proto()
 {
   switch (state++) {
     case 0:
-      _logger.error("revoke reference (cap 3)");
+      log.error("revoke reference (cap 3)");
       op.revokeCap(&tasklet, this, caps[3], nullptr);
       return;
     case 1:
       TEST_TRUE(caps[3].cap().isUsable());
-      _logger.error("delete reference (cap 3)");
+      log.error("delete reference (cap 3)");
       op.deleteCap(&tasklet, this, caps[3], nullptr);
       return;
     case 2:
       TEST_EQ(caps[3].cap(), Cap());
-      _logger.error("delete derived (cap 4)");
+      log.error("delete derived (cap 4)");
       op.deleteCap(&tasklet, this, caps[4], nullptr);
       return;
     case 3:
       TEST_EQ(caps[4].cap(), Cap());
       TEST_EQ(caps[6].cap(), Cap());
-      _logger.error("delete dynamic MR");
+      log.error("delete dynamic MR");
       op.deleteCap(&tasklet, this, caps[2], nullptr);
       return;
     case 4:
       TEST_EQ(caps[2].cap(), Cap());
       TEST_EQ(caps[7].cap(), Cap());
       TEST_FAILED(pml4map->lookup(0).state());
-      _logger.error("revoke root cap of static MR");
+      log.error("revoke root cap of static MR");
       op.revokeCap(&tasklet, this, caps[0], nullptr);
       return;
     case 5:
