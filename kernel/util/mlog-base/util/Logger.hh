@@ -99,31 +99,31 @@ void Logger<Filter>::write(ARGS&&... args) const {
 }
 
 static Logger<FilterAny> testLog("Test");
-inline static void test_log(const char *file_line, const char *msg, const char *expr) {
-  if (testLog.isActive(mlog::TextError::VERBOSITY)) {
-    testLog.write<mlog::TextError>(file_line, msg, expr);
-  }
-}
+#define MLOG_TEST(logger, expr) do { \
+    if (expr) \
+      logger.write<mlog::TextSuccess>(PATH, "Success:", TOSTRING(expr)); \
+    else \
+      logger.write<mlog::TextFailure>(PATH, "Fail:", TOSTRING(expr)); \
+    } while(0)
 
 #define MLOG_TEST_OP(logger, op, val, expected) \
-  if (!((val) op (expected))) MLOG_ERROR(logger, "Failed Test:", \
-  TOSTRING(val), TOSTRING(op), TOSTRING(expected))
-#define MLOG_TEST(logger, expr) if (!(expr)) MLOG_ERROR(logger, "Failed Test:", TOSTRING(expr))
-
+    do { \
+    if ((val) op (expected)) \
+      logger.write<mlog::TextSuccess>(PATH, "Success:", TOSTRING(val), TOSTRING(op), TOSTRING(expected)); \
+    else \
+      logger.write<mlog::TextFailure>(PATH, "Fail:", TOSTRING(val), TOSTRING(op), TOSTRING(expected)); \
+    } while(0)
 #define MLOG_TEST_EQ(logger, val, expected) MLOG_TEST_OP(logger, ==, val, expected)
-#define MLOG_TEST_NEQ(logger, expr, val) MLOG_TEST_OP(logger, !=, expr, val)
+#define MLOG_TEST_NEQ(logger, val, expected) MLOG_TEST_OP(logger, !=, val, expected)
 #define MLOG_TEST_TRUE(logger, expr) MLOG_TEST_OP(logger, ==, expr, true)
 #define MLOG_TEST_FALSE(logger, expr) MLOG_TEST_OP(logger, !=, expr, true)
 
-#define TEST(expr) if (!(expr)) mlog::test_log("[" __FILE__ ":" TOSTRING(__LINE__) "]", "Failed Test:", TOSTRING(expr))
-#define TEST_LOG(op, val, expected) if (!((val) op (expected))) \
-            mlog::test_log("[" __FILE__ ":" TOSTRING(__LINE__) "]", "Failed Test:",\
-            TOSTRING(val) TOSTRING(op) TOSTRING(expected))
-#define TEST_EQ(val, expected) TEST_LOG(==, val, expected)
-#define TEST_NEQ(expr, val) TEST_LOG(!=, expr, val)
-#define TEST_TRUE(expr) TEST_LOG(==, expr, true)
-#define TEST_FALSE(expr) TEST_LOG(!=, expr, true)
-#define TEST_SUCCESS(expr) TEST_LOG(==, expr, Error::SUCCESS)
-#define TEST_FAILED(expr) TEST_LOG(!=, expr, Error::SUCCESS)
+#define TEST(expr) MLOG_TEST(mlog::testLog, expr)
+#define TEST_EQ(val, expected) MLOG_TEST_OP(mlog::testLog, ==, val, expected)
+#define TEST_NEQ(val, expected) MLOG_TEST_OP(mlog::testLog, !=, val, expected)
+#define TEST_TRUE(expr) MLOG_TEST_OP(mlog::testLog, ==, expr, true)
+#define TEST_FALSE(expr) MLOG_TEST_OP(mlog::testLog, !=, expr, true)
+#define TEST_SUCCESS(expr) MLOG_TEST_OP(mlog::testLog, ==, expr, Error::SUCCESS)
+#define TEST_FAILED(expr) MLOG_TEST_OP(mlog::testLog, !=, expr, Error::SUCCESS)
 
 } // namespace mlog

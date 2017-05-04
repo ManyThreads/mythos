@@ -108,6 +108,24 @@ namespace mlog {
       : TextMsg<200>("\x1b[0;31;1m", subsys, std::forward<ARGS>(args)...) {}
   };
 
+  struct TextFailure
+    : public TextMsg<200>
+  {
+    constexpr static size_t VERBOSITY = 3;
+    template<typename... ARGS>
+    TextFailure(char const* subsys, ARGS&&... args)
+      : TextMsg<200>("\x1b[0;91;1m", subsys, std::forward<ARGS>(args)...) {}
+  };
+
+  struct TextSuccess
+    : public TextMsg<200>
+  {
+    constexpr static size_t VERBOSITY = 3;
+    template<typename... ARGS>
+    TextSuccess(char const* subsys, ARGS&&... args)
+      : TextMsg<200>("\x1b[0;92;1m", subsys, std::forward<ARGS>(args)...) {}
+  };
+
   template<size_t MAXSIZE>
   class CsvTextMsg {
   public:
