@@ -30,7 +30,8 @@ namespace mythos {
 namespace async {
 
   void NestedMonitorHome::request(Tasklet* msg) {
-    if (waitq.push(msg)) { // first push, acquired exclusive access
+    ASSERT(msg);
+    if (waitq.push(*msg)) { // first push, acquired exclusive access
       this->acquireRef(); // mark object as used
       auto tsk = waitq.pull(); // has to be successfull because of our enqueue
       ASSERT(tsk != nullptr);

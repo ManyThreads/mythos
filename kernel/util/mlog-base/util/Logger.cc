@@ -28,17 +28,19 @@
 
 namespace mlog {
 
-  class DummySink
-    : public ISink
-  {
-  public:
-    virtual ~DummySink() {}
-    virtual void write(char const*, size_t) {}
-    virtual void writeTrace(char const*, size_t) {};
-    virtual void flush() {}
-  };
+class DummySink
+  : public ISink
+{
+public:
+  virtual ~DummySink() {}
+  virtual void write(char const*, size_t) {}
+  virtual void writeTrace(char const*, size_t) {};
+  virtual void flush() {}
+};
 
-  static DummySink dummySink;
-  ISink* sink = &dummySink;
+static DummySink dummySink;
+ISink* sink = &dummySink;
+
+Logger<FilterAny> testLog("Test");
 
 } // namespace mlog

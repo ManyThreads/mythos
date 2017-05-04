@@ -33,6 +33,6 @@ namespace mlog {
 #define MLOG_APP FilterAny
 #endif
 
-  extern mlog::Logger<MLOG_APP> app;
+extern mlog::Logger<MLOG_APP> app;
 
 } // namespace mlog

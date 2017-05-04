@@ -25,35 +25,33 @@
  */
 #pragma once
 
-#include "objects/IExecutionContext.hh"
 #include "objects/IInvocation.hh"
 
 namespace mythos {
 
-  class InvocationMock : public IInvocation
-  {
-  public:
+class InvocationMock : public IInvocation
+{
+public:
 
-    InvocationMock(CapEntry& entry) : _entry(&entry), _cap(entry.cap()) {}
-    InvocationMock(CapEntry& entry, Cap cap) : _entry(&entry), _cap(cap) {}
+  InvocationMock(CapEntry& entry) : _entry(&entry), _cap(entry.cap()) {}
+  InvocationMock(CapEntry& entry, Cap cap) : _entry(&entry), _cap(cap) {}
 
-    virtual void replyResponse(optional<void>) override { ASSERT(!"NOT IMPLEMENTED"); }
-    virtual void enqueueResponse(LinkedList<IInvocation*>&, IPortal*) override { ASSERT(!"NOT IMPLEMENTED"); }
-    virtual void deletionResponse(CapEntry*, bool) override { ASSERT(!"NOT IMPLEMENTED"); }
+  virtual void replyResponse(optional<void>)  { ASSERT(!"NOT IMPLEMENTED"); }
+  virtual void enqueueResponse(LinkedList<IInvocation*>&, IPortal*)  { ASSERT(!"NOT IMPLEMENTED"); }
+  virtual void deletionResponse(CapEntry*, bool)  { ASSERT(!"NOT IMPLEMENTED"); }
 
-    virtual Cap getCap() const override { return _cap; }
-    virtual CapEntry* getCapEntry() const override { return _entry; }
+  virtual Cap getCap() const  { return _cap; }
+  virtual CapEntry* getCapEntry() const { return _entry; }
 
-    virtual IExecutionContext* getEC() override { ASSERT(!"NOT IMPLEMENTED"); }
-    virtual InvocationBuf* getMessage()  override { return nullptr; }
+  virtual InvocationBuf* getMessage() { return nullptr; }
 
-    virtual size_t getMaxSize() override { return 0; }
+  virtual size_t getMaxSize()  { return 0; }
 
-    IInvocation* addr() { return this; };
+  IInvocation* addr() { return this; };
 
-  protected:
-    CapEntry* _entry;
-    Cap _cap;
-  };
+protected:
+  CapEntry* _entry;
+  Cap _cap;
+};
 
 } // namespace mythos

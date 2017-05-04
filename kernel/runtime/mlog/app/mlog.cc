@@ -30,4 +30,5 @@
 namespace mlog {
   Logger<MLOG_APP> app("app");
   Logger<MLOG_ERROR_THROW> throw_error("throw");
+  Logger<FilterAny> testLog("Test");
 } // namespace mlog
