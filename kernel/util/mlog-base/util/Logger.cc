@@ -41,6 +41,6 @@ public:
 static DummySink dummySink;
 ISink* sink = &dummySink;
 
-
+Logger<FilterAny> testLog("Test");
 
 } // namespace mlog
