@@ -36,7 +36,7 @@
 #include "objects/KernelMemory.hh"
 #include "objects/StaticMemoryRegion.hh"
 #include "objects/MemoryRegion.hh"
-#include "objects/PageMap.hh"
+#include "objects/PageMapAmd64.hh"
 #include "objects/ExecutionContext.hh"
 #include "objects/SchedulingContext.hh"
 #include "objects/Portal.hh"

@@ -24,7 +24,7 @@
  * Copyright 2016 Randolf Rotta, Robert Kuban, and contributors, BTU Cottbus-Senftenberg
  */
 
-#include "objects/PML4InvalidationBroadcast.hh"
+#include "objects/PML4InvalidationBroadcastAmd64.hh"
 
 #include "cpu/hwthreadid.hh"
 #include "boot/pagetables.hh"

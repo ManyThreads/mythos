@@ -23,14 +23,14 @@
  *
  * Copyright 2016 Randolf Rotta, Robert Kuban, and contributors, BTU Cottbus-Senftenberg
  */
-#include "objects/PageMap.hh"
+#include "objects/PageMapAmd64.hh"
 
 #include "util/assert.hh"
 #include "util/mstring.hh"
 #include "objects/ops.hh"
 #include "objects/TypedCap.hh"
-#include "objects/FrameData.hh"
-#include "objects/PML4InvalidationBroadcast.hh"
+#include "objects/FrameDataAmd64.hh"
+#include "objects/PML4InvalidationBroadcastAmd64.hh"
 #include "boot/pagetables.hh"
 #include "objects/mlog.hh"
 
