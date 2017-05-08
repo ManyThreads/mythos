@@ -27,7 +27,7 @@
 
 #include "objects/IFrame.hh"
 #include "objects/IKernelObject.hh"
-#include "objects/Frame.hh"
+#include "objects/FrameAmd64.hh"
 #include "objects/CapEntry.hh"
 #include "objects/ops.hh"
 

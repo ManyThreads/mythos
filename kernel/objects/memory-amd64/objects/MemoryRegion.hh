@@ -27,42 +27,53 @@
 
 #include "objects/IFrame.hh"
 #include "objects/IKernelObject.hh"
-#include "objects/FrameData.hh"
-#include "mythos/protocol/Frame.hh"
+#include "objects/FrameAmd64.hh"
+#include "objects/FrameDataAmd64.hh"
+#include "objects/IFactory.hh"
+#include "objects/ops.hh"
+#include "mythos/protocol/KernelObject.hh"
 
 namespace mythos {
 
-class Frame final
-  : public IKernelObject
-  , public IFrame
+/**
+ * MemoryRegion to be allocated from the untyped memory.
+ * The offset must be alligned by the maximum page size.
+ */
+class MemoryRegion final
+  : public IKernelObject, public IFrame
 {
 public:
   typedef protocol::Frame::FrameReq FrameReq;
-  Frame() : start(0) {}
-  Frame(const Frame&) = delete;
+  MemoryRegion(IAsyncFree* mem, PhysPtr<void> start, size_t size);
+  MemoryRegion(const MemoryRegion&) = delete;
 
 public: // IFrame interface
   Info getFrameInfo(Cap self) const override {
     FrameData c(self);
-    return {PhysPtr<void>(c.addr(start)), c.size(), c.writable};
+    return {PhysPtr<void>(frame.start), size, c.writable};
   }
 
 public: // IKernelObject interface
   optional<void const*> vcast(TypeId id) const override {
-    if (id == typeId<IFrame>()) return static_cast<IFrame const*>(this);
+    if (typeId<IFrame>() == id) return static_cast<const IFrame*>(this);
     THROW(Error::TYPE_MISMATCH);
   }
 
+  optional<void> deleteCap(Cap self, IDeleter& del) override {
+    if (self.isOriginal()) { del.deleteObject(_deleteHandle); }
+    RETURN(Error::SUCCESS);
+  }
+
+  void deleteObject(Tasklet* t, IResult<void>* r) override {
+    _mem->free(t, r, &_memdesc[0], &_memdesc[2]);
+  }
+
   optional<Cap> mint(Cap self, CapRequest request, bool derive) override {
-    if (!derive) return FrameData(self).referenceFrame(self, FrameReq(request));
-    else THROW(Error::INVALID_REQUEST);
+    if (!derive) return FrameData(self).referenceRegion(self, FrameReq(request));
+    else return FrameData(self).deriveRegion(self, frame, FrameReq(request), size);
   }
 
-  Range<uintptr_t> addressRange(Cap self) override {
-    return {FrameData(self).addr(start), FrameData(self).end(start)};
-  }
-
-  optional<void> deleteCap(Cap, IDeleter&) override { RETURN(Error::SUCCESS); };
+  Range<uintptr_t> addressRange(Cap) override { return {frame.start, frame.start+size}; }
 
   void invoke(Tasklet* t, Cap self, IInvocation* msg) override {
     Error err = Error::NOT_IMPLEMENTED;
@@ -77,15 +88,34 @@ public: // IKernelObject interface
   Error frameInfo(Tasklet*, Cap self, IInvocation* msg){
     auto data = msg->getMessage()->write<protocol::Frame::Info>();
     FrameData c(self);
-    data->addr = c.addr(start);
-    data->size = c.size();
+    data->addr = frame.start;
+    data->size = size;
     data->writable = c.writable;
     return Error::SUCCESS;
   }
 
-public:
-  uintptr_t start;
+private:
+  Frame frame;
+  size_t size;
+  IAsyncFree* _mem;
+  MemoryDescriptor _memdesc[2];
+  IDeleter::handle_t _deleteHandle = {this};
 };
 
-} // mythos
+class MemoryRegionFactory : public FactoryBase
+{
+public:
+  static optional<MemoryRegion*>
 
+  factory(CapEntry* dstEntry, CapEntry* memEntry, Cap memCap, IAllocator* mem,
+    size_t size, size_t alignment);
+
+  Error factory(CapEntry* dstEntry, CapEntry* memEntry, Cap memCap,
+      IAllocator* mem, IInvocation* msg) const override {
+    auto data = msg->getMessage()->cast<protocol::Frame::Create>();
+    return factory(dstEntry, memEntry, memCap, mem, data->size, data->alignment).state();
+  }
+};
+
+
+} // mythos

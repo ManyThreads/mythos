@@ -29,7 +29,7 @@
 #include "util/alignments.hh"
 #include "objects/IPageMap.hh"
 #include "objects/IFactory.hh"
-#include "objects/FrameData.hh"
+#include "objects/FrameDataAmd64.hh"
 #include "objects/IKernelObject.hh"
 #include "objects/CapEntry.hh"
 #include "async/NestedMonitorDelegating.hh"
