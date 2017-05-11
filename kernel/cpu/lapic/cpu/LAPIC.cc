@@ -155,24 +155,21 @@ namespace mythos {
   bool LAPIC::sendIRQ(size_t destination, uint8_t vector)
   {
     MLOG_INFO(mlog::boot, "send IRQ:", DVAR(destination), DVAR(vector));
-    write(REG_ESR, 0); // Be paranoid about clearing APIC errors.
-    read(REG_ESR);
+    //write(REG_ESR, 0); // Be paranoid about clearing APIC errors.
+    //read(REG_ESR);
     writeIPI(destination, edgeIPI(ICR_DESTSHORT_NO, MODE_FIXED, vector));
-    write(REG_ESR, 0); // Be paranoid about clearing APIC errors.
+    //write(REG_ESR, 0); // Be paranoid about clearing APIC errors.
     return true;
   }
 
   void LAPIC::writeIPI(size_t destination, Register icrlow) {
     ASSERT(destination<256);
     MLOG_DETAIL(mlog::boot, "write ICR", DVAR(destination), DVARhex(icrlow.value));
+
+    while(read(REG_ICR_LOW).delivery_pending) hwthread_pause();
+
     write(REG_ICR_HIGH, Register().destination(destination));
     write(REG_ICR_LOW, icrlow);
-    //hwthread_wait(300);
-    for (size_t timeout=0; timeout<1000; timeout++) {
-      if (!read(REG_ICR_LOW).delivery_pending) break;
-      hwthread_wait(50);
-    }
-    //hwthread_wait(200);
   }
 
 } // namespace mythos
