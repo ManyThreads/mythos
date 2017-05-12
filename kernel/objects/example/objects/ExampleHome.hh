@@ -27,7 +27,7 @@
 
 #include <array>
 #include <cstddef>
-#include "async/NestedMonitorDelegating.hh"
+#include "async/SimpleMonitorHome.hh"
 #include "objects/IFactory.hh"
 #include "objects/IKernelObject.hh"
 #include "objects/CapEntry.hh"
@@ -41,12 +41,12 @@ namespace mythos {
  * - Serves as a example/template for the implementation of actual kernel objects
  * - Simple object for testing basic inheritance tree functionality.
  */
-class ExampleObj
+class ExampleHomeObj
   : public IKernelObject
 {
 public:
-  ExampleObj(IAsyncFree* mem) : _mem(mem) {}
-  ExampleObj(const ExampleObj&) = delete;
+  ExampleHomeObj(IAsyncFree* mem) : _mem(mem) {}
+  ExampleHomeObj(const ExampleHomeObj&) = delete;
 
   optional<void const*> vcast(TypeId id) const override;
   optional<void> deleteCap(Cap self, IDeleter& del) override;
@@ -63,16 +63,16 @@ protected:
   Error moveHome(Tasklet* t, Cap self, IInvocation* msg);
 
 protected:
-  async::NestedMonitorDelegating monitor;
+  async::SimpleMonitorHome monitor;
   IDeleter::handle_t del_handle = {this};
   IAsyncFree* _mem;
   friend class ExampleFactory;
 };
 
-class ExampleFactory : public FactoryBase
+class ExampleHomeFactory : public FactoryBase
 {
 public:
-  static optional<ExampleObj*>
+  static optional<ExampleHomeObj*>
   factory(CapEntry* dstEntry, CapEntry* memEntry, Cap memCap, IAllocator* mem);
 
   Error factory(CapEntry* dstEntry, CapEntry* memEntry, Cap memCap,

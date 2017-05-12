@@ -29,7 +29,7 @@
 #include "util/assert.hh"
 #include "util/PhysPtr.hh"
 #include "util/alignments.hh"
-#include "objects/Example.hh"
+#include "objects/ExampleHome.hh"
 #include "objects/ops.hh"
 #include "objects/KernelMemory.hh"
 #include "boot/memory-root.hh"
@@ -38,33 +38,33 @@
 
 namespace mythos {
 
-  static mlog::Logger<mlog::FilterAny> mlogex("ExampleObj");
+  static mlog::Logger<mlog::FilterAny> mlogexhome("ExampleHomeObj");
 
-  optional<void const*> ExampleObj::vcast(TypeId id) const
+  optional<void const*> ExampleHomeObj::vcast(TypeId id) const
   {
-    mlogex.info("vcast", DVAR(this), DVAR(id.debug()));
-    if (id == typeId<ExampleObj>()) return /*static_cast<ExampleObj const*>*/(this);
+	mlogexhome.info("vcast", DVAR(this), DVAR(id.debug()));
+    if (id == typeId<ExampleHomeObj>()) return /*static_cast<ExampleObj const*>*/(this);
     THROW(Error::TYPE_MISMATCH);
   }
 
-  optional<void> ExampleObj::deleteCap(Cap self, IDeleter& del)
+  optional<void> ExampleHomeObj::deleteCap(Cap self, IDeleter& del)
   {
-    mlogex.info("deleteCap", DVAR(this), DVAR(self), DVAR(self.isOriginal()));
+	mlogexhome.info("deleteCap", DVAR(this), DVAR(self), DVAR(self.isOriginal()));
     if (self.isOriginal()) {
       del.deleteObject(del_handle);
     }
     RETURN(Error::SUCCESS);
   }
 
-  void ExampleObj::deleteObject(Tasklet* t, IResult<void>* r)
+  void ExampleHomeObj::deleteObject(Tasklet* t, IResult<void>* r)
   {
-    mlogex.info("deleteObject", DVAR(this), DVAR(t), DVAR(r));
+	mlogexhome.info("deleteObject", DVAR(this), DVAR(t), DVAR(r));
     monitor.doDelete(t, [=](Tasklet* t){
       _mem->free(t, r, this, sizeof(ExampleObj));
     });
   }
 
-  void ExampleObj::invoke(Tasklet* t, Cap self, IInvocation* msg)
+  void ExampleHomeObj::invoke(Tasklet* t, Cap self, IInvocation* msg)
   {
     monitor.request(t, [=](Tasklet* t){
         Error err = Error::NOT_IMPLEMENTED;
@@ -83,44 +83,47 @@ namespace mythos {
       } );
   }
 
-  Error ExampleObj::getDebugInfo(Cap self, IInvocation* msg)
+  Error ExampleHomeObj::getDebugInfo(Cap self, IInvocation* msg)
   {
-    mlogex.info("invoke getDebugInfo", DVAR(this), DVAR(self), DVAR(msg));
-    return writeDebugInfo("ExampleObj", self, msg);
+	mlogexhome.info("invoke getDebugInfo", DVAR(this), DVAR(self), DVAR(msg));
+    return writeDebugInfo("ExampleHomeObj", self, msg);
   }
 
-  Error ExampleObj::printMessage(Tasklet*, Cap self, IInvocation* msg)
+  Error ExampleHomeObj::printMessage(Tasklet*, Cap self, IInvocation* msg)
   {
-    mlogex.info("invoke printMessage", DVAR(this), DVAR(self), DVAR(msg));
+	mlogexhome.info("invoke printMessage", DVAR(this), DVAR(self), DVAR(msg));
     auto data = msg->getMessage()->cast<protocol::Example::PrintMessage>();
-    mlogex.error(mlog::DebugString(data->message, data->bytes));
+    mlogexhome.error(mlog::DebugString(data->message, data->bytes));
     return Error::SUCCESS;
   }
 
-  Error ExampleObj::ping(Tasklet*, Cap self, IInvocation* msg)
+  Error ExampleHomeObj::ping(Tasklet*, Cap self, IInvocation* msg)
   {
-  	mlogex.info("invoke ping", DVAR(this), DVAR(self), DVAR(msg));
-  	auto data = msg->getMessage()->cast<protocol::Example::Ping>();
-  	uint64_t wait_cycles = data->wait_cycles;
+	mlogexhome.info("invoke ping", DVAR(this), DVAR(self), DVAR(msg));
+	auto data = msg->getMessage()->cast<protocol::Example::Ping>();
+	uint64_t wait_cycles = data->wait_cycles;
 
-  	for(uint64_t count = 0; count < wait_cycles; count++);
+	for(uint64_t count = 0; count < wait_cycles; count++);
 
-  	data->place = cpu::hwThreadID_;
+	data->place = cpu::hwThreadID_;
 
-  	return Error::SUCCESS;
+	return Error::SUCCESS;
   }
 
-  Error ExampleObj::moveHome(Tasklet*, Cap, IInvocation*)
+  Error ExampleHomeObj::moveHome(Tasklet*, Cap self, IInvocation* msg)
   {
-	//This should only be called for ExampleHome objects.
-  	return Error::NOT_IMPLEMENTED;
+	mlogexhome.info("invoke moveHome", DVAR(this), DVAR(self), DVAR(msg));
+	auto data = msg->getMessage()->cast<protocol::Example::MoveHome>();
+	mlogexhome.error(DVAR(data->location));
+	monitor.setHome(&async::places[data->location]);
+	return Error::SUCCESS;
   }
 
-  optional<ExampleObj*>
-  ExampleFactory::factory(CapEntry* dstEntry, CapEntry* memEntry, Cap memCap,
+  optional<ExampleHomeObj*>
+  ExampleHomeFactory::factory(CapEntry* dstEntry, CapEntry* memEntry, Cap memCap,
                          IAllocator* mem)
   {
-    auto obj = mem->create<ExampleObj>();
+    auto obj = mem->create<ExampleHomeObj>();
     if (!obj) RETHROW(obj);
     Cap cap(*obj);
     auto res = cap::inherit(*memEntry, *dstEntry, memCap, cap);

@@ -45,6 +45,14 @@ namespace mythos {
     PortalFuture<void> printMessage(PortalLock pr, char const* str, size_t bytes) {
       return pr.invoke<protocol::Example::PrintMessage>(_cap, str, bytes);
     }
+
+    PortalFuture<void> ping(PortalLock pr, size_t wait_cycles) {
+      return pr.invoke<protocol::Example::Ping>(_cap, wait_cycles);
+    }
+
+    PortalFuture<void> moveHome(PortalLock pr, size_t new_location) {
+      return pr.invoke<protocol::Example::MoveHome>(_cap, new_location);
+    }
   };
 
 } // namespace mythos

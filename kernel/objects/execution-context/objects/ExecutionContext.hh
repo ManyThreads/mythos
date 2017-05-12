@@ -89,6 +89,7 @@ namespace mythos {
   public: // ISchedulable interface
     bool isReady() const override { return !isBlocked(flags.load()); }
     void resume() override;
+    void run() override;
     void handleTrap(cpu::ThreadState* ctx) override;
     void handleSyscall(cpu::ThreadState* ctx) override;
     optional<void> syscallInvoke(CapPtr portal, CapPtr dest, uint64_t user);
@@ -118,6 +119,7 @@ namespace mythos {
     Error invokeWriteRegisters(Tasklet* t, Cap self, IInvocation* msg);
     void writeThreadRegisters(Tasklet* t, optional<void>);
     Error invokeResume(Tasklet* t, Cap self, IInvocation* msg);
+    Error invokeRun(Tasklet* t, Cap self, IInvocation* msg);
     Error invokeSuspend(Tasklet* t, Cap self, IInvocation* msg);
     void suspendThread(Tasklet* t, optional<void>);
     Error getDebugInfo(Cap self, IInvocation* msg);

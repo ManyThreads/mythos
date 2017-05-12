@@ -70,6 +70,9 @@ namespace mythos {
     PortalFuture<void> resume(PortalLock pr) {
       return pr.invoke<protocol::ExecutionContext::Resume>(_cap);
     }
+    PortalFuture<void> run(PortalLock pr) {
+      return pr.invoke<protocol::ExecutionContext::Run>(_cap);
+    }
     PortalFuture<void> suspend(PortalLock pr) {
       return pr.invoke<protocol::ExecutionContext::Suspend>(_cap);
     }

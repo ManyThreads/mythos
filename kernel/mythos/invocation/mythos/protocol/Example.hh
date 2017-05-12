@@ -37,6 +37,8 @@ namespace mythos {
 
       enum Methods : uint8_t {
         PRINT_MESSAGE,
+		PING,
+		MOVE_HOME,
       };
 
       struct PrintMessage : public InvocationBase {
@@ -58,10 +60,32 @@ namespace mythos {
         Create(CapPtr dst, CapPtr factory) : CreateBase(dst, factory) {}
       };
 
+      struct Ping : public InvocationBase {
+    	typedef InvocationBase response_type;
+    	constexpr static uint16_t label = (proto<<8) + PING;
+    	Ping(size_t wait_cycles): InvocationBase(label,getLength(this)){
+    	  this->wait_cycles = uint64_t(wait_cycles);
+    	  this->place = 1234567;
+    	};
+    	uint64_t wait_cycles;
+    	uint64_t place;
+      };
+
+      struct MoveHome : public InvocationBase {
+    	typedef InvocationBase response_type;
+    	constexpr static uint16_t label = (proto<<8) + MOVE_HOME;
+    	MoveHome(size_t location): InvocationBase(label,getLength(this)){
+    	  this->location = uint16_t(location);
+    	};
+    	uint16_t location;
+      };
+
       template<class IMPL, class... ARGS>
       static Error dispatchRequest(IMPL* obj, uint8_t m, ARGS const&...args) {
         switch(Methods(m)) {
           case PRINT_MESSAGE: return obj->printMessage(args...);
+          case PING: return obj->ping(args...);
+          case MOVE_HOME: return obj->moveHome(args...);
           default: return Error::NOT_IMPLEMENTED;
         }
       }

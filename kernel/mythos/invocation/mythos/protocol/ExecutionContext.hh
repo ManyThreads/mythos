@@ -40,6 +40,7 @@ namespace mythos {
         WRITE_REGISTERS,
         SET_FSGS,
         RESUME,
+		RUN,
         SUSPEND
       };
 
@@ -95,6 +96,11 @@ namespace mythos {
         Resume() : InvocationBase(label,getLength(this)) {}
       };
 
+      struct Run : public InvocationBase {
+        constexpr static uint16_t label = (proto<<8) + RUN;
+        Run() : InvocationBase(label,getLength(this)) {}
+      };
+
       struct Suspend : public InvocationBase {
         constexpr static uint16_t label = (proto<<8) + SUSPEND;
         Suspend() : InvocationBase(label,getLength(this)) {}
@@ -131,6 +137,7 @@ namespace mythos {
         case WRITE_REGISTERS: return obj->invokeWriteRegisters(args...);
         case SET_FSGS: return obj->invokeSetFSGS(args...);
         case RESUME: return obj->invokeResume(args...);
+        case RUN: return obj->invokeRun(args...);
         case SUSPEND: return obj->invokeSuspend(args...);
         default: return Error::NOT_IMPLEMENTED;
         }

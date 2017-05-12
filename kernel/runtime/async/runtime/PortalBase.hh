@@ -96,6 +96,8 @@ namespace mythos {
     void release() { if (_portal) _portal->release(); _portal = nullptr; }
     bool isOpen() const { return _portal; }
 
+    PortalBase* getPortal() { return _portal; }
+
     bool operator! () const { return !isOpen(); }
     explicit operator bool() const { return isOpen(); }
 
