@@ -45,8 +45,8 @@ mythos::InvocationBuf* msg_ptr asm("msg_ptr");
 int main() asm("main");
 
 constexpr uint64_t stacksize = AVAILABLE_HWTS*4096;
-char initstack[stacksize];
-char* initstack_top = initstack+stacksize;
+char initstack[4096];
+char* initstack_top = initstack+4096;
 
 mythos::Portal myPortal(mythos::init::PORTAL, msg_ptr);
 mythos::CapMap myCS(mythos::init::CSPACE);
@@ -56,8 +56,7 @@ mythos::SimpleCapAllocDel capAlloc(myPortal, myCS, mythos::init::APP_CAP_START,
                                   mythos::init::SIZE-mythos::init::APP_CAP_START);
 
 char threadstack[stacksize];
-char* thread1stack_top = threadstack+stacksize/2;
-char* thread2stack_top = threadstack+stacksize;
+char* threadstack_top = threadstack+stacksize;
 
 mythos::CapPtr portals[AVAILABLE_HWTS-1];
 mythos::InvocationBuf* invocationBuffers[AVAILABLE_HWTS-1];
@@ -244,7 +243,7 @@ void executionContextCreationLatencyBundled(){
 		mythos::ExecutionContext ec(createdECs[worker]);
 		res1 = ec.create(pl, kmem,
 				myAS, myCS, mythos::init::SCHEDULERS_START+1+worker,
-				initstack_top+stacksize-4096*worker, &thread_main, (void*)worker);
+				threadstack_top-4096*worker, &thread_main, (void*)worker);
 		res1.wait();
 		TEST(res1);
 
@@ -296,7 +295,7 @@ void executionContextCreationLatencySeparate(){
 		mythos::ExecutionContext ec(capAlloc());
 		res1 = ec.create(pl, kmem,
 				myAS, myCS, mythos::init::SCHEDULERS_START+1+worker,
-				initstack_top+stacksize-4096*worker, &thread_main, (void*)worker);
+				threadstack_top-4096*worker, &thread_main, (void*)worker);
 		res1.wait();
 		TEST(res1);
 
@@ -322,14 +321,14 @@ void executionContextCreationLatencySeparate(){
 
 void benchmarks(){
 	//invocation latency to mobile kernel object
-	//mobileKernelObjectLatency();
+	mobileKernelObjectLatency();
 
 	//invocation latency to local kernel object
 	//localKernelObjectLatency();
 
 	//latency of creating and starting up execution contexts
 	//executionContextCreationLatencyBundled();
-	executionContextCreationLatencySeparate();
+	//executionContextCreationLatencySeparate();
 }
 
 int main()
