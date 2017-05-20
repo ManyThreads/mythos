@@ -150,6 +150,7 @@ void mythos::cpu::irq_entry_user(mythos::cpu::ThreadState* ctx)
     mythos::handle_trap(ctx); // handle traps, exceptions, bugs from user mode
   } else {
     // TODO then external and wakeup interrupts
+    MLOG_ERROR(mlog::boot, "External Interrupt",DVAR(ctx->irq));
     mythos::lapic.endOfInterrupt();
   }
   runUser();

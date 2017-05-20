@@ -65,12 +65,27 @@ NORETURN void apboot() {
 
   mapIOApic((uint32_t)topo.ioapic_address());
 
+  IOAPIC ioapic(IOAPIC_ADDR);
   IOAPIC::IOAPIC_VERSION ver(ioapic.read(IOAPIC::IOAPICVER));
   MLOG_ERROR(mlog::boot, "Read ver value", DVAR(ver.version), DVAR(ver.max_redirection_table));
   MLOG_ERROR(mlog::boot, DVAR(ioapic.read(IOAPIC::IOAPICVER)));
 
-  for (int i = 0; i < ver.max_redirection_table; i++) {
+  IOAPIC::RED_TABLE_ENTRY rte_irq;
+  rte_irq.trigger_mode = 0;
+  rte_irq.intpol = 0;
 
+  IOAPIC::RED_TABLE_ENTRY rte_pci; // interrupts 16..19
+  rte_pci.trigger_mode = 1; // level triggered
+  rte_pci.intpol = 1; // low active
+
+
+
+  for (size_t i = 0; i < ver.max_redirection_table + 1; i++) {
+    //ioapic.write(REG_TABLE+2*i, INT_DISABLED | (T_IRQ0 + i));
+    //ioapic.write(REG_TABLE+2*i+1, 0);
+    rte_irq.dest = 0x20 + i;
+    ioapic.write(IOAPIC::IOREDTBL_BASE+2*i, rte_irq.lower);
+    ioapic.write(IOAPIC::IOREDTBL_BASE+2*i+1, rte_irq.upper);
   }
 
 
