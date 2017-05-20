@@ -169,6 +169,11 @@ namespace mythos {
             entry_count++;
             break;
           }
+          case IOAPIC: {
+            auto *apic = static_cast<IntelMP::EntryIOApic*>(entry);
+            ioapic = apic->address;
+            MLOG_ERROR(mlog::boot, "IOAPIC at", DVAR(apic->id), DVAR(apic->version), DVAR(apic->flags), DVARhex(apic->address));
+          }
           default:
             //MLOG_DETAIL(mlog::boot, "invalid table type", entry->type,"at offset", pos);
             pos+=8;
@@ -180,6 +185,8 @@ namespace mythos {
 
     size_t numThreads() const { return num_threads; }
     size_t threadID(size_t idx) const { return lapicIDs[idx]; }
+
+    size_t ioapic_address() {return ioapic; };
 
   protected:
 
@@ -226,5 +233,6 @@ namespace mythos {
     enum{ CPU_MAX=256};
     size_t num_threads;
     unsigned int lapicIDs[CPU_MAX];
+    size_t ioapic {0};
   };
 }

@@ -1,4 +1,4 @@
-CPPFLAGS += -DMLOG_BOOT=FilterAny
+CPPFLAGS += -DMLOG_BOOT=FilterError
 CPPFLAGS += -DMLOG_SCHED=FilterError
 CPPFLAGS += -DMLOG_CAP=FilterError
 CPPFLAGS += -DMLOG_EC=FilterError
