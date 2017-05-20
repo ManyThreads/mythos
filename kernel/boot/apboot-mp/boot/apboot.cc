@@ -33,6 +33,8 @@
 #include "util/MPApicTopology.hh"
 #include "util/ACPIApicTopology.hh"
 #include "boot/DeployHWThread.hh"
+#include "cpu/IOAPIC.hh"
+#include "util/PhysPtr.hh"
 
 namespace mythos {
   namespace boot {
@@ -61,7 +63,16 @@ NORETURN void apboot() {
     ap_apic2config[topo.threadID(id)] = &ap_config[id];
   }
 
-  ACPIApicTopology topoACPI;
+  mapIOApic((uint32_t)topo.ioapic_address());
+
+  IOAPIC::IOAPIC_VERSION ver(ioapic.read(IOAPIC::IOAPICVER));
+  MLOG_ERROR(mlog::boot, "Read ver value", DVAR(ver.version), DVAR(ver.max_redirection_table));
+  MLOG_ERROR(mlog::boot, DVAR(ioapic.read(IOAPIC::IOAPICVER)));
+
+  for (int i = 0; i < ver.max_redirection_table; i++) {
+
+  }
+
 
   // broadcast Startup IPI
   DeployHWThread::prepareBSP(0x40000);

@@ -74,6 +74,7 @@ void entry_bsp()
 {
   mythos::boot::initKernelSpace();
   mythos::boot::mapLapic(mythos::x86::getApicBase()); // make LAPIC accessible
+
   mythos::GdtAmd64 tempGDT;
   tempGDT.init();
   tempGDT.load();

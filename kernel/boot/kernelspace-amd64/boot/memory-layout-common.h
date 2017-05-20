@@ -64,6 +64,8 @@
 #define DEVICES_ADDR        0xffff800100000000
 /** LAPIC_START fixed mapping of the hardware thread's local APIC */
 #define LAPIC_ADDR          0xffff800100001000
+/** IOAPIC_START fixed mapping of the global ioapics */
+#define IOAPIC_ADDR			0xffff800100002000
 #define KERNELSTACKS_ADDR   0xffff800100200000
 
 #define BOOT_STACK_SIZE     2*4096
