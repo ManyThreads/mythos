@@ -31,6 +31,7 @@
 #include "boot/memory-layout.h"
 #include "util/SFI.hh"
 #include "boot/DeployHWThread.hh"
+#include "util/MPApicTopology.hh"
 
 namespace mythos {
   namespace boot {
@@ -60,13 +61,17 @@ NORETURN void apboot()
     ap_apic2config[topo.threadID(id)] = &ap_config[id];
   }
 
-      if (topo.hasApics()) {
-        uint64_t addr = topo.getApics()[0].apicID[0];
-        MLOG_ERROR(mlog::boot, DVARhex(addr - MMIO_PHYS), DVARhex(MMIO_ADDR + addr - MMIO_PHYS));
-        IOAPIC ioapic(MMIO_ADDR + addr - MMIO_PHYS);
+
+      auto apics = topo.getApics();
+      for (uint64_t i = 0; i < topo.numApics(); i++) {
+        uint64_t addr = apics[i]->apicID[0];
+        auto offs = addr - MMIO_PHYS;
+        MLOG_ERROR(mlog::boot, DVARhex(addr));
+        MLOG_ERROR(mlog::boot, DVARhex(offs), DVARhex(MMIO_ADDR + offs));
+        IOAPIC ioapic(MMIO_ADDR + offs);
         IOAPIC::IOAPIC_VERSION ver(ioapic.read(IOAPIC::IOAPICVER));
         MLOG_ERROR(mlog::boot, "Read ver value", DVAR(ver.version), DVAR(ver.max_redirection_table));
-        MLOG_ERROR(mlog::boot, DVAR(ioapic.read(IOAPIC::IOAPICVER)));
+        MLOG_ERROR(mlog::boot, DVARhex(ioapic.read(IOAPIC::IOAPICVER)));
       }
 
   // switch to BSP's stack here
