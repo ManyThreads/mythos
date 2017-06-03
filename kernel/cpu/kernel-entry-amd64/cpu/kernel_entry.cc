@@ -37,10 +37,14 @@ namespace mythos {
     void initSyscallEntry(uintptr_t stack) {
       kernel_stack.set(stack);
       thread_state.set(nullptr);
+      initSyscallEntry();
+    }
+
+    void initSyscallEntry() {
       x86::setStar(SEGMENT_KERNEL_CS, SEGMENT_USER_CS32+3);
       x86::setLStar(&syscall_entry);
       x86::setFMask(x86::FLAG_TF | x86::FLAG_DF | x86::FLAG_IF | x86::FLAG_IOPL);
-      x86::enableSyscalls();
+      //x86::setMSR(x86::MSR_EFER, x86::getMSR(x86::MSR_EFER) | x86::EFER_SCE); // done in start.S
     }
 
   } // namespace cpu

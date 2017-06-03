@@ -102,5 +102,17 @@ namespace mythos {
      */
     optional<void> load_init();
 
+    /** create the root task EC on the first hardware thread */
+    class InitLoaderPlugin
+      : public Plugin
+    {
+    public:
+      virtual ~InitLoaderPlugin() {}
+      void initThread(size_t apicID) {
+        if (apicID == cpu::enumerateHwThreadID(0))
+          OOPS(mythos::boot::load_init()); // start the first application
+      }
+    };
+
   } // namespace boot
 } // namespace mythos

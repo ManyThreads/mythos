@@ -59,6 +59,7 @@ namespace mythos {
     extern CoreLocal<uintptr_t> kernel_stack SYMBOL("kernel_stack") KERNEL_CLM_HOT;
 
     void initSyscallEntry(uintptr_t stack);
+    void initSyscallEntry();
 
     // forward declaration
     extern void syscall_entry() SYMBOL("syscall_entry");

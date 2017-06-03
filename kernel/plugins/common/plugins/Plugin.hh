@@ -33,6 +33,7 @@ namespace mythos {
   class IPlugin
   {
   public:
+    virtual ~IPlugin() {}
     virtual void initGlobal() {}
     virtual void initThread(size_t /*threadid*/) {}
   };
@@ -46,6 +47,7 @@ namespace mythos {
       this->next = first;
       first = this;
     }
+    virtual ~Plugin() {}
 
     static void initPluginsGlobal();
     static void initPluginsOnThread(size_t threadid);

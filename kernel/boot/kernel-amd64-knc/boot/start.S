@@ -57,14 +57,14 @@ _host_debug_info:
  * If bit 16 in the ‘flags’ word is set, then the fields at offsets 12-28 in the Multiboot header are valid, and the boot loader should use them instead of the fields in the actual executable header to calculate where to load the OS image. This information does not need to be provided if the kernel image is in elf format.
  */
 #define MULTIBOOT_HEADER_FLAGS          0x00000000
-        
+
 .align  4
 /** multiboot header: just magic, flags and checksum without the optional fields */
 _mboot_header:
         .long MULTIBOOT_HEADER_MAGIC
         .long MULTIBOOT_HEADER_FLAGS
         .long -(MULTIBOOT_HEADER_MAGIC+MULTIBOOT_HEADER_FLAGS)
-        
+
 /** Global Descriptor Table (GDT) during boot wiht five segments.
  * see 3.4.5.1 Code- and Data-Segment Descriptor Types in Intel 253668-048US.
  * granularity 0xa0 = 10100000b => limit granularity 4kb, operand size unset, 64bit mode
@@ -112,7 +112,7 @@ _start_bsp:
         // activate the initial page table
         mov     $0xc0000080, %rcx       // select the EFER MSR
         rdmsr                           // read EFER
-        or      $0x101, %rax            // set LME (bit8) and enable SYSCALL (bit0), XXX enable noexecute (bit11)
+        or      $0x901, %rax            // IA-32e mode enable (bit8), SYSCALL (bit0), noexecute (bit11)
         wrmsr                           // write EFER
         mov     %cr4, %rdx
         or      $0x20, %rdx             // enable PAE mode (bit5), XXX enable SMAP,SMEP,PCE later?
@@ -155,7 +155,7 @@ _setup_ap:
         // init paging and load stage 1 page table
         mov $0xc0000080, %ecx // select the EFER MSR
         rdmsr
-        or $0x101, %eax // set LME (bit8) and enable SYSCALL (bit0), XXX enable noexecute (bit11)
+        or $0x901, %eax // IA-32e mode enable (bit8), SYSCALL (bit0), noexecute (bit11)
         wrmsr
         mov %cr4, %edx
         or $0x20, %edx // enable PAE mode (bit5), XXX enable SMAP,SMEP,PCE later?

@@ -102,15 +102,15 @@ namespace mythos {
     ASSERT(getId() == x86::initialApicID());
 
     // init Error register
-    write(REG_ESR, 0); // Due to the Pentium erratum 3AP.
-    read(REG_ESR);
+    // write(REG_ESR, 0); // Due to the Pentium erratum 3AP.
+    // read(REG_ESR);
     value = read(REG_LVT_ERROR);
     value.vector = 0xFF; // should never happen because we leafe it masked
     value.masked = 1;
     write(REG_LVT_ERROR, value);
     // spec says clear errors after enabling vector.
-    write(REG_ESR, 0); // Due to the Pentium erratum 3AP.
-    read(REG_ESR);
+    // write(REG_ESR, 0); // Due to the Pentium erratum 3AP.
+    // read(REG_ESR);
   }
 
   void LAPIC::enablePeriodicTimer(uint8_t irq, uint32_t count) {
@@ -129,7 +129,7 @@ namespace mythos {
     write(REG_ESR, 0); // Be paranoid about clearing APIC errors.
     read(REG_ESR);
     writeIPI(0, edgeIPI(ICR_DESTSHORT_NOTSELF, MODE_INIT, 0));
-    hwthread_wait(10000);
+    //hwthread_wait(10000);
     return true;
   }
 

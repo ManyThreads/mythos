@@ -69,7 +69,7 @@ struct DeployHWThread
   }
 
   void prepare(size_t apicID) {
-    this->apicID = apicID;
+    this->firstboot = true;
     PANIC_MSG(apicID<BOOT_MAX_THREADS, "unexpectedly large apicID");
     cpu::addHwThreadID(apicID);
     gdt.init();
@@ -88,25 +88,33 @@ struct DeployHWThread
                       (void*)(KernelCLM::getOffset(apicID)));
   }
 
-  void initThread() {
+  void initThread(size_t apicID) {
     gdt.load();
     gdt.tss_kernel_load();
-    KernelCLM::initOffset(apicID);
-    cpu::initHWThreadID(apicID);
-    MLOG_DETAIL(mlog::boot, "init", DVAR(apicID)); // no logging before the local CLM init
-    cpu::initSyscallEntry(stacks[apicID]);
-    idt.load();
-    async::initLocalPlace(apicID);
-    mythos::lapic.init();
-    localScheduler.set(&getScheduler(apicID));
-    getLocalScheduler().init(&async::places[apicID]);
-    Plugin::initPluginsOnThread(apicID);
+
+    if (UNLIKELY(this->firstboot)) {
+      /// @todo all the memory initialisation can be moved to prepare actually! this would remove this special case
+      KernelCLM::initOffset(apicID);
+      cpu::initHWThreadID(apicID);
+      cpu::initSyscallEntry(stacks[apicID]);
+      idt.load();
+      async::initLocalPlace(apicID);
+      mythos::lapic.init();
+      localScheduler.set(&getScheduler(apicID));
+      getLocalScheduler().init(&async::places[apicID]);
+      Plugin::initPluginsOnThread(apicID);
+      this->firstboot = false;
+    } else {
+      cpu::initSyscallEntry();
+      idt.load();
+      mythos::lapic.init(); /// @todo need lapic.init after deep sleep?
+    }
   }
 
   TSS64 tss_kernel;
   GdtAmd64 gdt;
-  size_t apicID;
   static IdtAmd64 idt;
+  bool firstboot;
 };
 
   } // namespace boot

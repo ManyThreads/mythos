@@ -63,6 +63,12 @@ uint64_t mythos::tscdelay_MHz=2000;
 NORETURN void entry_bsp() SYMBOL("entry_bsp");
 NORETURN void entry_ap(size_t id) SYMBOL("entry_ap");
 
+/** entry point for the bootstrap processor (BSP, a hardware thread) when booting the processor.
+ *
+ * Initializes the kernel address space, the core-local memory (kernel
+ * TLS), global C++ constructors, initial kernel objects. Then
+ * initializes the other hardware threads' initial environment and starts them.
+ */
 void entry_bsp()
 {
   mythos::boot::initKernelSpace();
@@ -96,17 +102,21 @@ void runUser() {
   mythos::cpu::go_sleeping(); // resets the kernel stack!
 }
 
-void entry_ap(size_t id)
+/** Boot entry point and deep sleep exit point for application
+ * processors (APs), that is all hardware threads.
+ *
+ * The BSP behaves like an AP by jumping into this function after
+ * sending the startup interrupt to all other APs.
+ *
+ * This function may also be used when exiting from deep sleep. In
+ * that case, some initializations have to be skipped. Just the
+ * hardware thread is configured to the default environment.
+ */
+void entry_ap(size_t apicID)
 {
   //asm volatile("xchg %bx,%bx");
-  mythos::boot::apboot_thread(id);
+  mythos::boot::apboot_thread(apicID);
   MLOG_DETAIL(mlog::boot, "started hardware thread");
-
-  if (id == mythos::cpu::enumerateHwThreadID(0)) {
-    auto res = mythos::boot::load_init(); // start the first application
-    OOPS(res);
-  }
-
   runUser();
 }
 

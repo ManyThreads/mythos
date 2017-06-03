@@ -39,7 +39,7 @@ namespace mythos {
 DeployHWThread ap_config[BOOT_MAX_THREADS]; //< AP configuration objects index by APIC ID
 
     NORETURN extern void start_ap64() SYMBOL("_start_ap64");
-    
+
 NORETURN void apboot() {
   // read acpi topology, then initialise HWThread objects
   MPApicTopology topo;
@@ -61,8 +61,8 @@ NORETURN void apboot() {
 }
 
     void apboot_thread(size_t apicID) {
-      ap_config[apicID].initThread();
+      ap_config[apicID].initThread(apicID);
     }
-    
+
   } // namespace boot
 } // namespace mythos

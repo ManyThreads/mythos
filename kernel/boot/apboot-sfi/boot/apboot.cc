@@ -61,7 +61,7 @@ NORETURN void apboot()
 }
 
     void apboot_thread(size_t apicID) {
-      ap_config[apicID].initThread();
+      ap_config[apicID].initThread(apicID);
     }
 
   } // namespace boot

@@ -48,8 +48,9 @@
 namespace mythos {
   extern KernelMemory* kmem_root();
   namespace boot {
+    using namespace mythos::init;
 
-  using namespace mythos::init;
+InitLoaderPlugin initloaderplugin;
 
 extern char app_image_start SYMBOL("app_image_start");
 
