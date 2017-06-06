@@ -93,7 +93,7 @@ namespace mythos {
     };
 
     BITFIELD_DEF(uint32_t, Register)
-    UIntField<value_t,base_t, 23,9> apic_id; // REG_APICID
+    UIntField<value_t,base_t, 23,9> apic_id; // KNC-specific!  // REG_APICID
     UIntField<value_t,base_t, 0,8> version; // REG_VERSION
     UIntField<value_t,base_t, 16,8> max_lvt_entry; // REG_VERSION
     BoolField<value_t,base_t, 24> eio_sup_supported; // REG_VERSION EIO broadcast suppression supported
@@ -104,7 +104,7 @@ namespace mythos {
     BoolField<value_t,base_t, 14> level; // REG_ICR_LOW
     BoolField<value_t,base_t, 15> level_triggered; // REG_ICR_LOW
     UIntField<value_t,base_t, 18,2> destination_shorthand; // REG_ICR_LOW
-    UIntField<value_t,base_t, 16,16> destination; // REG_ICR_HIGH and REG_LDR
+    UIntField<value_t,base_t, 16,16> destination; // KNC-specific!  // REG_ICR_HIGH and REG_LDR
     UIntField<value_t,base_t, 28,4> model; // REG_DFR flat vs cluster
     UIntField<value_t,base_t, 0,4> task_prio_sub; // REG_TPR
     UIntField<value_t,base_t, 4,4> task_prio; // REG_TPR
