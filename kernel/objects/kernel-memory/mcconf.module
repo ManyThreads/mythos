@@ -1,0 +1,4 @@
+# -*- mode:toml; -*-
+[module.objects-kernel-memory]
+    incfiles = [ "objects/KernelMemory.hh" ]
+    kernelfiles = [ "objects/KernelMemory.cc" ]

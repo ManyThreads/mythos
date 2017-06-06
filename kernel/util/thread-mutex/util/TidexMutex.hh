@@ -1,5 +1,5 @@
 /* -*- mode:C++; -*- */
-/* MyThOS: The Many-Threads Operating System
+/* MIT License -- MyThOS: The Many-Threads Operating System
  *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
@@ -32,7 +32,7 @@
 namespace mythos {
 
   /** Mutex implementation inspired by Tidex Mutex
-   * http://concurrencyfreaks.blogspot.de/2014/12/tidex-mutex.html 
+   * http://concurrencyfreaks.blogspot.de/2014/12/tidex-mutex.html
    */
   class TidexMutex
   {
@@ -44,14 +44,11 @@ namespace mythos {
 
     typedef cpu::ThreadID ThreadID;
 
-    std::atomic<ThreadID> ingress; //< id of the last acquiring thread
-    std::atomic<ThreadID> egress; //< id of the last thread that released the mutex
+    std::atomic<ThreadID> ingress = {INVALID_THREAD_ID}; //< last acquiring thread
+    std::atomic<ThreadID> egress = {INVALID_THREAD_ID}; //< last thread that released the mutex
 
-  public: 
-    TidexMutex()
-      : ingress(INVALID_THREAD_ID)
-      , egress(INVALID_THREAD_ID)
-    {}
+  public:
+    TidexMutex() {}
     TidexMutex(TidexMutex const&) = delete;
     void operator=(TidexMutex const&) = delete;
 
@@ -66,9 +63,19 @@ namespace mythos {
       TidexMutex& m;
       ThreadID nextEgress;
     };
-    
+
+    template<class FUNCTOR>
+    void operator<< (FUNCTOR fun) { atomic(fun); }
+
+    template<class FUNCTOR>
+    void atomic(FUNCTOR fun) {
+      Lock lock(*this);
+      fun();
+    }
+
+  protected:
     ThreadID lock(ThreadID mytid) {
-      // if this thread was the last unlocking thread negate the thread id 
+      // if this thread was the last unlocking thread negate the thread id
       // to make this cycle distinguishable from the last for other threads
       // Used to prevent a break of the mutex
       if (egress == mytid) mytid = ThreadID(~mytid);
@@ -77,15 +84,15 @@ namespace mythos {
       ThreadID prevtid = ingress.exchange(mytid);
 
       // while there are threads waiting in front of this thread delay execution
-      while (egress.load(std::memory_order_acquire) != prevtid) { 
-	hwthread_pause(); 
+      while (egress.load(std::memory_order_acquire) != prevtid) {
+	hwthread_pollpause();
       }
-		
+
       // store our thread id (maybe negated) for unlocking
       return mytid;
     }
 
     void unlock(ThreadID nextEgress) { egress.store(nextEgress, std::memory_order_release); }
   };
- 
+
 } // namespace mythos

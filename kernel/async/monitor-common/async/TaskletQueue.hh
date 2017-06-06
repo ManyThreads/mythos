@@ -1,5 +1,5 @@
 /* -*- mode:C++; -*- */
-/* MyThOS: The Many-Threads Operating System
+/* MIT License -- MyThOS: The Many-Threads Operating System
  *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
@@ -33,131 +33,172 @@ namespace mythos {
 namespace async {
 
 
-  class TaskletQueueBaseDefault {
+  class ChainFIFOBaseDefault {
   public:
     std::atomic<uintptr_t>& privateTail() { return privateTail_; }
     std::atomic<uintptr_t>& sharedTail()  { return sharedTail_; }
 
   private:
-    std::atomic<uintptr_t> privateTail_ = {Tasklet::FREE};
-    std::atomic<uintptr_t> sharedTail_  = {Tasklet::FREE};
+    std::atomic<uintptr_t> privateTail_ = {Chainable::FREE};
+    std::atomic<uintptr_t> sharedTail_  = {Chainable::FREE};
   };
 
-  class TaskletQueueBaseAligned {
+  class ChainFIFOBaseAligned {
   public:
     std::atomic<uintptr_t>& privateTail() { return privateTail_; }
     std::atomic<uintptr_t>& sharedTail()  { return sharedTail_; }
 
   private:
-    alignas(64) std::atomic<uintptr_t> privateTail_ = {Tasklet::FREE};
-    alignas(64) std::atomic<uintptr_t> sharedTail_  = {Tasklet::FREE};
+    alignas(64) std::atomic<uintptr_t> privateTail_ = {Chainable::FREE};
+    alignas(64) std::atomic<uintptr_t> sharedTail_  = {Chainable::FREE};
   };
 
   template<typename BASE>
-  class TaskletQueueImpl : protected BASE
+  class ChainFIFO : protected BASE
   {
   public:
     using BASE::sharedTail;
     using BASE::privateTail;
 
-    TaskletQueueImpl() {}
-    TaskletQueueImpl(TaskletQueueImpl const&) = delete;
+    ChainFIFO() {}
+    ChainFIFO(ChainFIFO const&) = delete;
 
-    ~TaskletQueueImpl() {
-      ASSERT(sharedTail() == Tasklet::FREE || sharedTail() == Tasklet::LOCKED);
-      ASSERT(privateTail() == Tasklet::FREE);
+    ~ChainFIFO() {
+      ASSERT(sharedTail() == Chainable::FREE || sharedTail() == Chainable::LOCKED);
+      ASSERT(privateTail() == Chainable::FREE);
     }
 
-    bool isLocked() { return sharedTail() != Tasklet::FREE; }
+    bool isLocked() { return sharedTail() != Chainable::FREE; }
 
-    bool tryAcquire() {
-      uintptr_t oldtail = Tasklet::FREE;
-      return sharedTail().compare_exchange_strong(oldtail, Tasklet::LOCKED, std::memory_order_relaxed);
-    }
+    bool tryAcquire();
 
     /** pushed a task into the shared queue and implicitly tries to
      * acquire exclusive access. Returns true if the push acquired
      * exclusive access because it was the first pushed task.
      */
-    bool push(Tasklet& t) {
-      ASSERT(t.isInit());
-
-      // mark new Tasklets next pointer as incomplete
-      t.nextTasklet.store(Tasklet::INCOMPLETE, std::memory_order_relaxed); // mark as incomplete push
-
-      // replace sharedTail with "incomplete tasklet" and store previous shared tail in oldtail
-      uintptr_t oldtail = sharedTail().exchange(reinterpret_cast<uintptr_t>(&t), std::memory_order_release); // replace the tail
-
-      // overwrite the new tasklets "incomplete" with the previous tail value
-      t.nextTasklet.store(oldtail, std::memory_order_relaxed); // complete the push
-
-      // check if the old tail value was 0 (Free)
-      return oldtail == Tasklet::FREE; // true if this was the first message in the queue
-    }
+    bool push(Chainable& t);
 
     /** Pulls a task from the queue in FIFO order. This shall be used
      * only by the single thread that is the current owner. Returns
      * nullptr if the queue seemed to be empty.
      */
-    Tasklet* pull() {
-      // try to retrieve from the private queue
-      uintptr_t oldtail = privateTail().exchange(Tasklet::FREE, std::memory_order_relaxed); // avoid load()
-
-      // not 0, so we have a tasklet in oldtail
-      if (oldtail != Tasklet::FREE) {
-          auto t = reinterpret_cast<Tasklet*>(oldtail);
-          // take what is stored in the tasklets next pointer and store in privateTail
-          privateTail().store(t->nextTasklet.load(std::memory_order_relaxed),
-                            std::memory_order_relaxed); // remove old tail from private queue
-          t->setInit();
-          return t;
-      }
-      // else try to retrieve from the shared queue
-      oldtail = sharedTail().exchange(Tasklet::LOCKED, std::memory_order_relaxed); // detach tail and mark as locked
-
-      // FREE if was empty or LOCKED from command above
-      if (oldtail == Tasklet::FREE || oldtail == Tasklet::LOCKED) return nullptr; // nothing was in the shared queue, but now it is locked
-
-      while(true) { // oldtail != FREE && oldtail != LOCKED
-        auto t = reinterpret_cast<Tasklet*>(oldtail);
-        uintptr_t next;
-        do { // wait until the push is no longer marked as incomplete
-          // use exchange in order to avoid shared state of cacheline
-          next = t->nextTasklet.exchange(Tasklet::INCOMPLETE, std::memory_order_acquire);
-          if (next == Tasklet::INCOMPLETE) hwthread_pause(); // sleep for a short amount of cycles
-        } while (next == Tasklet::INCOMPLETE);
-        // directly return last task from old shared queue else push it into the private queue
-        if (next == Tasklet::FREE || next == Tasklet::LOCKED) break;
-
-        t->nextTasklet.store(privateTail().exchange(oldtail, std::memory_order_relaxed),
-                                     std::memory_order_relaxed);
-        oldtail = next;
-      }
-      auto t = reinterpret_cast<Tasklet*>(oldtail);
-      t->setInit();
-      return t;
-    }
+    Chainable* pull();
 
     /** Tries to release the exclusive access and return true on
      * success. Otherwise, there is an entry for the next pull().
      */
-    bool tryRelease() {
-      uintptr_t oldtail = Tasklet::LOCKED;
-      return sharedTail().compare_exchange_strong(oldtail, Tasklet::FREE, std::memory_order_relaxed);
-    }
+    bool tryRelease();
 
     /** May be used to add local tasks for LIFO processing. Shall be
      * used only by a single thread, that is the current owner.
      */
-    bool pushPrivate(Tasklet& t) {
-      ASSERT(t.isInit());
-      uintptr_t oldtail = privateTail().exchange(reinterpret_cast<uintptr_t>(&t), std::memory_order_relaxed);
-      t.nextTasklet.store(oldtail, std::memory_order_relaxed);
-      return oldtail == Tasklet::FREE; // true if this was the first message in the queue
-    }
+    bool pushPrivate(Chainable& t);
   };
 
-  using TaskletQueue = TaskletQueueImpl<TaskletQueueBaseDefault>;
+  template<typename BASE>
+  bool ChainFIFO<BASE>::tryAcquire()
+  {
+    uintptr_t oldtail = Chainable::FREE;
+    return sharedTail()
+      .compare_exchange_strong(oldtail, Chainable::LOCKED, std::memory_order_relaxed);
+  }
+
+  template<typename BASE>
+  bool ChainFIFO<BASE>::push(Chainable& t)
+  {
+    ASSERT(t.isInit());
+
+    // mark new Tasklets next pointer as incomplete
+    t.next.store(Chainable::INCOMPLETE, std::memory_order_relaxed); // mark as incomplete push
+
+    // replace sharedTail with "incomplete tasklet" and store previous shared tail in oldtail
+    uintptr_t oldtail = sharedTail()
+      .exchange(reinterpret_cast<uintptr_t>(&t), std::memory_order_release); // replace the tail
+
+    // overwrite the new tasklets "incomplete" with the previous tail value
+    t.next.store(oldtail, std::memory_order_relaxed); // complete the push
+
+    // check if the old tail value was 0 (Free)
+    return oldtail == Chainable::FREE; // true if this was the first message in the queue
+  }
+
+  template<typename BASE>
+  Chainable* ChainFIFO<BASE>::pull()
+  {
+    // try to retrieve from the private queue
+    uintptr_t oldtail =
+      privateTail().exchange(Chainable::FREE, std::memory_order_relaxed); // avoid load()
+
+    // not 0, so we have a tasklet in oldtail
+    if (oldtail != Chainable::FREE) {
+      auto t = reinterpret_cast<Chainable*>(oldtail);
+      // take what is stored in the tasklets next pointer and store in privateTail
+      auto n = t->next.exchange(Chainable::INIT, std::memory_order_relaxed); // avoid load
+      privateTail().store(n, std::memory_order_relaxed); // remove old tail from private queue
+      return t;
+    }
+    // else try to retrieve from the shared queue
+    oldtail = sharedTail()
+      .exchange(Chainable::LOCKED, std::memory_order_relaxed); // detach tail and mark as locked
+
+    // FREE if was empty or LOCKED from command above
+    if (oldtail == Chainable::FREE || oldtail == Chainable::LOCKED)
+      return nullptr; // nothing was in the shared queue, but now it is locked
+
+    while(true) { // oldtail != FREE && oldtail != LOCKED
+      auto t = reinterpret_cast<Chainable*>(oldtail);
+      uintptr_t next;
+      do { // wait until the push is no longer marked as incomplete
+        // use exchange in order to avoid shared state of cacheline
+        next = t->next.exchange(Chainable::INCOMPLETE, std::memory_order_acquire);
+        if (next == Chainable::INCOMPLETE) hwthread_pause(); // sleep for a short amount of cycles
+        /// @todo some statistics about how often this actually happens
+      } while (next == Chainable::INCOMPLETE);
+      // directly return last task from old shared queue else push it into the private queue
+      if (next == Chainable::FREE || next == Chainable::LOCKED) break;
+
+      t->next.store(privateTail().exchange(oldtail, std::memory_order_relaxed),
+                          std::memory_order_relaxed);
+      oldtail = next;
+    }
+    auto t = reinterpret_cast<Chainable*>(oldtail);
+    t->setInit();
+    return t;
+  }
+
+  template<typename BASE>
+  bool ChainFIFO<BASE>::tryRelease()
+  {
+    uintptr_t oldtail = Chainable::LOCKED;
+    return sharedTail()
+      .compare_exchange_strong(oldtail, Chainable::FREE, std::memory_order_relaxed);
+  }
+
+  template<typename BASE>
+  bool ChainFIFO<BASE>::pushPrivate(Chainable& t)
+  {
+    ASSERT(t.isInit());
+    uintptr_t oldtail =
+      privateTail().exchange(reinterpret_cast<uintptr_t>(&t), std::memory_order_relaxed);
+    t.next.store(oldtail, std::memory_order_relaxed);
+    return oldtail == Chainable::FREE; // true if this was the first message in the queue
+  }
+
+  template<class BASE>
+  class TaskletQueueImpl
+    : protected ChainFIFO<BASE>
+  {
+  public:
+    using ChainFIFO<BASE>::isLocked;
+    using ChainFIFO<BASE>::tryAcquire;
+    using ChainFIFO<BASE>::tryRelease;
+
+    bool push(TaskletBase& t) {  return ChainFIFO<BASE>::push(t); }
+    TaskletBase* pull() { return static_cast<TaskletBase*>(ChainFIFO<BASE>::pull()); }
+    bool pushPrivate(Chainable& t) { return ChainFIFO<BASE>::pushPrivate(t); }
+  };
+
+  using TaskletQueue = TaskletQueueImpl<ChainFIFOBaseDefault>;
 
 } // namespace async
 } // namespace mythos

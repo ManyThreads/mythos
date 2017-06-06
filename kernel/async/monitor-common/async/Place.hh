@@ -1,5 +1,5 @@
 /* -*- mode:C++; -*- */
-/* MyThOS: The Many-Threads Operating System
+/* MIT License -- MyThOS: The Many-Threads Operating System
  *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
@@ -56,7 +56,7 @@ public:
 
   enum Mode { ASYNC, MAYINLINE };
 
-  void runLocal(Tasklet* msg, Mode mode=ASYNC) {
+  void runLocal(TaskletBase* msg, Mode mode=ASYNC) {
     ASSERT(isLocal());
     if (mode == ASYNC) {
       pushPrivate(msg);
@@ -66,12 +66,12 @@ public:
     }
   }
 
-  void run(Tasklet* msg, Mode mode=ASYNC) {
+  void run(TaskletBase* msg, Mode mode=ASYNC) {
     if (isLocal()) runLocal(msg, mode);
     else pushShared(msg);
   }
 
-  void pushShared(Tasklet* msg) {
+  void pushShared(TaskletBase* msg) {
     ASSERT(msg);
     MLOG_DETAIL(mlog::async, this, "push shared", msg);
     if (queue.push(*msg)) wakeup();
@@ -92,7 +92,7 @@ public:
   bool isActive() const { return nestingMonitor.load(std::memory_order_relaxed); }
 
 protected:
-  void pushPrivate(Tasklet* msg) {
+  void pushPrivate(TaskletBase* msg) {
     ASSERT(isLocal());
     ASSERT(msg);
     MLOG_DETAIL(mlog::async, this, "push private", msg);
@@ -104,11 +104,12 @@ protected:
 protected:
   size_t apicID; //< for wakeup signals
   std::atomic<bool> nestingMonitor;
-  TaskletQueueImpl<TaskletQueueBaseAligned> queue; //< for pending tasks
+  TaskletQueueImpl<ChainFIFOBaseAligned> queue; //< for pending tasks
   PhysPtr<void> _cr3;
 };
 
-/** @todo Should be allocated into local cachelines. */
+/// @todo Should be allocated into local cachelines.
+/// @todo should be moved to the boot/deployment code instead of hardcoding here!
 extern Place places[BOOT_MAX_THREADS];
 inline Place* getPlace(size_t threadid) { return &places[threadid]; }
 

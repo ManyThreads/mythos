@@ -1,5 +1,5 @@
 /* -*- mode:C++; -*- */
-/* MyThOS: The Many-Threads Operating System
+/* MIT License -- MyThOS: The Many-Threads Operating System
  *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
@@ -33,7 +33,7 @@
 namespace mythos {
   namespace boot {
     
-void initKernelMemory(UntypedMemory& um)
+void initKernelMemory(KernelMemory& km)
 {
   KernelMemoryRange<30> usable_mem;
   E820Info ebi;
@@ -49,7 +49,7 @@ void initKernelMemory(UntypedMemory& um)
   }
   
   usable_mem.removeKernelReserved();
-  usable_mem.addToUM(um);
+  usable_mem.addToKM(km);
   // TODO create array of frame objects for remaining memory above 4GiB
 }
 

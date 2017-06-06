@@ -1,7 +1,0 @@
-# -*- mode:toml; -*-
-
-[module.objects-memory]
-    incfiles = [ "objects/FrameData.hh", "objects/Frame.hh", "objects/MemoryRegion.hh",
-             "objects/PageMap.hh", "objects/PML4InvalidationBroadcast.hh", "objects/MemoryRoot.hh",
-             "objects/StaticMemoryRegion.hh" ]
-    kernelfiles = [ "objects/MemoryRegion.cc", "objects/PageMap.cc", "objects/PML4InvalidationBroadcast.cc" ]

@@ -1,5 +1,5 @@
 /* -*- mode:C++; -*- */
-/* MyThOS: The Many-Threads Operating System
+/* MIT License -- MyThOS: The Many-Threads Operating System
  *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
@@ -30,7 +30,8 @@ namespace mythos {
 namespace async {
 
   void NestedMonitorHome::request(Tasklet* msg) {
-    if (waitq.push(msg)) { // first push, acquired exclusive access
+    ASSERT(msg);
+    if (waitq.push(*msg)) { // first push, acquired exclusive access
       this->acquireRef(); // mark object as used
       auto tsk = waitq.pull(); // has to be successfull because of our enqueue
       ASSERT(tsk != nullptr);

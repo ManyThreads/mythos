@@ -1,5 +1,5 @@
 /* -*- mode:C++; -*- */
-/* MyThOS: The Many-Threads Operating System
+/* MIT License -- MyThOS: The Many-Threads Operating System
  *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
@@ -33,6 +33,6 @@ namespace mlog {
 #define MLOG_APP FilterAny
 #endif
 
-  extern mlog::Logger<MLOG_APP> app;
+extern mlog::Logger<MLOG_APP> app;
 
 } // namespace mlog

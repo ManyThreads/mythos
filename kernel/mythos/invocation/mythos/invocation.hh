@@ -1,5 +1,5 @@
 /* -*- mode:C++; indent-tabs-mode:nil; -*- */
-/* MyThOS: The Many-Threads Operating System
+/* MIT License -- MyThOS: The Many-Threads Operating System
  *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
@@ -29,7 +29,7 @@
 #include "mythos/protocol/KernelObject.hh"
 #include "mythos/protocol/Example.hh"
 #include "mythos/protocol/ExecutionContext.hh"
-#include "mythos/protocol/UntypedMemory.hh"
+#include "mythos/protocol/KernelMemory.hh"
 #include "mythos/protocol/CapMap.hh"
 #include "mythos/protocol/Portal.hh"
 #include "mythos/protocol/Frame.hh"

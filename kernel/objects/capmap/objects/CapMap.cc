@@ -1,5 +1,5 @@
 /* -*- mode:C++; indent-tabs-mode:nil; -*- */
-/* MyThOS: The Many-Threads Operating System
+/* MIT License -- MyThOS: The Many-Threads Operating System
  *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
@@ -222,7 +222,7 @@ namespace mythos {
 
   optional<void const*> CapMap::vcast(TypeId id) const
   {
-    if (id == TypeId::id<ICapMap>()) { return static_cast<const ICapMap*>(this); }
+    if (id == typeId<ICapMap>()) { return static_cast<const ICapMap*>(this); }
     THROW(Error::TYPE_MISMATCH);
   }
 }  // namespace mythos

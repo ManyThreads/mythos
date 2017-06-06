@@ -1,5 +1,5 @@
 /* -*- mode:C++; indent-tabs-mode:nil; -*- */
-/* MyThOS: The Many-Threads Operating System
+/* MIT License -- MyThOS: The Many-Threads Operating System
  *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
@@ -27,7 +27,7 @@
 
 #include "runtime/PortalBase.hh"
 #include "mythos/protocol/Portal.hh"
-#include "runtime/UntypedMemory.hh"
+#include "runtime/KernelMemory.hh"
 #include "runtime/Frame.hh"
 #include "mythos/init.hh"
 
@@ -38,7 +38,7 @@ namespace mythos {
   public:
     Portal(CapPtr cap, void* ib) : PortalBase(cap, ib) {}
 
-    PortalFuture<void> create(PortalLock pr, UntypedMemory kmem,
+    PortalFuture<void> create(PortalLock pr, KernelMemory kmem,
                               CapPtr factory = init::PORTAL_FACTORY) {
       return pr.invoke<protocol::Portal::Create>(kmem.cap(), _cap, factory);
     }

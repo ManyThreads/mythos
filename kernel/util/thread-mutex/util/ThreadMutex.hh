@@ -1,5 +1,5 @@
 /* -*- mode:C++; -*- */
-/* MyThOS: The Many-Threads Operating System
+/* MIT License -- MyThOS: The Many-Threads Operating System
  *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
@@ -29,7 +29,7 @@
 #include "util/TidexMutex.hh"
 
 namespace mythos{
-   
+
   typedef TidexMutex ThreadMutex;
 
-} // namespace Mythos
+} // namespace mythos

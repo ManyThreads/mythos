@@ -1,4 +1,4 @@
-/* MyThOS: The Many-Threads Operating System
+/* MIT License -- MyThOS: The Many-Threads Operating System
  *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
@@ -43,17 +43,12 @@ namespace async {
 
   void Place::processTasks()
   {
-    Tasklet* msg = queue.pull();
     while (true) {
-      if (msg != nullptr) {
-        MLOG_DETAIL(mlog::async, this, "run tasklet", msg);
-        msg->run();
-      } else {
-        if (queue.tryRelease()) break;
-        hwthread_pause();
-      }
-      msg = queue.pull();
+      auto msg = queue.pull();
+      if (msg != nullptr) msg->run();
+      else if (queue.tryRelease()) break;
     }
+    hwthread_pollpause(); /// @todo wrong place, no polling here!
     // this assertion races with concurrent push operations
     //OOPS(!queue.isLocked());
     nestingMonitor.store(false); // release?

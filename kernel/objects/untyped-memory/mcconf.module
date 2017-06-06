@@ -1,5 +1,0 @@
-# -*- mode:toml; -*-
-
-[module.untyped-memory]
-    incfiles = [ "objects/FirstFitHeap.hh", "objects/UntypedMemory.hh" ]
-    kernelfiles = [ "objects/UntypedMemory.cc" ]

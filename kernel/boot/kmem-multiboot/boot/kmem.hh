@@ -1,5 +1,5 @@
 /* -*- mode:C++; -*- */
-/* MyThOS: The Many-Threads Operating System
+/* MIT License -- MyThOS: The Many-Threads Operating System
  *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
@@ -26,11 +26,11 @@
 #pragma once
 
 namespace mythos {
-  class UntypedMemory;
+  class KernelMemory;
 
   namespace boot {
 
-    void initKernelMemory(UntypedMemory& um);
+    void initKernelMemory(KernelMemory& km);
 
   } // namespace boot
 } // namespace mythos

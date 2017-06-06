@@ -1,5 +1,5 @@
 /* -*- mode:C++; indent-tabs-mode:nil; -*- */
-/* MyThOS: The Many-Threads Operating System
+/* MIT License -- MyThOS: The Many-Threads Operating System
  *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
@@ -25,7 +25,7 @@
  */
 #pragma once
 
-#include "mythos/protocol/UntypedMemory.hh"
+#include "mythos/protocol/KernelMemory.hh"
 #include "mythos/protocol/common.hh"
 
 namespace mythos {
@@ -100,7 +100,7 @@ namespace mythos {
         Suspend() : InvocationBase(label,getLength(this)) {}
       };
 
-      struct Create : public UntypedMemory::CreateBase {
+      struct Create : public KernelMemory::CreateBase {
         typedef InvocationBase response_type;
         Create(CapPtr dst, CapPtr factory, CapPtr as, CapPtr cs, CapPtr sched, Amd64Registers regs, bool start)
           : CreateBase(dst, factory), regs(regs), start(start)

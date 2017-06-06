@@ -1,5 +1,5 @@
 /* -*- mode:C++; indent-tabs-mode:nil; -*- */
-/* MyThOS: The Many-Threads Operating System
+/* MIT License -- MyThOS: The Many-Threads Operating System
  *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
@@ -29,7 +29,7 @@
 
 namespace mythos {
   class MemoryRoot;
-  class UntypedMemory;
+  class KernelMemory;
   class StaticMemoryRegion;
   class CapEntry;
 
@@ -40,7 +40,7 @@ namespace mythos {
     MemoryRoot* cap_root();
     StaticMemoryRegion* memory_region(size_t index);
     CapEntry* kmem_root_entry();
-    UntypedMemory* kmem_root();
+    KernelMemory* kmem_root();
 
     void initMemoryRegions();
   } // namespace boot

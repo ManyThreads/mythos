@@ -1,5 +1,5 @@
 /* -*- mode:C++; -*- */
-/* MyThOS: The Many-Threads Operating System
+/* MIT License -- MyThOS: The Many-Threads Operating System
  *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
@@ -51,13 +51,15 @@ extern  uint64_t tscdelay_MHz;
         uint64_t now = low | uint64_t(high) << 32;
         if (now - start >= nticks) break;
         asm volatile("rep; nop" ::: "memory");
-    } 
-  } 
+    }
+  }
 #else
   inline void hwthread_pause() {}
   inline void hwthread_pause(size_t) {}
-  inline void hwthread_wait(size_t) {} 
+  inline void hwthread_wait(size_t) {}
 #endif
+
+  inline void hwthread_pollpause() { hwthread_pause(300); }
 
   NORETURN inline void sleep_infinitely()
   {
@@ -65,5 +67,5 @@ extern  uint64_t tscdelay_MHz;
       asm("hlt");
     };
   }
-  
+
 } // namespace mythos

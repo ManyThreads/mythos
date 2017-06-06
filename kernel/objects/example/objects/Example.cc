@@ -1,5 +1,5 @@
 /* -*- mode:C++; indent-tabs-mode:nil; -*- */
-/* MyThOS: The Many-Threads Operating System
+/* MIT License -- MyThOS: The Many-Threads Operating System
  *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
@@ -31,7 +31,7 @@
 #include "util/alignments.hh"
 #include "objects/Example.hh"
 #include "objects/ops.hh"
-#include "objects/UntypedMemory.hh"
+#include "objects/KernelMemory.hh"
 #include "boot/memory-root.hh"
 #include "objects/DebugMessage.hh"
 #include "util/error-trace.hh"
@@ -43,7 +43,7 @@ namespace mythos {
   optional<void const*> ExampleObj::vcast(TypeId id) const
   {
     mlogex.info("vcast", DVAR(this), DVAR(id.debug()));
-    if (id == TypeId::id<ExampleObj>()) return /*static_cast<ExampleObj const*>*/(this);
+    if (id == typeId<ExampleObj>()) return /*static_cast<ExampleObj const*>*/(this);
     THROW(Error::TYPE_MISMATCH);
   }
 

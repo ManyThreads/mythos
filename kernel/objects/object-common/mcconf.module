@@ -1,9 +1,0 @@
-# -*- mode:toml; -*-
-
-[module.obj-common]
-incfiles = [
-  "objects/DebugMessage.hh",
-  ]
-kernelfiles = [
-  "objects/DebugMessage.cc",
-  ]

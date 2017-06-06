@@ -1,5 +1,5 @@
 /* -*- mode:C++; -*- */
-/* MyThOS: The Many-Threads Operating System
+/* MIT License -- MyThOS: The Many-Threads Operating System
  *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
@@ -64,46 +64,46 @@ namespace mythos {
      */
     bool empty() const { return head == nullptr; }
 
-    void push(Queueable* item)
-    {
-      ThreadMutex::Lock lock(mutex);
-      _push(item);
-    }
+    void push(Queueable* item) { mutex << [this,item]() { this->_push(item); }; }
 
     Queueable* pull()
     {
-      ThreadMutex::Lock lock(mutex);
-      return _pull();
+      Queueable* res;
+      mutex << [this,&res]() { res = this->_pull(); };
+      return res;
     }
 
     Queueable* rotate()
     {
-      ThreadMutex::Lock lock(mutex);
-      auto prevHead = _pull();
-      if (prevHead) {
-        _push(prevHead);
-      }
-      return prevHead;
+      Queueable* res;
+      mutex << [this,&res]() {
+        res = this->_pull();
+        if (res) this->_push(res);
+      };
+      return res;
     }
 
     Queueable* peek() { return head; }
 
     bool remove(Queueable* item) {
-      ThreadMutex::Lock lock(mutex);
-      if (head == item) { // remove head
-        head = item->Queueable::next.load();
-        if (empty()) tail = &head;
-        return true;
-      }
-      // find the previous item in the chain
-      for (auto cur = head.load(); cur != nullptr; cur = cur->Queueable::next.load()) {
-        if (cur->Queueable::next == item) { // remove the next node
-          cur->Queueable::next = item->Queueable::next.load();
-          if (tail == &item->Queueable::next) tail = &cur->Queueable::next;
-          return true;
+      bool res;
+      mutex << [this,&res,item]() {
+        if (head == item) { // remove head
+          head = item->Queueable::next.load();
+          if (empty()) tail = &head;
+          res = true; return;
         }
-      }
-      return false;
+        // find the previous item in the chain
+        for (auto cur = head.load(); cur != nullptr; cur = cur->Queueable::next.load()) {
+          if (cur->Queueable::next == item) { // remove the next node
+            cur->Queueable::next = item->Queueable::next.load();
+            if (tail == &item->Queueable::next) tail = &cur->Queueable::next;
+            res = true; return;
+          }
+        }
+        res = false;
+      };
+      return res;
     }
 
   private:

@@ -1,5 +1,5 @@
 /* -*- mode:C++; indent-tabs-mode:nil; -*- */
-/* MyThOS: The Many-Threads Operating System
+/* MIT License -- MyThOS: The Many-Threads Operating System
  *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
@@ -28,7 +28,7 @@
 #include "objects/SchedulingContext.hh"
 #include "objects/ISchedulable.hh"
 #include "objects/CapEntry.hh"
-#include "objects/UntypedMemory.hh"
+#include "objects/KernelMemory.hh"
 #include "objects/mlog.hh"
 #include "boot/memory-root.hh"
 

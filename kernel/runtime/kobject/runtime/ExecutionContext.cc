@@ -1,5 +1,5 @@
 /* -*- mode:C++; indent-tabs-mode:nil; -*- */
-/* MyThOS: The Many-Threads Operating System
+/* MIT License -- MyThOS: The Many-Threads Operating System
  *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
@@ -29,7 +29,7 @@
 namespace mythos {
 
   PortalFuture<void>
-  ExecutionContext::create(PortalLock pr, UntypedMemory kmem,
+  ExecutionContext::create(PortalLock pr, KernelMemory kmem,
                           PageMap as, CapMap cs, CapPtr sched,
                           void* stack, StartFun start, void* userctx,
                           CapPtr factory)

@@ -1,5 +1,5 @@
 /* -*- mode:C++; indent-tabs-mode:nil; -*- */
-/* MyThOS: The Many-Threads Operating System
+/* MIT License -- MyThOS: The Many-Threads Operating System
  *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
@@ -96,7 +96,7 @@ namespace mythos {
   public: // IKernelObject interface
     optional<void> deleteCap(Cap, IDeleter&) override { RETURN(Error::SUCCESS); }
     optional<void const*> vcast(TypeId id) const override {
-      if (id == TypeId::id<IScheduler>()) return static_cast<const IScheduler*>(this);
+      if (id == typeId<IScheduler>()) return static_cast<const IScheduler*>(this);
       THROW(Error::TYPE_MISMATCH);
     }
 
