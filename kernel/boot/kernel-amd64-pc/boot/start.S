@@ -100,7 +100,7 @@ _start_bsp:
         // activate the initial page table
         mov     $0xc0000080, %ecx       // select the EFER MSR
         rdmsr                           // read EFER
-        or      $0x101, %eax            // set LME (bit8) and enable SYSCALL (bit0), XXX enable noexecute (bit11)
+        or      $0x901, %rax            // IA-32e mode enable (bit8), SYSCALL (bit0), noexecute (bit11)
         wrmsr                           // write EFER
         mov     %cr4, %edx
         or      $0x20, %edx             // enable PAE mode (bit5), XXX enable SMAP,SMEP,PCE later?
@@ -108,7 +108,7 @@ _start_bsp:
         mov     $(BOOT_PML4-VIRT_ADDR), %edx             // pointer to the Page Directory
         mov     %edx, %cr3
         mov     %cr0, %edx
-        or     $0x80010001, %edx        // enable PE (bit0), WP (bit16), PG (bit31)
+        or     $0x80050033, %edx        // enable PE(bit0), MP(bit1), ET(bit4), NE(bit5), AM(bit18), WP(bit16), PG(bit31)
         mov     %edx, %cr0              // switch to protected mode, with paging enabled and write protect
 
         // load our own segment descriptor table
@@ -141,7 +141,7 @@ _setup_ap:
         // init paging and load stage 1 page table
         mov $0xc0000080, %ecx // select the EFER MSR
         rdmsr
-        or $0x101, %eax // set LME (bit8) and enable SYSCALL (bit0), XXX enable noexecute (bit11)
+        or $0x901, %eax // IA-32e mode enable (bit8), SYSCALL (bit0), noexecute (bit11)
         wrmsr
         mov %cr4, %edx
         or $0x20, %edx // enable PAE mode (bit5), XXX enable SMAP,SMEP,PCE later?
@@ -149,7 +149,7 @@ _setup_ap:
         mov $BOOT_PML4-VIRT_ADDR, %edx
         mov %edx, %cr3 // load phys pointer of the PML4 table
         mov %cr0, %edx
-        or $0x80010001, %edx // enable PE (bit0), WP (bit16), PG (bit31)
+        or $0x80050033, %edx // enable PE(bit0), MP(bit1), ET(bit4), NE(bit5), AM(bit18), WP(bit16), PG(bit31)
         mov %edx, %cr0
 
         // load gdt via relative address

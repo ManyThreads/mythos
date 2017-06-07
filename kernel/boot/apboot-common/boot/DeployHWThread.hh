@@ -93,7 +93,6 @@ struct DeployHWThread
     gdt.tss_kernel_load();
 
     if (UNLIKELY(this->firstboot)) {
-      /// @todo all the memory initialisation can be moved to prepare actually! this would remove this special case
       KernelCLM::initOffset(apicID);
       cpu::initHWThreadID(apicID);
       cpu::initSyscallEntry(stacks[apicID]);
@@ -107,7 +106,7 @@ struct DeployHWThread
     } else {
       cpu::initSyscallEntry();
       idt.load();
-      mythos::lapic.init(); /// @todo need lapic.init after deep sleep?
+      // not needed: mythos::lapic.init();
     }
   }
 
