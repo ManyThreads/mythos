@@ -32,6 +32,12 @@ namespace mythos {
   namespace boot {
 
     void initKernelSpaceCommon();
+
+    /** switch to final address space without lower half, reload TLB.
+     * can no longer write directly to the init and initdata section from here on.
+     */
+    void loadKernelSpace();
+
     void mapLapic(uintptr_t phys);
 
     /** maps a kernel stack to the given physical address and returns the logical address */

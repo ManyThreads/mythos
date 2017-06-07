@@ -183,6 +183,46 @@ _setup_ap_end:
 .code64
 .align  8
 _start_ap64_low:
+        movq $0, %rdi
+        jmp _start_ap64
+
+.code16
+.align  16
+.global _setup_ap_cc6
+_setup_ap_cc6:
+        cli
+        // init paging and load stage 1 page table
+        mov $0xc0000080, %ecx // select the EFER MSR
+        rdmsr
+        or $0x901, %eax // IA-32e mode enable (bit8), SYSCALL (bit0), noexecute (bit11)
+        wrmsr
+        mov %cr4, %edx
+        or $0x20, %edx // enable PAE mode (bit5), XXX enable SMAP,SMEP,PCE later?
+        mov %edx, %cr4
+        mov $(BOOT_PML4-VIRT_ADDR), %edx
+        mov %edx, %cr3 // load phys pointer of the PML4 table
+        mov %cr0, %edx
+        or $0x80050033, %edx // enable PE(bit0), MP(bit1), ET(bit4), NE(bit5), AM(bit18), WP(bit16), PG(bit31)
+        mov %edx, %cr0
+
+        // load gdt via relative address
+        lgdtl %cs:__gdt_desc_cc6 - _setup_ap_cc6
+
+        // jump to next stage
+        // this switches from 16 to 64 bit mode and actives the paging
+        ljmpl $0x10, $_start_ap64_low_cc6
+
+        // need a local gdt descriptor, because lgdtl can only handle 16bit relative addresses
+__gdt_desc_cc6:
+        .word _boot_gdt_end - _boot_gdt_start - 1
+        .quad _boot_gdt_start
+.global _setup_ap_end_cc6
+_setup_ap_end_cc6:
+
+.code64
+.align  8
+_start_ap64_low_cc6:
+        movq $1, %rdi
         jmp _start_ap64
 
 .section .text
@@ -207,9 +247,9 @@ _start_ap64:
         shr $24, %rbx
         and $0xFF, %rbx
 
-        // load stack address and hwt address as first argument for main_ap
-        movq ap_startup_stacks(,%rbx,8), %rsp
-        movq %rbx, %rdi
+        movq ap_startup_stacks(,%rbx,8), %rsp // load stack address
+        movq %rdi, %rsi // reason as 2nd argument (rsi)
+        movq %rbx, %rdi // hwt address as first argument (rdi) for main_ap
 
         // go to the stage 3 boot code, and never come back
         xor %rbp, %rbp

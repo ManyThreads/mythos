@@ -137,7 +137,7 @@ interrupt_common:
         // might be on the NMI stack, but everything is stored safely
 	// in the ThreadState, thus we can switch to the bigger kernel
 	// stack now
-        // TODO check whether we actually could end up on the NMI stack when coming from user mode!!!
+        /// @todo check whether we actually could end up on the NMI stack when coming from user mode!!!
         mov %gs:kernel_stack, %rsp
         mov %rax, %rdi   // 1. argument: pointer to thread_state
         xor %rbp, %rbp

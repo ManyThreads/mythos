@@ -38,7 +38,7 @@ namespace mythos {
 
 DeployHWThread ap_config[BOOT_MAX_THREADS]; //< AP configuration objects index by APIC ID
 
-    NORETURN extern void start_ap64() SYMBOL("_start_ap64");
+    NORETURN extern void start_ap64(size_t reason) SYMBOL("_start_ap64");
 
 NORETURN void apboot() {
   // read acpi topology, then initialise HWThread objects
@@ -57,7 +57,7 @@ NORETURN void apboot() {
   mythos::lapic.broadcastStartupIPI(0x40000);
 
   // switch to BSP's stack here
-  start_ap64(); // will never return from here!
+  start_ap64(0); // will never return from here!
 }
 
     void apboot_thread(size_t apicID) {

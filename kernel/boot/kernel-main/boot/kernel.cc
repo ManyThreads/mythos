@@ -61,7 +61,7 @@ extern char CLM_END;
 uint64_t mythos::tscdelay_MHz=2000;
 
 NORETURN void entry_bsp() SYMBOL("entry_bsp");
-NORETURN void entry_ap(size_t id) SYMBOL("entry_ap");
+NORETURN void entry_ap(size_t apicID, size_t reason) SYMBOL("entry_ap");
 
 /** entry point for the bootstrap processor (BSP, a hardware thread) when booting the processor.
  *
@@ -73,6 +73,7 @@ void entry_bsp()
 {
   mythos::boot::initKernelSpace();
   mythos::boot::mapLapic(mythos::x86::getApicBase()); // make LAPIC accessible
+  /// @todo needed? mythos::boot::loadKernelSpace();
   mythos::GdtAmd64 tempGDT;
   tempGDT.init();
   tempGDT.load();
@@ -112,11 +113,11 @@ void runUser() {
  * that case, some initializations have to be skipped. Just the
  * hardware thread is configured to the default environment.
  */
-void entry_ap(size_t apicID)
+void entry_ap(size_t apicID, size_t reason)
 {
   //asm volatile("xchg %bx,%bx");
   mythos::boot::apboot_thread(apicID);
-  MLOG_DETAIL(mlog::boot, "started hardware thread");
+  MLOG_DETAIL(mlog::boot, "started hardware thread", DVAR(reason));
   runUser();
 }
 

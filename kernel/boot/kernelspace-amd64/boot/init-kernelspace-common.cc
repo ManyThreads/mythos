@@ -51,16 +51,17 @@ void initKernelSpaceCommon()
     pml2_tables[i] &= ~WRITE;
   }
   // rw but no execute access on kernel data in image from KERN_ROEND to KERN_END
-  // TODO: set EXECUTEDISABLE
+  /// @todo set NOEXECUTE
   // remove access (read and write) from remaining space behind KERN_END in the image
   // first 8 entries are already invalid (see pagetables.cc.m4)
   for (auto i = 8+reinterpret_cast<uintptr_t>(&KERN_END)/PML2_PAGESIZE; i<1024; i++) {
     image_pml2[i] &= ~PRESENT;
   }
+}
 
-  // switch to final address space without lower half, reload TLB
+void loadKernelSpace()
+{
   asm volatile("mov %0,%%cr3": : "r" (table_to_phys_addr(pml4_table,1)));
-  // can no longer write directly to the init and initdata section from here on
 }
 
 void mapLapic(uintptr_t phys)

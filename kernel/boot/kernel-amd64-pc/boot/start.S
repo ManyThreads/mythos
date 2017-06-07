@@ -100,7 +100,7 @@ _start_bsp:
         // activate the initial page table
         mov     $0xc0000080, %ecx       // select the EFER MSR
         rdmsr                           // read EFER
-        or      $0x901, %rax            // IA-32e mode enable (bit8), SYSCALL (bit0), noexecute (bit11)
+        or      $0x901, %eax            // IA-32e mode enable (bit8), SYSCALL (bit0), noexecute (bit11)
         wrmsr                           // write EFER
         mov     %cr4, %edx
         or      $0x20, %edx             // enable PAE mode (bit5), XXX enable SMAP,SMEP,PCE later?
@@ -169,6 +169,7 @@ _setup_ap_end:
 .code64
 .align  8
 _start_ap64_low:
+        movq $0, %rdi
         jmp _start_ap64
 
 .section .text
@@ -193,9 +194,10 @@ _start_ap64:
         shr $24, %rbx
         and $0xFF, %rbx
 
-        // load stack address and hwt address as first argument for main_ap
+        // load stack address
         movq ap_startup_stacks(,%rbx,8), %rsp
-        movq %rbx, %rdi
+        movq %rdi, %rsi // reason as 2nd argument (rsi)
+        movq %rbx, %rdi // hwt address as first argument (rdi) for main_ap
 
         // go to the stage 3 boot code, and never come back
         xor %rbp, %rbp

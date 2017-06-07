@@ -89,6 +89,7 @@ struct DeployHWThread
   }
 
   void initThread(size_t apicID) {
+    loadKernelSpace();
     gdt.load();
     gdt.tss_kernel_load();
 
