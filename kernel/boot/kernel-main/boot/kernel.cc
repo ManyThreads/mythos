@@ -166,7 +166,7 @@ void mythos::cpu::irq_entry_kernel(mythos::cpu::KernelIRQFrame* ctx)
   bool nested = mythos::async::getLocalPlace().enterKernel();
   if (!wasbug) {
     // TODO then external and wakeup interrupts
-    MLOG_INFO(mlog::boot, "ack the interrupt");
+    MLOG_ERROR(mlog::boot, "ack the kernel interrupt", DVAR(ctx->irq));
     mythos::lapic.endOfInterrupt();
   }
 
