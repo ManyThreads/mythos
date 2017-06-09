@@ -3,7 +3,7 @@
     incfiles = [ "boot/boot.ld" ]
     kernelfiles = [ "boot/kernel.cc" ]
     requires = [ "tag/mode/kernel" ]
-    provides = [ "symbol/entry_bsp", "symbol/entry_ap",
+    provides = [ "symbol/entry_bsp", "symbol/entry_ap", "symbol/sleeping_failed",
     "symbol/syscall_entry_cxx", "symbol/irq_entry_user", "symbol/irq_entry_kernel" ]
 
     makefile_head = '''

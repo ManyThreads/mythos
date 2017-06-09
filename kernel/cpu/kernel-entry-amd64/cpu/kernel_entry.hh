@@ -98,8 +98,5 @@ namespace mythos {
      * defined by another model, used by irq_entry.S */
     void irq_entry_kernel(KernelIRQFrame*) SYMBOL("irq_entry_kernel");
 
-    NORETURN void go_sleeping() SYMBOL("go_sleeping");
-    NORETURN void sleeping_failed() SYMBOL("sleeping_failed");
-
   } // namespace cpu
 } // namespace mythos

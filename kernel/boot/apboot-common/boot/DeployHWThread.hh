@@ -35,6 +35,7 @@
 #include "cpu/CoreLocal.hh"
 #include "cpu/hwthreadid.hh"
 #include "cpu/kernel_entry.hh"
+#include "cpu/idle.hh"
 #include "async/Place.hh"
 #include "objects/DeleteBroadcast.hh"
 #include "objects/SchedulingContext.hh"
@@ -64,6 +65,7 @@ struct DeployHWThread
   static void prepareBSP(size_t startIP) {
     idt.init();
     initAPTrampoline(startIP);
+    idle::init_global();
     DeleteBroadcast::init();
     Plugin::initPluginsGlobal();
   }
@@ -77,7 +79,7 @@ struct DeployHWThread
     tss_kernel.sp[0] = stacks[apicID];
     tss_kernel.ist[1] = uintptr_t(nmistackspace)+apicID*NMI_STACK_SIZE+NMI_STACK_SIZE;
     gdt.tss_kernel.set(&tss_kernel);
-    gdt.kernel_gs.setBaseAddress(uint32_t(KernelCLM::getOffset(apicID)));
+    gdt.kernel_gs.setBaseAddress(uint32_t(KernelCLM::getOffset(apicID))); /// @todo this should be based on the linear threadID, not apicID?
     async::preparePlace(apicID);
 
     MLOG_DETAIL(mlog::boot, "  mapped kernel stack", DVAR(apicID),
@@ -94,12 +96,13 @@ struct DeployHWThread
     gdt.tss_kernel_load();
 
     if (UNLIKELY(this->firstboot)) {
-      KernelCLM::initOffset(apicID);
+      KernelCLM::initOffset(apicID); /// @todo this should be based on the linear threadID, not apicID?
       cpu::initHWThreadID(apicID);
       cpu::initSyscallEntry(stacks[apicID]);
       idt.load();
       async::initLocalPlace(apicID);
       mythos::lapic.init();
+      idle::init_thread(apicID);
       localScheduler.set(&getScheduler(apicID));
       getLocalScheduler().init(&async::places[apicID]);
       Plugin::initPluginsOnThread(apicID);
@@ -107,7 +110,7 @@ struct DeployHWThread
     } else {
       cpu::initSyscallEntry();
       idt.load();
-      // not needed: mythos::lapic.init();
+      // not needed, would through away pending irqs: mythos::lapic.init();
     }
   }
 

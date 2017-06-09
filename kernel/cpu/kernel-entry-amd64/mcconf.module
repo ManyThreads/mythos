@@ -5,4 +5,4 @@
     kernelfiles = [ "cpu/irq_entry.S", "cpu/syscall_entry.S", "cpu/kernel_entry.cc",
     "cpu/IdtAmd64.cc" ]
     requires = [ "symbol/irq_entry_kernel" ]
-    
+

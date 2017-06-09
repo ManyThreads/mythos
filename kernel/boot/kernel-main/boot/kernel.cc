@@ -38,6 +38,7 @@
 #include "cpu/hwthreadid.hh"
 #include "cpu/ctrlregs.hh"
 #include "cpu/LAPIC.hh"
+#include "cpu/idle.hh"
 #include "cpu/hwthread_pause.hh"
 #include "boot/memory-layout.h"
 #include "boot/DeployKernelSpace.hh"
@@ -73,7 +74,6 @@ void entry_bsp()
 {
   mythos::boot::initKernelSpace();
   mythos::boot::mapLapic(mythos::x86::getApicBase()); // make LAPIC accessible
-  /// @todo needed? mythos::boot::loadKernelSpace();
   mythos::GdtAmd64 tempGDT;
   tempGDT.init();
   tempGDT.load();
@@ -100,7 +100,7 @@ void runUser() {
   MLOG_DETAIL(mlog::boot, "trying to execute app");
   mythos::boot::getLocalScheduler().tryRunUser();
   MLOG_DETAIL(mlog::boot, "going to sleep now");
-  mythos::cpu::go_sleeping(); // resets the kernel stack!
+  mythos::idle::sleep(); // resets the kernel stack!
 }
 
 /** Boot entry point and deep sleep exit point for application
@@ -118,19 +118,21 @@ void entry_ap(size_t apicID, size_t reason)
   //asm volatile("xchg %bx,%bx");
   mythos::boot::apboot_thread(apicID);
   MLOG_DETAIL(mlog::boot, "started hardware thread", DVAR(reason));
+  mythos::idle::wokeup(apicID, reason); // may not return
   runUser();
 }
 
-void mythos::cpu::sleeping_failed()
+void mythos::idle::sleeping_failed()
 {
   mythos::async::getLocalPlace().enterKernel();
-  MLOG_DETAIL(mlog::boot, "sleeping failed without visible interrupt");
+  MLOG_ERROR(mlog::boot, "sleeping failed or returned from kernel interrupt");
   runUser();
 }
 
 void mythos::cpu::syscall_entry_cxx(mythos::cpu::ThreadState* ctx)
 {
   mythos::async::getLocalPlace().enterKernel();
+  mythos::idle::enteredFromSyscall();
   MLOG_DETAIL(mlog::boot, "user system call", DVARhex(ctx->rdi), DVARhex(ctx->rsi),
       DVARhex(ctx->rip), DVARhex(ctx->rsp));
   mythos::handle_syscall(ctx);
@@ -140,6 +142,7 @@ void mythos::cpu::syscall_entry_cxx(mythos::cpu::ThreadState* ctx)
 void mythos::cpu::irq_entry_user(mythos::cpu::ThreadState* ctx)
 {
   mythos::async::getLocalPlace().enterKernel();
+  mythos::idle::enteredFromInterrupt();
   MLOG_DETAIL(mlog::boot, "user interrupt", DVARhex(ctx->irq), DVARhex(ctx->error),
       DVARhex(ctx->rip), DVARhex(ctx->rsp));
   if (ctx->irq<32) {
@@ -153,11 +156,11 @@ void mythos::cpu::irq_entry_user(mythos::cpu::ThreadState* ctx)
 
 void mythos::cpu::irq_entry_kernel(mythos::cpu::KernelIRQFrame* ctx)
 {
+  mythos::idle::wokeupFromInterrupt(); // can also be caused by preemption points!
   MLOG_DETAIL(mlog::boot, "kernel interrupt", DVARhex(ctx->irq), DVARhex(ctx->error),
       DVARhex(ctx->rip), DVARhex(ctx->rsp));
-  bool wasbug = handle_bugirqs(ctx);
+  bool wasbug = handle_bugirqs(ctx); // initiate irq processing: first kernel bugs
   bool nested = mythos::async::getLocalPlace().enterKernel();
-  // initiate irq processing: first kernel bugs
   if (!wasbug) {
     // TODO then external and wakeup interrupts
     MLOG_INFO(mlog::boot, "ack the interrupt");

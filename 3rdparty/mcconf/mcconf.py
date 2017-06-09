@@ -419,7 +419,7 @@ class Configuration:
 
         if resolveDeps:
             additionalMods = self.resolveDependencies()
-            names = ", ".join([m.name for m in additionalMods])
+            names = ", ".join(sorted([m.name for m in additionalMods]))
             logging.info('added modules to resolve dependencies: %s', names)
 
         missingRequires = self.getMissingRequires()
