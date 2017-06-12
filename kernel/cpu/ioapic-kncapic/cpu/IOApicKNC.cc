@@ -47,7 +47,6 @@ namespace mythos {
       write(IOApic::IOREDTBL_BASE+2*i, (uint32_t)rte_irq.lower);
     }
     sbox::enable_interrupts();
-
   }
 
   uint32_t IOApic::read(size_t reg) {
