@@ -57,6 +57,8 @@ namespace mythos {
       // turn on caches during re-entry from CC6 sleep
       auto cc6 = reinterpret_cast<uint32_t volatile*>(MMIO_ADDR+SBOX_BASE+SBOX_C6_SCRATCH0);
       *cc6 |= 0x8000; // C1-CC6 MAS (bit 15)
+      for (unsigned i=0; i<22; i++)
+        MLOG_ERROR(mlog::boot, "idle: C6_SCRATCH", DVAR(i), DVARhex(cc6[i]));
     }
 
     NORETURN void go_sleeping() SYMBOL("idle_sleep");
@@ -64,30 +66,55 @@ namespace mythos {
     void sleep()
     {
       size_t apicID = cpu::getThreadID(); // @todo hack on KNC because threadID==apicID
+      while (coreStates[apicID/4].lock.exchange(true) == true);
+
       auto prev = coreStates[apicID/4].cc6ready.fetch_or(uint8_t(1 << (apicID%4)));
-      if (prev | (1 << (apicID%4))) { // enable cc6
+      if ((prev | (1 << (apicID%4))) == 0xf) { // enable cc6
+	MLOG_ERROR(mlog::boot, "idle: enable CC6", DVARhex(prev), DVAR(apicID));
         /// @todo is this really needed if we always go into cc6?
         auto val = x86::getMSR(MSR_CC6_STATUS);
         val |= 0x1f;
         x86::setMSR(MSR_CC6_STATUS,val);
       }
+      MLOG_ERROR(mlog::boot, "idle:", DVARhex(x86::getMSR(MSR_CC6_STATUS)));
+      auto val = x86::getMSR(MSR_CC6_STATUS);
+      val |= 0x1;
+      val |= 1<<(apicID%4 + 1);
+      x86::setMSR(MSR_CC6_STATUS,val);
+      MLOG_ERROR(mlog::boot, "idle:", DVARhex(x86::getMSR(MSR_CC6_STATUS)));
+
+      auto chlt = reinterpret_cast<uint64_t volatile*>(MMIO_ADDR+SBOX_BASE+0xac0c);
+      MLOG_ERROR(mlog::boot, "idle: cores halted", DVARhex(*chlt));
+
+
+      coreStates[apicID/4].lock = false;
       go_sleeping();
     }
 
     void wokeup(size_t /*apicID*/, size_t reason)
     {
-      if (reason == 1) go_sleeping(); // woke up from CC6 => just sleep again
+      MLOG_ERROR(mlog::boot, "idle:", DVARhex(x86::getMSR(MSR_CC6_STATUS)));
+      if (reason == 1) {
+	MLOG_ERROR(mlog::boot, "idle: woke up from CC6");
+	go_sleeping(); // woke up from CC6 => just sleep again
+      }
     }
 
     void wokeupFromInterrupt()
     {
+      MLOG_ERROR(mlog::boot, "idle: woke up from irq");
       size_t apicID = cpu::getThreadID(); // @todo hack on KNC because threadID==apicID
+      while (coreStates[apicID/4].lock.exchange(true) == true);
+
       auto prev = coreStates[apicID/4].cc6ready.fetch_and(uint8_t(~(1u << (apicID%4))));
       if (prev == 0xf) { // disable cc6
+	MLOG_ERROR(mlog::boot, "idle: disable CC6", DVARhex(prev), DVAR(apicID));
         auto val = x86::getMSR(MSR_CC6_STATUS);
         val &= ~0x1f;
         x86::setMSR(MSR_CC6_STATUS,val);
       }
+
+      coreStates[apicID/4].lock = false;
     }
 
   } // namespace idle

@@ -37,6 +37,7 @@ namespace mythos {
     {
     public:
       std::atomic<uint8_t> cc6ready = {0}; // one bit per hardware thread
+      std::atomic<bool> lock = {false};
     };
 
     /** called once on bootup by the BSP. Initialises the trampoline and core states. */
