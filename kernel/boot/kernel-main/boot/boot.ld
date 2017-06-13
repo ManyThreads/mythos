@@ -90,7 +90,7 @@ SECTIONS
     } : data
 
     .bss : {
-      . += BOOT_MAX_THREADS*(CLM_BLOCKEND - CLM_ADDR);
+      . += MYTHOS_MAX_THREADS*(CLM_BLOCKEND - CLM_ADDR);
       CLM_END = ABSOLUTE(.);
       *(.bss .bss.* .gnu.linkonce.b.*)
     }

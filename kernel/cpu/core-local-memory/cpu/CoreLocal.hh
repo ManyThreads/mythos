@@ -44,7 +44,7 @@ namespace mythos {
     static size_t getBlockSize() { return blockSize; }
     static size_t getOffset(size_t threadID) { return threadID*blockSize; }
     static size_t getOffset() { return get(&offset); }
-    static void initOffset(size_t threadID) { set(&offset, threadID*blockSize); }
+    static void initOffset(size_t threadID) { setAt(threadID, &offset, threadID*blockSize); }
 
     template<class T>
     ALWAYS_INLINE static void set(uintptr_t& var, T* value) {
@@ -55,9 +55,10 @@ namespace mythos {
       setWord(var, value);
     }
 
-    ALWAYS_INLINE static void setAt(size_t threadID, size_t* var, size_t value) {
-      char *ptr = reinterpret_cast<char*>(var) + threadID*blockSize;
-      *reinterpret_cast<size_t*>(ptr) = value;
+    template<typename T>
+    ALWAYS_INLINE static void setAt(size_t threadID, T* var, T value) {
+      auto ptr = reinterpret_cast<uintptr_t>(var) + threadID*blockSize;
+      *reinterpret_cast<T*>(ptr) = value;
     }
 
     template<class T>
@@ -118,7 +119,7 @@ namespace mythos {
     ALWAYS_INLINE size_t get() const { return KernelCLM::get(&var); }
     ALWAYS_INLINE void set(size_t value) { return KernelCLM::set(&var, value); }
     // ALWAYS_INLINE size_t operator[](size_t threadID) { return KernelCLM::getAt(threadID, &var); }
-    // ALWAYS_INLINE void setAt(size_t threadID, size_t value) { KernelCLM::setAt(threadID, &var, value); }
+    ALWAYS_INLINE void setAt(size_t threadID, size_t value) { KernelCLM::setAt(threadID, &var, value); }
     ALWAYS_INLINE CoreLocal& operator= (size_t value) { set(value); return *this; }
     ALWAYS_INLINE operator size_t () const { return get(); }
   protected:
@@ -134,15 +135,13 @@ namespace mythos {
     // ALWAYS_INLINE T* operator[](size_t threadID) {
     //   return reinterpret_cast<T*>(KernelCLM::getAt(threadID, reinterpret_cast<size_t const*>(&var)));
     // }
-    // ALWAYS_INLINE void setAt(size_t threadID, T* value) {
-    //   KernelCLM::setAt(threadID, reinterpret_cast<size_t*>(&var), reinterpret_cast<size_t>(value));
-    // }
+    ALWAYS_INLINE void setAt(size_t threadID, T* value) { KernelCLM::setAt(threadID, &var, uintptr_t(value)); }
     ALWAYS_INLINE T* operator-> () const { return get(); }
     ALWAYS_INLINE T& operator* () const { return *get(); }
     ALWAYS_INLINE CoreLocal& operator= (T* value) { set(value); return *this; }
     // ALWAYS_INLINE operator T* () const { return get(); }
   protected:
-    uintptr_t var; 
+    uintptr_t var;
   };
 
   template<>
@@ -154,7 +153,7 @@ namespace mythos {
     ALWAYS_INLINE CoreLocal& operator= (void* value) { set(value); return *this; }
     ALWAYS_INLINE operator void* () const { return get(); }
   protected:
-    uintptr_t var; 
+    uintptr_t var;
   };
-  
+
 } // namespace mythos

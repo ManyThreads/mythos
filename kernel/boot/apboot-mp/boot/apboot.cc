@@ -36,16 +36,23 @@
 namespace mythos {
   namespace boot {
 
-DeployHWThread ap_config[BOOT_MAX_THREADS]; //< AP configuration objects index by APIC ID
+/** basic cpu configuration, indexed by the logical thread ID. */
+DeployHWThread ap_config[MYTHOS_MAX_THREADS];
 
-    NORETURN extern void start_ap64() SYMBOL("_start_ap64");
-    
+/** mapping from apicID to the thread's configuration */
+DeployHWThread* ap_apic2config[MYTHOS_MAX_APICID];
+
+NORETURN extern void start_ap64() SYMBOL("_start_ap64");
+
 NORETURN void apboot() {
   // read acpi topology, then initialise HWThread objects
   MPApicTopology topo;
-  for (size_t i=0; i<topo.numThreads(); i++) {
-    ASSERT(topo.threadID(i)<BOOT_MAX_THREADS);
-    ap_config[topo.threadID(i)].prepare(topo.threadID(i));
+  cpu::hwThreadCount = topo.numThreads();
+  ASSERT(cpu::getNumThreads() < MYTHOS_MAX_THREADS);
+  for (cpu::ThreadID id=0; id<cpu::getNumThreads(); id++) {
+    ASSERT(topo.threadID(id)<MYTHOS_MAX_APICID);
+    ap_config[id].prepare(id, cpu::ApicID(topo.threadID(id)));
+    ap_apic2config[topo.threadID(id)] = &ap_config[id];
   }
 
   // broadcast Startup IPI
@@ -60,9 +67,7 @@ NORETURN void apboot() {
   start_ap64(); // will never return from here!
 }
 
-    void apboot_thread(size_t apicID) {
-      ap_config[apicID].initThread();
-    }
-    
+void apboot_thread(size_t apicID) { ap_apic2config[apicID]->initThread(); }
+
   } // namespace boot
 } // namespace mythos

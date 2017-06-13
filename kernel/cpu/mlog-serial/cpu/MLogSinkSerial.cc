@@ -31,7 +31,7 @@
 namespace mythos {
 
   void MLogSinkSerial::write(char const* msg, size_t length) {
-    auto id = cpu::hwThreadID();
+    auto id = cpu::getThreadID();
     mutex << [this,msg,length,id]() {
       mythos::ostream_base<SerialStreamBuf> io(&this->serial);
       io << id << ": ";
