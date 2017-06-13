@@ -34,10 +34,9 @@ namespace mythos {
     CoreLocal<ThreadState*> thread_state;
     CoreLocal<uintptr_t> kernel_stack;
 
-    void initSyscallEntry(uintptr_t stack) {
-      kernel_stack.set(stack);
-      thread_state.set(nullptr);
-      initSyscallEntry();
+    void initSyscallStack(cpu::ThreadID threadID, uintptr_t stack) {
+      kernel_stack.setAt(threadID, stack);
+      thread_state.setAt(threadID, nullptr);
     }
 
     void initSyscallEntry() {

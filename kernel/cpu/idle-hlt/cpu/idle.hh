@@ -26,6 +26,7 @@
 #pragma once
 
 #include "util/compiler.hh"
+#include "cpu/hwthreadid.hh"
 
 namespace mythos {
   namespace idle {
@@ -34,7 +35,7 @@ namespace mythos {
     void init_global() {}
 
     /** called once on bootup on each AP. Initialises the core-local pointers */
-    void init_thread(size_t /*apicID*/) {}
+    void init_thread(cpu::ThreadID /*threadID*/) {}
 
     /** dependency: has to be implemented by kernel */
     NORETURN void sleeping_failed() SYMBOL("sleeping_failed");

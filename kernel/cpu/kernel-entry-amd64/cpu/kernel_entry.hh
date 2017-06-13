@@ -58,7 +58,7 @@ namespace mythos {
     extern CoreLocal<ThreadState*> thread_state SYMBOL("thread_state") KERNEL_CLM_HOT;
     extern CoreLocal<uintptr_t> kernel_stack SYMBOL("kernel_stack") KERNEL_CLM_HOT;
 
-    void initSyscallEntry(uintptr_t stack);
+    void initSyscallStack(cpu::ThreadID threadID, uintptr_t stack);
     void initSyscallEntry();
 
     // forward declaration

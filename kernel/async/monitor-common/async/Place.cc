@@ -29,15 +29,16 @@
 namespace mythos {
 namespace async {
 
-  Place places[BOOT_MAX_THREADS];
-  CoreLocal<Place*> localPlace_ KERNEL_CLM_HOT; // for DeployHWThread
+  CoreLocal<Place*> localPlace_ KERNEL_CLM_HOT;
+  Place places[MYTHOS_MAX_THREADS];
 
-  void Place::init(size_t apicID)
+  void Place::init(cpu::ThreadID threadID, cpu::ApicID apicID)
   {
-    MLOG_INFO(mlog::async, "init Place", DVAR(this), DVAR(apicID));
+    MLOG_INFO(mlog::async, "init Place", DVAR(this), DVAR(threadID), DVAR(apicID));
+    localPlace_.setAt(threadID, this);
+    this->threadID = threadID;
     this->apicID = apicID;
     this->nestingMonitor = true;
-    this->_cr3 = PhysPtr<void>(cpu::getPageTable());
     this->queue.tryAcquire();
   }
 

@@ -53,10 +53,10 @@ namespace mythos {
       void process() {
 	switch (state) {
 	case 0:
-	  for (i=0; i<cpu::hwThreadCount(); i++) {
-	    if(&nodes[cpu::enumerateHwThreadID(i)] == this) continue;
+	  for (i=0; i<cpu::getNumThreads(); i++) {
+	    if(&nodes[i] == this) continue;
 	    state = 1;
-	    nodes[cpu::enumerateHwThreadID(i)].fooRequest(&mylet, this);
+	    nodes[i].fooRequest(&mylet, this);
 	    return this->monitor.responseDone();
 	  case 1: ;
 	  }
@@ -83,7 +83,7 @@ namespace mythos {
 	MLOG_INFO(mlog::boot, "TestPlaces: sending foo response", DVAR(t), "to", DVAR(this));
 	monitor.response(t, [=](Tasklet*) { this->process(); });
       }
-      
+
       async::NestedMonitorHome monitor;
       int state;
       size_t i;
@@ -91,26 +91,25 @@ namespace mythos {
       Tasklet starter;
     };
 
-    static Node nodes[BOOT_MAX_THREADS];
+    static Node nodes[MYTHOS_MAX_THREADS];
 
     void initGlobal() {
-      for (size_t i=0; i<cpu::hwThreadCount(); i++) {
-	auto id = cpu::enumerateHwThreadID(i);
+      for (size_t id=0; id<cpu::getNumThreads(); id++) {
 	nodes[id].monitor.setHome(&async::places[id]);
       }
     }
 
-    void initThread(size_t threadid) {
+    /// @todo should be thread instead of apic ID!
+    void initThread(cpu::ThreadID threadID) {
       MLOG_DETAIL(mlog::boot, "TestPlaces: my place is", &mythos::async::getLocalPlace(),
-			threadid, cpu::enumerateHwThreadID(0),
-			cpu::hwThreadCount());
-      if (threadid == cpu::enumerateHwThreadID(0)) {
-	nodes[threadid].run();
+                  DVAR(threadID), cpu::getNumThreads());
+      if (threadID == 0) {
+	nodes[0].run();
       }
     }
   };
 
-  TestPlaces::Node TestPlaces::nodes[BOOT_MAX_THREADS];
+  TestPlaces::Node TestPlaces::nodes[MYTHOS_MAX_THREADS];
   TestPlaces plugin_TestPlaces;
-  
+
 } // namespace mythos

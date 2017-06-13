@@ -81,7 +81,7 @@ void entry_bsp()
   tempIDT.initEarly();
   tempIDT.load();
   mythos::KernelCLM::init(size_t(&CLM_BLOCKEND-&CLM_ADDR)); // now the core-local variables are working
-  mythos::cpu::initHWThreadID(BOOT_MAX_THREADS); // now the own hwThreadID() is working
+  mythos::cpu::hwThreadID_.setAt(0, MYTHOS_MAX_THREADS); // now getThreadId() returns an invalid value for the BSP part
   mythos::boot::initMLog();
   MLOG_DETAIL(mlog::boot, "CLM", (void*)&CLM_ADDR, (void*)&CLM_BLOCKEND, (void*)&CLM_END);
   MLOG_DETAIL(mlog::boot, "CLM blocksize", (void*)mythos::KernelCLM::getBlockSize());

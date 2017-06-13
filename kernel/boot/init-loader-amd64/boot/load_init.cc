@@ -179,10 +179,10 @@ optional<void> InitLoader::initCSpace()
     if (!res) RETHROW(res);
   }
 
-  ASSERT(cpu::hwThreadCount() <= SCHEDULERS_START-APP_CAP_START);
-  MLOG_INFO(mlog::boot, "... create scheduling context caps in caps", SCHEDULERS_START, "till", SCHEDULERS_START+cpu::hwThreadCount()-1);
-  for (size_t i = 0; i < cpu::hwThreadCount(); ++i) {
-    auto res = csSet(CapPtr(SCHEDULERS_START+i), boot::getScheduler(cpu::enumerateHwThreadID(i)));
+  ASSERT(cpu::getNumThreads() <= SCHEDULERS_START-APP_CAP_START);
+  MLOG_INFO(mlog::boot, "... create scheduling context caps in caps", SCHEDULERS_START, "till", SCHEDULERS_START+cpu::getNumThreads()-1);
+  for (cpu::ThreadID id = 0; id < cpu::getNumThreads(); ++id) {
+    auto res = csSet(SCHEDULERS_START+id, boot::getScheduler(id));
     if (!res) RETHROW(res);
   }
 

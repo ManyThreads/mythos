@@ -31,15 +31,13 @@
 
 namespace mythos {
 
-  PML4InvalidationBroadcast PML4InvalidationBroadcast::nodes[BOOT_MAX_THREADS];
+  PML4InvalidationBroadcast PML4InvalidationBroadcast::nodes[MYTHOS_MAX_THREADS];
 
   void PML4InvalidationBroadcast::init()
   {
-    ASSERT(cpu::hwThreadCount() > 0);
-    for (size_t i = 0; i < cpu::hwThreadCount(); ++i) {
-      auto id = cpu::enumerateHwThreadID(i);
-      auto nextId = cpu::enumerateHwThreadID((i+1)%cpu::hwThreadCount());
-      nodes[id].next = &nodes[nextId];
+    for (cpu::ThreadID id = 0; id < cpu::getNumThreads(); ++id) {
+      /// @todo not needed with linear thread id!
+      nodes[id].next = &nodes[(id+1)%cpu::getNumThreads()];
       nodes[id].home = async::getPlace(id);
     }
   }
@@ -47,7 +45,7 @@ namespace mythos {
   void PML4InvalidationBroadcast::run(Tasklet* t, IResult<void>* res, PhysPtr<void> pml4)
   {
     MLOG_DETAIL(mlog::cap, "start pml4 invalidation broadcast");
-    PML4InvalidationBroadcast* start = &nodes[cpu::hwThreadID()];
+    PML4InvalidationBroadcast* start = &nodes[cpu::getThreadID()];
     start->broadcast(t, res, pml4, start);
   }
 

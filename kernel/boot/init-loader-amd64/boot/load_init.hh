@@ -108,8 +108,8 @@ namespace mythos {
     {
     public:
       virtual ~InitLoaderPlugin() {}
-      void initThread(size_t apicID) {
-        if (apicID == cpu::enumerateHwThreadID(0))
+      void initThread(cpu::ThreadID threadID) {
+        if (threadID == 0)
           OOPS(mythos::boot::load_init()); // start the first application
       }
     };

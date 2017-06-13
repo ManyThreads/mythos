@@ -39,7 +39,6 @@ namespace mythos {
   namespace idle {
 
     CoreState coreStates[61];
-    //CoreLocal<CoreState*> coreState KERNEL_CLM;
 
     void init_global()
     {
@@ -60,16 +59,11 @@ namespace mythos {
       *cc6 |= 0x8000; // C1-CC6 MAS (bit 15)
     }
 
-    void init_thread(size_t /*apicID*/)
-    {
-      //coreState.set(&coreStates[apicID/4]);
-    }
-
     NORETURN void go_sleeping() SYMBOL("idle_sleep");
 
     void sleep()
     {
-      size_t apicID = cpu::hwThreadID(); /// @todo should be getApicID()
+      size_t apicID = cpu::getThreadID(); // @todo hack on KNC because threadID==apicID
       auto prev = coreStates[apicID/4].cc6ready.fetch_or(uint8_t(1 << (apicID%4)));
       if (prev | (1 << (apicID%4))) { // enable cc6
         /// @todo is this really needed if we always go into cc6?
@@ -87,7 +81,7 @@ namespace mythos {
 
     void wokeupFromInterrupt()
     {
-      size_t apicID = cpu::hwThreadID(); /// @todo should be getApicID()
+      size_t apicID = cpu::getThreadID(); // @todo hack on KNC because threadID==apicID
       auto prev = coreStates[apicID/4].cc6ready.fetch_and(uint8_t(~(1u << (apicID%4))));
       if (prev == 0xf) { // disable cc6
         auto val = x86::getMSR(MSR_CC6_STATUS);

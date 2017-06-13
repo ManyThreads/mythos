@@ -30,15 +30,13 @@
 
 namespace mythos {
 
-  DeleteBroadcast DeleteBroadcast::nodes[BOOT_MAX_THREADS];
+  DeleteBroadcast DeleteBroadcast::nodes[MYTHOS_MAX_THREADS];
 
   void DeleteBroadcast::init()
   {
-    ASSERT(cpu::hwThreadCount() > 0);
-    for (size_t i = 0; i < cpu::hwThreadCount(); ++i) {
-      auto id = cpu::enumerateHwThreadID(i);
-      auto nextId = cpu::enumerateHwThreadID((i+1)%cpu::hwThreadCount());
-      nodes[id].next = &nodes[nextId];
+    for (cpu::ThreadID id = 0; id < cpu::getNumThreads(); ++id) {
+      /// @todo not needed with linear thread id!
+      nodes[id].next = &nodes[(id+1)%cpu::getNumThreads()];
       nodes[id].home = async::getPlace(id);
     }
   }
@@ -46,7 +44,7 @@ namespace mythos {
   void DeleteBroadcast::run(Tasklet* t, IResult<void>* res)
   {
     MLOG_DETAIL(mlog::cap, "start delete broadcast");
-    DeleteBroadcast* start = &nodes[cpu::hwThreadID()];
+    DeleteBroadcast* start = &nodes[cpu::getThreadID()];
     start->broadcast(t, res, start);
   }
 

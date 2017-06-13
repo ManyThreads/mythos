@@ -38,10 +38,10 @@ namespace mythos {
     }
   }
 
-  void Plugin::initPluginsOnThread(size_t threadid) {
+  void Plugin::initPluginsOnThread(cpu::ThreadID threadID) {
     for (Plugin* c = first; c != nullptr; c = c->next) {
-      MLOG_DETAIL(mlog::boot, "initPluginsOnThread", c, threadid);
-      c->initThread(threadid);
+      MLOG_DETAIL(mlog::boot, "initPluginsOnThread", c, threadID);
+      c->initThread(threadID);
     }
   }
 
