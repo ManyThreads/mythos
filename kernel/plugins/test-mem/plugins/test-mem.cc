@@ -217,9 +217,9 @@ void TestMem::createMappings()
    TEST_EQ(*entry1, *entry2);
 }
 
-void TestMem::initThread(size_t id)
+void TestMem::initThread(cpu::ThreadID threadID)
 {
-  if (id == cpu::enumerateHwThreadID(0)) {
+  if (threadID == 0) {
     state = 0;
     proto();
   }

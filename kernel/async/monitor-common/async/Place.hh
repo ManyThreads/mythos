@@ -45,10 +45,9 @@ inline Place& getLocalPlace() { return *localPlace_; }
 /** Local scheduling for a single thread. */
 class Place
 {
-
 public:
 
-  void init(size_t apicID);
+  void init(cpu::ThreadID threadID, cpu::ApicID apicID);
   bool isLocal() const { return this == &getLocalPlace(); }
 
   void setCR3(PhysPtr<void> value);
@@ -102,23 +101,25 @@ protected:
   void wakeup() { mythos::lapic.sendIRQ(apicID, 32); }
 
 protected:
-  size_t apicID; //< for wakeup signals
+  cpu::ThreadID threadID; //< own thread's linear identifier
+  cpu::ApicID apicID; //< for wakeup signals
   std::atomic<bool> nestingMonitor;
+
+  /** a copy of the cr3 register. It is used for 1) avoiding a TLB
+   * shotdown if setting a value that has not changed, and 2) for
+   * helping the PML4 deletion broadcast. Initializing it on boot is not
+   * strictly necessary because cr3 still points to the safe default kernel space.
+   */
+  PhysPtr<void> _cr3 = PhysPtr<void>(0ul);
+
   TaskletQueueImpl<ChainFIFOBaseAligned> queue; //< for pending tasks
-  PhysPtr<void> _cr3;
 };
 
-/// @todo Should be allocated into local cachelines.
-/// @todo should be moved to the boot/deployment code instead of hardcoding here!
-extern Place places[BOOT_MAX_THREADS];
-inline Place* getPlace(size_t threadid) { return &places[threadid]; }
 
-inline void preparePlace(size_t apicID) {
-  places[apicID].init(apicID);
-}
-
-inline void initLocalPlace(size_t apicID) { localPlace_.set(&places[apicID]); }
+  extern Place places[MYTHOS_MAX_THREADS];
+  inline Place* getPlace(cpu::ThreadID threadID) { return &places[threadID]; }
 
 } // namespace async
+
 using async::getLocalPlace;
 } // namespace mythos

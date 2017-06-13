@@ -8,10 +8,10 @@
  * modify, merge, publish, distribute, sublicense, and/or sell copies
  * of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
  * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
@@ -20,40 +20,33 @@
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
- * 
- * Copyright 2014 Randolf Rotta, Maik Krüger, Maximilian Heyne, and contributors, BTU Cottbus-Senftenberg 
+ *
+ * Copyright 2017 Randolf Rotta, Maik Krüger, Maximilian Heyne, and contributors, BTU Cottbus-Senftenberg
  */
 #pragma once
 
 #include "cpu/CoreLocal.hh"
 #include "util/assert.hh"
-#include "boot/memory-layout.h"
+#include "boot/memory-layout.h" // for MYTHOS_MAX_THREADS
 #include <cstdint>
 
 namespace mythos {
-
   namespace cpu {
+
+    /** type for linear hardware thread identifiers */
     typedef uint16_t ThreadID;
+
+    /** type for lAPIC identifiers, which may be non-contiguous. */
+    typedef uint32_t ApicID;
+
+    extern size_t hwThreadCount;
     extern CoreLocal<size_t> hwThreadID_ KERNEL_CLM_HOT;
-    extern size_t hwThreadCount_;
-    extern ThreadID hwThreadIds_[BOOT_MAX_THREADS];
 
-    inline ThreadID hwThreadID() { return ThreadID(hwThreadID_.get()); }
+    /** returns the number of actually present hardware threads. */
+    inline size_t getNumThreads() { return hwThreadCount; }
 
-    inline void addHwThreadID(size_t id) {
-      ASSERT(hwThreadCount_ < BOOT_MAX_THREADS);
-      hwThreadIds_[hwThreadCount_++] = ThreadID(id);
-    }
-
-    inline ThreadID enumerateHwThreadID(size_t index) {
-      ASSERT(hwThreadCount_ > 0);
-      ASSERT(index < hwThreadCount_);
-      return hwThreadIds_[index];
-    }
-
-    inline size_t hwThreadCount() { return hwThreadCount_; }
-
-    inline void initHWThreadID(size_t id) { hwThreadID_.set(ThreadID(id)); }
+    /** returns the own logical hardware thread identifier */
+    inline ThreadID getThreadID() { return ThreadID(hwThreadID_.get()); }
 
   } // namespace cpu
 } // namespace mythos

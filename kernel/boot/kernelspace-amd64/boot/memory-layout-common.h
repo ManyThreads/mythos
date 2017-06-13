@@ -69,4 +69,6 @@
 #define BOOT_STACK_SIZE     2*4096
 #define CORE_STACK_SIZE     2*4096
 #define NMI_STACK_SIZE      512
-#define BOOT_MAX_THREADS    256
+
+#define MYTHOS_MAX_THREADS    244
+#define MYTHOS_MAX_APICID     256

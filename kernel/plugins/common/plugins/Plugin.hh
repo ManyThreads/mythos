@@ -34,7 +34,7 @@ namespace mythos {
   {
   public:
     virtual void initGlobal() {}
-    virtual void initThread(size_t /*threadid*/) {}
+    virtual void initThread(cpu::ThreadID /*threadid*/) {}
   };
 
   class Plugin
@@ -48,7 +48,7 @@ namespace mythos {
     }
 
     static void initPluginsGlobal();
-    static void initPluginsOnThread(size_t threadid);
+    static void initPluginsOnThread(cpu::ThreadID threadID);
 
   protected:
     mlog::Logger<mlog::FilterAny> log;

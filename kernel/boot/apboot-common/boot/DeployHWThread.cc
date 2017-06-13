@@ -34,12 +34,12 @@ extern char _setup_ap_end;
 namespace mythos {
   namespace boot {
 
-    ALIGN_4K char DeployHWThread::stackspace[CORE_STACK_SIZE*BOOT_MAX_THREADS];
-    ALIGN_4K char DeployHWThread::nmistackspace[NMI_STACK_SIZE*BOOT_MAX_THREADS];
-    uintptr_t DeployHWThread::stacks[BOOT_MAX_THREADS];
+    ALIGN_4K char DeployHWThread::stackspace[CORE_STACK_SIZE*MYTHOS_MAX_THREADS];
+    ALIGN_4K char DeployHWThread::nmistackspace[NMI_STACK_SIZE*MYTHOS_MAX_THREADS];
+    uintptr_t DeployHWThread::stacks[MYTHOS_MAX_APICID];
     IdtAmd64 DeployHWThread::idt;
 
-    SchedulingContext schedulers[BOOT_MAX_THREADS];
+    SchedulingContext schedulers[MYTHOS_MAX_THREADS];
     CoreLocal<SchedulingContext*> localScheduler KERNEL_CLM;
 
     void initAPTrampoline(size_t startIP) {

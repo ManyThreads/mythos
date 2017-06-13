@@ -47,19 +47,23 @@ namespace mythos {
 
     void initAPTrampoline(size_t startIP);
 
-    extern SchedulingContext schedulers[BOOT_MAX_THREADS];
+    extern SchedulingContext schedulers[MYTHOS_MAX_THREADS];
     extern CoreLocal<SchedulingContext*> localScheduler KERNEL_CLM;
 
-    SchedulingContext& getScheduler(size_t index) { return schedulers[index]; }
-    SchedulingContext& getLocalScheduler() { return *localScheduler; }
+    SchedulingContext& getScheduler(cpu::ThreadID threadID) { return schedulers[threadID]; }
+    SchedulingContext& getLocalScheduler() { return *localScheduler.get(); }
 
 struct DeployHWThread
 {
-  ALIGN_4K static char stackspace[CORE_STACK_SIZE*BOOT_MAX_THREADS];
-  ALIGN_4K static char nmistackspace[NMI_STACK_SIZE*BOOT_MAX_THREADS];
+  ALIGN_4K static char stackspace[CORE_STACK_SIZE*MYTHOS_MAX_THREADS];
+  ALIGN_4K static char nmistackspace[NMI_STACK_SIZE*MYTHOS_MAX_THREADS];
 
-  /** pointers to the AP stacks indexed by APIC ID */
-  static uintptr_t stacks[BOOT_MAX_THREADS] SYMBOL("ap_startup_stacks");
+  /** pointers to the AP stacks indexed by APIC ID. This is read from
+   * the assembler trampolines to get the initial kernel stack based
+   * on the initial apicID, which was gathered from the cpuid
+   * instruction.
+   */
+  static uintptr_t stacks[MYTHOS_MAX_APICID] SYMBOL("ap_startup_stacks");
 
   static void prepareBSP(size_t startIP) {
     idt.init();
@@ -68,44 +72,43 @@ struct DeployHWThread
     Plugin::initPluginsGlobal();
   }
 
-  void prepare(size_t apicID) {
+  void prepare(cpu::ThreadID threadID, cpu::ApicID apicID) {
+    PANIC_MSG(threadID<MYTHOS_MAX_THREADS, "unexpectedly large threadID");
+    PANIC_MSG(apicID<MYTHOS_MAX_APICID, "unexpectedly large apicID");
+    this->threadID = threadID;
     this->apicID = apicID;
-    PANIC_MSG(apicID<BOOT_MAX_THREADS, "unexpectedly large apicID");
-    cpu::addHwThreadID(apicID);
     gdt.init();
-    stacks[apicID] = initKernelStack(apicID, uintptr_t(stackspace)+apicID*CORE_STACK_SIZE-VIRT_ADDR);
+    auto stackphys = uintptr_t(stackspace)+threadID*CORE_STACK_SIZE - VIRT_ADDR;
+    stacks[apicID] = initKernelStack(threadID, stackphys);
     tss_kernel.sp[0] = stacks[apicID];
-    tss_kernel.ist[1] = uintptr_t(nmistackspace)+apicID*NMI_STACK_SIZE+NMI_STACK_SIZE;
+    tss_kernel.ist[1] = uintptr_t(nmistackspace)+threadID*NMI_STACK_SIZE+NMI_STACK_SIZE;
     gdt.tss_kernel.set(&tss_kernel);
-    gdt.kernel_gs.setBaseAddress(uint32_t(KernelCLM::getOffset(apicID)));
-    async::preparePlace(apicID);
-
-    MLOG_DETAIL(mlog::boot, "  mapped kernel stack", DVAR(apicID),
-                      (void*)stacks[apicID], (void*)(uintptr_t(stackspace)+apicID*CORE_STACK_SIZE-VIRT_ADDR));
-    MLOG_DETAIL(mlog::boot, "  nmi stack", DVAR(apicID),
-                      (void*)tss_kernel.ist[1]);
-    MLOG_DETAIL(mlog::boot, "  core-local memory offset", DVAR(apicID),
-                      (void*)(KernelCLM::getOffset(apicID)));
+    gdt.kernel_gs.setBaseAddress(uint32_t(KernelCLM::getOffset(threadID)));
+    KernelCLM::initOffset(threadID);
+    cpu::hwThreadID_.setAt(threadID, threadID);
+    async::getPlace(threadID)->init(threadID, apicID);
+    localScheduler.setAt(threadID, &getScheduler(threadID));
+    MLOG_DETAIL(mlog::boot, "  hw thread", DVAR(threadID), DVAR(apicID),
+                DVARhex(stacks[apicID]), DVARhex(stackphys), DVARhex(tss_kernel.ist[1]),
+                DVARhex(KernelCLM::getOffset(threadID)));
   }
 
   void initThread() {
     gdt.load();
     gdt.tss_kernel_load();
-    KernelCLM::initOffset(apicID);
-    cpu::initHWThreadID(apicID);
-    MLOG_DETAIL(mlog::boot, "init", DVAR(apicID)); // no logging before the local CLM init
+    // no logging before loading the GDT for the core-local memory
+    MLOG_DETAIL(mlog::boot, "init", DVAR(threadID), DVAR(apicID));
     cpu::initSyscallEntry(stacks[apicID]);
     idt.load();
-    async::initLocalPlace(apicID);
     mythos::lapic.init();
-    localScheduler.set(&getScheduler(apicID));
-    getLocalScheduler().init(&async::places[apicID]);
-    Plugin::initPluginsOnThread(apicID);
+    getLocalScheduler().init(async::getPlace(threadID));
+    Plugin::initPluginsOnThread(threadID);
   }
 
   TSS64 tss_kernel;
   GdtAmd64 gdt;
-  size_t apicID;
+  cpu::ThreadID threadID;
+  cpu::ApicID apicID;
   static IdtAmd64 idt;
 };
 

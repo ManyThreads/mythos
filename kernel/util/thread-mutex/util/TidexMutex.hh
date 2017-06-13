@@ -42,10 +42,8 @@ namespace mythos {
       INVALID_THREAD_ID = 0xFF00
     };
 
-    typedef cpu::ThreadID ThreadID;
-
-    std::atomic<ThreadID> ingress = {INVALID_THREAD_ID}; //< last acquiring thread
-    std::atomic<ThreadID> egress = {INVALID_THREAD_ID}; //< last thread that released the mutex
+    std::atomic<cpu::ThreadID> ingress = {INVALID_THREAD_ID}; //< last acquiring thread
+    std::atomic<cpu::ThreadID> egress = {INVALID_THREAD_ID}; //< last thread that released the mutex
 
   public:
     TidexMutex() {}
@@ -54,14 +52,14 @@ namespace mythos {
 
     class Lock {
     public:
-      explicit Lock(TidexMutex& m, ThreadID threadID) : m(m), nextEgress(m.lock(threadID)) {}
-      explicit Lock(TidexMutex& m): m(m), nextEgress(m.lock(cpu::hwThreadID())){}
+      explicit Lock(TidexMutex& m, cpu::ThreadID threadID) : m(m), nextEgress(m.lock(threadID)) {}
+      explicit Lock(TidexMutex& m): m(m), nextEgress(m.lock(cpu::getThreadID())){}
       Lock(Lock const&) = delete;
       void operator=(Lock const&) = delete;
       ~Lock() { m.unlock(nextEgress); }
     private:
       TidexMutex& m;
-      ThreadID nextEgress;
+      cpu::ThreadID nextEgress;
     };
 
     template<class FUNCTOR>
@@ -74,14 +72,14 @@ namespace mythos {
     }
 
   protected:
-    ThreadID lock(ThreadID mytid) {
+    cpu::ThreadID lock(cpu::ThreadID mytid) {
       // if this thread was the last unlocking thread negate the thread id
       // to make this cycle distinguishable from the last for other threads
       // Used to prevent a break of the mutex
-      if (egress == mytid) mytid = ThreadID(~mytid);
+      if (egress == mytid) mytid = cpu::ThreadID(~mytid);
 
       // replace the ingress thread id by our own and save the old one
-      ThreadID prevtid = ingress.exchange(mytid);
+      cpu::ThreadID prevtid = ingress.exchange(mytid);
 
       // while there are threads waiting in front of this thread delay execution
       while (egress.load(std::memory_order_acquire) != prevtid) {
@@ -92,7 +90,7 @@ namespace mythos {
       return mytid;
     }
 
-    void unlock(ThreadID nextEgress) { egress.store(nextEgress, std::memory_order_release); }
+    void unlock(cpu::ThreadID nextEgress) { egress.store(nextEgress, std::memory_order_release); }
   };
 
 } // namespace mythos
