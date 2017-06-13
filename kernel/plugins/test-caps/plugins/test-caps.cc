@@ -104,9 +104,9 @@ void TestCaps::initGlobal()
   printCaps();
 }
 
-void TestCaps::initThread(size_t id)
+void TestCaps::initThread(cpu::ThreadID threadID)
 {
-  if (id == cpu::enumerateHwThreadID(0)) {
+  if (treadID == 0) {
     state = 0;
     proto();
   }

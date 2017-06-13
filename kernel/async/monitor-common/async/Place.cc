@@ -39,7 +39,6 @@ namespace async {
     this->threadID = threadID;
     this->apicID = apicID;
     this->nestingMonitor = true;
-    this->_cr3 = PhysPtr<void>(cpu::getPageTable()); /// @todo likely wrong and wrong place
     this->queue.tryAcquire();
   }
 

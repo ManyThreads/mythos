@@ -104,7 +104,14 @@ protected:
   cpu::ThreadID threadID; //< own thread's linear identifier
   cpu::ApicID apicID; //< for wakeup signals
   std::atomic<bool> nestingMonitor;
-  PhysPtr<void> _cr3;
+
+  /** a copy of the cr3 register. It is used for 1) avoiding a TLB
+   * shotdown if setting a value that has not changed, and 2) for
+   * helping the PML4 deletion broadcast. Initializing it on boot is not
+   * strictly necessary because cr3 still points to the safe default kernel space.
+   */
+  PhysPtr<void> _cr3 = PhysPtr<void>(0ul);
+
   TaskletQueueImpl<ChainFIFOBaseAligned> queue; //< for pending tasks
 };
 

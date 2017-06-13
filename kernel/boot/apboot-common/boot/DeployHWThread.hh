@@ -58,7 +58,11 @@ struct DeployHWThread
   ALIGN_4K static char stackspace[CORE_STACK_SIZE*MYTHOS_MAX_THREADS];
   ALIGN_4K static char nmistackspace[NMI_STACK_SIZE*MYTHOS_MAX_THREADS];
 
-  /** pointers to the AP stacks indexed by APIC ID */
+  /** pointers to the AP stacks indexed by APIC ID. This is read from
+   * the assembler trampolines to get the initial kernel stack based
+   * on the initial apicID, which was gathered from the cpuid
+   * instruction.
+   */
   static uintptr_t stacks[MYTHOS_MAX_APICID] SYMBOL("ap_startup_stacks");
 
   static void prepareBSP(size_t startIP) {

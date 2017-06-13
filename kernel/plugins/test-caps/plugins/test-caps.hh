@@ -40,7 +40,7 @@ class TestCaps : public TestPlugin, public IResult<void>
   public:
     TestCaps();
     void printCaps();
-    virtual void initThread(size_t /*threadid*/) override;
+    virtual void initThread(cpu::ThreadID threadID) override;
     virtual void initGlobal() override;
 
     virtual void response(Tasklet* t, optional<void> res) override;

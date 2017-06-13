@@ -39,8 +39,13 @@ namespace mythos {
 /** basic cpu configuration, indexed by the logical thread ID. */
 DeployHWThread ap_config[MYTHOS_MAX_THREADS];
 
-/** mapping from apicID to the thread's configuration */
+/** mapping from apicID to the thread's configuration.  This is used
+ * during boot to get the right thread configuration while the
+ * core-local memory not yet available. It is indexed by the initial
+ * apicID, which was gathered via the cpuid instruction.
+ */
 DeployHWThread* ap_apic2config[MYTHOS_MAX_APICID];
+void apboot_thread(size_t apicID) { ap_apic2config[apicID]->initThread(); }
 
 NORETURN extern void start_ap64() SYMBOL("_start_ap64");
 
@@ -66,8 +71,6 @@ NORETURN void apboot() {
   // switch to BSP's stack here
   start_ap64(); // will never return from here!
 }
-
-void apboot_thread(size_t apicID) { ap_apic2config[apicID]->initThread(); }
 
   } // namespace boot
 } // namespace mythos
