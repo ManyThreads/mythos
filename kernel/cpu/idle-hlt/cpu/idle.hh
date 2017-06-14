@@ -34,8 +34,8 @@ namespace mythos {
     /** called once on bootup by the BSP. Initialises the trampoline and core states. */
     void init_global() {}
 
-    /** called once on bootup on each AP. Initialises the core-local pointers */
-    void init_thread(cpu::ThreadID /*threadID*/) {}
+    /** called once on bootup on each AP to initialise the processor, if needed. */
+    void init_thread() {}
 
     /** dependency: has to be implemented by kernel */
     NORETURN void sleeping_failed() SYMBOL("sleeping_failed");

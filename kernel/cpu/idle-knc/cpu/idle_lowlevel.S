@@ -32,7 +32,7 @@
 idle_sleep:
         mov %gs:kernel_stack, %rsp      // start on a clean stack to avoid filling it up
         pushq   $0 // fake return address
-        pushq   $0 // fake rbp
+        pushq   $0 // fake rbp, end for stack unwinding
         sti
         hlt
         cli

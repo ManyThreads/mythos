@@ -48,15 +48,12 @@ namespace mythos {
 	     size_t(&_setup_ap_end_cc6 - &_setup_ap_cc6));
       asm volatile("wbinvd");
 
-      // copy PC6 trampoline to the right place
-      // memcpy(PhysPtr<char>(0x70000).log(),
-      //        physPtr(&_setup_ap_pc6).log(),
-      //        size_t(&_setup_ap_end_pc6 - &_setup_ap_pc6));
-      // asm volatile("wbinvd");
+      /// @todo set CC6_EIP MSR?
 
       // turn on caches during re-entry from CC6 sleep
       auto cc6 = reinterpret_cast<uint32_t volatile*>(MMIO_ADDR+SBOX_BASE+SBOX_C6_SCRATCH0);
       *cc6 |= 0x8000; // C1-CC6 MAS (bit 15)
+
       for (unsigned i=0; i<22; i++)
         MLOG_ERROR(mlog::boot, "idle: C6_SCRATCH", DVAR(i), DVARhex(cc6[i]));
     }
@@ -69,23 +66,15 @@ namespace mythos {
       while (coreStates[apicID/4].lock.exchange(true) == true);
 
       auto prev = coreStates[apicID/4].cc6ready.fetch_or(uint8_t(1 << (apicID%4)));
+      /// @todo is this really needed if we always go into cc6?
       if ((prev | (1 << (apicID%4))) == 0xf) { // enable cc6
 	MLOG_ERROR(mlog::boot, "idle: enable CC6", DVARhex(prev), DVAR(apicID));
-        /// @todo is this really needed if we always go into cc6?
-        auto val = x86::getMSR(MSR_CC6_STATUS);
-        val |= 0x1f;
-        x86::setMSR(MSR_CC6_STATUS,val);
+        x86::setMSR(MSR_CC6_STATUS, x86::getMSR(MSR_CC6_STATUS) | 0x1f);
       }
-      MLOG_ERROR(mlog::boot, "idle:", DVARhex(x86::getMSR(MSR_CC6_STATUS)));
-      auto val = x86::getMSR(MSR_CC6_STATUS);
-      val |= 0x1;
-      val |= 1<<(apicID%4 + 1);
-      x86::setMSR(MSR_CC6_STATUS,val);
-      MLOG_ERROR(mlog::boot, "idle:", DVARhex(x86::getMSR(MSR_CC6_STATUS)));
 
+      MLOG_ERROR(mlog::boot, "idle:", DVARhex(x86::getMSR(MSR_CC6_STATUS)));
       auto chlt = reinterpret_cast<uint64_t volatile*>(MMIO_ADDR+SBOX_BASE+0xac0c);
       MLOG_ERROR(mlog::boot, "idle: cores halted", DVARhex(*chlt));
-
 
       coreStates[apicID/4].lock = false;
       go_sleeping();
@@ -109,9 +98,7 @@ namespace mythos {
       auto prev = coreStates[apicID/4].cc6ready.fetch_and(uint8_t(~(1u << (apicID%4))));
       if (prev == 0xf) { // disable cc6
 	MLOG_ERROR(mlog::boot, "idle: disable CC6", DVARhex(prev), DVAR(apicID));
-        auto val = x86::getMSR(MSR_CC6_STATUS);
-        val &= ~0x1f;
-        x86::setMSR(MSR_CC6_STATUS,val);
+        x86::setMSR(MSR_CC6_STATUS, x86::getMSR(MSR_CC6_STATUS) & (~0x1Ful));
       }
 
       coreStates[apicID/4].lock = false;

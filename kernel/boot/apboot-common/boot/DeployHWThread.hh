@@ -92,7 +92,6 @@ struct DeployHWThread
     localScheduler.setAt(threadID, &getScheduler(threadID));
     getScheduler(threadID).init(async::getPlace(threadID));
     cpu::initSyscallStack(threadID, stacks[apicID]);
-    idle::init_thread(threadID);
     MLOG_DETAIL(mlog::boot, "  hw thread", DVAR(threadID), DVAR(apicID),
                 DVARhex(stacks[apicID]), DVARhex(stackphys), DVARhex(tss_kernel.ist[1]),
                 DVARhex(KernelCLM::getOffset(threadID)));
@@ -106,6 +105,7 @@ struct DeployHWThread
     // no logging before loading the GDT for the core-local memory
     idt.load();
     cpu::initSyscallEntry();
+    idle::init_thread();
 
     if (UNLIKELY(this->firstboot)) {
       mythos::lapic.init();
