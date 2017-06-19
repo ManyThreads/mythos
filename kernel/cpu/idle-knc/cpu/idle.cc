@@ -58,7 +58,7 @@ namespace mythos {
         MLOG_ERROR(mlog::boot, "idle: C6_SCRATCH", DVAR(i), DVARhex(cc6[i]));
     }
 
-    NORETURN void go_sleeping() SYMBOL("idle_sleep");
+    NORETURN void cpu_idle_halt() SYMBOL("cpu_idle_halt");
 
     void sleep()
     {
@@ -77,7 +77,7 @@ namespace mythos {
       MLOG_ERROR(mlog::boot, "idle: cores halted", DVARhex(*chlt));
 
       coreStates[apicID/4].lock = false;
-      go_sleeping();
+      cpu_idle_halt();
     }
 
     void wokeup(size_t /*apicID*/, size_t reason)
@@ -85,7 +85,7 @@ namespace mythos {
       MLOG_ERROR(mlog::boot, "idle:", DVARhex(x86::getMSR(MSR_CC6_STATUS)));
       if (reason == 1) {
 	MLOG_ERROR(mlog::boot, "idle: woke up from CC6");
-	go_sleeping(); // woke up from CC6 => just sleep again
+	cpu_idle_halt(); // woke up from CC6 => just sleep again
       }
     }
 

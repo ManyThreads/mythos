@@ -33,6 +33,37 @@
 
 .section .init, "awx"  // the following code and data is in the low memory init section
 
+// EFER bit 0: SYSCALL instruction enable
+// EFER bit 8: IA-32e mode enable
+// EFER bit 11: enable noexecute bit in page tables
+#define EFER_MASK    0xFFFFFFFF
+#define EFER_ENABLE  0x00000901
+#define EFER_MSR     0xc0000080
+
+// CR0 bit 0: PE protected mode enable
+// CR0 bit 1: MP monitor co-processor
+// CR0 bit 4: ET 80387 coprocessor
+// CR0 bit 5: NE enable x87 floating point error reporting
+// CR0 bit 16: WP enable write protection
+// CR0 bit 18: AM enable alignment checks (needs EFLAGS for ring3)
+// CR0 bit 31: PG enable paging
+#define CR0_MASK     0xFFFFFFFF
+#define CR0_ENABLE   0x80050033
+
+// CR4 bit 5: enable PAE mode
+// -CR4 bit 8: PCE Performance-Monitoring Counter enable for user mode
+// -CR4 bit 6: MCE enable Machine Check Exception
+// -CR4 bit 9: OSFXSR Operating system support for FXSAVE and FXRSTOR instructions
+// -CR4 bit 10: OSXMMEXCPT Operating System Support for Unmasked SIMD Floating-Point Exceptions
+// -CR4 bit 13: VMXE enable Virtual Machine Extensions
+// -CR4 bit 16: FSGSBASE Enables the instructions
+// -CR4 bit 17: PCIDE enable TLB PCIDs for faster address space switching
+// -CR4 bit 18: OSXSAVE XSAVE and Processor Extended States Enable
+// -CR4 bit 20: SMEP Supervisor Mode Execution Protection Enable
+// -CR4 bit 21: SMAP Supervisor Mode Access Prevention Enable
+#define CR4_MASK     0xFFFFFFFF
+#define CR4_ENABLE   0x00000020
+        
 /** Contains physical address of a struct
  * with pointers to communication channels.
  * It will be read by the host tools.
@@ -110,17 +141,20 @@ _start_bsp:
 
         movq $__LINE__, _host_debug_info
         // activate the initial page table
-        mov     $0xc0000080, %rcx       // select the EFER MSR
+        mov     $(EFER_MSR), %rcx       // select the EFER MSR
         rdmsr                           // read EFER
-        or      $0x901, %rax            // IA-32e mode enable (bit8), SYSCALL (bit0), noexecute (bit11)
+        and     $(EFER_MASK), %eax
+        or      $(EFER_ENABLE), %eax
         wrmsr                           // write EFER
         mov     %cr4, %rdx
-        or      $0x20, %rdx             // enable PAE mode (bit5), XXX enable SMAP,SMEP,PCE later?
+        and     $(CR4_MASK), %edx
+        or      $(CR4_ENABLE), %edx
         mov     %rdx, %cr4
         mov     $(BOOT_PML4-VIRT_ADDR), %rdx             // pointer to the Page Directory
         mov     %rdx, %cr3
         mov     %cr0, %rdx
-        or     $0x80050033, %edx        // enable PE(bit0), MP(bit1), ET(bit4), NE(bit5), AM(bit18), WP(bit16), PG(bit31)
+        and     $(CR0_MASK), %edx
+        or      $(CR0_ENABLE), %edx
         mov     %rdx, %cr0              // switch to protected mode, with paging enabled and write protect
         // load our own segment descriptor table
         lgdt    _boot_gdt
@@ -153,17 +187,20 @@ _start_bsp64:
 _setup_ap:
         cli
         // init paging and load stage 1 page table
-        mov $0xc0000080, %ecx // select the EFER MSR
+        mov $(EFER_MSR), %ecx // select the EFER MSR
         rdmsr
-        or $0x901, %eax // IA-32e mode enable (bit8), SYSCALL (bit0), noexecute (bit11)
+        and     $(EFER_MASK), %eax
+        or      $(EFER_ENABLE), %eax
         wrmsr
         mov %cr4, %edx
-        or $0x20, %edx // enable PAE mode (bit5), XXX enable SMAP,SMEP,PCE later?
+        and     $(CR4_MASK), %edx
+        or      $(CR4_ENABLE), %edx
         mov %edx, %cr4
         mov $(BOOT_PML4-VIRT_ADDR), %edx
         mov %edx, %cr3 // load phys pointer of the PML4 table
         mov %cr0, %edx
-        or $0x80050033, %edx // enable PE(bit0), MP(bit1), ET(bit4), NE(bit5), AM(bit18), WP(bit16), PG(bit31)
+        and     $(CR0_MASK), %edx
+        or      $(CR0_ENABLE), %edx
         mov %edx, %cr0
 
         // load gdt via relative address
@@ -192,17 +229,20 @@ _start_ap64_low:
 _setup_ap_cc6:
         cli
         // init paging and load stage 1 page table
-        mov $0xc0000080, %ecx // select the EFER MSR
+        mov $(EFER_MSR), %ecx // select the EFER MSR
         rdmsr
-        or $0x901, %eax // IA-32e mode enable (bit8), SYSCALL (bit0), noexecute (bit11)
+        and     $(EFER_MASK), %eax
+        or      $(EFER_ENABLE), %eax
         wrmsr
         mov %cr4, %edx
-        or $0x20, %edx // enable PAE mode (bit5), XXX enable SMAP,SMEP,PCE later?
+        and     $(CR4_MASK), %edx
+        or      $(CR4_ENABLE), %edx
         mov %edx, %cr4
         mov $(BOOT_PML4-VIRT_ADDR), %edx
         mov %edx, %cr3 // load phys pointer of the PML4 table
         mov %cr0, %edx
-        or $0x80050033, %edx // enable PE(bit0), MP(bit1), ET(bit4), NE(bit5), AM(bit18), WP(bit16), PG(bit31)
+        and     $(CR0_MASK), %edx
+        or      $(CR0_ENABLE), %edx
         mov %edx, %cr0
 
         // load gdt via relative address

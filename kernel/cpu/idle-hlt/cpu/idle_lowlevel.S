@@ -27,9 +27,9 @@
 .extern kernel_stack
 .extern sleeping_failed
 
-.global idle_sleep
-.type idle_sleep, @function
-idle_sleep:
+.global cpu_idle_halt
+.type cpu_idle_halt, @function
+cpu_idle_halt:
         mov %gs:kernel_stack, %rsp      // start on a clean stack to avoid filling it up
         pushq   $0 // fake return address
         pushq   $0 // fake rbp, end for stack unwinding

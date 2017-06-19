@@ -40,10 +40,15 @@ namespace mythos {
     /** dependency: has to be implemented by kernel */
     NORETURN void sleeping_failed() SYMBOL("sleeping_failed");
 
+    /** low level assembler routine that halts the hardware thread. */
+    NORETURN void cpu_idle_halt() SYMBOL("cpu_idle_halt");
+
     /** The kernel has nothing to do, thus go sleeping.
-     * Resets the kernel stack.
+     *
+     * High level idle governers may replace this function. (somehow)
+     * resets the kernel stack.
      */
-    NORETURN void sleep() SYMBOL("idle_sleep");
+    NORETURN void sleep() { cpu_idle_halt(); }
 
     /** sleep management event: awakened by booting or from deep sleep. */
     void wokeup(size_t /*apicID*/, size_t /*reason*/) {}

@@ -185,13 +185,13 @@ int main()
                            thread1stack_top, &thread_main, nullptr).wait();
     TEST(res1);
     MLOG_INFO(mlog::app, "test_EC: create ec2");
-    auto res2 = ec2.create(pl, kmem, myAS, myCS, mythos::init::SCHEDULERS_START+4,
+    auto res2 = ec2.create(pl, kmem, myAS, myCS, mythos::init::SCHEDULERS_START+1,
                            thread2stack_top, &thread_main, nullptr).wait();
     TEST(res2);
   }
 
   for (volatile int i=0; i<100000; i++) {
-    for (volatile int j=0; j<3000; j++) {}
+    for (volatile int j=0; j<1000; j++) {}
   }
 
   MLOG_INFO(mlog::app, "sending notifications");
