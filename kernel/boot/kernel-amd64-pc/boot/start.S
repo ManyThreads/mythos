@@ -84,7 +84,7 @@ _mboot_header:
         .long MULTIBOOT_HEADER_FLAGS
         .long -(MULTIBOOT_HEADER_MAGIC+MULTIBOOT_HEADER_FLAGS)
 
-/** Global Descriptor Table (GDT) during boot wiht five segments.
+/** Global Descriptor Table (GDT) during boot.
  * see 3.4.5.1 Code- and Data-Segment Descriptor Types in Intel 253668-048US.
  * granularity 0xa0 = 10100000b => limit granularity 4kb, operand size unset, 64bit mode
  * access 0x9b = 10011011b => present, ring0, code/data, Execute/Read accessed
@@ -93,7 +93,7 @@ _mboot_header:
  *  1011 execute/read accessed
  *  access 0xfb = 11111011 => present, ring3, code/data, Execute/Read accessed
  *  limit can be 0 because it is not used in 64bit mode
-*/
+ */
 .align  8
 .global _boot_gdt_start
 _boot_gdt_start:
