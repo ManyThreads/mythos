@@ -1,0 +1,5 @@
+# -*- mode:toml; -*-
+[module.kernel-idle-hlt]
+    incfiles = [ "cpu/idle.hh" ]
+    kernelfiles = [ "cpu/idle_lowlevel.S" ]
+    requires = [ "symbol/sleeping_failed" ]

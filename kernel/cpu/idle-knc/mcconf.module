@@ -1,0 +1,5 @@
+# -*- mode:toml; -*-
+[module.kernel-idle-knc]
+    incfiles = [ "cpu/idle.hh" ]
+    kernelfiles = [ "cpu/idle_lowlevel.S", "cpu/idle.cc" ]
+    requires = [ "symbol/sleeping_failed", "tag/platform/knc" ]

@@ -58,7 +58,8 @@ namespace mythos {
     extern CoreLocal<ThreadState*> thread_state SYMBOL("thread_state") KERNEL_CLM_HOT;
     extern CoreLocal<uintptr_t> kernel_stack SYMBOL("kernel_stack") KERNEL_CLM_HOT;
 
-    void initSyscallEntry(uintptr_t stack);
+    void initSyscallStack(cpu::ThreadID threadID, uintptr_t stack);
+    void initSyscallEntry();
 
     // forward declaration
     extern void syscall_entry() SYMBOL("syscall_entry");
@@ -96,9 +97,6 @@ namespace mythos {
     /** high-level irq handler when interrupted in kernel mode, must be
      * defined by another model, used by irq_entry.S */
     void irq_entry_kernel(KernelIRQFrame*) SYMBOL("irq_entry_kernel");
-
-    NORETURN void go_sleeping() SYMBOL("go_sleeping");
-    NORETURN void sleeping_failed() SYMBOL("sleeping_failed");
 
   } // namespace cpu
 } // namespace mythos

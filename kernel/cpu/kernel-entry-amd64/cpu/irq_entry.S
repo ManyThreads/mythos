@@ -32,7 +32,6 @@
 .extern kernel_stack
 .extern irq_entry_user
 .extern irq_entry_kernel
-.extern sleeping_failed
 
 // macro for interrupt entry without error code
 .macro INTERRUPT_ENTRY no
@@ -137,7 +136,7 @@ interrupt_common:
         // might be on the NMI stack, but everything is stored safely
 	// in the ThreadState, thus we can switch to the bigger kernel
 	// stack now
-        // TODO check whether we actually could end up on the NMI stack when coming from user mode!!!
+        /// @todo check whether we actually could end up on the NMI stack when coming from user mode!!!
         mov %gs:kernel_stack, %rsp
         mov %rax, %rdi   // 1. argument: pointer to thread_state
         xor %rbp, %rbp
@@ -219,17 +218,3 @@ irq_return_user:
         mov TS_RDI(%rdi), %rdi
         swapgs  // restore user's GS base
         iretq   // return to user mode and enable interrupts via rflags IF field
-
-.global go_sleeping
-.type go_sleeping, @function
-go_sleeping:
-        mov %gs:kernel_stack, %rsp      // start on a clean stack to avoid filling it up
-        pushq   $0 // fake return address
-        pushq   $0 // fake rbp
-        sti
-        hlt
-        cli
-        xor %rbp, %rbp
-        pushq   $0 // fake return address
-        jmp sleeping_failed
-

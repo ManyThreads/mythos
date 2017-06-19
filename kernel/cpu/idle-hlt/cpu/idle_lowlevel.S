@@ -1,4 +1,4 @@
-/* -*- mode:C++; -*- */
+/* -*- mode:asm; indent-tabs-mode:nil -*- */
 /* MIT License -- MyThOS: The Many-Threads Operating System
  *
  * Permission is hereby granted, free of charge, to any person
@@ -21,27 +21,21 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  *
- * Copyright 2014 Randolf Rotta, Maik Krüger, and contributors, BTU Cottbus-Senftenberg
+ * Copyright 2016 Randolf Rotta, Robert Kuban, Maik Krüger, and contributors, BTU Cottbus-Senftenberg
  */
-#pragma once
 
-#include <cstdint>
-#include <cstddef>
+.extern kernel_stack
+.extern sleeping_failed
 
-namespace mythos {
-  namespace boot {
-
-    void initKernelSpaceCommon();
-
-    /** switch to final address space without lower half, reload TLB.
-     * can no longer write directly to the init and initdata section from here on.
-     */
-    void loadKernelSpace();
-
-    void mapLapic(uintptr_t phys);
-
-    /** maps a kernel stack to the given physical address and returns the logical address */
-    uintptr_t initKernelStack(size_t idx, uintptr_t paddr);
-
-  } // namespace boot
-} // namespace mythos
+.global cpu_idle_halt
+.type cpu_idle_halt, @function
+cpu_idle_halt:
+        mov %gs:kernel_stack, %rsp      // start on a clean stack to avoid filling it up
+        pushq   $0 // fake return address
+        pushq   $0 // fake rbp, end for stack unwinding
+        sti
+        hlt
+        cli
+        xor %rbp, %rbp
+        pushq   $0 // fake return address
+        jmp sleeping_failed

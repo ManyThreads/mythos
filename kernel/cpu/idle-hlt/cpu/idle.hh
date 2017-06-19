@@ -23,28 +23,44 @@
  *
  * Copyright 2016 Randolf Rotta, Robert Kuban, Maik Krüger, and contributors, BTU Cottbus-Senftenberg
  */
-#include "cpu/kernel_entry.hh"
-#include "cpu/gdt-layout.h"
-#include "cpu/gdt-layout.h"
-#include "cpu/ctrlregs.hh"
+#pragma once
+
+#include "util/compiler.hh"
+#include "cpu/hwthreadid.hh"
 
 namespace mythos {
-  namespace cpu {
+  namespace idle {
 
-    CoreLocal<ThreadState*> thread_state;
-    CoreLocal<uintptr_t> kernel_stack;
+    /** called once on bootup by the BSP. Initialises the trampoline and core states. */
+    void init_global() {}
 
-    void initSyscallStack(cpu::ThreadID threadID, uintptr_t stack) {
-      kernel_stack.setAt(threadID, stack);
-      thread_state.setAt(threadID, nullptr);
-    }
+    /** called once on bootup on each AP to initialise the processor, if needed. */
+    void init_thread() {}
 
-    void initSyscallEntry() {
-      x86::setStar(SEGMENT_KERNEL_CS, SEGMENT_USER_CS32+3);
-      x86::setLStar(&syscall_entry);
-      x86::setFMask(x86::FLAG_TF | x86::FLAG_DF | x86::FLAG_IF | x86::FLAG_IOPL);
-      //x86::setMSR(x86::MSR_EFER, x86::getMSR(x86::MSR_EFER) | x86::EFER_SCE); // done in start.S
-    }
+    /** dependency: has to be implemented by kernel */
+    NORETURN void sleeping_failed() SYMBOL("sleeping_failed");
 
-  } // namespace cpu
+    /** low level assembler routine that halts the hardware thread. */
+    NORETURN void cpu_idle_halt() SYMBOL("cpu_idle_halt");
+
+    /** The kernel has nothing to do, thus go sleeping.
+     *
+     * High level idle governers may replace this function. (somehow)
+     * resets the kernel stack.
+     */
+    NORETURN void sleep() { cpu_idle_halt(); }
+
+    /** sleep management event: awakened by booting or from deep sleep. */
+    void wokeup(size_t /*apicID*/, size_t /*reason*/) {}
+
+    /** sleep management event: awakened by interrupt, possibly from light sleep */
+    void wokeupFromInterrupt() {}
+
+    /** sleep management event: entered kernel from syscall */
+    void enteredFromSyscall() {}
+
+    /** sleep management event: entered kernel from interrupting the user mode */
+    void enteredFromInterrupt() {}
+
+  } // namespace idle
 } // namespace mythos

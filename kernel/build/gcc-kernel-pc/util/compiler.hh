@@ -41,6 +41,9 @@
 #define PURE                __attribute__((pure))
 #define SYMBOL(x)		asm(x)
 
+#define LIKELY(x)       __builtin_expect((x),1)
+#define UNLIKELY(x)     __builtin_expect((x),0)
+
 #define CONSTEXPR constexpr
 #define NOEXCEPT noexcept
 #define WARN_UNUSED __attribute__((warn_unused_result))

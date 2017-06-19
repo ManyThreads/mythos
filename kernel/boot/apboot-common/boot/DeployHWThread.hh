@@ -35,6 +35,7 @@
 #include "cpu/CoreLocal.hh"
 #include "cpu/hwthreadid.hh"
 #include "cpu/kernel_entry.hh"
+#include "cpu/idle.hh"
 #include "async/Place.hh"
 #include "objects/DeleteBroadcast.hh"
 #include "objects/SchedulingContext.hh"
@@ -68,6 +69,7 @@ struct DeployHWThread
   static void prepareBSP(size_t startIP) {
     idt.init();
     initAPTrampoline(startIP);
+    idle::init_global();
     DeleteBroadcast::init();
     Plugin::initPluginsGlobal();
   }
@@ -88,21 +90,30 @@ struct DeployHWThread
     cpu::hwThreadID_.setAt(threadID, threadID);
     async::getPlace(threadID)->init(threadID, apicID);
     localScheduler.setAt(threadID, &getScheduler(threadID));
+    getScheduler(threadID).init(async::getPlace(threadID));
+    cpu::initSyscallStack(threadID, stacks[apicID]);
     MLOG_DETAIL(mlog::boot, "  hw thread", DVAR(threadID), DVAR(apicID),
                 DVARhex(stacks[apicID]), DVARhex(stackphys), DVARhex(tss_kernel.ist[1]),
                 DVARhex(KernelCLM::getOffset(threadID)));
+    firstboot = true;
   }
 
   void initThread() {
+    loadKernelSpace();
     gdt.load();
     gdt.tss_kernel_load();
     // no logging before loading the GDT for the core-local memory
-    MLOG_DETAIL(mlog::boot, "init", DVAR(threadID), DVAR(apicID));
-    cpu::initSyscallEntry(stacks[apicID]);
     idt.load();
-    mythos::lapic.init();
-    getLocalScheduler().init(async::getPlace(threadID));
-    Plugin::initPluginsOnThread(threadID);
+    cpu::initSyscallEntry();
+    idle::init_thread();
+
+    if (UNLIKELY(this->firstboot)) {
+      mythos::lapic.init();
+      Plugin::initPluginsOnThread(threadID);
+      this->firstboot = false;
+    } else {
+      // not needed, would through away pending irqs: mythos::lapic.init();
+    }
   }
 
   TSS64 tss_kernel;
@@ -110,6 +121,7 @@ struct DeployHWThread
   cpu::ThreadID threadID;
   cpu::ApicID apicID;
   static IdtAmd64 idt;
+  bool firstboot;
 };
 
   } // namespace boot

@@ -38,6 +38,7 @@
 #include "cpu/hwthreadid.hh"
 #include "cpu/ctrlregs.hh"
 #include "cpu/LAPIC.hh"
+#include "cpu/idle.hh"
 #include "cpu/hwthread_pause.hh"
 #include "boot/memory-layout.h"
 #include "boot/DeployKernelSpace.hh"
@@ -61,8 +62,14 @@ extern char CLM_END;
 uint64_t mythos::tscdelay_MHz=2000;
 
 NORETURN void entry_bsp() SYMBOL("entry_bsp");
-NORETURN void entry_ap(size_t id) SYMBOL("entry_ap");
+NORETURN void entry_ap(size_t apicID, size_t reason) SYMBOL("entry_ap");
 
+/** entry point for the bootstrap processor (BSP, a hardware thread) when booting the processor.
+ *
+ * Initializes the kernel address space, the core-local memory (kernel
+ * TLS), global C++ constructors, initial kernel objects. Then
+ * initializes the other hardware threads' initial environment and starts them.
+ */
 void entry_bsp()
 {
   mythos::boot::initKernelSpace();
@@ -93,33 +100,39 @@ void runUser() {
   MLOG_DETAIL(mlog::boot, "trying to execute app");
   mythos::boot::getLocalScheduler().tryRunUser();
   MLOG_DETAIL(mlog::boot, "going to sleep now");
-  mythos::cpu::go_sleeping(); // resets the kernel stack!
+  mythos::idle::sleep(); // resets the kernel stack!
 }
 
-void entry_ap(size_t id)
+/** Boot entry point and deep sleep exit point for application
+ * processors (APs), that is all hardware threads.
+ *
+ * The BSP behaves like an AP by jumping into this function after
+ * sending the startup interrupt to all other APs.
+ *
+ * This function may also be used when exiting from deep sleep. In
+ * that case, some initializations have to be skipped. Just the
+ * hardware thread is configured to the default environment.
+ */
+void entry_ap(size_t apicID, size_t reason)
 {
   //asm volatile("xchg %bx,%bx");
-  mythos::boot::apboot_thread(id);
-  MLOG_DETAIL(mlog::boot, "started hardware thread");
-
-  if (id == 0) {
-    auto res = mythos::boot::load_init(); // start the first application
-    OOPS(res);
-  }
-
+  mythos::boot::apboot_thread(apicID);
+  MLOG_DETAIL(mlog::boot, "started hardware thread", DVAR(reason));
+  mythos::idle::wokeup(apicID, reason); // may not return
   runUser();
 }
 
-void mythos::cpu::sleeping_failed()
+void mythos::idle::sleeping_failed()
 {
   mythos::async::getLocalPlace().enterKernel();
-  MLOG_DETAIL(mlog::boot, "sleeping failed without visible interrupt");
+  MLOG_ERROR(mlog::boot, "sleeping failed or returned from kernel interrupt");
   runUser();
 }
 
 void mythos::cpu::syscall_entry_cxx(mythos::cpu::ThreadState* ctx)
 {
   mythos::async::getLocalPlace().enterKernel();
+  mythos::idle::enteredFromSyscall();
   MLOG_DETAIL(mlog::boot, "user system call", DVARhex(ctx->rdi), DVARhex(ctx->rsi),
       DVARhex(ctx->rip), DVARhex(ctx->rsp));
   mythos::handle_syscall(ctx);
@@ -129,6 +142,7 @@ void mythos::cpu::syscall_entry_cxx(mythos::cpu::ThreadState* ctx)
 void mythos::cpu::irq_entry_user(mythos::cpu::ThreadState* ctx)
 {
   mythos::async::getLocalPlace().enterKernel();
+  mythos::idle::enteredFromInterrupt();
   MLOG_DETAIL(mlog::boot, "user interrupt", DVARhex(ctx->irq), DVARhex(ctx->error),
       DVARhex(ctx->rip), DVARhex(ctx->rsp));
   if (ctx->irq<32) {
@@ -142,11 +156,11 @@ void mythos::cpu::irq_entry_user(mythos::cpu::ThreadState* ctx)
 
 void mythos::cpu::irq_entry_kernel(mythos::cpu::KernelIRQFrame* ctx)
 {
+  mythos::idle::wokeupFromInterrupt(); // can also be caused by preemption points!
   MLOG_DETAIL(mlog::boot, "kernel interrupt", DVARhex(ctx->irq), DVARhex(ctx->error),
       DVARhex(ctx->rip), DVARhex(ctx->rsp));
-  bool wasbug = handle_bugirqs(ctx);
+  bool wasbug = handle_bugirqs(ctx); // initiate irq processing: first kernel bugs
   bool nested = mythos::async::getLocalPlace().enterKernel();
-  // initiate irq processing: first kernel bugs
   if (!wasbug) {
     // TODO then external and wakeup interrupts
     MLOG_INFO(mlog::boot, "ack the interrupt");

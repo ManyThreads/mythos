@@ -33,6 +33,37 @@
 
 .section .init, "awx"  // the following code and data is in the low memory init section
 
+// EFER bit 0: SYSCALL instruction enable
+// EFER bit 8: IA-32e mode enable
+// EFER bit 11: enable noexecute bit in page tables
+#define EFER_MASK    0xFFFFFFFF
+#define EFER_ENABLE  0x00000901
+#define EFER_MSR     0xc0000080
+
+// CR0 bit 0: PE protected mode enable
+// CR0 bit 1: MP monitor co-processor
+// CR0 bit 4: ET 80387 coprocessor
+// CR0 bit 5: NE enable x87 floating point error reporting
+// CR0 bit 16: WP enable write protection
+// CR0 bit 18: AM enable alignment checks (needs EFLAGS for ring3)
+// CR0 bit 31: PG enable paging
+#define CR0_MASK     0xFFFFFFFF
+#define CR0_ENABLE   0x80050033
+
+// CR4 bit 5: enable PAE mode
+// -CR4 bit 8: PCE Performance-Monitoring Counter enable for user mode
+// -CR4 bit 6: MCE enable Machine Check Exception
+// -CR4 bit 9: OSFXSR Operating system support for FXSAVE and FXRSTOR instructions
+// -CR4 bit 10: OSXMMEXCPT Operating System Support for Unmasked SIMD Floating-Point Exceptions
+// -CR4 bit 13: VMXE enable Virtual Machine Extensions
+// -CR4 bit 16: FSGSBASE Enables the instructions
+// -CR4 bit 17: PCIDE enable TLB PCIDs for faster address space switching
+// -CR4 bit 18: OSXSAVE XSAVE and Processor Extended States Enable
+// -CR4 bit 20: SMEP Supervisor Mode Execution Protection Enable
+// -CR4 bit 21: SMAP Supervisor Mode Access Prevention Enable
+#define CR4_MASK     0xFFFFFFFF
+#define CR4_ENABLE   0x00000020
+
 /** magic number for the Multiboot header. */
 #define MULTIBOOT_HEADER_MAGIC          0x1BADB002
 
@@ -53,7 +84,7 @@ _mboot_header:
         .long MULTIBOOT_HEADER_FLAGS
         .long -(MULTIBOOT_HEADER_MAGIC+MULTIBOOT_HEADER_FLAGS)
 
-/** Global Descriptor Table (GDT) during boot wiht five segments.
+/** Global Descriptor Table (GDT) during boot.
  * see 3.4.5.1 Code- and Data-Segment Descriptor Types in Intel 253668-048US.
  * granularity 0xa0 = 10100000b => limit granularity 4kb, operand size unset, 64bit mode
  * access 0x9b = 10011011b => present, ring0, code/data, Execute/Read accessed
@@ -62,7 +93,7 @@ _mboot_header:
  *  1011 execute/read accessed
  *  access 0xfb = 11111011 => present, ring3, code/data, Execute/Read accessed
  *  limit can be 0 because it is not used in 64bit mode
-*/
+ */
 .align  8
 .global _boot_gdt_start
 _boot_gdt_start:
@@ -98,18 +129,21 @@ _start_bsp:
         mov %ebx, _mboot_table
 
         // activate the initial page table
-        mov     $0xc0000080, %ecx       // select the EFER MSR
+        mov     $(EFER_MSR), %ecx       // select the EFER MSR
         rdmsr                           // read EFER
-        or      $0x101, %eax            // set LME (bit8) and enable SYSCALL (bit0), XXX enable noexecute (bit11)
+        and     $(EFER_MASK), %eax
+        or      $(EFER_ENABLE), %eax
         wrmsr                           // write EFER
         mov     %cr4, %edx
-        or      $0x20, %edx             // enable PAE mode (bit5), XXX enable SMAP,SMEP,PCE later?
+        and     $(CR4_MASK), %edx
+        or      $(CR4_ENABLE), %edx
         mov     %edx, %cr4
-        mov     $(BOOT_PML4-VIRT_ADDR), %edx             // pointer to the Page Directory
+        mov     $(BOOT_PML4-VIRT_ADDR), %edx // pointer to the Page Directory
         mov     %edx, %cr3
         mov     %cr0, %edx
-        or     $0x80010001, %edx        // enable PE (bit0), WP (bit16), PG (bit31)
-        mov     %edx, %cr0              // switch to protected mode, with paging enabled and write protect
+        and     $(CR0_MASK), %edx
+        or      $(CR0_ENABLE), %edx
+        mov     %edx, %cr0  // switch to protected mode, with paging enabled and write protect
 
         // load our own segment descriptor table
         lgdt    _boot_gdt
@@ -139,17 +173,20 @@ _start_bsp64:
 _setup_ap:
         cli
         // init paging and load stage 1 page table
-        mov $0xc0000080, %ecx // select the EFER MSR
+        mov $(EFER_MSR), %ecx // select the EFER MSR
         rdmsr
-        or $0x101, %eax // set LME (bit8) and enable SYSCALL (bit0), XXX enable noexecute (bit11)
+        and     $(EFER_MASK), %eax
+        or      $(EFER_ENABLE), %eax
         wrmsr
         mov %cr4, %edx
-        or $0x20, %edx // enable PAE mode (bit5), XXX enable SMAP,SMEP,PCE later?
+        and     $(CR4_MASK), %edx
+        or      $(CR4_ENABLE), %edx
         mov %edx, %cr4
         mov $BOOT_PML4-VIRT_ADDR, %edx
         mov %edx, %cr3 // load phys pointer of the PML4 table
         mov %cr0, %edx
-        or $0x80010001, %edx // enable PE (bit0), WP (bit16), PG (bit31)
+        and     $(CR0_MASK), %edx
+        or      $(CR0_ENABLE), %edx
         mov %edx, %cr0
 
         // load gdt via relative address
@@ -169,6 +206,7 @@ _setup_ap_end:
 .code64
 .align  8
 _start_ap64_low:
+        movq $0, %rdi
         jmp _start_ap64
 
 .section .text
@@ -193,9 +231,10 @@ _start_ap64:
         shr $24, %rbx
         and $0xFF, %rbx
 
-        // load stack address and hwt address as first argument for main_ap
+        // load stack address
         movq ap_startup_stacks(,%rbx,8), %rsp
-        movq %rbx, %rdi
+        movq %rdi, %rsi // reason as 2nd argument (rsi)
+        movq %rbx, %rdi // hwt address as first argument (rdi) for main_ap
 
         // go to the stage 3 boot code, and never come back
         xor %rbp, %rbp
