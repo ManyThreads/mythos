@@ -42,7 +42,7 @@ namespace mythos {
     rte_irq.intpol = 0;
 
     for (size_t i = 0; i < ver.max_redirection_table + 1; i++) {
-      rte_irq.dest = 0x21 + i;
+      rte_irq.intvec = /*0x21 +*/ i;
       write(IOApic::IOREDTBL_BASE+2*i+1, (uint32_t)rte_irq.upper);
       write(IOApic::IOREDTBL_BASE+2*i, (uint32_t)rte_irq.lower);
     }
