@@ -10,9 +10,7 @@ import re
 import pydot
 import shutil
 
-# from mako.template import Template
-# mytemplate = Template("hello, ${name}!")
-# print(mytemplate.render(name="jack"))
+from mako.template import Template
 
 MODEXT = '.module'
 
@@ -36,15 +34,15 @@ class Module:
 
     def getRequires(self):
         return self.requires | self.requiredFiles
-        
+
     def getProvides(self):
         return self.provides | self.providedFiles
-        
+
     def findProvidedFiles(self):
         provfiles = set()
         for ftype in self.files: provfiles |= self.files[ftype]
         return provfiles
-    
+
     def findRequiredIncludes(self, files):
         incrgx = re.compile('#include\\s+[<\\"]([\\w./-]+)[>\\"]')
         basedir = os.path.dirname(os.path.abspath(self.modulefile))
@@ -67,7 +65,7 @@ class Module:
     def init(self):
         self.providedFiles = self.findProvidedFiles()
         self.requiredFiles = self.findRequiredIncludes(self.providedFiles)
-    
+
     def __repr__(self):
         return self.name
 
@@ -105,8 +103,8 @@ def createModulesGraph(moddb):
                 tt = ", ".join(conflicts[dst]) + " "
                 edge = pydot.Edge(src.name, dst.name, color="red", dir="none", tooltip=tt)
                 graph.add_edge(edge)
-    
-    
+
+
     graph.write('dependencies.dot')
 
 def createConfigurationGraph(modules, selectedmods, moddb, filename):
@@ -228,7 +226,7 @@ class ModuleDB:
         if tag not in self.requires:
             self.requires[tag] = set()
         self.requires[tag].add(mod)
-            
+
     def __getitem__(self,index):
         return self.modules[index]
 
@@ -289,7 +287,7 @@ class ModuleDB:
             if dups:
                 logging.warning('Module %s(%s) contains unnecessary requires: %s',
                                 mod.name, mod.modulefile, str(dups))
-            
+
         requires = set(self.requires.keys())
         provides = set(self.provides.keys())
         unsat = requires - provides
@@ -300,7 +298,7 @@ class ModuleDB:
                 logging.info('Tag %s required by %s not provided by any module',
                              require, str(names))
 
-    
+
 def installFile_Softlink(file, srcdir, destdir):
     srcfile = os.path.abspath(srcdir + '/' + file)
     destfile = os.path.abspath(destdir + '/' + file)
@@ -320,7 +318,7 @@ def installFile_Hardlink(file, srcdir, destdir):
     if os.path.exists(destfile) or os.path.islink(destfile):
         os.unlink(destfile)
     os.link(srcfile, destfile)
-    
+
 def installFile_Incl(file, srcdir, destdir):
     srcfile = os.path.abspath(srcdir + '/' + file)
     destfile = os.path.abspath(destdir + '/' + file)
@@ -356,10 +354,11 @@ class Configuration:
         self.modules = set()
         self.copyfiles = set()
         self.destdir = '.'
-        
+
         self.acceptedMods = set() # set of selected module objects
         self.files = dict()
         self.allfiles = dict()
+        self.vars = dict()
         self.mods = None
 
     def setModuleDB(self, mods):
@@ -411,7 +410,7 @@ class Configuration:
 
     def getMissingRequires(self):
         return self.requires - self.provides
- 
+
     def processModules(self, resolveDeps):
         '''if resolveDeps is true, this method tries to resolve missing dependencies
         by including additional modules from the module DB'''
@@ -506,14 +505,18 @@ class Configuration:
 
             for mod in self.acceptedMods:
                 if mod.makefile_head != None:
-                    makefile.write(mod.makefile_head + '\n')
+                    tmpl = Template(mod.makefile_head)
+                    makefile.write(tmpl.render(**config.vars))
+                    makefile.write("\n")
             makefile.write("\n")
 
             makefile.write("all: $(TARGETS)\n\n")
 
             for mod in self.acceptedMods:
                 if mod.makefile_body != None:
-                    makefile.write(mod.makefile_body + '\n')
+                    tmpl = Template(mod.makefile_body)
+                    makefile.write(tmpl.render(**config.vars))
+                    makefile.write("\n")
 
             for var in self.files:
                 vprefix = replaceSuffix(var, "FILES", "_")
@@ -526,7 +529,7 @@ class Configuration:
                         makefile.write("\t$("+vprefix+"AS) $("+vprefix+"ASFLAGS) $("+vprefix+"CPPFLAGS) $(DEPFLAGS) -c -o $@ $<\n")
             makefile.write("\n")
 
-                    
+
             makefile.write("clean:\n")
             for var in self.files:
                 makefile.write("\t- $(RM) $("+var+"_OBJ)\n")
@@ -544,12 +547,13 @@ def parseTomlConfiguration(conffile):
         configf = configf['config']
         config = Configuration()
         config.plain = configf
-        config.moduledirs = list(configf['moduledirs'])
-        config.provides = set(configf['provides'])
-        config.requires = set(configf['requires'])
-        config.modules = set(configf['modules'])
-        if "destdir" in configf:
-            config.destdir = os.path.abspath(configf['destdir'])
+        for field in configf:
+            if field == 'vars': config.vars = configf[field]
+            elif field == 'moduledirs': config.moduledirs = list(configf['moduledirs'])
+            elif field == 'requires': config.requires = set(configf['requires'])
+            elif field == 'provides': config.provides = set(configf['provides'])
+            elif field == 'modules': config.modules = set(configf['modules'])
+            elif field == 'destdir': config.destdir = os.path.abspath(configf['destdir'])
         return config
 
 
