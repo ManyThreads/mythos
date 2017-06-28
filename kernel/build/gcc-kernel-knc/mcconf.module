@@ -73,7 +73,7 @@ APP_LDFLAGS = -g -static
 
     makefile_body = '''
 micrun: boot64.elf
-	sudo env LD_LIBRARY_PATH=$(LD_LIBRARY_PATH) ../host-knc/xmicterm 0 `pwd`/boot64.elf
+	sudo env LD_LIBRARY_PATH=$(LD_LIBRARY_PATH) ${mythos_root}/host-knc/xmicterm 0 `pwd`/boot64.elf
 
 micstop:
 	sudo micctrl -r --wait mic0
