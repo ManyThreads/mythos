@@ -6,7 +6,7 @@ com3: enabled=1, mode=file, dev=mythos.trace
 boot: cdrom
 
 #cpu: count=1:2:1, quantum=16, cpuid_limit_winnt=0, ignore_bad_msrs=0
-#cpu: count=1:2:4, ips=4000000, quantum=16, model=corei7_ivy_bridge_3770k, reset_on_triple_fault=1, cpuid_limit_winnt=0, ignore_bad_msrs=0
+cpu: count=1:2:4, ips=4000000, quantum=16, model=corei7_ivy_bridge_3770k, reset_on_triple_fault=1, cpuid_limit_winnt=0, ignore_bad_msrs=0
 megs: 1024
 
 #display_library: x, options="gui_debug"
