@@ -102,7 +102,10 @@ namespace mythos {
                          IAllocator* mem)
   {
     auto obj = mem->create<ExampleObj>();
-    if (!obj) RETHROW(obj);
+    if (!obj) {
+      dstEntry->reset();
+      RETHROW(obj);
+    }
     Cap cap(*obj);
     auto res = cap::inherit(*memEntry, *dstEntry, memCap, cap);
     if (!res) {

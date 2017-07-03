@@ -178,7 +178,6 @@ void KernelMemory::free(Tasklet* t, IResult<void>* r, void* start, size_t length
     MLOG_DETAIL(mlog::km, "create", DVAR(*factory));
     if (!dstEntry->acquire()) return Error::LOST_RACE;
     auto res = factory->factory(*dstEntry, msg->getCapEntry(), self, this, msg);
-    if (res != Error::SUCCESS) dstEntry->reset();
     return res;
   }
 
@@ -189,11 +188,15 @@ void KernelMemory::free(Tasklet* t, IResult<void>* r, void* start, size_t length
     if (!Align4k::is_aligned(alignment) || !AlignmentObject(alignment).is_aligned(size))
       THROW(Error::UNALIGNED);
     auto region = mem->alloc(size, alignment);
-    if (!region) RETHROW(region);
+    if (!region) {
+      dstEntry->reset();
+      RETHROW(region);
+    }
     auto obj =
       mem->create<KernelMemory>(Range<uintptr_t>(uintptr_t(*region), uintptr_t(*region)+size));
     if (!obj) {
       mem->free(*region, size);
+      dstEntry->reset();
       RETHROW(obj);
     }
     Cap cap(*obj);

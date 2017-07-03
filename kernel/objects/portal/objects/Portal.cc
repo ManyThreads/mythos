@@ -200,7 +200,10 @@ namespace mythos {
   PortalFactory::factory(CapEntry* dstEntry, CapEntry* memEntry, Cap memCap, IAllocator* mem)
   {
     auto obj = mem->create<Portal>();
-    if (!obj) RETHROW(obj);
+    if (!obj) {
+      dstEntry->reset();
+      RETHROW(obj);
+    }
     Cap cap(*obj); /// @todo should have Portal specific rights
     auto res = cap::inherit(*memEntry, *dstEntry, memCap, cap);
     if (!res) {

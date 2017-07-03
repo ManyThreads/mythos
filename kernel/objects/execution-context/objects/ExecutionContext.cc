@@ -511,7 +511,10 @@ namespace mythos {
         IAllocator* mem, message_type* data, IInvocation* msg)
     {
       auto obj = mem->create<ExecutionContext>();
-      if (!obj) RETHROW(obj);
+      if (!obj) {
+        dstEntry->reset();
+        RETHROW(obj);
+      }
       Cap cap(*obj); /// @todo should have EC specific rights
       auto res = cap::inherit(*memEntry, *dstEntry, memCap, cap);
       if (!res) {

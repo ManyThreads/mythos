@@ -44,10 +44,14 @@ namespace mythos {
     if (!Align4k::is_aligned(alignment) || !AlignmentObject(alignment).is_aligned(size))
       THROW(Error::UNALIGNED);
     auto region = mem->alloc(size, alignment);
-    if (!region) RETHROW(region);
+    if (!region) {
+      dstEntry->reset();
+      RETHROW(region);
+    }
     auto obj = mem->create<MemoryRegion>(PhysPtr<void>::fromKernel(*region), size);
     if (!obj) {
       mem->free(*region, size);
+      dstEntry->reset();
       RETHROW(obj);
     }
     auto res = cap::inherit(*memEntry, *dstEntry, memCap, Cap(*obj, FrameData()));

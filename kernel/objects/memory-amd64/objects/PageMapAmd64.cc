@@ -430,16 +430,21 @@ namespace mythos {
   {
     if (!(level>=1 && level<=4)) THROW(Error::INVALID_ARGUMENT);
     auto table = mem->alloc(FrameSize::MIN_FRAME_SIZE, FrameSize::MIN_FRAME_SIZE);
-    if (!table) RETHROW(table);
+    if (!table) {
+      dstEntry->reset();
+      RETHROW(table);
+    }
     auto caps = mem->alloc(sizeof(CapEntry)*PageMap::num_caps(level), FrameSize::MIN_FRAME_SIZE);
     if (!caps) {
       mem->free(*table, FrameSize::MIN_FRAME_SIZE);
+      dstEntry->reset();
       RETHROW(caps);
     }
     auto obj = mem->create<PageMap>(level, *table, *caps);
     if (!obj) {
       mem->free(*table, FrameSize::MIN_FRAME_SIZE);
       mem->free(*caps, sizeof(CapEntry)*PageMap::num_caps(level));
+      dstEntry->reset();
       RETHROW(obj);
     }
     auto cap = Cap(*obj).withData(PageMapData());
