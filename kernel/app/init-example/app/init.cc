@@ -32,6 +32,7 @@
 #include "runtime/ExecutionContext.hh"
 #include "runtime/CapMap.hh"
 #include "runtime/Example.hh"
+#include "runtime/InterruptControl.hh"
 #include "runtime/PageMap.hh"
 #include "runtime/KernelMemory.hh"
 #include "runtime/SimpleCapAlloc.hh"
@@ -56,6 +57,10 @@ mythos::SimpleCapAllocDel capAlloc(portal, myCS, mythos::init::APP_CAP_START,
 char threadstack[stacksize];
 char* thread1stack_top = threadstack+stacksize/2;
 char* thread2stack_top = threadstack+stacksize;
+
+char threadstack2[stacksize];
+char* thread3stack_top = threadstack2+stacksize/2;
+char* thread4stack_top = threadstack2+stacksize;
 
 void* thread_main(void* ctx)
 {
@@ -178,6 +183,12 @@ int main()
 
   mythos::ExecutionContext ec1(capAlloc());
   mythos::ExecutionContext ec2(capAlloc());
+  mythos::ExecutionContext ec3(capAlloc());
+  mythos::ExecutionContext ec4(capAlloc());
+  mythos::InterruptControl intControl1(mythos::init::INTERRUPT_CONTROLLER_START+0);
+  mythos::InterruptControl intControl2(mythos::init::INTERRUPT_CONTROLLER_START+1);
+  mythos::InterruptControl intControl3(mythos::init::INTERRUPT_CONTROLLER_START+2);
+  mythos::InterruptControl intControl4(mythos::init::INTERRUPT_CONTROLLER_START+3);
   {
     MLOG_INFO(mlog::app, "test_EC: create ec1");
     mythos::PortalLock pl(portal); // future access will fail if the portal is in use already
@@ -188,15 +199,29 @@ int main()
     auto res2 = ec2.create(pl, kmem, myAS, myCS, mythos::init::SCHEDULERS_START+1,
                            thread2stack_top, &thread_main, nullptr).wait();
     TEST(res2);
+    auto res3 = ec3.create(pl, kmem, myAS, myCS, mythos::init::SCHEDULERS_START+2,
+                           thread3stack_top, &thread_main, nullptr).wait();
+    TEST(res3);
+    auto res4 = ec4.create(pl, kmem, myAS, myCS, mythos::init::SCHEDULERS_START+3,
+                           thread4stack_top, &thread_main, nullptr).wait();
+    TEST(res4);
+    mythos::InterruptControl intControl(mythos::init::INTERRUPT_CONTROLLER_START+1);
+    intControl1.registerForInterrupt(pl, ec1.cap(), 10);
+    intControl2.registerForInterrupt(pl, ec2.cap(), 32);
+    intControl2.registerForInterrupt(pl, ec3.cap(), 10);
+    intControl2.registerForInterrupt(pl, ec4.cap(), 10);
+    intControl1.unregisterForInterrupt(pl, ec2.cap(), 10);
   }
+
+
 
   for (volatile int i=0; i<100000; i++) {
     for (volatile int j=0; j<1000; j++) {}
   }
 
   MLOG_INFO(mlog::app, "sending notifications");
-  mythos::syscall_notify(ec1.cap());
-  mythos::syscall_notify(ec2.cap());
+  mythos::syscall_signal(ec1.cap());
+  mythos::syscall_signal(ec2.cap());
 
   mythos::syscall_debug(end, sizeof(end)-1);
 

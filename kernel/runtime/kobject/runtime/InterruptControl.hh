@@ -1,5 +1,5 @@
 /* -*- mode:C++; indent-tabs-mode:nil; -*- */
-/* MIT License -- MyThOS: The Many-Threads Operating System
+/* MyThOS: The Many-Threads Operating System
  *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
@@ -25,33 +25,25 @@
  */
 #pragma once
 
-#include <cstdint>
-#include "mythos/InvocationBuf.hh"
-#include "mythos/Error.hh"
+#include "runtime/PortalBase.hh"
+#include "mythos/protocol/InterruptControl.hh"
+#include "runtime/KernelMemory.hh"
+#include "mythos/init.hh"
 
 namespace mythos {
 
-  namespace protocol {
+  class InterruptControl : public KObject
+  {
+  public:
+    InterruptControl(CapPtr cap) : KObject(cap) {}
 
-    enum CoreProtocols : uint8_t {
-      KERNEL_OBJECT = 1,
-      UNTYPED_MEMORY,
-      FRAME,
-      PAGEMAP,
-      CAPMAP,
-      EXECUTION_CONTEXT,
-      PORTAL,
-      EXAMPLE,
-      CPUDRIVERKNC,
-      INTERRUPT_CONTROL,
-    };
+    PortalFuture<void> registerForInterrupt(PortalLock pr, CapPtr ec, uint32_t interrupt) {
+      return pr.invoke<protocol::InterruptControl::Register>(_cap, ec, interrupt);
+    }
 
-  } // namespace protocol
-
-enum MappingRequest : uint8_t {
-  MAPPING_PROPERTIES,
-  MAP_FRAME,
-  MAP_TABLE,
-};
+    PortalFuture<void> unregisterForInterrupt(PortalLock pr, CapPtr ec, uint32_t interrupt) {
+      return pr.invoke<protocol::InterruptControl::Unregister>(_cap, ec, interrupt);
+    }
+  };
 
 } // namespace mythos

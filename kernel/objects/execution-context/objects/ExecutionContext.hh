@@ -32,6 +32,7 @@
 #include "async/NestedMonitorDelegating.hh"
 #include "objects/IKernelObject.hh"
 #include "objects/ISchedulable.hh"
+#include "objects/ISignalable.hh"
 #include "objects/IScheduler.hh"
 #include "objects/IFactory.hh"
 #include "objects/IPageMap.hh"
@@ -47,6 +48,7 @@ namespace mythos {
   class ExecutionContext final
     : public IKernelObject
     , public ISchedulable
+    , public ISignalable
     , public IPortalUser
   {
   public:
@@ -93,7 +95,8 @@ namespace mythos {
     void handleSyscall(cpu::ThreadState* ctx) override;
     optional<void> syscallInvoke(CapPtr portal, CapPtr dest, uint64_t user);
     void unload() override;
-    void semaphoreNotify() override;
+  public: // ISignalable interface
+    optional<void> signal(CapData data) override;
 
   public: // IPortalUser interface
     optional<CapEntryRef> lookupRef(CapPtr ptr, CapPtrDepth ptrDepth, bool writeable) override;
@@ -102,6 +105,7 @@ namespace mythos {
     optional<void const*> vcast(TypeId id) const override {
       if (id == typeId<ISchedulable>()) return static_cast<ISchedulable const*>(this);
       if (id == typeId<IPortalUser>()) return static_cast<IPortalUser const*>(this);
+      if (id == typeId<ISignalable>()) return static_cast<ISignalable const*>(this);
       THROW(Error::TYPE_MISMATCH);
     }
     optional<void> deleteCap(Cap self, IDeleter& del) override;

@@ -58,8 +58,6 @@ namespace mythos {
     virtual void handleSyscall(cpu::ThreadState* ctx) = 0;
 
     virtual void unload() = 0;
-
-    virtual void semaphoreNotify() = 0;
   };
 
   extern CoreLocal<std::atomic<ISchedulable*>> current_ec KERNEL_CLM_HOT;

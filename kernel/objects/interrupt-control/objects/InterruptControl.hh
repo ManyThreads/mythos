@@ -25,33 +25,42 @@
  */
 #pragma once
 
-#include <cstdint>
-#include "mythos/InvocationBuf.hh"
-#include "mythos/Error.hh"
+#include "objects/IFactory.hh"
+#include "objects/CapRef.hh"
+#include "objects/ISignalable.hh"
+#include "mythos/protocol/KernelObject.hh"
 
 namespace mythos {
 
-  namespace protocol {
 
-    enum CoreProtocols : uint8_t {
-      KERNEL_OBJECT = 1,
-      UNTYPED_MEMORY,
-      FRAME,
-      PAGEMAP,
-      CAPMAP,
-      EXECUTION_CONTEXT,
-      PORTAL,
-      EXAMPLE,
-      CPUDRIVERKNC,
-      INTERRUPT_CONTROL,
-    };
+class InterruptControl
+    : public IKernelObject
+{
+public:
+    InterruptControl()
+        {}
+public: // IKernelObject interface
+    optional<void const*> vcast(TypeId id) const override;
+    optional<void> deleteCap(Cap self, IDeleter& del) override;
+    void invoke(Tasklet* t, Cap, IInvocation* msg) override;
+    Error invokeBind(Tasklet* t, Cap, IInvocation* msg);
+public: // protocol 
+    friend struct protocol::KernelObject;
+    Error getDebugInfo(Cap self, IInvocation* msg);
+    Error registerForInterrupt(Tasklet *t, Cap self, IInvocation *msg);
+    Error unregisterForInterrupt(Tasklet *t, Cap self, IInvocation *msg);
+public:
+    void bind(optional<ISignalable*>);
+    void unbind(optional<ISignalable*>);
+public:
+    void handleInterrupt(uint64_t interrupt);
+private:
+    /** list handle for the deletion procedure */
+    LinkedList<IKernelObject*>::Queueable del_handle = {this};
+    async::NestedMonitorDelegating monitor;
 
-  } // namespace protocol
-
-enum MappingRequest : uint8_t {
-  MAPPING_PROPERTIES,
-  MAP_FRAME,
-  MAP_TABLE,
+    // actual interrupt handling members
+    CapRef<InterruptControl, ISignalable> destinations[256];
 };
 
 } // namespace mythos

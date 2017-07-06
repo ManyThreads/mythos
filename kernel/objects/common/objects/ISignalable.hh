@@ -25,33 +25,18 @@
  */
 #pragma once
 
-#include <cstdint>
-#include "mythos/InvocationBuf.hh"
-#include "mythos/Error.hh"
+#include "cpu/CoreLocal.hh"
+#include <atomic>
 
 namespace mythos {
 
-  namespace protocol {
+  class ISignalable
+  {
+  public:
+    virtual ~ISignalable() {}
 
-    enum CoreProtocols : uint8_t {
-      KERNEL_OBJECT = 1,
-      UNTYPED_MEMORY,
-      FRAME,
-      PAGEMAP,
-      CAPMAP,
-      EXECUTION_CONTEXT,
-      PORTAL,
-      EXAMPLE,
-      CPUDRIVERKNC,
-      INTERRUPT_CONTROL,
-    };
+    virtual optional<void> signal(CapData data);
+  };
 
-  } // namespace protocol
-
-enum MappingRequest : uint8_t {
-  MAPPING_PROPERTIES,
-  MAP_FRAME,
-  MAP_TABLE,
-};
 
 } // namespace mythos

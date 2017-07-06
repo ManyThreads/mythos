@@ -59,7 +59,7 @@ namespace mythos {
     SYSCALL_INVOKE_POLL,
     SYSCALL_INVOKE_WAIT,
     SYSCALL_DEBUG,
-    SYSCALL_NOTIFY
+    SYSCALL_SIGNAL
   };
 
   /** do a syscall according to mythos x86-64 system call convention
@@ -119,9 +119,9 @@ namespace mythos {
     return syscall(mythos::SYSCALL_INVOKE_WAIT, reinterpret_cast<uintptr_t>(userctx), portal, object);
   }
 
-  inline KEvent syscall_notify(CapPtr ec)
+  inline KEvent syscall_signal(CapPtr ec)
   {
-    return syscall(mythos::SYSCALL_NOTIFY, 0, ec, 0);
+    return syscall(mythos::SYSCALL_SIGNAL, 0, ec, 0);
   }
 
 } // namespace mythos
