@@ -54,6 +54,10 @@ public:
     void unbind(optional<ISignalable*>);
 public:
     void handleInterrupt(uint64_t interrupt);
+    void maskIRQ(uint64_t interrupt);
+    void ackIRQ(uint64_t interrupt);
+private:
+    bool isValid(uint64_t interrupt) { return interrupt < 256 && interrupt > 31; }
 private:
     /** list handle for the deletion procedure */
     LinkedList<IKernelObject*>::Queueable del_handle = {this};

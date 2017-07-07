@@ -84,7 +84,7 @@ Error InterruptControl::getDebugInfo(Cap self, IInvocation* msg)
 Error InterruptControl::registerForInterrupt(Tasklet *t, Cap self, IInvocation *msg) {
 
     auto data = msg->getMessage()->read<protocol::InterruptControl::Register>();
-    ASSERT(data.interrupt < 256);
+    ASSERT(isValid(data.interrupt));
     if (destinations[data.interrupt].isUsable()) {
         MLOG_INFO(mlog::boot, "Tried to register to an interrupt already taken:", data.interrupt);
         return Error::REQUEST_DENIED;
@@ -99,7 +99,7 @@ Error InterruptControl::registerForInterrupt(Tasklet *t, Cap self, IInvocation *
 
 Error InterruptControl::unregisterForInterrupt(Tasklet *t, Cap self, IInvocation *msg) {
     auto data = msg->getMessage()->read<protocol::InterruptControl::Register>();
-    ASSERT(data.interrupt < 256);
+    ASSERT(isValid(data.interrupt));
     MLOG_ERROR(mlog::boot, "invoke unregisterForInterrupt", DVAR(self),DVAR(data.ec()), DVAR(data.interrupt));
     if (destinations[data.interrupt].isUsable()) {
         optional<CapEntry*> capEntry = msg->lookupEntry(data.ec());
@@ -117,17 +117,27 @@ Error InterruptControl::unregisterForInterrupt(Tasklet *t, Cap self, IInvocation
 }
 
 void InterruptControl::handleInterrupt(uint64_t interrupt) {
-    ASSERT(interrupt < 256);
+    ASSERT(isValid(interrupt));
     if (!destinations[interrupt].isUsable()) {
         MLOG_ERROR(mlog::boot, "No one registered for", DVAR(interrupt));
         return;
     }
-
+    mythos::lapic.maskIRQ(interrupt);
+    mythos::lapic.endOfInterrupt();
     TypedCap<ISignalable> ec(destinations[interrupt].cap());
     if (ec) {
-        ec.obj()->signal((uint32_t)interrupt);
+        ec.obj()->signal((uint32_t) interrupt);
     }
-    
+}
+
+void InterruptControl::maskIRQ(uint64_t interrupt) {
+    ASSERT(isValid(interrupt));
+    mythos::lapic.maskIRQ((uint8_t) interrupt);
+}
+
+void InterruptControl::ackIRQ(uint64_t interrupt) {
+    ASSERT(isValid(interrupt));
+    mythos::lapic.ackIRQ((uint8_t) interrupt);
 }
 
 } // namespace mythos
