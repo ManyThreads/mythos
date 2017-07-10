@@ -98,7 +98,7 @@ Error InterruptControl::registerForInterrupt(Tasklet *t, Cap self, IInvocation *
 }
 
 Error InterruptControl::unregisterForInterrupt(Tasklet *t, Cap self, IInvocation *msg) {
-    auto data = msg->getMessage()->read<protocol::InterruptControl::Register>();
+    auto data = msg->getMessage()->read<protocol::InterruptControl::Unregister>();
     ASSERT(isValid(data.interrupt));
     MLOG_ERROR(mlog::boot, "invoke unregisterForInterrupt", DVAR(self),DVAR(data.ec()), DVAR(data.interrupt));
     if (destinations[data.interrupt].isUsable()) {
