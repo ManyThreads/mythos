@@ -95,6 +95,7 @@ namespace mythos {
     //mlogex.info("invoke printMessage", DVAR(this), DVAR(self), DVAR(msg));
     //auto data = msg->getMessage()->cast<protocol::Example::PrintMessage>();
     //mlogex.error(mlog::DebugString(data->message, data->bytes));
+    sbox::enable_interrupts();
     for (int i = 0; i < 7; i++) {
       sbox::send_interrupt(i);
     }

@@ -146,7 +146,7 @@ int main()
   MLOG_ERROR(mlog::app, "application is starting :)", DVARhex(msg_ptr), DVARhex(initstack_top));
 
   test_float();
-  test_Example();
+  //test_Example();
   test_Portal();
 
   {

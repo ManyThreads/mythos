@@ -4,6 +4,7 @@
 
 namespace mythos {
   namespace sbox {
+
     constexpr uint64_t SBOX_THERMAL_STATUS           = 0x00001018;
     constexpr uint64_t SBOX_THERMAL_INTERRUPT_ENABLE = 0x0000101C;
     constexpr uint64_t SBOX_BOARD_TEMP1              = 0x00001030;
@@ -141,8 +142,8 @@ namespace mythos {
       //hreg.gpuhot_enab = 1;
       //sbox_write(SBOX_GPU_HOT_CONFIG, reg.value);
 
-      MLOG_ERROR(mlog::boot, "Current Voltage",sbox_vid());
-      MLOG_ERROR(mlog::boot, "Current Temperatur:",sbox_die_temp(0));
+      //MLOG_ERROR(mlog::boot, "Current Voltage",sbox_vid());
+      //MLOG_ERROR(mlog::boot, "Current Temperatur:",sbox_die_temp(0));
     }
 
 } // namespace sbox
