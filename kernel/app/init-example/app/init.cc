@@ -64,9 +64,14 @@ char* thread4stack_top = threadstack2+stacksize;
 
 void* thread_main(void* ctx)
 {
+  mythos::PortalLock pl(portal);
   MLOG_INFO(mlog::app, "hello thread!", DVAR(ctx));
-  mythos::ISysretHandler::handle(mythos::syscall_wait());
-  MLOG_INFO(mlog::app, "thread resumed from wait", DVAR(ctx));
+  auto ke = mythos::syscall_wait();
+  MLOG_INFO(mlog::app, "thread resumed from wait", DVAR(ctx), DVAR(ke.user), DVAR(ke.state));
+  if (ke.user != 0) {
+    mythos::InterruptControl intControl(mythos::init::INTERRUPT_CONTROLLER_START+(uint64_t)ctx);
+    intControl.ackIRQ(pl, ke.user).wait();
+  }
   return 0;
 }
 
@@ -193,24 +198,25 @@ int main()
     MLOG_INFO(mlog::app, "test_EC: create ec1");
     mythos::PortalLock pl(portal); // future access will fail if the portal is in use already
     auto res1 = ec1.create(pl, kmem, myAS, myCS, mythos::init::SCHEDULERS_START,
-                           thread1stack_top, &thread_main, nullptr).wait();
+                           thread1stack_top, &thread_main, (void*)0).wait();
     TEST(res1);
     MLOG_INFO(mlog::app, "test_EC: create ec2");
     auto res2 = ec2.create(pl, kmem, myAS, myCS, mythos::init::SCHEDULERS_START+1,
-                           thread2stack_top, &thread_main, nullptr).wait();
+                           thread2stack_top, &thread_main, (void*)1).wait();
     TEST(res2);
     auto res3 = ec3.create(pl, kmem, myAS, myCS, mythos::init::SCHEDULERS_START+2,
-                           thread3stack_top, &thread_main, nullptr).wait();
+                           thread3stack_top, &thread_main, (void*)2).wait();
     TEST(res3);
     auto res4 = ec4.create(pl, kmem, myAS, myCS, mythos::init::SCHEDULERS_START+3,
-                           thread4stack_top, &thread_main, nullptr).wait();
+                           thread4stack_top, &thread_main, (void*)3).wait();
     TEST(res4);
-    mythos::InterruptControl intControl(mythos::init::INTERRUPT_CONTROLLER_START+1);
-    intControl1.registerForInterrupt(pl, ec1.cap(), 10);
-    intControl2.registerForInterrupt(pl, ec2.cap(), 32);
-    intControl2.registerForInterrupt(pl, ec3.cap(), 10);
-    intControl2.registerForInterrupt(pl, ec4.cap(), 10);
-    intControl1.unregisterForInterrupt(pl, ec2.cap(), 10);
+    TEST(intControl1.registerForInterrupt(pl, ec1.cap(), 35).wait());
+    TEST(intControl2.registerForInterrupt(pl, ec2.cap(), 35).wait());
+    TEST(intControl3.registerForInterrupt(pl, ec3.cap(), 35).wait());
+    TEST(intControl4.registerForInterrupt(pl, ec4.cap(), 35).wait());
+    mythos::syscall_signal(ec2.cap());
+    mythos::syscall_signal(ec3.cap());
+    mythos::syscall_signal(ec4.cap());
   }
 
 

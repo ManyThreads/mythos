@@ -82,9 +82,11 @@ Error InterruptControl::getDebugInfo(Cap self, IInvocation* msg)
  * Will only allow the first entity to register for the moment.
  */
 Error InterruptControl::registerForInterrupt(Tasklet *t, Cap self, IInvocation *msg) {
-
+    maskIRQ(0x20);
     auto data = msg->getMessage()->read<protocol::InterruptControl::Register>();
-    ASSERT(isValid(data.interrupt));
+    if (!isValid(data.interrupt)) {
+        return Error::INVALID_ARGUMENT;
+    }
     if (destinations[data.interrupt].isUsable()) {
         MLOG_INFO(mlog::boot, "Tried to register to an interrupt already taken:", data.interrupt);
         return Error::REQUEST_DENIED;
@@ -97,9 +99,11 @@ Error InterruptControl::registerForInterrupt(Tasklet *t, Cap self, IInvocation *
     return Error::SUCCESS;
 }
 
-Error InterruptControl::unregisterForInterrupt(Tasklet *t, Cap self, IInvocation *msg) {
+Error InterruptControl::unregisterForInterrupt(Tasklet*/* t*/, Cap self, IInvocation *msg) {
     auto data = msg->getMessage()->read<protocol::InterruptControl::Unregister>();
-    ASSERT(isValid(data.interrupt));
+    if (!isValid(data.interrupt)) {
+        return Error::INVALID_ARGUMENT;
+    }
     MLOG_ERROR(mlog::boot, "invoke unregisterForInterrupt", DVAR(self),DVAR(data.ec()), DVAR(data.interrupt));
     if (destinations[data.interrupt].isUsable()) {
         optional<CapEntry*> capEntry = msg->lookupEntry(data.ec());
@@ -116,13 +120,23 @@ Error InterruptControl::unregisterForInterrupt(Tasklet *t, Cap self, IInvocation
     return Error::SUCCESS;
 }
 
+Error InterruptControl::ackIRQ(Tasklet */*t*/, Cap/* self*/, IInvocation *msg) {
+    auto data = msg->getMessage()->read<protocol::InterruptControl::AckIRQ>();
+    if (!isValid(data.interrupt)) {
+        return Error::INVALID_ARGUMENT;
+    }
+    ackIRQ(data.interrupt);
+    return Error::SUCCESS;
+}
+
 void InterruptControl::handleInterrupt(uint64_t interrupt) {
     ASSERT(isValid(interrupt));
     if (!destinations[interrupt].isUsable()) {
         MLOG_ERROR(mlog::boot, "No one registered for", DVAR(interrupt));
+        mythos::lapic.endOfInterrupt();
         return;
     }
-    mythos::lapic.maskIRQ(interrupt);
+    mythos::lapic.maskIRQ((uint8_t)interrupt);
     mythos::lapic.endOfInterrupt();
     TypedCap<ISignalable> ec(destinations[interrupt].cap());
     if (ec) {
@@ -137,7 +151,7 @@ void InterruptControl::maskIRQ(uint64_t interrupt) {
 
 void InterruptControl::ackIRQ(uint64_t interrupt) {
     ASSERT(isValid(interrupt));
-    mythos::lapic.ackIRQ((uint8_t) interrupt);
+    mythos::lapic.unmaskIRQ((uint8_t) interrupt);
 }
 
 } // namespace mythos

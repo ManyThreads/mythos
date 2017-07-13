@@ -49,6 +49,7 @@ public: // protocol
     Error getDebugInfo(Cap self, IInvocation* msg);
     Error registerForInterrupt(Tasklet *t, Cap self, IInvocation *msg);
     Error unregisterForInterrupt(Tasklet *t, Cap self, IInvocation *msg);
+    Error ackIRQ(Tasklet *t, Cap self, IInvocation *msg);
 public:
     void bind(optional<ISignalable*>);
     void unbind(optional<ISignalable*>);

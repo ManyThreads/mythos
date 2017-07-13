@@ -37,6 +37,7 @@ namespace mythos {
       enum Methods : uint8_t {
         REGISTER,
         UNREGISTER,
+        ACK_IRQ,
       };
 
       struct Register : public InvocationBase {
@@ -69,12 +70,26 @@ namespace mythos {
         uint32_t interrupt;
       };
 
+      struct AckIRQ : public InvocationBase {
+        typedef InvocationBase response_type;
+        constexpr static uint16_t label = (proto<<8) + ACK_IRQ;
+        AckIRQ(uint32_t interrupt_)
+          : InvocationBase(label,getLength(this))
+        {
+          interrupt = interrupt_;
+        }
+
+        uint32_t interrupt;
+      };
+
+
 
       template<class IMPL, class... ARGS>
       static Error dispatchRequest(IMPL* obj, uint8_t m, ARGS const&...args) {
         switch(Methods(m)) {
-        case REGISTER: return obj->registerForInterrupt(args...);
+        case REGISTER:   return obj->registerForInterrupt(args...);
         case UNREGISTER: return obj->unregisterForInterrupt(args...);
+        case ACK_IRQ:    return obj->ackIRQ(args...);
         default: return Error::NOT_IMPLEMENTED;
         }
       }

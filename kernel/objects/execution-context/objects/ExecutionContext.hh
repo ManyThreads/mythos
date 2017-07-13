@@ -145,6 +145,7 @@ namespace mythos {
   private:
     async::NestedMonitorDelegating monitor;
     INotifiable::list_t notificationQueue;
+    std::atomic<CapData> lastSignal = {0};
     std::atomic<uint8_t> flags;
     CapRef<ExecutionContext,IPageMap> _as;
     CapRef<ExecutionContext,ICapMap> _cs;
