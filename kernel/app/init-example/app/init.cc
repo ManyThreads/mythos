@@ -38,6 +38,8 @@
 #include "app/mlog.hh"
 #include <cstdint>
 #include "util/optional.hh"
+//#include "util/FirstFitHeap.hh"
+#include "SequentialHeap.hh"
 
 mythos::InvocationBuf* msg_ptr asm("msg_ptr");
 int main() asm("main");
@@ -128,6 +130,29 @@ void test_float()
   MLOG_INFO(mlog::app, "float z:", int(z), ".", int(1000*(z-float(int(z)))));
 }
 
+void test_heap() {
+  MLOG_ERROR(mlog::app, "Test heap");
+  mythos::PortalLock pl(portal);
+  uintptr_t vaddr = 22*1024*1024; // choose address different from invokation buffer
+  // allocate a 2MiB frame
+  mythos::Frame f(capAlloc());
+  auto res2 = f.create(pl, kmem, 2*1024*1024, 2*1024*1024).wait();
+  TEST(res2);
+  // map the frame into our address space
+  auto res3 = myAS.mmap(pl, f, vaddr, 2*1024*1024, 0x1).wait();
+  MLOG_INFO(mlog::app, "mmap frame", DVAR(res3.state()),
+            DVARhex(res3->vaddr), DVARhex(res3->size), DVAR(res3->level));
+  TEST(res3);
+
+  mythos::SequentialHeap<uintptr_t> heap;
+  //mythos::FirstFitHeap<uintptr_t> heap;
+  heap.addRange(vaddr, 2*1024*1024);
+  auto mem = heap.alloc(100, 64);
+  auto mem2 = heap.alloc(100, 64);
+  MLOG_ERROR(mlog::app, DVARhex(*mem), DVARhex(*mem2));
+
+}
+
 struct HostChannel {
   void init() { ctrlToHost.init(); ctrlFromHost.init(); }
   typedef mythos::PCIeRingChannel<128,8> CtrlChannel;
@@ -148,7 +173,8 @@ int main()
   test_float();
   test_Example();
   test_Portal();
-
+  test_heap();
+/*
   {
     mythos::PortalLock pl(portal); // future access will fail if the portal is in use already
     // allocate a 2MiB frame
@@ -199,6 +225,6 @@ int main()
   mythos::syscall_notify(ec2.cap());
 
   mythos::syscall_debug(end, sizeof(end)-1);
-
+*/
   return 0;
 }

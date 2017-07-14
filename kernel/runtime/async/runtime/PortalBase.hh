@@ -129,7 +129,7 @@ namespace mythos {
     bool poll() const { return isOpen() ? _portal->poll() : true; }
     bool wait() const { return isOpen() ? _portal->wait() : true; }
     //Error state() const { return !isOpen() ? Error::PORTAL_NOT_OPEN : _portal->error(); }
-    void then(Tasklet& t) { ASSERT(isOpen()); _portal->then(t); release(); }
+    void then(runtime::Tasklet& t) { ASSERT(isOpen()); _portal->then(t); release(); }
   };
 
   template<class T>
