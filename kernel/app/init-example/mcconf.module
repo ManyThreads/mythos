@@ -1,7 +1,6 @@
 # -*- mode:toml; -*-
 [module.app-init-example]
     initappfiles = [ "app/init.cc" ]
-    incfiles = [ "app/SequentialHeap.hh" ]
     provides = [ "app/init.elf" ]
     requires = [ "crtbegin"]
     makefile_head = '''

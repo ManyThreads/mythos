@@ -1,0 +1,3 @@
+[module.runtime-memory]
+    incfiles = [ "runtime/SequentialHeap.hh" ]
+    appfiles = [ "runtime/SequentialHeap.cc" ]

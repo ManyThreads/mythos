@@ -38,8 +38,7 @@
 #include "app/mlog.hh"
 #include <cstdint>
 #include "util/optional.hh"
-//#include "util/FirstFitHeap.hh"
-#include "SequentialHeap.hh"
+#include "runtime/SequentialHeap.hh"
 
 mythos::InvocationBuf* msg_ptr asm("msg_ptr");
 int main() asm("main");
@@ -134,21 +133,27 @@ void test_heap() {
   MLOG_ERROR(mlog::app, "Test heap");
   mythos::PortalLock pl(portal);
   uintptr_t vaddr = 22*1024*1024; // choose address different from invokation buffer
+  auto size = 4*1024*1024; // 2 MB
+  auto align = 2*1024*1024; // 2 MB"
   // allocate a 2MiB frame
   mythos::Frame f(capAlloc());
-  auto res2 = f.create(pl, kmem, 2*1024*1024, 2*1024*1024).wait();
+  auto res2 = f.create(pl, kmem, size, align).wait();
   TEST(res2);
   // map the frame into our address space
-  auto res3 = myAS.mmap(pl, f, vaddr, 2*1024*1024, 0x1).wait();
-  MLOG_INFO(mlog::app, "mmap frame", DVAR(res3.state()),
+  auto res3 = myAS.mmap(pl, f, vaddr, size, 0x1).wait();
+  MLOG_ERROR(mlog::app, "mmap frame", DVAR(res3.state()),
             DVARhex(res3->vaddr), DVARhex(res3->size), DVAR(res3->level));
   TEST(res3);
 
   mythos::SequentialHeap<uintptr_t> heap;
   //mythos::FirstFitHeap<uintptr_t> heap;
-  heap.addRange(vaddr, 2*1024*1024);
-  auto mem = heap.alloc(100, 64);
-  auto mem2 = heap.alloc(100, 64);
+  heap.addRange(vaddr, size);
+  auto mem = heap.alloc(2*1024*1024, 2*1024*1024);
+  auto mem2 = heap.alloc(2*1024*1024, 2*1024*1024);
+  auto mem3 = heap.alloc(8, 64);
+  TEST(mem);
+  TEST(mem2);
+  TEST(!mem3);
   MLOG_ERROR(mlog::app, DVARhex(*mem), DVARhex(*mem2));
 
 }
