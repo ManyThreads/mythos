@@ -58,11 +58,13 @@ char threadstack[stacksize];
 char* thread1stack_top = threadstack+stacksize/2;
 char* thread2stack_top = threadstack+stacksize;
 
+extern mythos::SequentialHeap<uintptr_t> heap;
+
 void* thread_main(void* ctx)
 {
-  MLOG_INFO(mlog::app, "hello thread!", DVAR(ctx));
+  MLOG_ERROR(mlog::app, "hello thread!", DVAR(ctx));
   mythos::ISysretHandler::handle(mythos::syscall_wait());
-  MLOG_INFO(mlog::app, "thread resumed from wait", DVAR(ctx));
+  MLOG_ERROR(mlog::app, "thread resumed from wait", DVAR(ctx));
   return 0;
 }
 
@@ -129,6 +131,17 @@ void test_float()
   MLOG_INFO(mlog::app, "float z:", int(z), ".", int(1000*(z-float(int(z)))));
 }
 
+struct Test {
+  Test(int i_, int j_, int k_)
+    :i(i_), j(j_), k(k_) {}
+
+  Test(){}
+
+  int i = 1;
+  int j = 2;
+  int k = 3;
+};
+
 void test_heap() {
   MLOG_ERROR(mlog::app, "Test heap");
   mythos::PortalLock pl(portal);
@@ -141,21 +154,17 @@ void test_heap() {
   TEST(res2);
   // map the frame into our address space
   auto res3 = myAS.mmap(pl, f, vaddr, size, 0x1).wait();
-  MLOG_ERROR(mlog::app, "mmap frame", DVAR(res3.state()),
+  MLOG_INFO(mlog::app, "mmap frame", DVAR(res3.state()),
             DVARhex(res3->vaddr), DVARhex(res3->size), DVAR(res3->level));
   TEST(res3);
-
-  mythos::SequentialHeap<uintptr_t> heap;
-  //mythos::FirstFitHeap<uintptr_t> heap;
   heap.addRange(vaddr, size);
-  auto mem = heap.alloc(2*1024*1024, 2*1024*1024);
-  auto mem2 = heap.alloc(2*1024*1024, 2*1024*1024);
-  auto mem3 = heap.alloc(8, 64);
-  TEST(mem);
-  TEST(mem2);
-  TEST(!mem3);
-  MLOG_ERROR(mlog::app, DVARhex(*mem), DVARhex(*mem2));
-
+  Test *t = new Test(2,4,6);
+  MLOG_INFO(mlog::app,DVAR(t), DVAR(t->i), DVAR(t->j), DVAR(t->k));
+  Test *arr = new Test[20000];
+  MLOG_INFO(mlog::app,DVAR(arr), DVAR(arr[100].i), DVAR(arr[100].j), DVAR(arr[100].k));
+  delete t;
+  delete[] arr;
+  MLOG_ERROR(mlog::app, "Test heap");
 }
 
 struct HostChannel {
@@ -179,7 +188,7 @@ int main()
   test_Example();
   test_Portal();
   test_heap();
-/*
+
   {
     mythos::PortalLock pl(portal); // future access will fail if the portal is in use already
     // allocate a 2MiB frame
@@ -230,6 +239,6 @@ int main()
   mythos::syscall_notify(ec2.cap());
 
   mythos::syscall_debug(end, sizeof(end)-1);
-*/
+
   return 0;
 }

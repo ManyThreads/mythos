@@ -26,10 +26,10 @@
 
 //#include "util/assert.hh"
 
-void operator delete(void* /*ptr*/) noexcept(true) {
+//void operator delete(void* /*ptr*/) noexcept(true) {
   //PANIC_MSG(false, "generic operator delete() called");
-}
+//}
 
-void operator delete[](void* ptr) noexcept(true) {
-  return operator delete(ptr);
-}
+//void operator delete[](void* ptr) noexcept(true) {
+//  return operator delete(ptr);
+//}

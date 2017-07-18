@@ -28,71 +28,92 @@
 #include "util/optional.hh"
 #include "util/alignments.hh"
 #include "util/FirstFitHeap.hh"
+#include "cpu/hwthread_pause.hh"
 #include "app/mlog.hh"
+#include <atomic>
 
 
 namespace mythos {
 
 class SpinMutex {
 public:
-  void lock() {
-    while (flag.test_and_set()) { mythos::hwthread_pause(200); }
-  }
+    void lock() {
+        while (flag.test_and_set()) { mythos::hwthread_pause(50); }
+    }
 
-  void unlock() {
-    flag.clear();
-  }
+    void unlock() {
+        flag.clear();
+    }
 
-  template<typename FUNCTOR>
-  void operator<<(FUNCTOR fun) {
-    lock();
-    fun();
-    unlock();
-  }
+    template<typename FUNCTOR>
+    void operator<<(FUNCTOR fun) {
+        lock();
+        fun();
+        unlock();
+    }
 
 private:
-  std::atomic_flag flag;
+    std::atomic_flag flag;
 };
 
 /**
- * Wrapper for FirstFitHeap intrusive.
+ * Used to store the size of an allocated chunk.
+ * Maybe additional meta data can be placed here.
+ */
+struct ObjData {
+    size_t size;
+};
+
+/**
+ * Wrapper for FirstFitHeap intrusive. Allocates additional meta data.
  */
 template<typename T, class A = AlignLine>
 class SequentialHeap
 {
 public:
-  typedef T addr_t;
-  typedef A Alignment;
+    typedef T addr_t;
+    typedef A Alignment;
 
-  SequentialHeap() {}
-  virtual ~SequentialHeap() {}
+    SequentialHeap() {}
+    virtual ~SequentialHeap() {}
 
-  size_t getAlignment() const { return heap.getAlignment(); }
+    size_t getAlignment() const { return heap.getAlignment(); }
 
-  optional<addr_t> alloc(size_t length, size_t alignment) {
-    optional<addr_t> res;
-    mutex << [&]() { res = heap.alloc(length, alignment); };
-    return res;
-  }
+    optional<addr_t> alloc(size_t length, size_t alignment) {
+        optional<addr_t> res;
+        mutex << [&]() {
+            res = heap.alloc(length + sizeof(ObjData), alignment);
+        };
+        if (res) {
+            ObjData *data = reinterpret_cast<ObjData*>(*res);
+            data->size = length;
+            MLOG_DETAIL(mlog::app, "Alloc size:", length + sizeof(ObjData), "alignment:", alignment);
+            return {*res + sizeof(ObjData)};
+        }
+        return res;
+    }
 
-  void free(addr_t start, size_t length) {
-    mutex << [&](){ heap.free(start, length); };
-  }
 
-  void addRange(addr_t start, size_t length) {
 
-    mutex << [&]() { 
-      MLOG_ERROR(mlog::app, "Add range", DVARhex(start), DVARhex(length)); 
-      heap.addRange(start,length); 
-    };
-  }
+    void free(addr_t start) {
+        ObjData *data = reinterpret_cast<ObjData*>(start - sizeof(ObjData));
+        mutex << [&]() {
+            MLOG_DETAIL(mlog::app, "Free ", data, "size:", data->size + sizeof(ObjData));
+            heap.free(start - sizeof(ObjData), data->size + sizeof(ObjData));
+        };
+    }
+
+    void addRange(addr_t start, size_t length) {
+        mutex << [&]() {
+            MLOG_DETAIL(mlog::app, "Add range", DVARhex(start), DVARhex(length));
+            heap.addRange(start, length);
+        };
+    }
 
 private:
-  FirstFitHeap<T, A> heap;
-  SpinMutex mutex;
+    FirstFitHeap<T, A> heap;
+    SpinMutex mutex;
 
 };
-
-extern SequentialHeap<uintptr_t> heap;
 
 } // namespace mythos
