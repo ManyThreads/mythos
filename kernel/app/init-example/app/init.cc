@@ -62,9 +62,9 @@ extern mythos::SequentialHeap<uintptr_t> heap;
 
 void* thread_main(void* ctx)
 {
-  MLOG_ERROR(mlog::app, "hello thread!", DVAR(ctx));
+  MLOG_INFO(mlog::app, "hello thread!", DVAR(ctx));
   mythos::ISysretHandler::handle(mythos::syscall_wait());
-  MLOG_ERROR(mlog::app, "thread resumed from wait", DVAR(ctx));
+  MLOG_INFO(mlog::app, "thread resumed from wait", DVAR(ctx));
   return 0;
 }
 
