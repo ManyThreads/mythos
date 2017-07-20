@@ -127,7 +127,7 @@ namespace mythos {
     write(REG_ESR, 0); // Be paranoid about clearing APIC errors.
     read(REG_ESR);
     writeIPI(0, edgeIPI(ICR_DESTSHORT_NOTSELF, MODE_INIT, 0));
-    //hwthread_wait(10000);
+    hwthread_wait(10000);
     return true;
   }
 

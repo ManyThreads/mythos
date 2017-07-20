@@ -146,7 +146,7 @@ int main()
   MLOG_ERROR(mlog::app, "application is starting :)", DVARhex(msg_ptr), DVARhex(initstack_top));
 
   test_float();
-  //test_Example();
+  test_Example();
   test_Portal();
 
   {
@@ -198,16 +198,7 @@ int main()
   mythos::syscall_notify(ec1.cap());
   mythos::syscall_notify(ec2.cap());
 
-  mythos::PortalLock pl(portal); // future access will fail if the portal is in use already
-  mythos::Example example(capAlloc());
-  TEST(example.create(pl, kmem).wait()); // use default mythos::init::EXAMPLE_FACTORY
-
-
   mythos::syscall_debug(end, sizeof(end)-1);
-  volatile int i = 0;
-  while (true) {
-    example.printMessage(pl, "test", 4).wait();
-    i++;
-  }
+
   return 0;
 }

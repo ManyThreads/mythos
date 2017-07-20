@@ -64,7 +64,6 @@ NORETURN void apboot() {
   }
 
   mapIOApic((uint32_t)topo.ioapic_address());
-
   IOApic ioapic(IOAPIC_ADDR);
 
   // broadcast Startup IPI
