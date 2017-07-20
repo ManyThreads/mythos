@@ -159,7 +159,7 @@ namespace mythos {
         auto entry = reinterpret_cast<IntelMP::BaseEntry*>(baseEntries+pos);
         switch (entry->type){
           case PROCESSOR: {
-            //MLOG_DETAIL(mlog::boot, "PROCESSOR table entry at offset", pos);
+            MLOG_DETAIL(mlog::boot, "PROCESSOR table entry at offset", pos);
             auto proc_entry = static_cast<IntelMP::EntryProcessor*>(entry);
             if (proc_entry->flags & 0x01) {  // processor is usuable
               lapicIDs[num_threads] = proc_entry->local_apic_id;

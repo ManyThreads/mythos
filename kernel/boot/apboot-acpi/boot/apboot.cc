@@ -28,13 +28,14 @@
 #include "util/assert.hh"
 #include "cpu/PIC.hh"
 #include "cpu/LAPIC.hh"
+#include "cpu/IOAPIC.hh"
 #include "cpu/ctrlregs.hh"
 #include "boot/memory-layout.h"
 #include "util/ACPIApicTopology.hh"
 #include "boot/DeployHWThread.hh"
 
 namespace mythos {
-  namespace boot {
+namespace boot {
 
 /** basic cpu configuration, indexed by the logical thread ID. */
 DeployHWThread ap_config[MYTHOS_MAX_THREADS];
@@ -58,6 +59,10 @@ NORETURN void apboot() {
     ASSERT(topo.threadID(id)<MYTHOS_MAX_APICID);
     ap_config[id].prepare(id, cpu::ApicID(topo.threadID(id)));
     ap_apic2config[topo.threadID(id)] = &ap_config[id];
+  }
+
+  for (size_t i = 0; i < topo.numIOApic(); i++) {
+    MLOG_ERROR(mlog::boot, "ioapic", topo.ioApicBase(i));
   }
 
   // broadcast Startup IPI
