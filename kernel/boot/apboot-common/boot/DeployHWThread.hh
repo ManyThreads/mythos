@@ -42,7 +42,6 @@
 #include "boot/memory-layout.h"
 #include "boot/DeployKernelSpace.hh"
 #include "boot/mlog.hh"
-#include "cpu/IOAPIC.hh"
 
 namespace mythos {
   namespace boot {

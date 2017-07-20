@@ -1,3 +1,5 @@
 # -*- mode:toml; -*-
-[module.ioapic]
-    incfiles = [ "cpu/IOApicKNC.hh" ]
+[module.ioapic-knc]
+    incfiles    = ["cpu/IOApic.hh" ]
+    kernelfiles = [ "cpu/IOApicKNC.cc" ]
+    requires = [ "tag/cpu/kncioapic" ]
