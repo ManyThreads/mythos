@@ -34,7 +34,7 @@ namespace mythos {
 
   void IOApic::init() {
     IOApic::IOAPIC_VERSION ver(read(IOApic::IOAPICVER));
-    MLOG_ERROR(mlog::boot, "IOAPIC init", DVAR(ver.version), DVAR(ver.max_redirection_table));
+    MLOG_INFO(mlog::boot, "IOAPIC init", DVAR(ver.version), DVAR(ver.max_redirection_table));
 
 
     RED_TABLE_ENTRY rte_irq;
@@ -49,7 +49,7 @@ namespace mythos {
       write(IOApic::IOREDTBL_BASE+2*i+1, (uint32_t)rte_irq.upper);
       write(IOApic::IOREDTBL_BASE+2*i, (uint32_t)rte_irq.lower);
     }
-    //sbox::enable_interrupts();
+    sbox::enable_interrupts();
   }
 
   uint32_t IOApic::read(size_t reg) {

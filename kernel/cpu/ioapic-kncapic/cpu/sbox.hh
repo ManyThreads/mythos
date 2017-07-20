@@ -107,7 +107,7 @@ namespace mythos {
     static inline uint32_t thermal_status() {
       THERMAL_STATUS_INT_REG reg;
       reg.value = sbox_read(SBOX_THERMAL_STATUS_INTERRUPT);
-      MLOG_ERROR(mlog::boot, reg.gpuhot_status, reg.gpuhot_log);
+      MLOG_DETAIL(mlog::boot, reg.gpuhot_status, reg.gpuhot_log);
       return reg.value;
     }
 
@@ -115,15 +115,14 @@ namespace mythos {
      * Sends doorbell interrupt to itself (hopefully)
      * by setting icr bit 13
      * http://elixir.free-electrons.com/linux/v4.9/source/drivers/misc/mic/card/mic_x100.c#L76
+     * Does not seem to work at the moment
      */
     static inline void send_interrupt(int doorbell) {
       uint64_t offset = SBOX_ICR0 + doorbell*8;
       uint32_t icr_low = sbox_read(offset);
       icr_low |=  (1 << 13); // send_icr bit 13
-      //MLOG_ERROR(mlog::boot, DVARhex(offset), DVARhex(icr_low));
       sbox_write(offset, icr_low);
       icr_low = sbox_read(offset);
-      //MLOG_ERROR(mlog::boot, DVARhex(icr_low));
     }
 
     static void enable_interrupts()
@@ -138,12 +137,8 @@ namespace mythos {
       reg.sw_threshold2_enab = 1; // Triggers thermal interrupt at beginning for temp=70
       sbox_write(SBOX_THERMAL_INTERRUPT_ENABLE, reg.value);
 
-      //GPU_HOT_CONFIG hreg;
-      //hreg.gpuhot_enab = 1;
-      //sbox_write(SBOX_GPU_HOT_CONFIG, reg.value);
-
-      //MLOG_ERROR(mlog::boot, "Current Voltage",sbox_vid());
-      //MLOG_ERROR(mlog::boot, "Current Temperatur:",sbox_die_temp(0));
+      MLOG_DETAIL(mlog::boot, "Current Voltage",sbox_vid());
+      MLOG_DETAIL(mlog::boot, "Current Temperatur:",sbox_die_temp(0));
     }
 
 } // namespace sbox
