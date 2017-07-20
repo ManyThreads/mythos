@@ -71,6 +71,8 @@ void mapLapic(uintptr_t phys)
 }
 
 void mapIOApic(uintptr_t phys) {
+  static_assert(IOAPIC_ADDR == 0xffff800100002000, "failed assumption about kernel layout");
+  MLOG_ERROR(mlog::boot, "map ioapic", DVARhex(phys));
   devices_pml1[2] = CD + PRESENT + WRITE + ACCESSED + DIRTY + GLOBAL + phys;
 }
 

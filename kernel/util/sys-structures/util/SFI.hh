@@ -192,6 +192,14 @@ namespace mythos {
         }
         return nullptr;
       }
+
+      Apic* getApics() {
+        for (unsigned i = 0; i < size(); i++) {
+          Apic* apics = static_cast<Apic*>(entry[i].log());
+          if (apics->isCorrectType()) return apics;
+        }
+        return nullptr;
+      }
     };
 
   } // namespace SFI
@@ -207,6 +215,7 @@ namespace mythos {
         if (syst) {
           mmap = syst->getMmap();
           cpus = syst->getCpus();
+          apics = syst->getApics();
         }
       }
 
@@ -215,6 +224,7 @@ namespace mythos {
       bool hasSyst() const { return syst != nullptr; }
       bool hasMmap() const { return mmap != nullptr; }
       bool hasCpus() const { return cpus != nullptr; }
+      bool hasApics() const { return apics != nullptr; }
 
       SFI::Mmap* getMmap()
       {
@@ -233,10 +243,15 @@ namespace mythos {
         return (*cpus)[idx];
       }
 
+      SFI::Apic* getApics() {
+        return apics;
+      }
+
     protected:
       SFI::Syst* syst;
       SFI::Mmap* mmap;
       SFI::Cpus* cpus;
+      SFI::Apic* apics;
   };
 
 } // namespace mythos
