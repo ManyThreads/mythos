@@ -14,7 +14,8 @@ namespace mythos {
     constexpr uint64_t SBOX_DIE_TEMP0                = 0x0000103C;
     constexpr uint64_t SBOX_DIE_TEMP1                = 0x00001040;
     constexpr uint64_t SBOX_DIE_TEMP2                = 0x00001044;
-
+    constexpr uint64_t SBOX_ICR0                     = 0x0000A9D0;
+    constexpr uint64_t SBOX_MAX_DOORBELL             = 8;
 
     BITFIELD_DEF(uint32_t, THERMAL_INTERRUPT_ENABLE_REG)
       UIntField<value_t, base_t,0,1> high_temp_int_enab;
@@ -84,7 +85,6 @@ namespace mythos {
     static inline uint32_t sbox_vid() {
       CORE_VOLTAGE_REG creg;
       creg.value = sbox_read(SBOX_COREVOLT);
-      MLOG_ERROR(mlog::boot, DVAR(creg.vid));
       return creg.vid;
     }
 
@@ -110,6 +110,21 @@ namespace mythos {
       return reg.value;
     }
 
+    /**
+     * Sends doorbell interrupt to itself (hopefully)
+     * by setting icr bit 13
+     * http://elixir.free-electrons.com/linux/v4.9/source/drivers/misc/mic/card/mic_x100.c#L76
+     */
+    static inline void send_interrupt(uint32_t doorbell) {
+      uint64_t offset = SBOX_ICR0 + doorbell*8;
+      uint32_t icr_low = sbox_read(offset);
+      icr_low |= (1 << 13); // send_icr bit 13
+      //MLOG_ERROR(mlog::boot, DVARhex(offset), DVARhex(icr_low));
+      sbox_write(offset, icr_low);
+      icr_low = sbox_read(offset);
+      //MLOG_ERROR(mlog::boot, DVARhex(icr_low));
+    }
+
     static void enable_interrupts()
     {
       THERMAL_INTERRUPT_ENABLE_REG reg;
@@ -128,6 +143,10 @@ namespace mythos {
 
       MLOG_ERROR(mlog::boot, "Current Voltage",sbox_vid());
       MLOG_ERROR(mlog::boot, "Current Temperatur:",sbox_die_temp(0));
+
+      //for (int i = 0; i < 7; i++) {
+      //  send_interrupt(i);
+      //}
     }
 
   } // namespace sbox

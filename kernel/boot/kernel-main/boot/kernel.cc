@@ -156,11 +156,6 @@ void mythos::cpu::irq_entry_user(mythos::cpu::ThreadState* ctx)
     mythos::lapic.endOfInterrupt();
   }
 
-  volatile uint64_t i =0;
-  while(true) {
-    i++;
-  }
-
   runUser();
 }
 
@@ -177,12 +172,6 @@ void mythos::cpu::irq_entry_kernel(mythos::cpu::KernelIRQFrame* ctx)
     mythos::lapic.endOfInterrupt();
   }
 
-  volatile uint64_t i =0;
-  while(true) {
-    for (i = 0; i < 1000000; i++) {}
-    sbox::thermal_status();
-    MLOG_ERROR(mlog::boot, sbox::sbox_die_temp(0));
-  }
   if (!nested) runUser();
   // else simply return and let the interrupted kernel continue
 }

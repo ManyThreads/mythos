@@ -35,6 +35,7 @@
 #include "boot/memory-root.hh"
 #include "objects/DebugMessage.hh"
 #include "util/error-trace.hh"
+#include "cpu/sbox.hh"
 
 namespace mythos {
 
@@ -91,9 +92,13 @@ namespace mythos {
 
   Error ExampleObj::printMessage(Tasklet*, Cap self, IInvocation* msg)
   {
-    mlogex.info("invoke printMessage", DVAR(this), DVAR(self), DVAR(msg));
-    auto data = msg->getMessage()->cast<protocol::Example::PrintMessage>();
-    mlogex.error(mlog::DebugString(data->message, data->bytes));
+    //mlogex.info("invoke printMessage", DVAR(this), DVAR(self), DVAR(msg));
+    //auto data = msg->getMessage()->cast<protocol::Example::PrintMessage>();
+    //mlogex.error(mlog::DebugString(data->message, data->bytes));
+    for (int i = 0; i < 7; i++) {
+      sbox::send_interrupt(i);
+    }
+
     return Error::SUCCESS;
   }
 
