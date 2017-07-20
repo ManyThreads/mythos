@@ -1,4 +1,3 @@
 # -*- mode:toml; -*-
 [module.ioapic]
-    incfiles = [ "cpu/IOAPIC.hh" ]
-    kernelfiles = [ "cpu/IOAPIC.cc" ]
+    incfiles    = [ "cpu/IOApicDef.hh" ]
