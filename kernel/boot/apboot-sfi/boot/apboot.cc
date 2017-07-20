@@ -69,6 +69,13 @@ NORETURN void apboot()
     IOApic ioapic(MMIO_ADDR + offs);
   }
 
+  // broadcast Startup IPI
+  DeployHWThread::prepareBSP(0x40000);
+  mythos::x86::enableApic(); // just to be sure it is enabled
+  mythos::lapic.init();
+  mythos::lapic.broadcastInitIPIEdge();
+  mythos::lapic.broadcastStartupIPI(0x40000);
+
   // switch to BSP's stack here
   start_ap64(0); // will never return from here!
 }
