@@ -40,7 +40,6 @@
 #include "cpu/LAPIC.hh"
 #include "cpu/idle.hh"
 #include "cpu/IOApic.hh"
-#include "cpu/sbox.hh"
 #include "cpu/hwthread_pause.hh"
 #include "boot/memory-layout.h"
 #include "boot/DeployKernelSpace.hh"
