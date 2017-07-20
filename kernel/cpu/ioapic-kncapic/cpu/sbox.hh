@@ -115,10 +115,10 @@ namespace mythos {
      * by setting icr bit 13
      * http://elixir.free-electrons.com/linux/v4.9/source/drivers/misc/mic/card/mic_x100.c#L76
      */
-    static inline void send_interrupt(uint32_t doorbell) {
+    static inline void send_interrupt(int doorbell) {
       uint64_t offset = SBOX_ICR0 + doorbell*8;
       uint32_t icr_low = sbox_read(offset);
-      icr_low |= (1 << 13); // send_icr bit 13
+      icr_low |=  (1 << 13); // send_icr bit 13
       //MLOG_ERROR(mlog::boot, DVARhex(offset), DVARhex(icr_low));
       sbox_write(offset, icr_low);
       icr_low = sbox_read(offset);
@@ -131,23 +131,19 @@ namespace mythos {
       reg.gpu_hot_int_enab = 1;
       reg.pwralert_int_enab = 1;
       reg.high_temp_int_enab = 1;
-      reg.sw_threshold1_temp = 60;
+      reg.sw_threshold1_temp = 20;
       reg.sw_threshold1_enab = 1;
       reg.sw_threshold2_temp = 70;
-      reg.sw_threshold2_enab = 1;
+      reg.sw_threshold2_enab = 1; // Triggers thermal interrupt at beginning for temp=70
       sbox_write(SBOX_THERMAL_INTERRUPT_ENABLE, reg.value);
 
-      GPU_HOT_CONFIG hreg;
-      hreg.gpuhot_enab = 1;
-      sbox_write(SBOX_GPU_HOT_CONFIG, reg.value);
+      //GPU_HOT_CONFIG hreg;
+      //hreg.gpuhot_enab = 1;
+      //sbox_write(SBOX_GPU_HOT_CONFIG, reg.value);
 
       MLOG_ERROR(mlog::boot, "Current Voltage",sbox_vid());
       MLOG_ERROR(mlog::boot, "Current Temperatur:",sbox_die_temp(0));
-
-      //for (int i = 0; i < 7; i++) {
-      //  send_interrupt(i);
-      //}
     }
 
-  } // namespace sbox
+} // namespace sbox
 } // namespace mythos
