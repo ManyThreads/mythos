@@ -43,7 +43,9 @@ namespace mythos {
 
     for (size_t i = 0; i < ver.max_redirection_table + 1; i++) {
       rte_irq.intvec = 0x21 + i;
-      rte_irq.dest = 1;
+      rte_irq.dest = 1; //to apic 1
+      rte_irq.delmode = 0; // interrupt priority
+      rte_irq.destmode = 1; // physical 0 / logical 1
       write(IOApic::IOREDTBL_BASE+2*i+1, (uint32_t)rte_irq.upper);
       write(IOApic::IOREDTBL_BASE+2*i, (uint32_t)rte_irq.lower);
     }
