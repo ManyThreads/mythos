@@ -31,6 +31,7 @@
 #include "cpu/ctrlregs.hh"
 #include "boot/memory-layout.h"
 #include "util/MPApicTopology.hh"
+#include "util/ACPIApicTopology.hh"
 #include "boot/DeployHWThread.hh"
 
 namespace mythos {
@@ -59,6 +60,8 @@ NORETURN void apboot() {
     ap_config[id].prepare(id, cpu::ApicID(topo.threadID(id)));
     ap_apic2config[topo.threadID(id)] = &ap_config[id];
   }
+
+  ACPIApicTopology topoACPI;
 
   // broadcast Startup IPI
   DeployHWThread::prepareBSP(0x40000);
