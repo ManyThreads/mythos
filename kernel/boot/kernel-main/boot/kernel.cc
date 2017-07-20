@@ -53,6 +53,7 @@
 #include "objects/ISchedulable.hh"
 #include "objects/SchedulingContext.hh"
 #include "boot/memory-root.hh"
+#include "cpu/IOAPIC.hh"
 
 ALIGN_4K uint8_t boot_stack[BOOT_STACK_SIZE] SYMBOL("BOOT_STACK");
 extern char CLM_ADDR;

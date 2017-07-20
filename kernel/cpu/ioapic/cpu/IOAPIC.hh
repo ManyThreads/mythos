@@ -22,20 +22,20 @@ public:
 	};
 
     // how destination of red table entry is interpreted
-    enum Destmode { 
+    enum Destmode {
         PHYS_MODE    = 0x0, //  Bits 56-59 contain an APIC ID
         LOGICAL_MODE = 0x1, // Bits 56-63 are interpreted as set of processors
     };
 
 	BITFIELD_DEF(uint32_t, IOAPIC_ID)
-    UIntField<value_t,base_t, 0,24> reserved1; 
+    UIntField<value_t,base_t, 0,24> reserved1;
     UIntField<value_t,base_t, 24,4> id;
     UIntField<value_t,base_t, 28,4> reserved2;
     IOAPIC_ID() : value(0) {}
     BITFIELD_END
 
     BITFIELD_DEF(uint32_t, IOAPIC_VERSION)
-    UIntField<value_t,base_t, 0,8> version; 
+    UIntField<value_t,base_t, 0,8> version;
     UIntField<value_t,base_t, 8,8> reserved1;
     UIntField<value_t,base_t, 16,8> max_redirection_table;
     UIntField<value_t,base_t, 24,8> reserved2s;
@@ -58,30 +58,28 @@ public:
     RED_TABLE_ENTRY() : value(0) {}
     BITFIELD_END
 
-    IOAPIC(char *base_address_)
-        :base_address(base_address_) 
+    IOAPIC(uint32_t volatile *base_address_)
+        :base_address(base_address_)
     {}
 
     IOAPIC(size_t base_address_)
-        :base_address((char*)base_address_) 
+        :base_address((uint32_t volatile *)base_address_)
     {}
 
     uint32_t read(size_t reg) {
-        uint32_t volatile *ioapic = (uint32_t volatile *)base_address;
-        ioapic[0] = (reg & 0xff);
-        MLOG_ERROR(mlog::boot, "IOAPIC: read", DVARhex(ioapic[4]), DVARhex(reg));
-        return ioapic[4];
+        base_address[0] = (reg & 0xff);
+   //     MLOG_ERROR(mlog::boot, "IOAPIC: read from", DVARhex((uint64_t)base_address),":",  DVARhex(base_address[4]), DVARhex(reg));
+        return base_address[4];
     }
 
     void write(size_t reg, uint32_t value) {
-        MLOG_ERROR(mlog::boot, "IOAPIC: write", DVARhex(base_address), DVARhex(reg), DVARhex(value));
-        uint32_t volatile *ioapic = (uint32_t volatile *)base_address;
-        ioapic[0] = (reg & 0xff);
-        ioapic[4] = value;
+ //       MLOG_ERROR(mlog::boot, "IOAPIC: write to", DVARhex((uint64_t)base_address),":", DVARhex(reg), DVARhex(value));
+        base_address[0] = (reg & 0xff);
+        base_address[4] = value;
     }
 
 private:
-    char *base_address = {nullptr};
+    uint32_t volatile *base_address = {nullptr};
 };
 
 } // namespace mythos

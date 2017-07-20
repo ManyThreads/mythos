@@ -33,7 +33,7 @@
 #include "boot/DeployHWThread.hh"
 
 namespace mythos {
-namespace boot {
+  namespace boot {
 
 /** basic cpu configuration, indexed by the logical thread ID. */
 DeployHWThread ap_config[MYTHOS_MAX_THREADS];
@@ -60,12 +60,14 @@ NORETURN void apboot()
     ap_apic2config[topo.threadID(id)] = &ap_config[id];
   }
 
-  // broadcast Startup IPI
-  DeployHWThread::prepareBSP(0x40000);
-  mythos::x86::enableApic(); // just to be sure it is enabled
-  mythos::lapic.init();
-  mythos::lapic.broadcastInitIPIEdge();
-  mythos::lapic.broadcastStartupIPI(0x40000);
+      if (topo.hasApics()) {
+        uint64_t addr = topo.getApics()[0].apicID[0];
+        MLOG_ERROR(mlog::boot, DVARhex(addr - MMIO_PHYS), DVARhex(MMIO_ADDR + addr - MMIO_PHYS));
+        IOAPIC ioapic(MMIO_ADDR + addr - MMIO_PHYS);
+        IOAPIC::IOAPIC_VERSION ver(ioapic.read(IOAPIC::IOAPICVER));
+        MLOG_ERROR(mlog::boot, "Read ver value", DVAR(ver.version), DVAR(ver.max_redirection_table));
+        MLOG_ERROR(mlog::boot, DVAR(ioapic.read(IOAPIC::IOAPICVER)));
+      }
 
   // switch to BSP's stack here
   start_ap64(0); // will never return from here!

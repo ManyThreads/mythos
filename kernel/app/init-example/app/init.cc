@@ -199,6 +199,9 @@ int main()
   mythos::syscall_notify(ec2.cap());
 
   mythos::syscall_debug(end, sizeof(end)-1);
-
+  volatile int i = 0;
+  while (true) {
+    i++;
+  }
   return 0;
 }
