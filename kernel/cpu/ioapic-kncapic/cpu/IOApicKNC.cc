@@ -36,20 +36,18 @@ namespace mythos {
     IOApic::IOAPIC_VERSION ver(read(IOApic::IOAPICVER));
     MLOG_INFO(mlog::boot, "IOAPIC init", DVAR(ver.version), DVAR(ver.max_redirection_table));
 
-
     RED_TABLE_ENTRY rte_irq;
     rte_irq.trigger_mode = 0;
     rte_irq.intpol = 0;
 
     for (size_t i = 0; i < ver.max_redirection_table + 1; i++) {
       rte_irq.intvec = 0x21 + i;
-      rte_irq.dest = 0; //to apic 1
+      rte_irq.dest = 0; //to apic 0
       rte_irq.delmode = 0; // interrupt priority
       rte_irq.destmode = 0; // physical 0 / logical 1
-      write(IOApic::IOREDTBL_BASE+2*i+1, (uint32_t)rte_irq.upper);
+      write(IOApic::IOREDTBL_BASE+2*i+1, (uint32_t)rte_irq.upper); // always write upper first
       write(IOApic::IOREDTBL_BASE+2*i, (uint32_t)rte_irq.lower);
     }
-    sbox::enable_interrupts();
   }
 
   uint32_t IOApic::read(size_t reg) {
@@ -59,6 +57,5 @@ namespace mythos {
   void IOApic::write(size_t reg, uint32_t value) {
     base_address[reg] = value;
   }
-
 
 } // namespace mythos

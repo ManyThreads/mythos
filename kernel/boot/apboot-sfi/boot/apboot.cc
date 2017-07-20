@@ -62,13 +62,12 @@ NORETURN void apboot()
     ap_apic2config[topo.threadID(id)] = &ap_config[id];
   }
 
-
-      auto apics = topo.getApics();
-      for (uint64_t i = 0; i < topo.numApics(); i++) {
-        uint64_t addr = apics[i]->apicID[0];
-        auto offs = addr - MMIO_PHYS;
-        IOApic ioapic(MMIO_ADDR + offs);
-      }
+  auto apics = topo.getApics();
+  for (uint64_t i = 0; i < topo.numApics(); i++) {
+    uint64_t addr = apics[i]->apicID[0];
+    auto offs = addr - MMIO_PHYS;
+    IOApic ioapic(MMIO_ADDR + offs);
+  }
 
   // switch to BSP's stack here
   start_ap64(0); // will never return from here!
