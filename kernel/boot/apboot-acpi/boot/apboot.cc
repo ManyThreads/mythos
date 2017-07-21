@@ -48,6 +48,7 @@ DeployHWThread ap_config[MYTHOS_MAX_THREADS];
 DeployHWThread* ap_apic2config[MYTHOS_MAX_APICID];
 
 IOAPIC ioapics[MYTHOS_MAX_APICID];
+
 void apboot_thread(size_t apicID) { ap_apic2config[apicID]->initThread(); }
 
 NORETURN extern void start_ap64(size_t reason) SYMBOL("_start_ap64");
@@ -64,8 +65,9 @@ NORETURN void apboot() {
   }
 
   for (size_t i = 0; i < topo.numIOApic(); i++) {
-    MLOG_ERROR(mlog::boot, "ioapic", topo.ioApicBase(i));
-    IOAPIC ioapic((char*)topo.ioApicBase(i));
+    MLOG_INFO(mlog::boot, "ioapic", topo.ioApicBase(i));
+    ioapics[i].setBase((size_t) topo.ioApicBase(i));
+    ioapics[i].init();
   }
 
   // broadcast Startup IPI
