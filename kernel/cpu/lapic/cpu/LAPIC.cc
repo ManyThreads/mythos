@@ -127,7 +127,15 @@ namespace mythos {
     write(REG_ESR, 0); // Be paranoid about clearing APIC errors.
     read(REG_ESR);
     writeIPI(0, edgeIPI(ICR_DESTSHORT_NOTSELF, MODE_INIT, 0));
-    //hwthread_wait(10000);
+    /**
+     * This delay must happen between `broadcastInitIPIEdge` and
+     * `broadcastStartupIPI` in order for all hardware threads to
+     * start on the real hardware (KNC).
+     *
+     * @todo How long should this delay be for a given architecture.
+     * @todo Move the delay out of this low level function.
+     */
+    hwthread_wait(10000);
     return true;
   }
 
