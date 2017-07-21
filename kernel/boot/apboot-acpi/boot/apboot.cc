@@ -46,6 +46,8 @@ DeployHWThread ap_config[MYTHOS_MAX_THREADS];
  * apicID, which was gathered via the cpuid instruction.
  */
 DeployHWThread* ap_apic2config[MYTHOS_MAX_APICID];
+
+IOAPIC ioapics[MYTHOS_MAX_APICID];
 void apboot_thread(size_t apicID) { ap_apic2config[apicID]->initThread(); }
 
 NORETURN extern void start_ap64(size_t reason) SYMBOL("_start_ap64");
@@ -64,17 +66,6 @@ NORETURN void apboot() {
   for (size_t i = 0; i < topo.numIOApic(); i++) {
     MLOG_ERROR(mlog::boot, "ioapic", topo.ioApicBase(i));
     IOAPIC ioapic((char*)topo.ioApicBase(i));
-    //ioapic.write(IOAPIC::IOAPICID);
-    IOAPIC::IOAPIC_ID id(ioapic.read(IOAPIC::IOAPICID));
-    MLOG_ERROR(mlog::boot, "Read ioapic value", DVAR(id.id));
-    /*id.id = 2;
-    ioapic.write(IOAPIC::IOAPICID, id.value);
-    IOAPIC::IOAPIC_ID id2(ioapic.read(IOAPIC::IOAPICID));
-    MLOG_ERROR(mlog::boot, "Read ioapic value", id2.id);
-    */
-    IOAPIC::IOAPIC_VERSION ver(ioapic.read(IOAPIC::IOAPICVER));
-    MLOG_ERROR(mlog::boot, "Read ver value", DVAR(ver.version), DVAR(ver.max_redirection_table));
-    MLOG_ERROR(mlog::boot, DVAR(ioapic.read(IOAPIC::IOAPICVER)));
   }
 
   // broadcast Startup IPI
