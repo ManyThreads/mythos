@@ -77,10 +77,10 @@ namespace mythos {
       for (size_t i=0; i<0x8; i++) queued |= read(REG_IRR + i*0x10).value;
       if (!queued) break;
       for (size_t i=0; i<0x8; i++) {
-	value = read(REG_ISR + i*0x10);
-	for (size_t j=0; j<32; j++) {
-	  if (value.value & (1<<j)) endOfInterrupt();
-	}
+        value = read(REG_ISR + i*0x10);
+        for (size_t j=0; j<32; j++) {
+          if (value.value & (1<<j)) endOfInterrupt();
+        }
       }
     }
 
