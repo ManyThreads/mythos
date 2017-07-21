@@ -125,8 +125,7 @@ namespace mythos {
       icr_low = sbox_read(offset);
     }
 
-    static void enable_interrupts()
-    {
+    static inline void enable_interrupts() {
       THERMAL_INTERRUPT_ENABLE_REG reg;
       reg.gpu_hot_int_enab = 1;
       reg.pwralert_int_enab = 1;

@@ -32,6 +32,8 @@ public:
         :base_address((uint32_t volatile *)base_address_)
     {}
 
+    void setBase(size_t base_address_) { base_address = (uint32_t volatile*) base_address_; }
+
     uint32_t read(size_t reg);
 
     void write(size_t reg, uint32_t value);
