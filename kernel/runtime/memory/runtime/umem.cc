@@ -1,17 +1,21 @@
 #include "runtime/SequentialHeap.hh"
 
 
-mythos::SequentialHeap<uintptr_t> heap;
+namespace mythos {
+
+SequentialHeap<uintptr_t> heap;
+
+} // namespace mythos
 
 void* operator new(unsigned long size ) NOEXCEPT(true) {
-	auto tmp = heap.alloc(size, heap.getAlignment());
+	auto tmp = mythos::heap.alloc(size, mythos::heap.getAlignment());
 	if (tmp) {
 		return (void*) *tmp;
 	}
 	return nullptr;
 }
 void* operator new[](unsigned long size ) NOEXCEPT(true) {
-	auto tmp = heap.alloc(size, heap.getAlignment());
+	auto tmp = mythos::heap.alloc(size, mythos::heap.getAlignment());
 	if (tmp) {
 		return (void*) *tmp;
 	}
@@ -19,9 +23,9 @@ void* operator new[](unsigned long size ) NOEXCEPT(true) {
 }
 
 void operator delete(void* ptr) NOEXCEPT(true) {
-	heap.free(reinterpret_cast<uintptr_t>(ptr));
+	mythos::heap.free(reinterpret_cast<uintptr_t>(ptr));
 }
 
 void operator delete[](void* ptr) NOEXCEPT(true) {
-	heap.free(reinterpret_cast<uintptr_t>(ptr));
+	mythos::heap.free(reinterpret_cast<uintptr_t>(ptr));
 }

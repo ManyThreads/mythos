@@ -56,13 +56,7 @@ private:
     std::atomic_flag flag;
 };
 
-/**
- * Used to store the size of an allocated chunk.
- * Maybe additional meta data can be placed here.
- */
-struct ObjData {
-    size_t size;
-};
+
 
 /**
  * Wrapper for FirstFitHeap intrusive. Allocates additional meta data.
@@ -71,6 +65,14 @@ template<typename T, class A = AlignLine>
 class SequentialHeap
 {
 public:
+    /**
+    * Used to store the size of an allocated chunk.
+    * Maybe additional meta data can be placed here.
+    */
+    struct ObjData {
+        size_t size;
+    };
+    
     typedef T addr_t;
     typedef A Alignment;
 

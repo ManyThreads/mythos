@@ -38,7 +38,7 @@
 #include "app/mlog.hh"
 #include <cstdint>
 #include "util/optional.hh"
-#include "runtime/SequentialHeap.hh"
+#include "runtime/umem.hh"
 
 mythos::InvocationBuf* msg_ptr asm("msg_ptr");
 int main() asm("main");
@@ -57,8 +57,6 @@ mythos::SimpleCapAllocDel capAlloc(portal, myCS, mythos::init::APP_CAP_START,
 char threadstack[stacksize];
 char* thread1stack_top = threadstack+stacksize/2;
 char* thread2stack_top = threadstack+stacksize;
-
-extern mythos::SequentialHeap<uintptr_t> heap;
 
 void* thread_main(void* ctx)
 {
@@ -147,7 +145,7 @@ void test_heap() {
   mythos::PortalLock pl(portal);
   uintptr_t vaddr = 22*1024*1024; // choose address different from invokation buffer
   auto size = 4*1024*1024; // 2 MB
-  auto align = 2*1024*1024; // 2 MB"
+  auto align = 2*1024*1024; // 2 MB
   // allocate a 2MiB frame
   mythos::Frame f(capAlloc());
   auto res2 = f.create(pl, kmem, size, align).wait();
@@ -157,7 +155,7 @@ void test_heap() {
   MLOG_INFO(mlog::app, "mmap frame", DVAR(res3.state()),
             DVARhex(res3->vaddr), DVARhex(res3->size), DVAR(res3->level));
   TEST(res3);
-  heap.addRange(vaddr, size);
+  mythos::heap.addRange(vaddr, size);
   Test *t = new Test(2,4,6);
   MLOG_INFO(mlog::app,DVAR(t), DVAR(t->i), DVAR(t->j), DVAR(t->k));
   Test *arr = new Test[20000];
