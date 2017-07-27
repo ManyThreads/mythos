@@ -1,0 +1,3 @@
+[submodule "3rdparty/mcconf"]
+	path = 3rdparty/mcconf
+	url = git@github.com:ManyThreads/mcconf.git
