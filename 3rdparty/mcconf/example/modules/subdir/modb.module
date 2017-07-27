@@ -1,7 +1,0 @@
-[module.modb]
-srcfiles = [ "b.cc"] # all source files of the modules used during compilation
-incfiles = [ "b.h"] # all exported header files, used during and after compilation
-requires = [ "x86"] # symbols, files, pseudo modules required by this module
-# provides = [ "gdt","mem"] # symbols and pseudo modules provided by this module. Files not needed because srcfiles and incfiles is added to the provides 
-provides = ["mem"] # symbols and pseudo modules provided by this module. Files not needed because srcfiles and incfiles is added to the provides 
-modules  = ['modc']
