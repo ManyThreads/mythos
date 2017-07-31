@@ -178,24 +178,4 @@ void LAPIC::writeIPI(size_t destination, Register icrlow) {
     write(REG_ICR_LOW, icrlow);
 }
 
-void LAPIC::maskIRQ(uint8_t vector) {
-    MLOG_ERROR(mlog::boot, "maskIRQ yet to test", vector);
-    write(REG_LVT_TIMER, read(REG_LVT_TIMER).masked(1));
-    write(REG_LVT_THERMAL, read(REG_LVT_THERMAL).masked(1));
-    write(REG_LVT_PERFCNT, read(REG_LVT_PERFCNT).masked(1));
-    write(REG_LVT_LINT0, read(REG_LVT_LINT0).masked(1));
-    write(REG_LVT_LINT1, read(REG_LVT_LINT1).masked(1));
-    write(REG_LVT_ERROR, read(REG_LVT_ERROR).masked(1));
-}
-
-void LAPIC::unmaskIRQ(uint8_t vector) {
-    MLOG_ERROR(mlog::boot, "unmaskIRQ yet to test", vector);
-    write(REG_LVT_TIMER, read(REG_LVT_TIMER).masked(0));
-    write(REG_LVT_THERMAL, read(REG_LVT_THERMAL).masked(0));
-    write(REG_LVT_PERFCNT, read(REG_LVT_PERFCNT).masked(0));
-    write(REG_LVT_LINT0, read(REG_LVT_LINT0).masked(0));
-    write(REG_LVT_LINT1, read(REG_LVT_LINT1).masked(0));
-    write(REG_LVT_ERROR, read(REG_LVT_ERROR).masked(0));
-}
-
 } // namespace mythos

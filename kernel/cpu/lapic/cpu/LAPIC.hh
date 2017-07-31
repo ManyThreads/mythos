@@ -60,9 +60,6 @@ namespace mythos {
     bool sendIRQ(size_t destination, uint8_t vector);
     void endOfInterrupt() { write(REG_EOI, 0); }
 
-    void maskIRQ(uint8_t vector);
-    void unmaskIRQ(uint8_t vector);
-
   protected:
     static Register edgeIPI(IrcDestinationShorthand dest, IcrDeliveryMode mode, uint8_t vec) {
       return Register().destination_shorthand(dest).level_triggered(0).level(1)

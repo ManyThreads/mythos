@@ -399,9 +399,6 @@ void ExecutionContext::handleSyscall(cpu::ThreadState* ctx)
 optional<void> ExecutionContext::signal(CapData data) {
     auto prev = setFlag(IS_NOTIFIED);
     MLOG_DETAIL(mlog::syscall, "receiving signal", DVAR(data), DVARhex(prev));
-    if (data != 0) {
-        lastSignal.store(data);
-    }
     clearFlagResume(IS_WAITING);
     RETURN(Error::SUCCESS);
 }
@@ -422,8 +419,6 @@ void ExecutionContext::resume() {
     if (prevState & IN_WAIT) {
         MLOG_DETAIL(mlog::ec, "try to resume from wait state");
         clearFlag(IS_NOTIFIED); // this is safe because we wake up anyway
-
-
         auto e = notificationQueue.pull();
         if (e) {
             auto ev = e->get()->deliver();
@@ -432,11 +427,6 @@ void ExecutionContext::resume() {
         } else {
             threadState.rsi = 0;
             threadState.rdi = uint64_t(Error::NO_MESSAGE);
-        }
-        auto last = lastSignal.exchange(0);
-        if (last != 0) {
-            MLOG_ERROR(mlog::boot, "last state", DVAR(last));
-            //threadState.rsi = last;
         }
         //MLOG_DETAIL(mlog::ec, DVARhex(threadState.rsi), DVAR(threadState.rdi));
     }
