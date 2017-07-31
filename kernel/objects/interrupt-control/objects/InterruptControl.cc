@@ -82,7 +82,6 @@ Error InterruptControl::getDebugInfo(Cap self, IInvocation* msg)
  * Will only allow the first entity to register for the moment.
  */
 Error InterruptControl::registerForInterrupt(Tasklet *t, Cap self, IInvocation *msg) {
-    maskIRQ(0x20);
     auto data = msg->getMessage()->read<protocol::InterruptControl::Register>();
     if (!isValid(data.interrupt)) {
         return Error::INVALID_ARGUMENT;
