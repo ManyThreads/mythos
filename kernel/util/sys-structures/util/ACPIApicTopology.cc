@@ -71,8 +71,8 @@ ACPIApicTopology::ACPIApicTopology()
       }
       case APICEntry::IO_APIC: {
         //IOAPICEntry* io_apic = (IOAPICEntry*) entry;
-        ioApic[n_ioapics++] = (void*)entry;
-        MLOG_ERROR(mlog::boot, "Found IOAPIC at", DVAR(entry));
+        ioApic = (void*) entry;
+        MLOG_DETAIL(mlog::boot, "Found IOAPIC at", DVAR(entry));
         // TODO should store the io-apic address!
         // ioapic_id = io_apic->apic_id;
         // unsigned int id = system_topology.ioapic_id << 4;

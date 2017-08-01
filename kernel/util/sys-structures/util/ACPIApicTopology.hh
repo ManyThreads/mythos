@@ -35,17 +35,14 @@ namespace mythos {
     ACPIApicTopology();
     size_t numThreads() const { return n_threads; }
     size_t threadID(size_t idx) const { return lapicIDs[idx]; }
-    size_t numIOApic() const { return n_ioapics; }
-    void* ioApicBase(size_t idx) {return ioApic[idx]; }
+    void* ioApicBase() {return ioApic; }
   protected:
     bool systemDetected;
     size_t n_threads;
     enum { CPU_MAX=256 };
     unsigned int lapicIDs[CPU_MAX];
-    void* ioApic[CPU_MAX]; 
-    size_t n_ioapics = {0};
+    void* ioApic = nullptr; // Just one ioapic supported at the time
     bool disablePICs;
-    //int ioapic_id; // TODO should be array containing addresses
     //char ioapic_irqs[24]; // TODO randolf does not understand the init code
   };
 

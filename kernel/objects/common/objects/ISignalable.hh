@@ -35,7 +35,7 @@ namespace mythos {
   public:
     virtual ~ISignalable() {}
 
-    virtual optional<void> signal(CapData data);
+    virtual optional<void> signal(CapData data) = 0;
   };
 
 

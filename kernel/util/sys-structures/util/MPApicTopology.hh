@@ -172,7 +172,7 @@ namespace mythos {
           case IOAPIC: {
             auto *apic = static_cast<IntelMP::EntryIOApic*>(entry);
             ioapic = apic->address;
-            MLOG_ERROR(mlog::boot, "IOAPIC at", DVAR(apic->id), DVAR(apic->version), DVAR(apic->flags), DVARhex(apic->address));
+            MLOG_DETAIL(mlog::boot, "IOAPIC at", DVAR(apic->id), DVAR(apic->version), DVAR(apic->flags), DVARhex(apic->address));
           }
           default:
             //MLOG_DETAIL(mlog::boot, "invalid table type", entry->type,"at offset", pos);
