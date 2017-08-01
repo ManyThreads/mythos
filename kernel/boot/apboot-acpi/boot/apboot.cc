@@ -47,8 +47,6 @@ DeployHWThread ap_config[MYTHOS_MAX_THREADS];
  */
 DeployHWThread* ap_apic2config[MYTHOS_MAX_APICID];
 
-IOAPIC ioapics[MYTHOS_MAX_APICID];
-
 void apboot_thread(size_t apicID) { ap_apic2config[apicID]->initThread(); }
 
 NORETURN extern void start_ap64(size_t reason) SYMBOL("_start_ap64");
@@ -64,11 +62,10 @@ NORETURN void apboot() {
     ap_apic2config[topo.threadID(id)] = &ap_config[id];
   }
 
-  for (size_t i = 0; i < topo.numIOApic(); i++) {
-    MLOG_INFO(mlog::boot, "ioapic", topo.ioApicBase(i));
-    ioapics[i].setBase((size_t) topo.ioApicBase(i));
-    ioapics[i].init();
+  if (topo.numIOApic() > 1) {
+    MLOG_WARN(mlog::boot, "More than one IOApic detected. Just one supported at the moment.");
   }
+  ioapic.init((size_t) topo.ioApicBase(0));
 
   // broadcast Startup IPI
   DeployHWThread::prepareBSP(0x40000);

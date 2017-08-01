@@ -49,14 +49,15 @@ public: // protocol
     Error getDebugInfo(Cap self, IInvocation* msg);
     Error registerForInterrupt(Tasklet *t, Cap self, IInvocation *msg);
     Error unregisterForInterrupt(Tasklet *t, Cap self, IInvocation *msg);
-    Error ackIRQ(Tasklet *t, Cap self, IInvocation *msg);
+    Error maskIRQ(Tasklet *t, Cap self, IInvocation *msg);
+    Error unmaskIRQ(Tasklet *t, Cap self, IInvocation *msg);
 public:
     void bind(optional<ISignalable*>);
     void unbind(optional<ISignalable*>);
 public:
     void handleInterrupt(uint64_t interrupt);
     void maskIRQ(uint64_t interrupt);
-    void ackIRQ(uint64_t interrupt);
+    void unmaskIRQ(uint64_t interrupt);
 private:
     bool isValid(uint64_t interrupt) { return interrupt < 256 && interrupt > 31; }
 private:

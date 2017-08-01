@@ -45,8 +45,12 @@ namespace mythos {
       return pr.invoke<protocol::InterruptControl::Unregister>(_cap, ec, interrupt);
     }
 
-    PortalFuture<void> ackIRQ(PortalLock pr, uint32_t interrupt) {
-      return pr.invoke<protocol::InterruptControl::AckIRQ>(_cap, interrupt);
+    PortalFuture<void> maskIRQ(PortalLock pr, uint32_t interrupt) {
+      return pr.invoke<protocol::InterruptControl::MaskIRQ>(_cap, interrupt);
+    }
+
+    PortalFuture<void> unmaskIRQ(PortalLock pr, uint32_t interrupt) {
+      return pr.invoke<protocol::InterruptControl::UnmaskIRQ>(_cap, interrupt);
     }
   };
 

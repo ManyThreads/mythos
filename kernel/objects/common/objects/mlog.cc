@@ -32,4 +32,5 @@ namespace mlog {
   Logger<MLOG_SYSCALL> syscall("syscall");
   Logger<MLOG_EC> ec("ec");
   Logger<MLOG_KM> km("km");
+  Logger<MLOG_IRQ> irq("irq");
 } // namespace mlog

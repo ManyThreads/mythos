@@ -66,7 +66,7 @@ NORETURN void apboot()
   for (uint64_t i = 0; i < topo.numApics(); i++) {
     uint64_t addr = apics[i]->apicID[0];
     auto offs = addr - MMIO_PHYS;
-    IOApic ioapic(MMIO_ADDR + offs);
+    ioapic.init(MMIO_ADDR + offs);
   }
 
   // broadcast Startup IPI

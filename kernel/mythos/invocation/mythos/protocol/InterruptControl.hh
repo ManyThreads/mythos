@@ -37,7 +37,8 @@ namespace mythos {
       enum Methods : uint8_t {
         REGISTER,
         UNREGISTER,
-        ACK_IRQ,
+        MASK_IRQ,
+        UNMASK_IRQ,
       };
 
       struct Register : public InvocationBase {
@@ -50,9 +51,7 @@ namespace mythos {
           interrupt = interrupt_;
 
         }
-
         CapPtr ec() const { return this->capPtrs[0]; }
-
         uint32_t interrupt;
       };
 
@@ -65,20 +64,29 @@ namespace mythos {
           addExtraCap(ec);
           interrupt = interrupt_;
         }
-
         CapPtr ec() const { return this->capPtrs[0]; }
         uint32_t interrupt;
       };
 
-      struct AckIRQ : public InvocationBase {
+      struct MaskIRQ : public InvocationBase {
         typedef InvocationBase response_type;
-        constexpr static uint16_t label = (proto<<8) + ACK_IRQ;
-        AckIRQ(uint32_t interrupt_)
+        constexpr static uint16_t label = (proto<<8) + MASK_IRQ;
+        MaskIRQ(uint32_t interrupt_)
           : InvocationBase(label,getLength(this))
         {
           interrupt = interrupt_;
         }
+        uint32_t interrupt;
+      };
 
+      struct UnmaskIRQ : public InvocationBase {
+        typedef InvocationBase response_type;
+        constexpr static uint16_t label = (proto<<8) + UNMASK_IRQ;
+        UnmaskIRQ(uint32_t interrupt_)
+          : InvocationBase(label,getLength(this))
+        {
+          interrupt = interrupt_;
+        }
         uint32_t interrupt;
       };
 
@@ -89,7 +97,8 @@ namespace mythos {
         switch(Methods(m)) {
         case REGISTER:   return obj->registerForInterrupt(args...);
         case UNREGISTER: return obj->unregisterForInterrupt(args...);
-        case ACK_IRQ:    return obj->ackIRQ(args...);
+        case MASK_IRQ:    return obj->maskIRQ(args...);
+        case UNMASK_IRQ:    return obj->unmaskIRQ(args...);
         default: return Error::NOT_IMPLEMENTED;
         }
       }

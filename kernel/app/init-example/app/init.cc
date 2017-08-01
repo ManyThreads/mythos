@@ -32,10 +32,10 @@
 #include "runtime/ExecutionContext.hh"
 #include "runtime/CapMap.hh"
 #include "runtime/Example.hh"
-#include "runtime/InterruptControl.hh"
 #include "runtime/PageMap.hh"
 #include "runtime/KernelMemory.hh"
 #include "runtime/SimpleCapAlloc.hh"
+#include "runtime/InterruptControl.hh"
 #include "app/mlog.hh"
 #include <cstdint>
 #include "util/optional.hh"
@@ -64,14 +64,9 @@ char* thread4stack_top = threadstack2+stacksize;
 
 void* thread_main(void* ctx)
 {
-  mythos::PortalLock pl(portal);
   MLOG_INFO(mlog::app, "hello thread!", DVAR(ctx));
-  auto ke = mythos::syscall_wait();
-  MLOG_INFO(mlog::app, "thread resumed from wait", DVAR(ctx), DVAR(ke.user), DVAR(ke.state));
-  if (ke.user != 0) {
-    mythos::InterruptControl intControl(mythos::init::INTERRUPT_CONTROLLER_START+(uint64_t)ctx);
-    intControl.ackIRQ(pl, ke.user).wait();
-  }
+  mythos::ISysretHandler::handle(mythos::syscall_wait());
+  MLOG_INFO(mlog::app, "thread resumed from wait", DVAR(ctx));
   return 0;
 }
 
@@ -138,6 +133,21 @@ void test_float()
   MLOG_INFO(mlog::app, "float z:", int(z), ".", int(1000*(z-float(int(z)))));
 }
 
+void test_InterruptControl() {
+  MLOG_INFO(mlog::app, "test_InterruptControl start");
+  mythos::InterruptControl ic(mythos::init::INTERRUPT_CONTROL_START);
+  mythos::ExecutionContext ec(capAlloc());
+  MLOG_INFO(mlog::app, "test_EC: create ec1");
+  mythos::PortalLock pl(portal); // future access will fail if the portal is in use already
+  auto res1 = ec.create(pl, kmem, myAS, myCS, mythos::init::SCHEDULERS_START + 2,
+                           thread3stack_top, &thread_main, nullptr).wait();
+  TEST(res1);
+  TEST(ic.registerForInterrupt(pl, ec.cap(), 0x32).wait());
+  TEST(ic.unregisterForInterrupt(pl, ec.cap(), 0x32).wait());
+  TEST(capAlloc.free(ec, pl));
+  MLOG_INFO(mlog::app, "test_InterruptControl end");
+}
+
 struct HostChannel {
   void init() { ctrlToHost.init(); ctrlFromHost.init(); }
   typedef mythos::PCIeRingChannel<128,8> CtrlChannel;
@@ -158,6 +168,7 @@ int main()
   test_float();
   test_Example();
   test_Portal();
+  test_InterruptControl();
 
   {
     mythos::PortalLock pl(portal); // future access will fail if the portal is in use already
@@ -188,38 +199,17 @@ int main()
 
   mythos::ExecutionContext ec1(capAlloc());
   mythos::ExecutionContext ec2(capAlloc());
-  mythos::ExecutionContext ec3(capAlloc());
-  mythos::ExecutionContext ec4(capAlloc());
-  mythos::InterruptControl intControl1(mythos::init::INTERRUPT_CONTROLLER_START+0);
-  mythos::InterruptControl intControl2(mythos::init::INTERRUPT_CONTROLLER_START+1);
-  mythos::InterruptControl intControl3(mythos::init::INTERRUPT_CONTROLLER_START+2);
-  mythos::InterruptControl intControl4(mythos::init::INTERRUPT_CONTROLLER_START+3);
   {
     MLOG_INFO(mlog::app, "test_EC: create ec1");
     mythos::PortalLock pl(portal); // future access will fail if the portal is in use already
     auto res1 = ec1.create(pl, kmem, myAS, myCS, mythos::init::SCHEDULERS_START,
-                           thread1stack_top, &thread_main, (void*)0).wait();
+                           thread1stack_top, &thread_main, nullptr).wait();
     TEST(res1);
     MLOG_INFO(mlog::app, "test_EC: create ec2");
     auto res2 = ec2.create(pl, kmem, myAS, myCS, mythos::init::SCHEDULERS_START+1,
-                           thread2stack_top, &thread_main, (void*)1).wait();
+                           thread2stack_top, &thread_main, nullptr).wait();
     TEST(res2);
-    auto res3 = ec3.create(pl, kmem, myAS, myCS, mythos::init::SCHEDULERS_START+2,
-                           thread3stack_top, &thread_main, (void*)2).wait();
-    TEST(res3);
-    auto res4 = ec4.create(pl, kmem, myAS, myCS, mythos::init::SCHEDULERS_START+3,
-                           thread4stack_top, &thread_main, (void*)3).wait();
-    TEST(res4);
-    TEST(intControl1.registerForInterrupt(pl, ec1.cap(), 35).wait());
-    TEST(intControl2.registerForInterrupt(pl, ec2.cap(), 35).wait());
-    TEST(intControl3.registerForInterrupt(pl, ec3.cap(), 35).wait());
-    TEST(intControl4.registerForInterrupt(pl, ec4.cap(), 35).wait());
-    mythos::syscall_signal(ec2.cap());
-    mythos::syscall_signal(ec3.cap());
-    mythos::syscall_signal(ec4.cap());
   }
-
-
 
   for (volatile int i=0; i<100000; i++) {
     for (volatile int j=0; j<1000; j++) {}
