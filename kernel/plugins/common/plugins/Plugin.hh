@@ -26,6 +26,7 @@
 #pragma once
 
 #include <cstddef>
+#include "cpu/hwthreadid.hh"
 #include "util/Logger.hh"
 
 namespace mythos {

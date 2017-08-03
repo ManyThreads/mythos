@@ -32,10 +32,10 @@ namespace mythos {
   namespace idle {
 
     /** called once on bootup by the BSP. Initialises the trampoline and core states. */
-    void init_global() {}
+    inline void init_global() {}
 
     /** called once on bootup on each AP to initialise the processor, if needed. */
-    void init_thread() {}
+    inline void init_thread() {}
 
     /** dependency: has to be implemented by kernel */
     NORETURN void sleeping_failed() SYMBOL("sleeping_failed");
@@ -48,19 +48,20 @@ namespace mythos {
      * High level idle governers may replace this function. (somehow)
      * resets the kernel stack.
      */
-    NORETURN void sleep() { cpu_idle_halt(); }
+    NORETURN void sleep();
+    inline void sleep() { cpu_idle_halt(); }
 
     /** sleep management event: awakened by booting or from deep sleep. */
-    void wokeup(size_t /*apicID*/, size_t /*reason*/) {}
+    inline void wokeup(size_t /*apicID*/, size_t /*reason*/) {}
 
     /** sleep management event: awakened by interrupt, possibly from light sleep */
-    void wokeupFromInterrupt() {}
+    inline void wokeupFromInterrupt() {}
 
     /** sleep management event: entered kernel from syscall */
-    void enteredFromSyscall() {}
+    inline void enteredFromSyscall() {}
 
     /** sleep management event: entered kernel from interrupting the user mode */
-    void enteredFromInterrupt() {}
+    inline void enteredFromInterrupt() {}
 
   } // namespace idle
 } // namespace mythos

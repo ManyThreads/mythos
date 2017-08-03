@@ -28,6 +28,7 @@
 #include "plugins/Plugin.hh"
 #include "boot/load_init.hh"
 #include "mythos/init.hh"
+#include "boot/mlog.hh"
 
 namespace mythos {
 

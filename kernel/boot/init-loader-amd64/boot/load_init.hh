@@ -30,6 +30,7 @@
 #include "util/alignments.hh"
 #include "objects/CapEntry.hh"
 #include "objects/IPageMap.hh"
+#include "plugins/Plugin.hh"
 #include "plugins/events.hh"
 
 namespace mythos {
@@ -95,7 +96,7 @@ namespace mythos {
       size_t allocFrame();
     };
 
-    HookRegistry<InitLoader> initLoaderEvent;
+    extern HookRegistry<InitLoader> initLoaderEvent;
 
     /** sets up the initial application based on the embedded elf
      * image. Returns true if the loading was successful.

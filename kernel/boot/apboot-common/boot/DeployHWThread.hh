@@ -51,8 +51,8 @@ namespace mythos {
     extern SchedulingContext schedulers[MYTHOS_MAX_THREADS];
     extern CoreLocal<SchedulingContext*> localScheduler KERNEL_CLM;
 
-    SchedulingContext& getScheduler(cpu::ThreadID threadID) { return schedulers[threadID]; }
-    SchedulingContext& getLocalScheduler() { return *localScheduler.get(); }
+    inline SchedulingContext& getScheduler(cpu::ThreadID threadID) { return schedulers[threadID]; }
+    inline SchedulingContext& getLocalScheduler() { return *localScheduler.get(); }
 
 struct DeployHWThread
 {

@@ -6,7 +6,7 @@
     provides = [ "boot32.elf", "boot64.elf", "symbol/_mboot_table", "symbol/_mboot_magic" ]
 
     makefile_head = '''
-TARGETS += boot32.elf boot64.elf
+TARGETS += boot32.elf boot64.elf boot64ex.elf
 EXTRATARGETS += kernel2.cc kernel2.o
 DEP += kernel2.d
 '''
@@ -28,6 +28,13 @@ boot64.elf: boot/boot.o $(kernel2_obj) kernel2.o
 	nm -S --size-sort -C boot64.elf > boot.size
 	objdump -dS boot64.elf | c++filt > boot.disasm
 	strip boot64.elf
+
+boot64ex.elf: boot/boot.o $(KERNELFILES)
+	$(KERNEL_CXX) -static $(addprefix -Xlinker , $(KERNEL_LFLAGS)) -nostartfiles -nodefaultlibs -o boot64ex.elf -Wl,-verbose -Xlinker -dT -Xlinker boot/boot.o -T boot/boot.o $(KERNEL_CXXFLAGS) $(KERNEL_CPPFLAGS) $(DEPFLAGS) $(KERNELFILES)
+	nm boot64ex.elf | cut -d " " -f 1,3 | c++filt -t > bootex.sym
+	nm -S --size-sort -C boot64ex.elf > bootex.size
+	objdump -dS boot64ex.elf | c++filt > bootex.disasm
+	strip boot64ex.elf
 
 # boot64.elf: boot/boot.o $(KERNELFILES_OBJ)
 # 	$(KERNEL_LD) $(KERNEL_LFLAGS) -o boot64.elf -dT boot/boot.o $(KERNELFILES_OBJ)

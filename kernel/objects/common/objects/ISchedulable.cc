@@ -23,8 +23,6 @@
  *
  * Copyright 2016 Randolf Rotta, Robert Kuban, and contributors, BTU Cottbus-Senftenberg
  */
-#pragma once
-
 #include "objects/ISchedulable.hh"
 
 namespace mythos {
