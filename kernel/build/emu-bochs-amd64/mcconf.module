@@ -7,9 +7,9 @@
     makefile_body = '''
 bochs.rc: bochs.tmpl.rc
 	cat bochs.tmpl.rc > bochs.rc
-	echo 'romimage: file="${mythos_root}/3rdparty/bochs/bios/BIOS-bochs-latest"' >> bochs.rc
-	echo 'vgaromimage: file="${mythos_root}/3rdparty/bochs/bios/VGABIOS-lgpl-latest"' >> bochs.rc
+	echo 'romimage: file="${vars.mythos_root}/3rdparty/bochs/bios/BIOS-bochs-latest"' >> bochs.rc
+	echo 'vgaromimage: file="${vars.mythos_root}/3rdparty/bochs/bios/VGABIOS-lgpl-latest"' >> bochs.rc
 
 bochs: boot.iso bochs.rc
-	${mythos_root}/3rdparty/bochs/bochs -q -f bochs.rc
+	${vars.mythos_root}/3rdparty/bochs/bochs -q -f bochs.rc
 '''
