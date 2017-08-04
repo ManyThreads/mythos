@@ -25,6 +25,7 @@
  */
 #pragma once
 
+#include "cpu/hwthreadid.hh"
 #include "cpu/CoreLocal.hh"
 #include "util/compiler.hh"
 #include <cstdint> // for uint32_t etc

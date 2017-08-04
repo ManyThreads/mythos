@@ -43,6 +43,7 @@
 #include "objects/Example.hh"
 #include "boot/mlog.hh"
 #include "boot/memory-root.hh"
+#include "boot/DeployHWThread.hh"
 
 
 namespace mythos {
@@ -50,6 +51,7 @@ namespace mythos {
   namespace boot {
     using namespace mythos::init;
 
+HookRegistry<InitLoader> initLoaderEvent;
 InitLoaderPlugin initloaderplugin;
 
 extern char app_image_start SYMBOL("app_image_start");

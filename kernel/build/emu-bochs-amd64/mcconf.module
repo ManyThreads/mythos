@@ -1,15 +1,10 @@
 # -*- mode:toml; -*-
 [module.bochs-emu-amd64]
-    incfiles = [ "bochs.tmpl.rc" ]
+    extrafiles = [ "mako_bochs.rc" ]
     requires = [ "boot.iso" ]
     provides = [ "tag/emu-bochs", "bochs.rc" ]
 
     makefile_body = '''
-bochs.rc: bochs.tmpl.rc
-	cat bochs.tmpl.rc > bochs.rc
-	echo 'romimage: file="${mythos_root}/3rdparty/bochs/bios/BIOS-bochs-latest"' >> bochs.rc
-	echo 'vgaromimage: file="${mythos_root}/3rdparty/bochs/bios/VGABIOS-lgpl-latest"' >> bochs.rc
-
-bochs: boot.iso bochs.rc
-	${mythos_root}/3rdparty/bochs/bochs -q -f bochs.rc
+bochs: boot.iso
+	${vars.mythos_root}/3rdparty/bochs/bochs -q -f bochs.rc
 '''

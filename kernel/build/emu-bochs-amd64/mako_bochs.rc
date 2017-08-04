@@ -18,3 +18,5 @@ port_e9_hack: enabled=0
 #debug: action=report
 debug_symbols: file=boot.sym
 
+romimage: file="${vars.mythos_root}/3rdparty/bochs/bios/BIOS-bochs-latest"
+vgaromimage: file="${vars.mythos_root}/3rdparty/bochs/bios/VGABIOS-lgpl-latest"

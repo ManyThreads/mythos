@@ -29,11 +29,18 @@ boot64.elf: boot/boot.o $(kernel2_obj) kernel2.o
 	objdump -dS boot64.elf | c++filt > boot.disasm
 	strip boot64.elf
 
-# boot64.elf: boot/boot.o $(KERNELFILES_OBJ)
-# 	$(KERNEL_LD) $(KERNEL_LFLAGS) -o boot64.elf -dT boot/boot.o $(KERNELFILES_OBJ)
-# 	nm  boot64.elf | cut -d " " -f 1,3 | c++filt -t > boot.sym
-# 	objdump -dS boot64.elf | c++filt > boot.disasm
-# 	strip boot64.elf
+boot64ex.elf: boot/boot.o $(KERNELFILES)
+	$(KERNEL_CXX) -static $(addprefix -Xlinker , $(KERNEL_LFLAGS)) -nostartfiles -nodefaultlibs -o boot64ex.elf -Wl,-verbose -Xlinker -dT -Xlinker boot/boot.o -T boot/boot.o $(KERNEL_CXXFLAGS) $(KERNEL_CPPFLAGS) $(DEPFLAGS) $(KERNELFILES)
+	nm boot64ex.elf | cut -d " " -f 1,3 | c++filt -t > bootex.sym
+	nm -S --size-sort -C boot64ex.elf > bootex.size
+	objdump -dS boot64ex.elf | c++filt > bootex.disasm
+	strip boot64ex.elf
+
+boot64s.elf: boot/boot.o $(KERNELFILES_OBJ)
+	$(KERNEL_LD) $(KERNEL_LFLAGS) -o boot64s.elf -dT boot/boot.o $(KERNELFILES_OBJ)
+	nm  boot64s.elf | cut -d " " -f 1,3 | c++filt -t > boots.sym
+	objdump -dS boot64s.elf | c++filt > boots.disasm
+	strip boot64s.elf
 
 boot32.elf: boot64.elf
 	objcopy --strip-debug -I elf64-x86-64 -O elf32-i386 boot64.elf boot32.elf

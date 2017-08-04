@@ -42,6 +42,7 @@
 #include "cpu/hwthread_pause.hh"
 #include "boot/memory-layout.h"
 #include "boot/DeployKernelSpace.hh"
+#include "boot/DeployHWThread.hh"
 #include "boot/cxx-globals.hh"
 #include "boot/mlog.hh"
 #include "boot/apboot.hh"

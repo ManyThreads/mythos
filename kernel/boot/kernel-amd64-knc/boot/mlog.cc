@@ -30,6 +30,7 @@
 #include "util/mstring.hh"
 #include "mythos/HostInfoTable.hh"
 #include "mythos/PciMsgQueueMPSC.hh"
+#include <new>
 
 namespace mythos {
 

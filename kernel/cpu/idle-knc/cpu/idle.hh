@@ -44,7 +44,7 @@ namespace mythos {
     void init_global();
 
     /** called once on bootup on each AP to initialise the processor, if needed. */
-    void init_thread() {}
+    inline void init_thread() {}
 
     /** dependency: has to be implemented by kernel */
     NORETURN void sleeping_failed() SYMBOL("sleeping_failed");
@@ -68,10 +68,10 @@ namespace mythos {
     void wokeupFromInterrupt();
 
     /** sleep management event: entered kernel from syscall */
-    void enteredFromSyscall() {}
+    inline void enteredFromSyscall() {}
 
     /** sleep management event: entered kernel from interrupting the user mode */
-    void enteredFromInterrupt() {}
+    inline void enteredFromInterrupt() {}
 
   } // namespace idle
 } // namespace mythos
