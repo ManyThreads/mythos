@@ -30,133 +30,133 @@
 #include "mythos/protocol/KernelMemory.hh"
 
 namespace mythos {
-  namespace protocol {
+namespace protocol {
 
-    struct PageMap
+struct PageMap
+{
+  constexpr static uint8_t proto = PAGEMAP;
+
+  enum Methods : uint8_t {
+    MAP,
+    REMAP,
+    PROTECT,
+    UNMAP,
+    INSTALLMAP,
+    REMOVEMAP,
+    RESULT
+  };
+
+  BITFIELD_DEF(CapRequest, PageMapReq)
+  BoolField<value_t, base_t, 0> configurable;
+  PageMapReq() : value(0) {}
+  BITFIELD_END
+
+  BITFIELD_DEF(uint8_t, MapFlags)
+  BoolField<value_t, base_t, 0> writable;
+  BoolField<value_t, base_t, 1> executable;
+  BoolField<value_t, base_t, 2> cache_disabled;
+  BoolField<value_t, base_t, 3> write_through;
+  BoolField<value_t, base_t, 4> configurable;
+  MapFlags() : value(0) {}
+  BITFIELD_END
+
+  struct InstallMap : public InvocationBase {
+    constexpr static uint16_t label = (proto << 8) + INSTALLMAP;
+    InstallMap(CapPtr pagemap, uintptr_t vaddr, size_t level, MapFlags flags)
+      : InvocationBase(label, getLength(this)), vaddr(vaddr), level(level), flags(flags)
     {
-      constexpr static uint8_t proto = PAGEMAP;
+      addExtraCap(pagemap);
+    }
+    CapPtr pagemap() const { return capPtrs[0]; }
+    uintptr_t vaddr;
+    size_t level;
+    MapFlags flags;
+  };
 
-      enum Methods : uint8_t {
-        MAP,
-        REMAP,
-        PROTECT,
-        UNMAP,
-        INSTALLMAP,
-        REMOVEMAP,
-        RESULT
-      };
+  struct RemoveMap : public InvocationBase {
+    constexpr static uint16_t label = (proto << 8) + REMOVEMAP;
+    RemoveMap(uintptr_t vaddr, size_t level)
+      : InvocationBase(label, getLength(this)), vaddr(vaddr), level(level)
+    {}
+    uintptr_t vaddr;
+    size_t level;
+  };
 
-      BITFIELD_DEF(CapRequest, PageMapReq)
-      BoolField<value_t,base_t,0> configurable;
-      PageMapReq() : value(0) {}
-      BITFIELD_END
+  struct Mmap : public InvocationBase {
+    constexpr static uint16_t label = (proto << 8) + MAP;
+    Mmap(CapPtr frame, uintptr_t vaddr, size_t size, MapFlags flags)
+      : InvocationBase(label, getLength(this)), vaddr(vaddr), size(size), flags(flags)
+    {
+      addExtraCap(frame);
+    }
+    CapPtr tgtFrame() const { return capPtrs[0]; }
+    uintptr_t vaddr;
+    size_t size;
+    MapFlags flags;
+  };
 
-      BITFIELD_DEF(uint8_t, MapFlags)
-      BoolField<value_t,base_t,0> writable;
-      BoolField<value_t,base_t,1> executable;
-      BoolField<value_t,base_t,2> cache_disabled;
-      BoolField<value_t,base_t,3> write_through;
-      BoolField<value_t,base_t,4> configurable;
-      MapFlags() : value(0) {}
-      BITFIELD_END
+  struct Remap : public InvocationBase {
+    constexpr static uint16_t label = (proto << 8) + REMAP;
+    Remap(uintptr_t sourceAddr, uintptr_t destAddr, size_t size)
+      : InvocationBase(label, getLength(this)), sourceAddr(sourceAddr),
+        destAddr(destAddr), size(size)
+    {}
+    uintptr_t sourceAddr;
+    uintptr_t destAddr;
+    size_t size;
+  };
 
-      struct InstallMap : public InvocationBase {
-        constexpr static uint16_t label = (proto << 8) + INSTALLMAP;
-        InstallMap(CapPtr pagemap, uintptr_t vaddr, size_t level, MapFlags flags)
-	  : InvocationBase(label, getLength(this)), vaddr(vaddr), level(level), flags(flags)
-	{
-          addExtraCap(pagemap);
-        }
-        CapPtr pagemap() const { return capPtrs[0]; }
-        uintptr_t vaddr;
-        size_t level;
-        MapFlags flags;
-      };
+  struct Mprotect : public InvocationBase {
+    constexpr static uint16_t label = (proto << 8) + PROTECT;
+    Mprotect(uintptr_t vaddr, size_t size, MapFlags flags)
+      : InvocationBase(label, getLength(this)), vaddr(vaddr), size(size), flags(flags)
+    {}
+    uintptr_t vaddr;
+    size_t size;
+    MapFlags flags;
+  };
 
-      struct RemoveMap : public InvocationBase {
-        constexpr static uint16_t label = (proto << 8) + REMOVEMAP;
-        RemoveMap(uintptr_t vaddr, size_t level)
-	  : InvocationBase(label, getLength(this)), vaddr(vaddr), level(level)
-        {}
-        uintptr_t vaddr;
-        size_t level;
-      };
+  struct Munmap : public InvocationBase {
+    constexpr static uint16_t label = (proto << 8) + UNMAP;
+    Munmap(uintptr_t vaddr, size_t size)
+      : InvocationBase(label, getLength(this)), vaddr(vaddr), size(size)
+    {}
+    uintptr_t vaddr;
+    size_t size;
+  };
 
-      struct Mmap : public InvocationBase {
-        constexpr static uint16_t label = (proto << 8) + MAP;
-        Mmap(CapPtr frame, uintptr_t vaddr, size_t size, MapFlags flags)
-	  : InvocationBase(label, getLength(this)), vaddr(vaddr), size(size), flags(flags)
-	{
-          addExtraCap(frame);
-        }
-        CapPtr tgtFrame() const { return capPtrs[0]; }
-        uintptr_t vaddr;
-	size_t size;
-        MapFlags flags;
-      };
+  struct Create : public KernelMemory::CreateBase {
+    Create(CapPtr dst, CapPtr factory, size_t level)
+      : CreateBase(dst, factory), level(level)
+    {}
+    size_t level;
+  };
 
-      struct Remap : public InvocationBase {
-        constexpr static uint16_t label = (proto << 8) + REMAP;
-        Remap(uintptr_t sourceAddr, uintptr_t destAddr, size_t size)
-	  : InvocationBase(label, getLength(this)), sourceAddr(sourceAddr),
-	    destAddr(destAddr), size(size)
-	{}
-	uintptr_t sourceAddr;
-	uintptr_t destAddr;
-	size_t size;
-      };
+  struct Result : public InvocationBase {
+    constexpr static uint16_t label = (proto << 8) + RESULT;
+    Result(uintptr_t vaddr, size_t size, size_t level)
+      : InvocationBase(label, getLength(this)), vaddr(vaddr), size(size), level(level)
+    {}
+    uintptr_t vaddr;
+    size_t size;
+    size_t level;
+  };
 
-      struct Mprotect : public InvocationBase {
-        constexpr static uint16_t label = (proto << 8) + PROTECT;
-        Mprotect(uintptr_t vaddr, size_t size, MapFlags flags)
-	  : InvocationBase(label, getLength(this)), vaddr(vaddr), size(size), flags(flags)
-	{}
-        uintptr_t vaddr;
-	size_t size;
-	MapFlags flags;
-      };
+  template<class IMPL, class... ARGS>
+  static Error dispatchRequest(IMPL* obj, uint8_t m, ARGS const&...args) {
+    switch (Methods(m)) {
+      case MAP: return obj->invokeMmap(args...);
+      case REMAP: return obj->invokeRemap(args...);
+      case UNMAP: return obj->invokeMunmap(args...);
+      case PROTECT: return obj->invokeMprotect(args...);
+      case INSTALLMAP: return obj->invokeInstallMap(args...);
+      case REMOVEMAP: return obj->invokeRemoveMap(args...);
+      default: return Error::NOT_IMPLEMENTED;
+    }
+  }
+};
 
-      struct Munmap : public InvocationBase {
-        constexpr static uint16_t label = (proto << 8) + UNMAP;
-        Munmap(uintptr_t vaddr, size_t size)
-	  : InvocationBase(label, getLength(this)), vaddr(vaddr), size(size)
-	{}
-        uintptr_t vaddr;
-	size_t size;
-      };
-
-      struct Create : public KernelMemory::CreateBase {
-        Create(CapPtr dst, CapPtr factory, size_t level)
-          : CreateBase(dst, factory), level(level)
-        {}
-        size_t level;
-      };
-
-      struct Result : public InvocationBase {
-        constexpr static uint16_t label = (proto << 8) + RESULT;
-        Result(uintptr_t vaddr, size_t size, size_t level)
-	  : InvocationBase(label, getLength(this)), vaddr(vaddr), size(size), level(level)
-	{}
-        uintptr_t vaddr;
-	size_t size;
-        size_t level;
-      };
-
-      template<class IMPL, class... ARGS>
-      static Error dispatchRequest(IMPL* obj, uint8_t m, ARGS const&...args) {
-	switch(Methods(m)) {
-	case MAP: return obj->invokeMmap(args...);
-	case REMAP: return obj->invokeRemap(args...);
-	case UNMAP: return obj->invokeMunmap(args...);
-	case PROTECT: return obj->invokeMprotect(args...);
-        case INSTALLMAP: return obj->invokeInstallMap(args...);
-        case REMOVEMAP: return obj->invokeRemoveMap(args...);
-	default: return Error::NOT_IMPLEMENTED;
-	}
-      }
-    };
-
-  } // namespace protocol
+} // namespace protocol
 } // namespace mythos
 
 
