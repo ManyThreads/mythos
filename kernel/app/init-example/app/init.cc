@@ -138,17 +138,21 @@ struct HostChannel {
 mythos::PCIeRingProducer<HostChannel::CtrlChannel> app2host;
 mythos::PCIeRingConsumer<HostChannel::CtrlChannel> host2app;
 
+thread_local int bla = 5;
+//thread_local int bla2 = 10;
+
 int main()
 {
+  MLOG_ERROR(mlog::app, DVAR(&main));
   char const str[] = "hello world!";
   char const end[] = "bye, cruel world!";
   mythos::syscall_debug(str, sizeof(str)-1);
-  MLOG_ERROR(mlog::app, "application is starting :)", DVARhex(msg_ptr), DVARhex(initstack_top));
+  
 
   test_float();
   test_Example();
   test_Portal();
-
+/*
   {
     mythos::PortalLock pl(portal); // future access will fail if the portal is in use already
     // allocate a 2MiB frame
@@ -197,7 +201,14 @@ int main()
   MLOG_INFO(mlog::app, "sending notifications");
   mythos::syscall_notify(ec1.cap());
   mythos::syscall_notify(ec2.cap());
-
+*/
+  mythos::PortalLock pl(portal);
+  mythos::ExecutionContext own(mythos::init::EC);
+  auto res = own.readRegisters(pl, false).wait();
+  MLOG_ERROR(mlog::app, DVARhex(res->fs_base));
+  MLOG_ERROR(mlog::app, "application is starting :)", DVARhex(msg_ptr), DVARhex(initstack_top));
+  uint64_t *t = (uint64_t*)(0x1800000);
+  MLOG_ERROR(mlog::app, DVAR(bla));
   mythos::syscall_debug(end, sizeof(end)-1);
 
   return 0;

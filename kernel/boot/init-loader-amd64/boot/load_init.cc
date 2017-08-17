@@ -44,7 +44,7 @@
 #include "boot/mlog.hh"
 #include "boot/memory-root.hh"
 #include "boot/DeployHWThread.hh"
-
+#include "cpu/ctrlregs.hh"
 
 namespace mythos {
   extern KernelMemory* kmem_root();
@@ -96,7 +96,7 @@ size_t InitLoader::countPages()
   size_t count = 0;
   for (size_t i=0; i <_img.phnum(); ++i) {
     auto ph = _img.phdr(i);
-    if (ph->type == elf64::PT_LOAD) {
+    if (ph->type == elf64::PT_LOAD || ph->type == elf64::PT_TLS) {
       count += toPageRange(ph).getSize();
     }
   }
@@ -234,6 +234,7 @@ optional<void> InitLoader::createMemoryRegion()
 
 optional<size_t> InitLoader::mapFrame(size_t pageNum, bool writable, bool executable)
 {
+  MLOG_ERROR(mlog::boot, "mapFrame", DVAR(pageNum));
   auto frameNum = allocFrame();
   auto memEntry = _cspace->get(DYNAMIC_REGION);
 
@@ -271,6 +272,8 @@ optional<void> InitLoader::createMsgFrame()
   RETURN(_portal->setInvocationBuf(frameEntry, 0));
 }
 
+
+
 optional<void> InitLoader::loadImage()
 {
   for (size_t i=0; i <_img.phnum(); ++i) {
@@ -278,6 +281,8 @@ optional<void> InitLoader::loadImage()
     if (ph->type == elf64::PT_LOAD) {
       auto res = load(ph);
       if (!res) RETHROW(res);
+    } else if (ph->type == elf64::PT_TLS) {
+      loadTLS(ph);
     }
   }
   RETURN(Error::SUCCESS);
@@ -296,6 +301,8 @@ optional<void> InitLoader::createEC()
   if (!res) RETHROW(res);
   ec->getThreadState().rdi = ipc_vaddr;
   ec->setEntryPoint(_img.header()->entry);
+  ec->setBaseRegisters(0x1800000, 0x1800000);
+  MLOG_ERROR(mlog::boot, DVARhex(_img.header()->entry));
   RETURN(Error::SUCCESS);
 }
 
@@ -315,9 +322,33 @@ Range<uintptr_t> InitLoader::toPageRange(const elf64::PHeader* ph)
   return {start, end};
 }
 
+optional<void> InitLoader::loadTLS(const elf64::PHeader* ph) {
+  MLOG_ERROR(mlog::boot, "Load TLS");
+  const auto page = 12;
+  auto tls_vaddr = page << 21;
+  MLOG_ERROR(mlog::boot, "map tls frame to page", page, DVARhex(tls_vaddr));
+  // TODO Alloc more frames if tls image too big
+  auto frameNum = mapFrame(page, true, false);
+  if (!frameNum) return frameNum;
+  size_t firstFrameIndex = *frameNum;
+  auto start = _regionStart.plusbytes(firstFrameIndex*PageAlign::alignment());
+  memset(start.log(), 0, 1*PageAlign::alignment());
+  memcpy(start.log(), &app_image_start+ph->offset, ph->filesize);
+
+  auto memEntry = _cspace->get(TLS_REGION);
+  auto memCap = memEntry->cap();
+
+  typedef protocol::Frame::FrameReq FrameReq;
+  auto request = FrameReq().offset((*frameNum)*512).size(FrameReq::PAGE_4KB).writable(1);
+  auto frameEntry = _cspace->get(TLS_FRAME);
+  auto res = cap::derive(*memEntry, *frameEntry, memCap, request);
+  if (!res) RETHROW(res);
+  RETURN(_portal->setInvocationBuf(frameEntry, 0));
+}
+
 optional<void> InitLoader::load(const elf64::PHeader* ph)
 {
-  MLOG_INFO(mlog::boot, "\tload", DVAR(ph->type), DVAR(ph->flags), DVARhex(ph->offset),
+  MLOG_ERROR(mlog::boot, "load", DVAR(ph->type), DVAR(ph->flags), DVARhex(ph->offset),
         DVARhex(ph->vaddr), DVARhex(ph->filesize), DVARhex(ph->memsize),
         DVARhex(ph->alignment));
   ASSERT(ph->alignment <= PageAlign::alignment());
@@ -329,6 +360,7 @@ optional<void> InitLoader::load(const elf64::PHeader* ph)
   auto frameNum = mapFrame(page, ph->flags&elf64::PF_W, ph->flags&elf64::PF_X);
   if (!frameNum) return frameNum;
   size_t firstFrameIndex = *frameNum;
+  MLOG_ERROR(mlog::boot, DVAR(firstFrameIndex));
 
   for (size_t i = 1; i < pageRange.getSize(); ++i) {
     auto page = pageRange.getStart()+i;
@@ -342,6 +374,7 @@ optional<void> InitLoader::load(const elf64::PHeader* ph)
   // copy the data
   start.incbytes(ph->vaddr % PageAlign::alignment());
   memcpy(start.log(), &app_image_start+ph->offset, ph->filesize);
+  MLOG_ERROR(mlog::boot, DVAR(start.log()));
   RETURN(Error::SUCCESS);
 }
 

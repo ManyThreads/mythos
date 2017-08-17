@@ -59,6 +59,7 @@ namespace mythos {
       optional<void> createEC();
 
       optional<void> load(const elf64::PHeader* header);
+      optional<void> loadTLS(const elf64::PHeader* header);
 
       template<class Object, class Factory, class... ARGS>
       optional<Object*> create(CapEntry* dstEntry, ARGS const&...args);

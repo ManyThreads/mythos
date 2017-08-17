@@ -48,6 +48,8 @@ namespace init {
     CAP_ALLOC_START,
     CAP_ALLOC_END = 250,
     MSG_FRAME,
+    TLS_FRAME,
+    TLS_REGION,
     DYNAMIC_REGION,
     PML2,
     PML3,
