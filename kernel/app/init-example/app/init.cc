@@ -139,77 +139,23 @@ mythos::PCIeRingProducer<HostChannel::CtrlChannel> app2host;
 mythos::PCIeRingConsumer<HostChannel::CtrlChannel> host2app;
 
 thread_local int bla = 5;
+thread_local int bla2 = 10;
 //thread_local int bla2 = 10;
 
 int main()
 {
-  MLOG_ERROR(mlog::app, DVAR(&main));
-  char const str[] = "hello world!";
-  char const end[] = "bye, cruel world!";
-  mythos::syscall_debug(str, sizeof(str)-1);
-  
-
-  test_float();
-  test_Example();
-  test_Portal();
-/*
-  {
-    mythos::PortalLock pl(portal); // future access will fail if the portal is in use already
-    // allocate a 2MiB frame
-    mythos::Frame hostChannelFrame(capAlloc());
-    auto res1 = hostChannelFrame.create(pl, kmem, 2*1024*1024, 2*1024*1024).wait();
-    MLOG_INFO(mlog::app, "alloc hostChannel frame", DVAR(res1.state()));
-    TEST(res1);
-
-    // map the frame into our address space
-    uintptr_t vaddr = 22*1024*1024;
-    auto res2 = myAS.mmap(pl, hostChannelFrame, vaddr, 2*1024*1024, 0x1).wait();
-    MLOG_INFO(mlog::app, "mmap hostChannel frame", DVAR(res2.state()),
-              DVARhex(res2.get().vaddr), DVARhex(res2.get().size), DVAR(res2.get().level));
-    TEST(res2);
-
-    // initialise the memory
-    HostChannel* hostChannel = reinterpret_cast<HostChannel*>(vaddr);
-    hostChannel->init();
-    host2app.setChannel(&hostChannel->ctrlFromHost);
-    app2host.setChannel(&hostChannel->ctrlToHost);
-
-    // register the frame in the host info table
-    // auto res3 = mythos::PortalFuture<void>(pl.invoke<mythos::protocol::CpuDriverKNC::SetInitMem>(mythos::init::CPUDRIVER, hostChannelFrame.cap())).wait();
-    // MLOG_INFO(mlog::app, "register at host info table", DVAR(res3.state()));
-    //ASSERT(res3.state() == mythos::Error::SUCCESS);
-  }
-
-  mythos::ExecutionContext ec1(capAlloc());
-  mythos::ExecutionContext ec2(capAlloc());
-  {
-    MLOG_INFO(mlog::app, "test_EC: create ec1");
-    mythos::PortalLock pl(portal); // future access will fail if the portal is in use already
-    auto res1 = ec1.create(pl, kmem, myAS, myCS, mythos::init::SCHEDULERS_START,
-                           thread1stack_top, &thread_main, nullptr).wait();
-    TEST(res1);
-    MLOG_INFO(mlog::app, "test_EC: create ec2");
-    auto res2 = ec2.create(pl, kmem, myAS, myCS, mythos::init::SCHEDULERS_START+1,
-                           thread2stack_top, &thread_main, nullptr).wait();
-    TEST(res2);
-  }
-
-  for (volatile int i=0; i<100000; i++) {
-    for (volatile int j=0; j<1000; j++) {}
-  }
-
-  MLOG_INFO(mlog::app, "sending notifications");
-  mythos::syscall_notify(ec1.cap());
-  mythos::syscall_notify(ec2.cap());
-*/
-  mythos::PortalLock pl(portal);
-  mythos::ExecutionContext own(mythos::init::EC);
-  auto res = own.readRegisters(pl, false).wait();
-  MLOG_ERROR(mlog::app, DVARhex(res->fs_base));
   MLOG_ERROR(mlog::app, "application is starting :)", DVARhex(msg_ptr), DVARhex(initstack_top));
-  uint64_t *t = (uint64_t*)(0x1800000);
-  MLOG_ERROR(mlog::app, DVAR(bla));
-  mythos::syscall_debug(end, sizeof(end)-1);
+  MLOG_ERROR(mlog::app, DVAR(bla2), DVAR(bla));
 
+  mythos::PortalLock pl(portal);
+  mythos::Frame f(mythos::init::TLS_MASTER_IMAGE);
+  mythos::Frame tls(mythos::init::TLS_FRAME);
+  mythos::Frame msg(mythos::init::MSG_FRAME);
+  auto res = f.info(pl).wait();
+  auto res2 = tls.info(pl).wait();
+  auto res3 = msg.info(pl).wait();
+  if (res && res2) {
+    MLOG_ERROR(mlog::app, DVARhex(res3->addr), DVARhex(res2->addr), DVARhex(res->addr));
+  }
   return 0;
 }

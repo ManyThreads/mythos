@@ -74,6 +74,7 @@ namespace mythos {
       PhysPtr<void> _regionStart;
       size_t _frames;
       size_t _maxFrames;
+      size_t endTLSArea = 0;
       KernelMemory* _mem;
       CapEntry* _memEntry;
 

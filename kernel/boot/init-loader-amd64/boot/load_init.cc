@@ -96,8 +96,10 @@ size_t InitLoader::countPages()
   size_t count = 0;
   for (size_t i=0; i <_img.phnum(); ++i) {
     auto ph = _img.phdr(i);
-    if (ph->type == elf64::PT_LOAD || ph->type == elf64::PT_TLS) {
+    if (ph->type == elf64::PT_LOAD) {
       count += toPageRange(ph).getSize();
+    } else if (ph->type == elf64::PT_TLS) { // TLS main thread + master image
+      count += toPageRange(ph).getSize() * 2;
     }
   }
   return count;
@@ -301,8 +303,8 @@ optional<void> InitLoader::createEC()
   if (!res) RETHROW(res);
   ec->getThreadState().rdi = ipc_vaddr;
   ec->setEntryPoint(_img.header()->entry);
-  ec->setBaseRegisters(0x1800000, 0x1800000);
-  MLOG_ERROR(mlog::boot, DVARhex(_img.header()->entry));
+  ec->setBaseRegisters(endTLSArea, 0);
+  MLOG_ERROR(mlog::boot, DVARhex(endTLSArea), DVARhex(_img.header()->entry));
   RETURN(Error::SUCCESS);
 }
 
@@ -324,10 +326,34 @@ Range<uintptr_t> InitLoader::toPageRange(const elf64::PHeader* ph)
 
 optional<void> InitLoader::loadTLS(const elf64::PHeader* ph) {
   MLOG_ERROR(mlog::boot, "Load TLS");
-  const auto page = 12;
-  auto tls_vaddr = page << 21;
-  MLOG_ERROR(mlog::boot, "map tls frame to page", page, DVARhex(tls_vaddr));
+
+  /**
+   * Allocate TLS master image non writable
+   */
+  const auto tls_master_page = 14;
+  auto frameNumMaster = mapFrame(tls_master_page, false, false);
+  if (!frameNumMaster) return frameNumMaster;
+  size_t firstFrameIndexMaster = *frameNumMaster;
+  auto startMaster = _regionStart.plusbytes(firstFrameIndexMaster*PageAlign::alignment());
+  memset(startMaster.log(), 0, 1*PageAlign::alignment());
+  memcpy(startMaster.log(), &app_image_start+ph->offset, ph->filesize);
+  auto memEntryMaster = _cspace->get(DYNAMIC_REGION);
+  auto memCapMaster = memEntryMaster->cap();
+
+  typedef protocol::Frame::FrameReq FrameReq;
+  auto requestMaster = FrameReq().offset((*frameNumMaster)*512).size(FrameReq::PAGE_4KB).writable(0);
+  auto frameEntryMaster = _cspace->get(TLS_MASTER_IMAGE);
+  auto res = cap::derive(*memEntryMaster, *frameEntryMaster, memCapMaster, requestMaster);
+  if (!res) RETHROW(res);
+
+  /**
+   * Allocate actual main threads TLS
+   */
   // TODO Alloc more frames if tls image too big
+  const auto page = 13;
+  auto tls_vaddr = page << 21; // 2 MB Page size
+  MLOG_ERROR(mlog::boot, "map tls frame to page", DVAR(PageAlign::alignment()), page, DVARhex(tls_vaddr));
+  endTLSArea = tls_vaddr + ph->filesize;
   auto frameNum = mapFrame(page, true, false);
   if (!frameNum) return frameNum;
   size_t firstFrameIndex = *frameNum;
@@ -335,15 +361,19 @@ optional<void> InitLoader::loadTLS(const elf64::PHeader* ph) {
   memset(start.log(), 0, 1*PageAlign::alignment());
   memcpy(start.log(), &app_image_start+ph->offset, ph->filesize);
 
-  auto memEntry = _cspace->get(TLS_REGION);
+  // according to spec, FS base should point to itself
+  uint64_t *tmp = (uint64_t*)start.plusbytes(ph->filesize).log();
+  *tmp = endTLSArea;
+
+  auto memEntry = _cspace->get(DYNAMIC_REGION);
   auto memCap = memEntry->cap();
 
   typedef protocol::Frame::FrameReq FrameReq;
   auto request = FrameReq().offset((*frameNum)*512).size(FrameReq::PAGE_4KB).writable(1);
   auto frameEntry = _cspace->get(TLS_FRAME);
-  auto res = cap::derive(*memEntry, *frameEntry, memCap, request);
+  res = cap::derive(*memEntry, *frameEntry, memCap, request);
   if (!res) RETHROW(res);
-  RETURN(_portal->setInvocationBuf(frameEntry, 0));
+  RETURN(Error::SUCCESS);
 }
 
 optional<void> InitLoader::load(const elf64::PHeader* ph)
