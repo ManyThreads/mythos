@@ -39,6 +39,7 @@
 #include <cstdint>
 #include "util/optional.hh"
 
+
 mythos::InvocationBuf* msg_ptr asm("msg_ptr");
 int main() asm("main");
 
@@ -138,16 +139,31 @@ struct HostChannel {
 mythos::PCIeRingProducer<HostChannel::CtrlChannel> app2host;
 mythos::PCIeRingConsumer<HostChannel::CtrlChannel> host2app;
 
-thread_local int bla = 5;
-thread_local int bla2 = 10;
+thread_local int a1 = 5;
+thread_local int a2;
+thread_local int a3= 1;
+
+
 //thread_local int bla2 = 10;
 
 int main()
 {
-  MLOG_ERROR(mlog::app, "application is starting :)", DVARhex(msg_ptr), DVARhex(initstack_top));
-  MLOG_ERROR(mlog::app, DVAR(bla2), DVAR(bla));
-
   mythos::PortalLock pl(portal);
+  MLOG_ERROR(mlog::app, "application is starting :)", DVARhex(msg_ptr), DVARhex(initstack_top));
+  mythos::ExecutionContext self(mythos::init::EC);
+  auto res1 = self.readRegisters(pl, false).wait();
+  if (res1) {
+    MLOG_ERROR(mlog::app, DVARhex(res1->fs_base));
+  }
+  //bla = 1;
+  //bla2 = 2;
+  //test = 5;
+  auto *tmp = (int*)0x1a0000c;
+  MLOG_ERROR(mlog::app, DVAR(*(tmp-1)), DVAR(*(tmp-2)), DVAR(*(tmp-3)));
+  MLOG_ERROR(mlog::app, DVAR(&a1), DVAR(&a2), DVAR(&a3));
+  MLOG_ERROR(mlog::app, DVAR(a1), DVAR(a2), DVAR(a3));
+
+  
   mythos::Frame f(mythos::init::TLS_MASTER_IMAGE);
   mythos::Frame tls(mythos::init::TLS_FRAME);
   mythos::Frame msg(mythos::init::MSG_FRAME);

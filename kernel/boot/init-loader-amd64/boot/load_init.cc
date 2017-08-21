@@ -325,7 +325,7 @@ Range<uintptr_t> InitLoader::toPageRange(const elf64::PHeader* ph)
 }
 
 optional<void> InitLoader::loadTLS(const elf64::PHeader* ph) {
-  MLOG_ERROR(mlog::boot, "Load TLS");
+  MLOG_ERROR(mlog::boot, "Load TLS", DVAR(ph), DVAR(ph->filesize), DVARhex(ph->vaddr), DVAR(ph->memsize));
 
   /**
    * Allocate TLS master image non writable
@@ -352,18 +352,21 @@ optional<void> InitLoader::loadTLS(const elf64::PHeader* ph) {
   // TODO Alloc more frames if tls image too big
   const auto page = 13;
   auto tls_vaddr = page << 21; // 2 MB Page size
-  MLOG_ERROR(mlog::boot, "map tls frame to page", DVAR(PageAlign::alignment()), page, DVARhex(tls_vaddr));
-  endTLSArea = tls_vaddr + ph->filesize;
+  MLOG_ERROR(mlog::boot, "map tls frame to page", DVARhex(PageAlign::alignment()), DVAR(page), DVARhex(tls_vaddr));
+  endTLSArea = tls_vaddr + ph->memsize; // memsize includes uninitialized data, filesize not
   auto frameNum = mapFrame(page, true, false);
   if (!frameNum) return frameNum;
   size_t firstFrameIndex = *frameNum;
   auto start = _regionStart.plusbytes(firstFrameIndex*PageAlign::alignment());
   memset(start.log(), 0, 1*PageAlign::alignment());
   memcpy(start.log(), &app_image_start+ph->offset, ph->filesize);
+  int * tmp1 = (int*)start.log();
+  MLOG_ERROR(mlog::boot, "map tls frame to page",DVAR(*(tmp1+1)), DVAR(firstFrameIndex), DVARhex(firstFrameIndex*PageAlign::alignment()));
 
   // according to spec, FS base should point to itself
-  uint64_t *tmp = (uint64_t*)start.plusbytes(ph->filesize).log();
+  uint64_t *tmp = (uint64_t*)start.plusbytes(ph->memsize).log();
   *tmp = endTLSArea;
+  MLOG_ERROR(mlog::boot, DVARhex(endTLSArea));
 
   auto memEntry = _cspace->get(DYNAMIC_REGION);
   auto memCap = memEntry->cap();
@@ -378,7 +381,7 @@ optional<void> InitLoader::loadTLS(const elf64::PHeader* ph) {
 
 optional<void> InitLoader::load(const elf64::PHeader* ph)
 {
-  MLOG_ERROR(mlog::boot, "load", DVAR(ph->type), DVAR(ph->flags), DVARhex(ph->offset),
+  MLOG_DETAIL(mlog::boot, "load", DVAR(ph->type), DVAR(ph->flags), DVARhex(ph->offset),
         DVARhex(ph->vaddr), DVARhex(ph->filesize), DVARhex(ph->memsize),
         DVARhex(ph->alignment));
   ASSERT(ph->alignment <= PageAlign::alignment());
@@ -404,7 +407,6 @@ optional<void> InitLoader::load(const elf64::PHeader* ph)
   // copy the data
   start.incbytes(ph->vaddr % PageAlign::alignment());
   memcpy(start.log(), &app_image_start+ph->offset, ph->filesize);
-  MLOG_ERROR(mlog::boot, DVAR(start.log()));
   RETURN(Error::SUCCESS);
 }
 
