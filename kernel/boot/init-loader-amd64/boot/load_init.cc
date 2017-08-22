@@ -325,17 +325,30 @@ Range<uintptr_t> InitLoader::toPageRange(const elf64::PHeader* ph)
 }
 
 optional<void> InitLoader::loadTLS(const elf64::PHeader* ph) {
-  MLOG_ERROR(mlog::boot, "Load TLS", DVAR(ph), DVAR(ph->filesize), DVARhex(ph->vaddr), DVAR(ph->memsize));
+  MLOG_DETAIL(mlog::boot, "Load TLS", DVAR(ph), DVAR(ph->filesize), DVARhex(ph->vaddr), DVAR(ph->memsize));
+
+  // size of TLS image
+  auto pageRange = toPageRange(ph);
+  if (pageRange.getSize() == 0) RETURN(Error::SUCCESS); // nothing to do
+  MLOG_ERROR(mlog::boot, "Need pages", pageRange.getSize());
+
+  // handle alignment
+  auto allocationSize = AlignmentObject(ph->alignment).round_up(ph->memsize);
 
   /**
    * Allocate TLS master image non writable
    */
-  const auto tls_master_page = 14;
+  const auto tls_master_page = 13;
   auto frameNumMaster = mapFrame(tls_master_page, false, false);
   if (!frameNumMaster) return frameNumMaster;
   size_t firstFrameIndexMaster = *frameNumMaster;
+  for (size_t i = 1; i < pageRange.getSize(); ++i) {
+    auto page = tls_master_page+i;
+    auto frameNum = mapFrame(page, ph->flags&elf64::PF_W, ph->flags&elf64::PF_X);
+    if (!frameNum) return frameNum;
+  }
   auto startMaster = _regionStart.plusbytes(firstFrameIndexMaster*PageAlign::alignment());
-  memset(startMaster.log(), 0, 1*PageAlign::alignment());
+  memset(startMaster.log(), 0, pageRange.getSize()*PageAlign::alignment());
   memcpy(startMaster.log(), &app_image_start+ph->offset, ph->filesize);
   auto memEntryMaster = _cspace->get(DYNAMIC_REGION);
   auto memCapMaster = memEntryMaster->cap();
@@ -350,23 +363,25 @@ optional<void> InitLoader::loadTLS(const elf64::PHeader* ph) {
    * Allocate actual main threads TLS
    */
   // TODO Alloc more frames if tls image too big
-  const auto page = 13;
-  auto tls_vaddr = page << 21; // 2 MB Page size
-  MLOG_ERROR(mlog::boot, "map tls frame to page", DVARhex(PageAlign::alignment()), DVAR(page), DVARhex(tls_vaddr));
-  endTLSArea = tls_vaddr + ph->memsize; // memsize includes uninitialized data, filesize not
-  auto frameNum = mapFrame(page, true, false);
+  const auto tls_init_page = tls_master_page + pageRange.getSize();
+  auto tls_vaddr = tls_init_page << 21; // 2 MB Page size
+  auto frameNum = mapFrame(tls_init_page, ph->flags&elf64::PF_W, ph->flags&elf64::PF_X);
   if (!frameNum) return frameNum;
+  for (size_t i = 1; i < pageRange.getSize(); ++i) {
+    auto page = tls_init_page+i;
+    auto frameNum = mapFrame(page, ph->flags&elf64::PF_W, ph->flags&elf64::PF_X);
+    if (!frameNum) return frameNum;
+  }
   size_t firstFrameIndex = *frameNum;
   auto start = _regionStart.plusbytes(firstFrameIndex*PageAlign::alignment());
-  memset(start.log(), 0, 1*PageAlign::alignment());
+  memset(start.log(), 0, pageRange.getSize()*PageAlign::alignment());
   memcpy(start.log(), &app_image_start+ph->offset, ph->filesize);
-  int * tmp1 = (int*)start.log();
-  MLOG_ERROR(mlog::boot, "map tls frame to page",DVAR(*(tmp1+1)), DVAR(firstFrameIndex), DVARhex(firstFrameIndex*PageAlign::alignment()));
 
   // according to spec, FS base should point to itself
-  uint64_t *tmp = (uint64_t*)start.plusbytes(ph->memsize).log();
+  endTLSArea = tls_vaddr + allocationSize; // memsize includes uninitialized data, filesize not
+  uint64_t *tmp = (uint64_t*)start.plusbytes(allocationSize).log();
   *tmp = endTLSArea;
-  MLOG_ERROR(mlog::boot, DVARhex(endTLSArea));
+  MLOG_ERROR(mlog::boot, DVARhex(endTLSArea), DVARhex(*tmp));
 
   auto memEntry = _cspace->get(DYNAMIC_REGION);
   auto memCap = memEntry->cap();

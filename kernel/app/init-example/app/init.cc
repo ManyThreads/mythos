@@ -140,8 +140,9 @@ mythos::PCIeRingProducer<HostChannel::CtrlChannel> app2host;
 mythos::PCIeRingConsumer<HostChannel::CtrlChannel> host2app;
 
 thread_local int a1 = 5;
-thread_local int a2;
-thread_local int a3= 1;
+thread_local int a2 = 4;
+thread_local int a3[10] = {1,2,3,4,5,6,7,8,9,10};
+thread_local int a5[1 << 21];
 
 
 //thread_local int bla2 = 10;
@@ -158,10 +159,14 @@ int main()
   //bla = 1;
   //bla2 = 2;
   //test = 5;
-  auto *tmp = (int*)0x1a0000c;
-  MLOG_ERROR(mlog::app, DVAR(*(tmp-1)), DVAR(*(tmp-2)), DVAR(*(tmp-3)));
-  MLOG_ERROR(mlog::app, DVAR(&a1), DVAR(&a2), DVAR(&a3));
-  MLOG_ERROR(mlog::app, DVAR(a1), DVAR(a2), DVAR(a3));
+  auto *tmp = (int*)0x1c00000;
+  for (int i = 0; i < 40; i++) {
+    MLOG_ERROR(mlog::app, &tmp[i], tmp[i]);
+  }
+  MLOG_ERROR(mlog::app, DVAR(&a1), DVAR(a1));
+  MLOG_ERROR(mlog::app, DVAR(&a2), DVAR(a2));
+  MLOG_ERROR(mlog::app, DVAR(&a3), DVAR(a3[0]));
+  MLOG_ERROR(mlog::app, DVAR(&a3[9]), DVAR(a3[9]));
 
   
   mythos::Frame f(mythos::init::TLS_MASTER_IMAGE);
