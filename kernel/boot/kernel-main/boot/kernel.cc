@@ -75,6 +75,7 @@ void entry_bsp()
 {
   mythos::boot::initKernelSpace();
   mythos::boot::mapLapic(mythos::x86::getApicBase()); // make LAPIC accessible
+
   mythos::GdtAmd64 tempGDT;
   tempGDT.init();
   tempGDT.load();
@@ -150,8 +151,10 @@ void mythos::cpu::irq_entry_user(mythos::cpu::ThreadState* ctx)
     mythos::handle_trap(ctx); // handle traps, exceptions, bugs from user mode
   } else {
     // TODO then external and wakeup interrupts
+    MLOG_ERROR(mlog::boot, "External Interrupt",DVAR(ctx->irq));
     mythos::lapic.endOfInterrupt();
   }
+
   runUser();
 }
 
@@ -164,7 +167,7 @@ void mythos::cpu::irq_entry_kernel(mythos::cpu::KernelIRQFrame* ctx)
   bool nested = mythos::async::getLocalPlace().enterKernel();
   if (!wasbug) {
     // TODO then external and wakeup interrupts
-    MLOG_INFO(mlog::boot, "ack the interrupt");
+    MLOG_ERROR(mlog::boot, "ack the kernel interrupt", DVAR(ctx->irq));
     mythos::lapic.endOfInterrupt();
   }
 

@@ -159,7 +159,7 @@ namespace mythos {
         auto entry = reinterpret_cast<IntelMP::BaseEntry*>(baseEntries+pos);
         switch (entry->type){
           case PROCESSOR: {
-            //MLOG_DETAIL(mlog::boot, "PROCESSOR table entry at offset", pos);
+            MLOG_DETAIL(mlog::boot, "PROCESSOR table entry at offset", pos);
             auto proc_entry = static_cast<IntelMP::EntryProcessor*>(entry);
             if (proc_entry->flags & 0x01) {  // processor is usuable
               lapicIDs[num_threads] = proc_entry->local_apic_id;
@@ -168,6 +168,11 @@ namespace mythos {
             pos+=20;
             entry_count++;
             break;
+          }
+          case IOAPIC: {
+            auto *apic = static_cast<IntelMP::EntryIOApic*>(entry);
+            ioapic = apic->address;
+            MLOG_ERROR(mlog::boot, "IOAPIC at", DVAR(apic->id), DVAR(apic->version), DVAR(apic->flags), DVARhex(apic->address));
           }
           default:
             //MLOG_DETAIL(mlog::boot, "invalid table type", entry->type,"at offset", pos);
@@ -180,6 +185,8 @@ namespace mythos {
 
     size_t numThreads() const { return num_threads; }
     size_t threadID(size_t idx) const { return lapicIDs[idx]; }
+
+    size_t ioapic_address() {return ioapic; };
 
   protected:
 
@@ -226,5 +233,6 @@ namespace mythos {
     enum{ CPU_MAX=256};
     size_t num_threads;
     unsigned int lapicIDs[CPU_MAX];
+    size_t ioapic {0};
   };
 }

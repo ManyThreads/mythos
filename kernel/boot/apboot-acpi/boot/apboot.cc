@@ -28,13 +28,14 @@
 #include "util/assert.hh"
 #include "cpu/PIC.hh"
 #include "cpu/LAPIC.hh"
+#include "cpu/IOAPIC.hh"
 #include "cpu/ctrlregs.hh"
 #include "boot/memory-layout.h"
 #include "util/ACPIApicTopology.hh"
 #include "boot/DeployHWThread.hh"
 
 namespace mythos {
-  namespace boot {
+namespace boot {
 
 /** basic cpu configuration, indexed by the logical thread ID. */
 DeployHWThread ap_config[MYTHOS_MAX_THREADS];
@@ -45,6 +46,9 @@ DeployHWThread ap_config[MYTHOS_MAX_THREADS];
  * apicID, which was gathered via the cpuid instruction.
  */
 DeployHWThread* ap_apic2config[MYTHOS_MAX_APICID];
+
+IOAPIC ioapics[MYTHOS_MAX_APICID];
+
 void apboot_thread(size_t apicID) { ap_apic2config[apicID]->initThread(); }
 
 NORETURN extern void start_ap64(size_t reason) SYMBOL("_start_ap64");
@@ -58,6 +62,12 @@ NORETURN void apboot() {
     ASSERT(topo.threadID(id)<MYTHOS_MAX_APICID);
     ap_config[id].prepare(id, cpu::ApicID(topo.threadID(id)));
     ap_apic2config[topo.threadID(id)] = &ap_config[id];
+  }
+
+  for (size_t i = 0; i < topo.numIOApic(); i++) {
+    MLOG_INFO(mlog::boot, "ioapic", topo.ioApicBase(i));
+    ioapics[i].setBase((size_t) topo.ioApicBase(i));
+    ioapics[i].init();
   }
 
   // broadcast Startup IPI

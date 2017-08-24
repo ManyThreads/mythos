@@ -28,10 +28,13 @@
 #include "util/assert.hh"
 #include "cpu/PIC.hh"
 #include "cpu/LAPIC.hh"
+#include "cpu/IOApic.hh"
 #include "cpu/ctrlregs.hh"
 #include "boot/memory-layout.h"
 #include "util/MPApicTopology.hh"
+#include "util/ACPIApicTopology.hh"
 #include "boot/DeployHWThread.hh"
+#include "util/PhysPtr.hh"
 
 namespace mythos {
   namespace boot {
@@ -59,6 +62,9 @@ NORETURN void apboot() {
     ap_config[id].prepare(id, cpu::ApicID(topo.threadID(id)));
     ap_apic2config[topo.threadID(id)] = &ap_config[id];
   }
+
+  mapIOApic((uint32_t)topo.ioapic_address());
+  IOApic ioapic(IOAPIC_ADDR);
 
   // broadcast Startup IPI
   DeployHWThread::prepareBSP(0x40000);
