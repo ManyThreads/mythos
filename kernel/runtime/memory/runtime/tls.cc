@@ -24,7 +24,7 @@ void* handleTLSHeader(const elf64::PHeader *ph) {
 	memset(initial, 0, tlsAllocationSize);
 	memcpy(initial, (void*)(ph->vaddr), ph->filesize);
 	initial += tlsAllocationSize;
-	*(uint64_t*)initial = (uint64_t) initial; // spec says pointer to itself must be at begin of user structure
+	*(uint64_t*)initial = (uint64_t) initial; // spec says pointer to itself must be at begin of user structure / end of tls
 
 	return initial;
 }
@@ -38,7 +38,7 @@ void* setupInitialTLS() {
 			return handleTLSHeader(pheader);
 		}
 	}
-
+	return nullptr;
 }
 
 } // namespace mythos
