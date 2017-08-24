@@ -35,6 +35,7 @@
 #include "runtime/PageMap.hh"
 #include "runtime/KernelMemory.hh"
 #include "runtime/SimpleCapAlloc.hh"
+#include "runtime/tls.hh"
 #include "app/mlog.hh"
 #include <cstdint>
 #include "util/optional.hh"
@@ -128,6 +129,20 @@ void test_float()
   MLOG_INFO(mlog::app, "float z:", int(z), ".", int(1000*(z-float(int(z)))));
 }
 
+thread_local int x = 1024;
+thread_local int y = 2048;
+void test_tls()
+{
+  MLOG_INFO(mlog::app, "testing thread local storage");
+  // Accessing tls variables before setup leads to page fault
+  auto *tls = mythos::setupInitialTLS();
+  mythos::ExecutionContext own(mythos::init::EC);
+  mythos::PortalLock pl(portal);
+  TEST(own.setFSGS(pl, (uint64_t) tls, 0));
+  TEST_EQ(x, 1024); // just testing if access through %fs is successful
+  TEST_EQ(y, 2048);
+}
+
 struct HostChannel {
   void init() { ctrlToHost.init(); ctrlFromHost.init(); }
   typedef mythos::PCIeRingChannel<128,8> CtrlChannel;
@@ -145,6 +160,7 @@ int main()
   mythos::syscall_debug(str, sizeof(str)-1);
   MLOG_ERROR(mlog::app, "application is starting :)", DVARhex(msg_ptr), DVARhex(initstack_top));
 
+  test_tls();
   test_float();
   test_Example();
   test_Portal();
