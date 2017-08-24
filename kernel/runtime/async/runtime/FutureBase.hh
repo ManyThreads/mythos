@@ -53,7 +53,7 @@ namespace mythos {
     bool poll();
     bool wait();
 
-    void then(Tasklet& t) {
+    void then(runtime::Tasklet& t) {
       ASSERT(!waiting);
       waiting = &t ; /// @todo support list of multiple waiters?
       // check after appending in order to not miss concurrent assign
@@ -67,7 +67,7 @@ namespace mythos {
 
   protected:
     Error _error = Error::UNSET;
-    Tasklet* waiting = nullptr;
+    runtime::Tasklet* waiting = nullptr;
   };
 
 } // namespace mythos

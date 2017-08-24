@@ -180,6 +180,6 @@ TaskletFunctor<FUNCTOR> makeTasklet(FUNCTOR fun) { return TaskletFunctor<FUNCTOR
 
 } // namespace async
 
-  using async::Tasklet;
+using async::Tasklet;
 
 } // namespace mythos

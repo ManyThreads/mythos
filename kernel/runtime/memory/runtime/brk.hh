@@ -1,5 +1,5 @@
 /* -*- mode:C++; indent-tabs-mode:nil; -*- */
-/* MyThOS: The Many-Threads Operating System
+/* MIT License -- MyThOS: The Many-Threads Operating System
  *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
@@ -21,51 +21,15 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  *
- * Copyright 2016 Randolf Rotta, Robert Kuban, and contributors, BTU Cottbus-Senftenberg
+ * Copyright 2017 Randolf Rotta, Robert Kuban, and contributors, BTU Cottbus-Senftenberg
  */
 #pragma once
 
-#include "async/TaskletQueue.hh"
+#include <cstdint>
 #include "util/assert.hh"
-#include <atomic>
 
 namespace mythos {
-namespace async {
 
-  class MutexDelegating
-  {
-    enum DoneFlags { PENDING, DONE, HANDOVER };
-  public:
+void* sbrk(uint64_t size);
 
-    template<class FUNCTOR>
-    void operator<< (FUNCTOR fun) { atomic(fun); }
-
-    template<class FUNCTOR>
-    void atomic(FUNCTOR fun) {
-      std::atomic<int> done;
-      done.store(PENDING, std::memory_order_relaxed);
-
-      // put the critical section into a Tasklet
-      auto task = makeTasklet( [fun,&done](TaskletBase* t) {
-          fun(); // execute the critical section
-          done.store((t->isHandover()?HANDOVER:DONE), std::memory_order_release);
-        } );
-
-      push(task, done);
-    }
-
-  protected:
-    void push(TaskletBase& task, std::atomic<int>& done);
-
-    /** got exclusive access and processes all tasks until it hands over */
-    void process(std::atomic<int>& done);
-
-    /** wait for acknowledgement and may take over the processing */
-    void wait(std::atomic<int>& done);
-
-  protected:
-    async::TaskletQueue queue;
-  };
-
-} // namespace async
 } // namespace mythos

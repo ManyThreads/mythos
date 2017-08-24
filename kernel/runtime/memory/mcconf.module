@@ -1,0 +1,4 @@
+[module.runtime-memory]
+    incfiles = [ "runtime/brk.hh", "runtime/tls.hh",
+"runtime/SequentialHeap.hh", "runtime/umem.hh" ]
+    appfiles = [ "runtime/brk.cc", "runtime/tls.cc", "runtime/umem.cc" ]

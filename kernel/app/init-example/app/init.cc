@@ -35,9 +35,11 @@
 #include "runtime/PageMap.hh"
 #include "runtime/KernelMemory.hh"
 #include "runtime/SimpleCapAlloc.hh"
+#include "runtime/tls.hh"
 #include "app/mlog.hh"
 #include <cstdint>
 #include "util/optional.hh"
+#include "runtime/umem.hh"
 
 mythos::InvocationBuf* msg_ptr asm("msg_ptr");
 int main() asm("main");
@@ -128,6 +130,56 @@ void test_float()
   MLOG_INFO(mlog::app, "float z:", int(z), ".", int(1000*(z-float(int(z)))));
 }
 
+thread_local int x = 1024;
+thread_local int y = 2048;
+void test_tls()
+{
+  MLOG_INFO(mlog::app, "testing thread local storage");
+  // Accessing tls variables before setup leads to page fault
+  auto *tls = mythos::setupInitialTLS();
+  mythos::ExecutionContext own(mythos::init::EC);
+  mythos::PortalLock pl(portal);
+  TEST(own.setFSGS(pl, (uint64_t) tls, 0));
+  TEST_EQ(x, 1024); // just testing if access through %fs is successful
+  TEST_EQ(y, 2048);
+}
+
+struct Test {
+  Test(int i_, int j_, int k_)
+    :i(i_), j(j_), k(k_) {}
+
+  Test(){}
+
+  int i = 1;
+  int j = 2;
+  int k = 3;
+};
+
+void test_heap() {
+  MLOG_ERROR(mlog::app, "Test heap");
+  mythos::PortalLock pl(portal);
+  uintptr_t vaddr = 22*1024*1024; // choose address different from invokation buffer
+  auto size = 4*1024*1024; // 2 MB
+  auto align = 2*1024*1024; // 2 MB
+  // allocate a 2MiB frame
+  mythos::Frame f(capAlloc());
+  auto res2 = f.create(pl, kmem, size, align).wait();
+  TEST(res2);
+  // map the frame into our address space
+  auto res3 = myAS.mmap(pl, f, vaddr, size, 0x1).wait();
+  MLOG_INFO(mlog::app, "mmap frame", DVAR(res3.state()),
+            DVARhex(res3->vaddr), DVARhex(res3->size), DVAR(res3->level));
+  TEST(res3);
+  mythos::heap.addRange(vaddr, size);
+  Test *t = new Test(2,4,6);
+  MLOG_INFO(mlog::app,DVAR(t), DVAR(t->i), DVAR(t->j), DVAR(t->k));
+  Test *arr = new Test[20000];
+  MLOG_INFO(mlog::app,DVAR(arr), DVAR(arr[100].i), DVAR(arr[100].j), DVAR(arr[100].k));
+  delete t;
+  delete[] arr;
+  MLOG_ERROR(mlog::app, "Test heap");
+}
+
 struct HostChannel {
   void init() { ctrlToHost.init(); ctrlFromHost.init(); }
   typedef mythos::PCIeRingChannel<128,8> CtrlChannel;
@@ -145,9 +197,11 @@ int main()
   mythos::syscall_debug(str, sizeof(str)-1);
   MLOG_ERROR(mlog::app, "application is starting :)", DVARhex(msg_ptr), DVARhex(initstack_top));
 
+  test_tls();
   test_float();
   test_Example();
   test_Portal();
+  test_heap();
 
   {
     mythos::PortalLock pl(portal); // future access will fail if the portal is in use already
