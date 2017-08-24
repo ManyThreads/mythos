@@ -8,14 +8,14 @@ SequentialHeap<uintptr_t> heap;
 } // namespace mythos
 
 void* operator new(unsigned long size ) NOEXCEPT(true) {
-	auto tmp = mythos::heap.alloc(size, mythos::heap.getAlignment());
+	auto tmp = mythos::heap.alloc(size);
 	if (tmp) {
 		return (void*) *tmp;
 	}
 	return nullptr;
 }
 void* operator new[](unsigned long size ) NOEXCEPT(true) {
-	auto tmp = mythos::heap.alloc(size, mythos::heap.getAlignment());
+	auto tmp = mythos::heap.alloc(size);
 	if (tmp) {
 		return (void*) *tmp;
 	}

@@ -76,32 +76,40 @@ public:
     typedef T addr_t;
     typedef A Alignment;
 
+    static_assert(Alignment::alignment() >= sizeof(ObjData));
+
     SequentialHeap() {}
     virtual ~SequentialHeap() {}
 
     size_t getAlignment() const { return heap.getAlignment(); }
 
-    optional<addr_t> alloc(size_t length, size_t alignment) {
+    optional<addr_t> alloc(size_t length) {
         optional<addr_t> res;
+        auto allocSize = Alignment::round_up(sizeof(ObjData)) + length;
         mutex << [&]() {
-            res = heap.alloc(length + sizeof(ObjData), alignment);
+            res = heap.alloc(allocSize, heap.getAlignment());
         };
         if (res) {
-            ObjData *data = reinterpret_cast<ObjData*>(*res);
+            auto addr = *res/* + Alignment::round_up(sizeof(ObjData)) - sizeof(ObjData)*/;
+            ObjData *data = reinterpret_cast<ObjData*>(addr);
             data->size = length;
-            MLOG_DETAIL(mlog::app, "Alloc size:", length + sizeof(ObjData), "alignment:", alignment);
-            return {*res + sizeof(ObjData)};
+            MLOG_DETAIL(mlog::app, "Alloc size:", allocSize, "alignment:", heap.getAlignment());
+            ASSERT(Alignment::is_aligned(addr + Alignment::round_up(sizeof(ObjData))));
+            ASSERT(Alignment::is_aligned(data));
+            return {addr + Alignment::round_up(sizeof(ObjData))};
         }
         return res;
     }
 
-
-
     void free(addr_t start) {
-        ObjData *data = reinterpret_cast<ObjData*>(start - sizeof(ObjData));
+        ObjData *data = reinterpret_cast<ObjData*>(start - Alignment::round_up(sizeof(ObjData)));
+        addr_t to_free = start - Alignment::round_up(sizeof(ObjData));
+        size_t size = Alignment::round_up(sizeof(ObjData)) + data->size;
+        ASSERT(Alignment::is_aligned(data));
+        ASSERT(Alignment::is_aligned(to_free));
+        MLOG_DETAIL(mlog::app, "Free ", DVARhex(start), "size:", size);
         mutex << [&]() {
-            MLOG_DETAIL(mlog::app, "Free ", data, "size:", data->size + sizeof(ObjData));
-            heap.free(start - sizeof(ObjData), data->size + sizeof(ObjData));
+            heap.free(to_free, size);
         };
     }
 

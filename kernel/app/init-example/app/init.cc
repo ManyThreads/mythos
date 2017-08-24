@@ -144,17 +144,6 @@ void test_tls()
   TEST_EQ(y, 2048);
 }
 
-struct Test {
-  Test(int i_, int j_, int k_)
-    :i(i_), j(j_), k(k_) {}
-
-  Test(){}
-
-  int i = 1;
-  int j = 2;
-  int k = 3;
-};
-
 void test_heap() {
   MLOG_ERROR(mlog::app, "Test heap");
   mythos::PortalLock pl(portal);
@@ -167,17 +156,16 @@ void test_heap() {
   TEST(res2);
   // map the frame into our address space
   auto res3 = myAS.mmap(pl, f, vaddr, size, 0x1).wait();
+  TEST(res3);
   MLOG_INFO(mlog::app, "mmap frame", DVAR(res3.state()),
             DVARhex(res3->vaddr), DVARhex(res3->size), DVAR(res3->level));
-  TEST(res3);
   mythos::heap.addRange(vaddr, size);
-  Test *t = new Test(2,4,6);
-  MLOG_INFO(mlog::app,DVAR(t), DVAR(t->i), DVAR(t->j), DVAR(t->k));
-  Test *arr = new Test[20000];
-  MLOG_INFO(mlog::app,DVAR(arr), DVAR(arr[100].i), DVAR(arr[100].j), DVAR(arr[100].k));
-  delete t;
+  int *a = new int[5] {0,1,2,3,4};
+  ASSERT(a[0]==0 && a[1]==1 && a[2]==2 && a[3]==3 && a[4]==4);
+  int *arr = new int[20000];
+  delete a;
   delete[] arr;
-  MLOG_ERROR(mlog::app, "Test heap");
+  MLOG_ERROR(mlog::app, "End Test heap");
 }
 
 struct HostChannel {
