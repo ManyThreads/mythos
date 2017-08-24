@@ -3,9 +3,6 @@
 #include "runtime/brk.hh"
 #include "app/mlog.hh"
 #include "util/alignments.hh"
-#include "mythos/init.hh"
-#include "runtime/ExecutionContext.hh"
-#include "runtime/Portal.hh"
 
 namespace mythos {
 
