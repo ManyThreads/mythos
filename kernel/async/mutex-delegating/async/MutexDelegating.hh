@@ -25,6 +25,7 @@
  */
 #pragma once
 
+#include "async/Tasklet.hh"
 #include "async/TaskletQueue.hh"
 #include "util/assert.hh"
 #include <atomic>
