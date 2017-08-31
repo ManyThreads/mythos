@@ -32,7 +32,6 @@
 #include <utility>
 
 namespace mythos {
-namespace runtime {
 
   /** Tasklet implementation. All users of Tasklets expect at least the size of one cacheline. */
   class alignas(64) Tasklet
@@ -103,5 +102,5 @@ namespace runtime {
     FunPtr handler;
     char payload[PAYLOAD_SIZE];
   };
-} // namespace runtime
+
 } // namespace mythos
