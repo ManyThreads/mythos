@@ -10,16 +10,20 @@ SequentialHeap<uintptr_t> heap;
 void* operator new(unsigned long size ) NOEXCEPT(true) {
 	auto tmp = mythos::heap.alloc(size);
 	if (tmp) {
-		return (void*) *tmp;
+		if (*tmp != 0) {
+			return (void*) *tmp;
+		}
 	}
-	return nullptr;
+	PANIC_MSG(false, "Could not serve memory request.");
 }
 void* operator new[](unsigned long size ) NOEXCEPT(true) {
 	auto tmp = mythos::heap.alloc(size);
 	if (tmp) {
-		return (void*) *tmp;
+		if (*tmp != 0) {
+			return (void*) *tmp;
+		}
 	}
-	return nullptr;
+	PANIC_MSG(false, "Could not serve memory request.");
 }
 
 void operator delete(void* ptr) NOEXCEPT(true) {

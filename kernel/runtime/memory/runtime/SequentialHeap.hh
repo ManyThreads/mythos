@@ -38,7 +38,7 @@ namespace mythos {
 class SpinMutex {
 public:
     void lock() {
-        while (flag.test_and_set()) { mythos::hwthread_pause(50); }
+        while (flag.test_and_set()) { mythos::hwthread_pause(); }
     }
 
     void unlock() {
@@ -90,10 +90,11 @@ public:
             res = heap.alloc(allocSize, heap.getAlignment());
         };
         if (res) {
-            auto addr = *res/* + Alignment::round_up(sizeof(ObjData)) - sizeof(ObjData)*/;
+            auto addr = *res;
             ObjData *data = reinterpret_cast<ObjData*>(addr);
             data->size = length;
-            MLOG_DETAIL(mlog::app, "Alloc size:", allocSize, "alignment:", heap.getAlignment());
+            auto retAddr = addr + Alignment::round_up(sizeof(ObjData));
+            MLOG_DETAIL(mlog::app, "Alloc size:", allocSize, "alignment:", heap.getAlignment(), DVARhex(retAddr));
             ASSERT(Alignment::is_aligned(addr + Alignment::round_up(sizeof(ObjData))));
             ASSERT(Alignment::is_aligned(data));
             return {addr + Alignment::round_up(sizeof(ObjData))};
