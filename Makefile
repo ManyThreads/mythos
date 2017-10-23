@@ -6,7 +6,7 @@ all: 3rdparty/mcconf/mcconf.py kernel-amd64.log kernel-knc.log host-knc.log
 
 3rdparty/mcconf/mcconf.py:
 	git submodule init
-	git submodule update --remote
+	git submodule update
 	3rdparty/mcconf/install-python-libs
 
 clean:
