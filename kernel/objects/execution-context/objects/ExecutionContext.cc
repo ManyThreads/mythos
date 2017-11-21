@@ -375,7 +375,9 @@ namespace mythos {
       case SYSCALL_DEBUG: {
         MLOG_INFO(mlog::syscall, "debug", DVARhex(userctx), DVAR(portal));
         mlog::Logger<mlog::FilterAny> user("user");
-        user.error(mlog::DebugString((char const*)userctx, portal));
+        // userctx => address in memory
+        // portal => string length
+        mlog::sink->write((char const*)userctx, portal);
         code = uint64_t(Error::SUCCESS);
         break;
       }
