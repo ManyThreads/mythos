@@ -1,3 +1,0 @@
-# -*- mode:toml; -*-
-[module.makefile]
-    extrafiles = [ "mako_Makefile" ]
