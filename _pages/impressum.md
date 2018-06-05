@@ -35,4 +35,4 @@ Für die Inhalte dieser Webseite verantwortlich:
 
 ### Datenschutz/Datenerhebung
 
-Von der BTU Cottbus-Senftenberg werden bei Besuch dieser Webseite keine personenbezogene Daten erhoben. Das Hosting erfolgt durch github und es gilt daher die Datenschutz-Policy von github: https://help.github.com/articles/github-privacy-statement/
+Von der BTU Cottbus-Senftenberg werden bei Besuch dieser Webseite keine personenbezogene Daten erhoben. Das Hosting erfolgt durch github und es gilt daher die Datenschutz-Policy von github: <https://help.github.com/articles/github-privacy-statement/>.
