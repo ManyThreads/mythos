@@ -4,13 +4,11 @@ title: Impressum
 permalink: /impressum/
 ---
 
-## Impressum
-
-Brandenburgische Technische Universität Cottbus-Senftenberg
-Platz der Deutschen Einheit 1
-03046 Cottbus
-
-T +49 (0)355 69 0
+^
+    Brandenburgische Technische Universität Cottbus-Senftenberg
+    Platz der Deutschen Einheit 1
+    03046 Cottbus
+    T +49 (0)355 69 0
 
 Die Brandenburgische Technische Universität Cottbus-Senftenberg ist eine Körperschaft des öffentlichen Rechts und eine staatliche Einrichtung des Landes Brandenburg. Die Universität wird durch den Präsidenten Prof. Dr.-Ing. Dr. h.c. (NUWM, UA) DSc. h.c. Jörg Steinbach Hon.-Prof. (ECUST, CN) E-Mail praesident(at)b-tu.de vertreten. Die BTU Cottbus-Senftenberg untersteht der Rechtsaufsicht des Ministeriums für Wissenschaft, Forschung und Kultur des Landes Brandenburg.
 
@@ -22,14 +20,18 @@ Alle Rechte am Inhalt dieses Informationsangebotes liegen bei der Brandenburgisc
 
 ### Ansprechpartner
 
-Für die Inhalte dieser Webseite verantwortlich: Randolf Rotta, E-Mail: <randolf.rotta@b-tu.de>, Website: <https://www.b-tu.de/fg-betriebssysteme/>.
+Für die Inhalte dieser Webseite verantwortlich:
 
 ^
-    BTU Cottbus-Senftenberg
+    Randolf Rotta
     Fachgebiet Verteilte Systeme/Betriebssysteme
+    BTU Cottbus-Senftenberg
     Postfach 10 13 44
     03013 Cottbus
 	Deutschland
+
+* E-Mail: <randolf.rotta@b-tu.de>
+* Website: <https://www.b-tu.de/fg-betriebssysteme/>
 
 ### Datenschutz/Datenerhebung
 
