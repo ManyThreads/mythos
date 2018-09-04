@@ -288,11 +288,20 @@ namespace mythos {
 
     optional<void> res;
     switch (level()) {
-    case 1: res = operateFrame<1>(&_pm_table(0), op);
-    case 2: res = operateFrame<2>(&_pm_table(0), op);
-    case 3: res = operateFrame<3>(&_pm_table(0), op);
-    case 4: res = operateFrame<4>(&_pm_table(0), op);
-    default: break;
+    case 1: 
+        res = operateFrame<1>(&_pm_table(0), op);
+        break;
+    case 2: 
+        res = operateFrame<2>(&_pm_table(0), op);
+        break;
+    case 3: 
+        res = operateFrame<3>(&_pm_table(0), op);
+        break;
+    case 4: 
+        res = operateFrame<4>(&_pm_table(0), op);
+        break;
+    default:
+        break;
     }
     msg->write<protocol::PageMap::Result>(op.vaddr(), op.vsize(), op.level);
     return res;
@@ -340,11 +349,20 @@ namespace mythos {
 
     optional<void> res;
     switch (level()) {
-    case 1: res = operateTable<1>(&_pm_table(0), op);
-    case 2: res = operateTable<2>(&_pm_table(0), op);
-    case 3: res = operateTable<3>(&_pm_table(0), op);
-    case 4: res = operateTable<4>(&_pm_table(0), op);
-    default: break;
+    case 1: 
+        res = operateTable<1>(&_pm_table(0), op);
+        break;
+    case 2: 
+        res = operateTable<2>(&_pm_table(0), op);
+        break;
+    case 3:
+        res = operateTable<3>(&_pm_table(0), op);
+        break;
+    case 4: 
+        res = operateTable<4>(&_pm_table(0), op);
+        break;
+    default: 
+        break;
     }
     msg->write<protocol::PageMap::Result>(op.vaddr, 0u, op.level);
     return res;

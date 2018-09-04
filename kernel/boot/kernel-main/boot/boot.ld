@@ -83,8 +83,8 @@ SECTIONS
       *(.data .data.* .gnu.linkonce.d.*)
       . = ALIGN(64); /* cache line aligned */
       CLM_ADDR = ABSOLUTE(.);
-      SORT_BY_ALIGNMENT (*)(.kernel_clm.hot)
-      SORT_BY_ALIGNMENT (*)(.kernel_clm)
+      *(SORT_BY_ALIGNMENT(.kernel_clm.hot))
+      *(SORT_BY_ALIGNMENT(.kernel_clm))
       . = ALIGN(64); /* cache line aligned */
       CLM_BLOCKEND = ABSOLUTE(.);
     } : data
