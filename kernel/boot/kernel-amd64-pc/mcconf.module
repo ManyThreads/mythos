@@ -21,6 +21,7 @@ kernel2.cc:
 
 kernel2.o: kernel2.cc
 	$(KERNEL_CXX) $(KERNEL_CXXFLAGS) $(KERNEL_CPPFLAGS) $(DEPFLAGS) -c -o $@ $<
+	$(KERNEL_CXX) $(KERNEL_CXXFLAGS) $(KERNEL_CPPFLAGS) $(DEPFLAGS) -S -o $@.s $<
 
 boot64.elf: boot/boot.o $(kernel2_obj) kernel2.o
 	$(KERNEL_LD) $(KERNEL_LFLAGS) -o boot64.elf -dT boot/boot.o kernel2.o $(kernel2_obj)
