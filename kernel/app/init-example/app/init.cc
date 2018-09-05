@@ -39,6 +39,7 @@
 #include "app/mlog.hh"
 #include <cstdint>
 #include "util/optional.hh"
+#include "runtime/umem.hh"
 
 mythos::InvocationBuf* msg_ptr asm("msg_ptr");
 int main() asm("main");
@@ -138,9 +139,55 @@ void test_tls()
   auto *tls = mythos::setupInitialTLS();
   mythos::ExecutionContext own(mythos::init::EC);
   mythos::PortalLock pl(portal);
-  TEST(own.setFSGS(pl, (uint64_t) tls, 0));
+  TEST(own.setFSGS(pl, (uint64_t) tls, 0).wait());
   TEST_EQ(x, 1024); // just testing if access through %fs is successful
   TEST_EQ(y, 2048);
+  x = 2*x;
+  y = 2*y;
+  TEST_EQ(x, 2048);
+  TEST_EQ(y, 4096);
+
+  auto threadFun = [] (void *data) -> void* {
+    mythos::syscall_wait();
+    TEST_EQ(x, 1024);
+    TEST_EQ(y, 2048);
+    x = x*2;
+    y = y*2;
+    TEST_EQ(x, 2048);
+    TEST_EQ(y, 4096);
+  };
+
+  mythos::ExecutionContext ec1(capAlloc());
+  MLOG_INFO(mlog::app, "test_EC: create ec1 TLS");
+  auto res1 = ec1.create(pl, kmem, myAS, myCS, mythos::init::SCHEDULERS_START + 1,
+                           thread1stack_top, threadFun, nullptr).wait();
+  TEST(res1);
+  tls = mythos::setupNewTLS();
+  TEST(ec1.setFSGS(pl,(uint64_t) tls, 0).wait());
+  mythos::syscall_notify(ec1.cap());
+}
+
+void test_heap() {
+  MLOG_INFO(mlog::app, "Test heap");
+  mythos::PortalLock pl(portal);
+  uintptr_t vaddr = 22*1024*1024; // choose address different from invokation buffer
+  auto size = 4*1024*1024; // 2 MB
+  auto align = 2*1024*1024; // 2 MB
+  // allocate a 2MiB frame
+  mythos::Frame f(capAlloc());
+  auto res2 = f.create(pl, kmem, size, align).wait();
+  TEST(res2);
+  // map the frame into our address space
+  auto res3 = myAS.mmap(pl, f, vaddr, size, 0x1).wait();
+  TEST(res3);
+  MLOG_INFO(mlog::app, "mmap frame", DVAR(res3.state()),
+            DVARhex(res3->vaddr), DVARhex(res3->size), DVAR(res3->level));
+  mythos::heap.addRange(vaddr, size);
+  for (int i : {10, 100, 1000, 10000, 100000}) {
+    int *a = new int[i];
+    delete a;
+  }
+  MLOG_INFO(mlog::app, "End Test heap");
 }
 
 struct HostChannel {
@@ -160,10 +207,11 @@ int main()
   mythos::syscall_debug(str, sizeof(str)-1);
   MLOG_ERROR(mlog::app, "application is starting :)", DVARhex(msg_ptr), DVARhex(initstack_top));
 
-  test_tls();
   test_float();
   test_Example();
   test_Portal();
+  test_heap(); // heap must be initialized for tls test
+  test_tls();
 
   {
     mythos::PortalLock pl(portal); // future access will fail if the portal is in use already

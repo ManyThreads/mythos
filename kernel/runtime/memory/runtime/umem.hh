@@ -1,4 +1,3 @@
-/* -*- mode:C++; indent-tabs-mode:nil; -*- */
 /* MIT License -- MyThOS: The Many-Threads Operating System
  *
  * Permission is hereby granted, free of charge, to any person
@@ -21,18 +20,14 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  *
- * Copyright 2017 Randolf Rotta, Robert Kuban, and contributors, BTU Cottbus-Senftenberg
+ * Copyright 2016 Randolf Rotta, Robert Kuban, and contributors, BTU Cottbus-Senftenberg
  */
 #pragma once
-
-#include <cstdint>
-#include "util/assert.hh"
+#include "runtime/SequentialHeap.hh"
 
 
 namespace mythos {
 
-void* setupInitialTLS();
-
-void* setupNewTLS();
+extern SequentialHeap<uintptr_t> heap;
 
 } // namespace mythos
