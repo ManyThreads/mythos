@@ -27,7 +27,6 @@
 
 
 namespace mythos {
-
-extern SequentialHeap<uintptr_t> heap;
-
+    extern SequentialHeap<uintptr_t> heap;
+    int posix_memalign(void **memptr, size_t alignment, size_t size);
 } // namespace mythos
