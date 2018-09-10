@@ -65,52 +65,57 @@ template<typename T, class A = AlignLine>
 class SequentialHeap
 {
 public:
+    typedef T addr_t;
+    typedef A Alignment;
+
     /**
     * Used to store the size of an allocated chunk.
     * Maybe additional meta data can be placed here.
     */
-    struct ObjData {
+    struct Head {
+        char* begin;
         size_t size;
     };
     
-    typedef T addr_t;
-    typedef A Alignment;
-
-    static_assert(Alignment::alignment() >= sizeof(ObjData));
 
     SequentialHeap() {}
     virtual ~SequentialHeap() {}
 
     size_t getAlignment() const { return heap.getAlignment(); }
 
-    optional<addr_t> alloc(size_t length) {
+    optional<addr_t> alloc(size_t length) { return this->alloc(length, Alignment::alignment()); }
+
+    optional<addr_t> alloc(size_t length, size_t align) {
         optional<addr_t> res;
-        auto allocSize = Alignment::round_up(sizeof(ObjData)) + length;
+        align = Alignment::round_up(align); // enforce own minimum alignment
+        auto headsize = AlignmentObject(align).round_up(sizeof(Head));
+        auto allocSize = Alignment::round_up(headsize + length);
         mutex << [&]() {
-            res = heap.alloc(allocSize, heap.getAlignment());
+            res = heap.alloc(allocSize, align);
         };
-        if (res) {
-            auto addr = *res;
-            ObjData *data = reinterpret_cast<ObjData*>(addr);
-            data->size = length;
-            auto retAddr = addr + Alignment::round_up(sizeof(ObjData));
-            MLOG_DETAIL(mlog::app, "Alloc size:", allocSize, "alignment:", heap.getAlignment(), DVARhex(retAddr));
-            ASSERT(Alignment::is_aligned(addr + Alignment::round_up(sizeof(ObjData))));
-            ASSERT(Alignment::is_aligned(data));
-            return {addr + Alignment::round_up(sizeof(ObjData))};
-        }
-        return res;
+        if (!res) return res;
+        auto begin = reinterpret_cast<char*>(*res);
+        auto addr = begin + headsize;
+        auto head = reinterpret_cast<Head*>(addr - sizeof(Head));
+        head->begin = begin;
+        head->size = allocSize;
+        MLOG_DETAIL(mlog::app, "allocated", DVARhex(begin), DVARhex(addr),
+                    DVAR(allocSize), DVAR(align));
+        ASSERT(AlignmentObject(align).is_aligned(addr));
+        ASSERT(Alignment::is_aligned(addr));
+        return {reinterpret_cast<addr_t>(addr)};
     }
 
     void free(addr_t start) {
-        ObjData *data = reinterpret_cast<ObjData*>(start - Alignment::round_up(sizeof(ObjData)));
-        addr_t to_free = start - Alignment::round_up(sizeof(ObjData));
-        size_t size = Alignment::round_up(sizeof(ObjData)) + data->size;
-        ASSERT(Alignment::is_aligned(data));
-        ASSERT(Alignment::is_aligned(to_free));
-        MLOG_DETAIL(mlog::app, "Free ", DVARhex(start), "size:", size);
+        auto addr = reinterpret_cast<char*>(start);
+        auto head = reinterpret_cast<Head*>(start - sizeof(Head));
+        auto begin = head->begin;
+        auto allocSize = head->size;
+        ASSERT(Alignment::is_aligned(begin));
+        ASSERT(Alignment::is_aligned(allocSize));
+        MLOG_DETAIL(mlog::app, "freeing ", DVARhex(begin), DVARhex(addr), DVARhex(allocSize));
         mutex << [&]() {
-            heap.free(to_free, size);
+            heap.free(reinterpret_cast<addr_t>(begin), allocSize);
         };
     }
 
