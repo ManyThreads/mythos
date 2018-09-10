@@ -31,7 +31,7 @@
 
 namespace mythos {
 
-void* setupInitialTLS();
+void setupInitialTLS();
 
 void* setupNewTLS();
 

@@ -30,6 +30,7 @@
 
 #include "mythos/syscall.hh"
 #include "app/mlog.hh"
+#include "runtime/tls.hh"
 
 extern atexit_func_t __preinit_array_start[] __attribute__((weak));
 extern atexit_func_t __preinit_array_end[] __attribute__((weak));
@@ -47,6 +48,9 @@ extern "C" void _fini();
 // see also http://stackoverflow.com/a/28981890 :(
 extern "C" void __libc_init_array()
 {
+    // init TLS
+    mythos::setupInitialTLS();
+    
   for (size_t i = 0; i < __preinit_array_end - __preinit_array_start; i++)
     __preinit_array_start[i]();
   _init();

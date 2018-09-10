@@ -135,11 +135,7 @@ thread_local int y = 2048;
 void test_tls()
 {
   MLOG_INFO(mlog::app, "testing thread local storage");
-  // Accessing tls variables before setup leads to page fault
-  auto *tls = mythos::setupInitialTLS();
-  mythos::ExecutionContext own(mythos::init::EC);
   mythos::PortalLock pl(portal);
-  TEST(own.setFSGS(pl, (uint64_t) tls, 0).wait());
   TEST_EQ(x, 1024); // just testing if access through %fs is successful
   TEST_EQ(y, 2048);
   x = 2*x;
@@ -162,7 +158,7 @@ void test_tls()
   auto res1 = ec1.create(pl, kmem, myAS, myCS, mythos::init::SCHEDULERS_START + 1,
                            thread1stack_top, threadFun, nullptr).wait();
   TEST(res1);
-  tls = mythos::setupNewTLS();
+  auto tls = mythos::setupNewTLS();
   TEST(ec1.setFSGS(pl,(uint64_t) tls, 0).wait());
   mythos::syscall_notify(ec1.cap());
 }
