@@ -244,11 +244,18 @@ int main()
     auto res1 = ec1.create(pl, kmem, myAS, myCS, mythos::init::SCHEDULERS_START,
                            thread1stack_top, &thread_main, nullptr).wait();
     TEST(res1);
+
+    auto tls1 = mythos::setupNewTLS();
+    TEST(ec1.setFSGS(pl,(uint64_t) tls1, 0).wait());
+
     MLOG_INFO(mlog::app, "test_EC: create ec2");
     auto res2 = ec2.create(pl, kmem, myAS, myCS, mythos::init::SCHEDULERS_START+1,
                            thread2stack_top, &thread_main, nullptr).wait();
     TEST(res2);
-  }
+
+    auto tls2 = mythos::setupNewTLS();
+    TEST(ec2.setFSGS(pl,(uint64_t) tls2, 0).wait());
+}
 
   for (volatile int i=0; i<100000; i++) {
     for (volatile int j=0; j<1000; j++) {}
