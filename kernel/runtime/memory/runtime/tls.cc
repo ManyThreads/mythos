@@ -1,7 +1,7 @@
 #include "runtime/tls.hh"
 #include "util/elf64.hh"
 #include "runtime/brk.hh"
-#include "app/mlog.hh"
+#include "runtime/mlog.hh"
 #include "util/alignments.hh"
 #include "runtime/umem.hh"
 #include "mythos/init.hh"

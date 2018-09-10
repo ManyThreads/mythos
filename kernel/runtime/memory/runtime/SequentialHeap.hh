@@ -29,7 +29,7 @@
 #include "util/alignments.hh"
 #include "util/FirstFitHeap.hh"
 #include "cpu/hwthread_pause.hh"
-#include "app/mlog.hh"
+#include "runtime/mlog.hh"
 #include <atomic>
 
 

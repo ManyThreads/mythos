@@ -36,7 +36,7 @@
 #include "runtime/KernelMemory.hh"
 #include "runtime/SimpleCapAlloc.hh"
 #include "runtime/tls.hh"
-#include "app/mlog.hh"
+#include "runtime/mlog.hh"
 #include <cstdint>
 #include "util/optional.hh"
 #include "runtime/umem.hh"

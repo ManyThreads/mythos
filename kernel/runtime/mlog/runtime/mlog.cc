@@ -24,7 +24,7 @@
  * Copyright 2014 Randolf Rotta, Maik Krüger, and contributors, BTU Cottbus-Senftenberg
  */
 
-#include "app/mlog.hh"
+#include "runtime/mlog.hh"
 #include "util/error-trace.hh"
 
 namespace mlog {

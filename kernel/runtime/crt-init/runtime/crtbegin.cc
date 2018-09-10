@@ -29,7 +29,7 @@
 #include <atomic>
 
 #include "mythos/syscall.hh"
-#include "app/mlog.hh"
+#include "runtime/mlog.hh"
 #include "runtime/tls.hh"
 
 extern atexit_func_t __preinit_array_start[] __attribute__((weak));
