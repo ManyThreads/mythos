@@ -57,7 +57,7 @@ APP_CPPFLAGS += -I.
 APP_CXXFLAGS += $(CXXFLAGS)
 APP_CXXFLAGS += -std=c++11
 #APP_CXXFLAGS += -O2 -g3 -ggdb -gdwarf-2
-APP_CXXFLAGS += -O2 -g -mno-mmx -mno-sse -mno-sse2 -mno-sse3 -mno-3dnow -fno-stack-protector
+APP_CXXFLAGS += -O2 -g
 APP_LD = $(LD)
 APP_LDFLAGS = -g -static
 
