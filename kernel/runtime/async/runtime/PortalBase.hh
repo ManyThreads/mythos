@@ -25,7 +25,7 @@
  */
 #pragma once
 
-#include "app/mlog.hh"
+#include "runtime/mlog.hh"
 #include "runtime/FutureBase.hh"
 #include "runtime/ISysretHandler.hh"
 #include "mythos/InvocationBuf.hh"

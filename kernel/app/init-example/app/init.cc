@@ -36,7 +36,7 @@
 #include "runtime/KernelMemory.hh"
 #include "runtime/SimpleCapAlloc.hh"
 #include "runtime/tls.hh"
-#include "app/mlog.hh"
+#include "runtime/mlog.hh"
 #include <cstdint>
 #include "util/optional.hh"
 #include "runtime/umem.hh"
@@ -135,11 +135,7 @@ thread_local int y = 2048;
 void test_tls()
 {
   MLOG_INFO(mlog::app, "testing thread local storage");
-  // Accessing tls variables before setup leads to page fault
-  auto *tls = mythos::setupInitialTLS();
-  mythos::ExecutionContext own(mythos::init::EC);
   mythos::PortalLock pl(portal);
-  TEST(own.setFSGS(pl, (uint64_t) tls, 0).wait());
   TEST_EQ(x, 1024); // just testing if access through %fs is successful
   TEST_EQ(y, 2048);
   x = 2*x;
@@ -162,7 +158,7 @@ void test_tls()
   auto res1 = ec1.create(pl, kmem, myAS, myCS, mythos::init::SCHEDULERS_START + 1,
                            thread1stack_top, threadFun, nullptr).wait();
   TEST(res1);
-  tls = mythos::setupNewTLS();
+  auto tls = mythos::setupNewTLS();
   TEST(ec1.setFSGS(pl,(uint64_t) tls, 0).wait());
   mythos::syscall_notify(ec1.cap());
 }
@@ -248,11 +244,18 @@ int main()
     auto res1 = ec1.create(pl, kmem, myAS, myCS, mythos::init::SCHEDULERS_START,
                            thread1stack_top, &thread_main, nullptr).wait();
     TEST(res1);
+
+    auto tls1 = mythos::setupNewTLS();
+    TEST(ec1.setFSGS(pl,(uint64_t) tls1, 0).wait());
+
     MLOG_INFO(mlog::app, "test_EC: create ec2");
     auto res2 = ec2.create(pl, kmem, myAS, myCS, mythos::init::SCHEDULERS_START+1,
                            thread2stack_top, &thread_main, nullptr).wait();
     TEST(res2);
-  }
+
+    auto tls2 = mythos::setupNewTLS();
+    TEST(ec2.setFSGS(pl,(uint64_t) tls2, 0).wait());
+}
 
   for (volatile int i=0; i<100000; i++) {
     for (volatile int j=0; j<1000; j++) {}
