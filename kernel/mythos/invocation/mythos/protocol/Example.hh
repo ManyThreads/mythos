@@ -55,7 +55,7 @@ namespace mythos {
       };
 
       struct Create : public KernelMemory::CreateBase {
-        Create(CapPtr dst, CapPtr factory) : CreateBase(dst, factory) {}
+        Create(CapPtr dst, CapPtr factory) : CreateBase(dst, factory, getLength(this), 0) {}
       };
 
       template<class IMPL, class... ARGS>

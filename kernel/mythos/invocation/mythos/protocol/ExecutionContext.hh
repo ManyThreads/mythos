@@ -60,10 +60,26 @@ namespace mythos {
       };
 
       struct Amd64Registers {
-        uint64_t rax, rbx, rcx, rdx, rdi, rsi;
-        uint64_t r8, r9, r10, r11, r12, r13, r14, r15;
-        uint64_t rip, rsp, rbp;
-        uint64_t fs_base, gs_base;
+          Amd64Registers() {}
+        uint64_t rax = 0;
+        uint64_t rbx = 0;
+        uint64_t rcx = 0;
+        uint64_t rdx = 0;
+        uint64_t rdi = 0;
+        uint64_t rsi = 0;
+        uint64_t r8 = 0;
+        uint64_t r9 = 0;
+        uint64_t r10 = 0;
+        uint64_t r11 = 0;
+        uint64_t r12 = 0;
+        uint64_t r13 = 0;
+        uint64_t r14 = 0;
+        uint64_t r15 = 0;
+        uint64_t rip = 0;
+        uint64_t rsp = 0;
+        uint64_t rbp = 0;
+        uint64_t fs_base = 0;
+        uint64_t gs_base = 0;
       };
 
       // has WriteRegisters message as result
@@ -102,25 +118,16 @@ namespace mythos {
 
       struct Create : public KernelMemory::CreateBase {
         typedef InvocationBase response_type;
-        Create(CapPtr dst, CapPtr factory, CapPtr as, CapPtr cs, CapPtr sched, Amd64Registers regs, bool start)
-          : CreateBase(dst, factory), regs(regs), start(start)
-        {
-          addExtraCap(as);
-          addExtraCap(cs);
-          addExtraCap(sched);
-        }
-        Create(CapPtr dst, CapPtr factory, CapPtr as, CapPtr cs, CapPtr sched, bool start)
-          : CreateBase(dst, factory), start(start)
-        {
-          addExtraCap(as);
-          addExtraCap(cs);
-          addExtraCap(sched);
-        }
+        Create(CapPtr dst, CapPtr factory) 
+          : CreateBase(dst, factory, getLength(this), 3), start(false) { }
         Amd64Registers regs;
         bool start;
         CapPtr as() const { return this->capPtrs[2]; }
         CapPtr cs() const { return this->capPtrs[3]; }
         CapPtr sched() const { return this->capPtrs[4]; }
+        void as(CapPtr c) { this->capPtrs[2] = c; }
+        void cs(CapPtr c) { this->capPtrs[3] = c; }
+        void sched(CapPtr c) { this->capPtrs[4] =c; }
       };
 
       template<class IMPL, class... ARGS>

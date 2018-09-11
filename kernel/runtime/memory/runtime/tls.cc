@@ -57,6 +57,7 @@ void setupInitialTLS() {
     AlignmentObject align(max(ph->alignment, alignof(TLSControlBlock)));
     auto tlsAllocationSize = align.round_up(ph->memsize) + sizeof(TLSControlBlock);
     auto addr = reinterpret_cast<char*>(sbrk(tlsAllocationSize)); // @todo should be aligned to align.alignment()
+    ASSERT(addr != nullptr);
     auto tcbAddr = addr + align.round_up(ph->memsize);
     auto tlsAddr = tcbAddr - align.round_up(ph->memsize);
     
@@ -73,13 +74,20 @@ void setupInitialTLS() {
 
 void* setupNewTLS() {
     auto ph = findTLSHeader();
-    if (ph == nullptr || ph->type != elf64::Type::PT_TLS) return nullptr;
+    if (ph == nullptr || ph->type != elf64::Type::PT_TLS) {
+        MLOG_ERROR(mlog::app, "Load TLS found no TLS program header");
+        return nullptr;
+    }
 
     AlignmentObject align(max(ph->alignment, alignof(TLSControlBlock)));
     auto tlsAllocationSize = align.round_up(ph->memsize) + sizeof(TLSControlBlock);
 
     auto tmp = mythos::heap.alloc(tlsAllocationSize, align.alignment());
-    if (!tmp) return nullptr;
+    if (!tmp) {
+        MLOG_ERROR(mlog::app, "Load TLS could not allocate memory from heap",
+            DVAR(tlsAllocationSize), DVAR(align.alignment()), tmp.state());
+        return nullptr;
+    }
     auto addr = reinterpret_cast<char*>(*tmp);
 
     auto tcbAddr = addr + align.round_up(ph->memsize);

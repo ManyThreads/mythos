@@ -59,7 +59,7 @@ namespace mythos {
 
       struct Create : public KernelMemory::CreateBase {
         Create(CapPtr dst, CapPtr factory, size_t size, size_t alignment)
-          : CreateBase(dst, factory), size(size), alignment(alignment)
+          : CreateBase(dst, factory, getLength(this), 0), size(size), alignment(alignment)
         {}
         size_t size;
         size_t alignment;
