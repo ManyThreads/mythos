@@ -29,7 +29,7 @@
 #include "util/alignments.hh"
 #include "util/FirstFitHeap.hh"
 #include "cpu/hwthread_pause.hh"
-#include "app/mlog.hh"
+#include "runtime/mlog.hh"
 #include <atomic>
 
 
@@ -90,6 +90,8 @@ public:
         align = Alignment::round_up(align); // enforce own minimum alignment
         auto headsize = AlignmentObject(align).round_up(sizeof(Head));
         auto allocSize = Alignment::round_up(headsize + length);
+        MLOG_DETAIL(mlog::app, "heap: try to allocate", DVAR(length), DVAR(align), 
+                    DVAR(allocSize));
         mutex << [&]() {
             res = heap.alloc(allocSize, align);
         };

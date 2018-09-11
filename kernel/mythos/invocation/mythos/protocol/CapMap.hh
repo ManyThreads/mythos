@@ -130,7 +130,7 @@ namespace mythos {
 
       struct Create : public KernelMemory::CreateBase {
         Create(CapPtr dst, CapPtr factory, CapPtrDepth indexbits, CapPtrDepth guardbits, CapPtr guard)
-          : CreateBase(dst, factory), indexbits(indexbits), guardbits(guardbits), guard(guard)
+          : CreateBase(dst, factory, getLength(this), 0), indexbits(indexbits), guardbits(guardbits), guard(guard)
         {}
         CapPtrDepth indexbits;
         CapPtrDepth guardbits;

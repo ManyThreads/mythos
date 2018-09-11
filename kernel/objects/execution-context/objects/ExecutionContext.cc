@@ -247,10 +247,13 @@ namespace mythos {
 
   optional<void> ExecutionContext::setBaseRegisters(uint64_t fs, uint64_t gs)
   {
+      // \TODO don't use PhysPtr because the canonical address belong to the logical addresses
     if (!PhysPtr<void>(fs).canonical() || !PhysPtr<void>(gs).canonical())
       THROW(Error::NON_CANONICAL_ADDRESS);
     threadState.fs_base = fs;
     threadState.gs_base = gs;
+    MLOG_DETAIL(mlog::ec, "set fs/gs", DVAR(this), DVARhex(fs), DVARhex(gs));
+    
     RETURN(Error::SUCCESS);
   }
 
@@ -316,6 +319,7 @@ namespace mythos {
     MLOG_ERROR(mlog::ec, "...", DVARhex(ctx->r8), DVARhex(ctx->r9), DVARhex(ctx->r10),
          DVARhex(ctx->r11), DVARhex(ctx->r12), DVARhex(ctx->r13),
          DVARhex(ctx->r14), DVARhex(ctx->r15));
+    MLOG_ERROR(mlog::ec, "...", DVARhex(ctx->fs_base), DVARhex(ctx->gs_base));
     setFlag(IS_TRAPPED); // mark as not executable until the exception is handled
   }
 

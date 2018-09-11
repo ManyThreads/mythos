@@ -25,7 +25,7 @@
  */
 #pragma once
 
-#include "app/mlog.hh"
+#include "runtime/mlog.hh"
 #include "runtime/FutureBase.hh"
 #include "runtime/ISysretHandler.hh"
 #include "mythos/InvocationBuf.hh"
@@ -104,6 +104,14 @@ namespace mythos {
 
     void invoke(CapPtr kobj) { ASSERT(_portal); _portal->invoke(kobj); }
 
+    template<class MSG>
+    PortalLock& invokeWithMsg(CapPtr kobj, MSG const& msg) {
+        ASSERT(_portal);
+        new(_portal->buf()) MSG(msg);
+        _portal->invoke(kobj);
+        return *this;
+    }
+    
     template<class MSG, class... ARGS>
     PortalLock invoke(CapPtr kobj, ARGS const&... args) {
       ASSERT(_portal);

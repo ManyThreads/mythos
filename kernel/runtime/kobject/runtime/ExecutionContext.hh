@@ -33,6 +33,58 @@
 #include "mythos/init.hh"
 
 namespace mythos {
+    
+    template<class MSG> class Msg;
+    
+    template<> class Msg<protocol::ExecutionContext::Create>
+    {
+    protected:
+        protocol::ExecutionContext::Create ib;
+        CapPtr obj;
+    public:
+        typedef void* (*StartFun)(void*);
+        
+        Msg(CapPtr dst, CapPtr kmem, CapPtr factory) : ib(dst, factory), obj(kmem) {}
+        
+        Msg& as(CapPtr c) { ib.as(c); return *this; }
+        Msg& as(PageMap& c) { ib.as(c.cap()); return *this; }
+        Msg& cs(CapPtr c) { ib.cs(c); return *this; }
+        Msg& cs(CapMap& c) { ib.cs(c.cap()); return *this; }
+        Msg& sched(CapPtr c) { ib.sched(c); return *this; }
+        Msg& rawStack(void* ptr) { ib.regs.rsp = uintptr_t(ptr); return *this; }
+        Msg& prepareStack(void* ptr) {
+            // \TODO assert alignment
+            auto tos = reinterpret_cast<uintptr_t*>(ptr);
+            *--tos = 0;                                     // dummy return address
+            ib.regs.rsp = uintptr_t(tos); 
+            return *this; 
+        }
+        Msg& startFun(StartFun fun, void* userctx) { 
+            ib.regs.rdi = uintptr_t(fun);                   // arg 1
+            ib.regs.rsi = uintptr_t(userctx);               // arg 2
+            ib.regs.rip = uintptr_t(&start);
+            return *this; 
+        }
+        Msg& suspended(bool value) { ib.start = !value; return *this; }
+        Msg& fs(void* ptr) { ib.regs.fs_base = uintptr_t(ptr); return *this; }
+        Msg& gs(void* ptr) { ib.regs.gs_base = uintptr_t(ptr); return *this; }
+        
+        // inherited from KernelMemory::CreateBase
+        Msg& indirectDest(CapPtr dstCSpace, CapPtrDepth dstDepth) {
+            ib.setIndirectDest(dstCSpace, dstDepth);
+            return *this;
+        }
+        
+        PortalFuture<void> invokeVia(PortalLock pl) { 
+            
+            return std::move(pl.invokeWithMsg(obj,  ib)); 
+        }
+
+    protected:
+        static void start(StartFun main, void* userctx) { 
+            syscall_exit(uintptr_t(main(userctx)));
+        }
+    };    
 
   class ExecutionContext : public KObject
   {
@@ -41,11 +93,11 @@ namespace mythos {
     typedef void* (*StartFun)(void*);
 
     ExecutionContext(CapPtr cap) : KObject(cap) {}
-
-    PortalFuture<void> create(PortalLock pr, KernelMemory kmem,
-                              PageMap as, CapMap cs, CapPtr sched,
-                              void* stack, StartFun start, void* userctx,
-                              CapPtr factory = init::EXECUTION_CONTEXT_FACTORY);
+    
+    Msg<protocol::ExecutionContext::Create> 
+    create(KernelMemory kmem, CapPtr factory = init::EXECUTION_CONTEXT_FACTORY) {
+        return {this->cap(), kmem.cap(), factory};
+    }
 
     PortalFuture<void> configure(PortalLock pr, PageMap as, CapMap cs, CapPtr sched) {
       return pr.invoke<protocol::ExecutionContext::Configure>(_cap, as.cap(), cs.cap(), sched);
@@ -74,8 +126,6 @@ namespace mythos {
       return pr.invoke<protocol::ExecutionContext::Suspend>(_cap);
     }
 
-  protected:
-    static void start(StartFun main, void* userctx);
   };
 
 } // namespace mythos

@@ -1,4 +1,4 @@
-/* -*- mode:C++; -*- */
+/* -*- mode:asm; indent-tabs-mode:nil; -*- */
 /* MIT License -- MyThOS: The Many-Threads Operating System
  *
  * Permission is hereby granted, free of charge, to any person
@@ -21,14 +21,38 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  *
- * Copyright 2014 Randolf Rotta, Maik Krüger, and contributors, BTU Cottbus-Senftenberg
+ * Copyright 2016 Randolf Rotta, Robert Kuban, and contributors, BTU Cottbus-Senftenberg
  */
 
-#include "app/mlog.hh"
-#include "util/error-trace.hh"
+.extern initstack_top
+.extern main
+.extern msg_ptr
+.extern __libc_init_array
+.extern exit
 
-namespace mlog {
-  Logger<MLOG_APP> app("app");
-  Logger<MLOG_ERROR_THROW> throw_error("throw");
-  Logger<FilterAny> testLog("Test");
-} // namespace mlog
+.align 8
+.global _start
+_start:
+        mov initstack_top, %rsp
+        xor %rbp, %rbp
+        mov %rdi, msg_ptr       // store first argument to global variable
+        fninit                  // initialize the FPU
+        call __libc_init_array
+        call main
+        mov $0, %rdi
+        call exit
+1:      jmp 1b
+
+.section .init
+.global _init
+.type _init,@function
+_init:
+        push %rbp
+        mov %rsp, %rbp
+
+.section .fini
+.global _fini
+.type _fini,@function
+_fini:
+        push %rbp
+        mov %rsp, %rbp

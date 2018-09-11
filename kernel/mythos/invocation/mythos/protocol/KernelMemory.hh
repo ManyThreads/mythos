@@ -41,18 +41,22 @@ namespace protocol {
     // note: other concrete factory stubs will extend this message by additional caps and parameters
     struct CreateBase : public InvocationBase {
       constexpr static uint16_t label = (proto<<8) + CREATE;
-      CreateBase(CapPtr dst, CapPtr factory) : InvocationBase(label,getLength(this)) {
+      CreateBase(CapPtr dst, CapPtr factory, uint8_t length, unsigned extraCaps) 
+        : InvocationBase(label, length, extraCaps+2)
+      {
         this->dstPtr = dst;
-        addExtraCap(factory);
-        addExtraCap(null_cap);
+        this->factory(factory);
+        this->dstSpace(null_cap);
         this->dstDepth = 0;
       }
-
+      
       CapPtr factory() const { return this->capPtrs[0]; }
       CapPtr dstSpace() const { return this->capPtrs[1]; }
+      void factory(CapPtr c) { this->capPtrs[0] = c; }
+      void dstSpace(CapPtr c) { this->capPtrs[1] = c; }
 
       void setIndirectDest(CapPtr dstCSpace, CapPtrDepth dstDepth) {
-        this->capPtrs[1] = dstCSpace;
+        this->dstSpace(dstCSpace);
         this->dstDepth = dstDepth;
       }
 
@@ -61,7 +65,7 @@ namespace protocol {
 
     struct Create : public CreateBase {
       Create(CapPtr dst, CapPtr factory, size_t size, size_t alignment)
-        : CreateBase(dst, factory), size(size), alignment(alignment)
+        : CreateBase(dst, factory, getLength(this), 0), size(size), alignment(alignment)
       {}
       size_t size;
       size_t alignment;
