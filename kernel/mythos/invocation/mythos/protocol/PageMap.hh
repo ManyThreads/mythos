@@ -127,7 +127,7 @@ namespace mythos {
 
       struct Create : public KernelMemory::CreateBase {
         Create(CapPtr dst, CapPtr factory, size_t level)
-          : CreateBase(dst, factory), level(level)
+          : CreateBase(dst, factory, getLength(this), 0), level(level)
         {}
         size_t level;
       };

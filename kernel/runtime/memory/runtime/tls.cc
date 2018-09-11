@@ -17,7 +17,9 @@ namespace {
 
 struct TLSControlBlock
 {
-    TLSControlBlock* tcb = {this};
+    TLSControlBlock() { tcb = this; }
+    
+    TLSControlBlock* tcb;
     void* dtv;
     void* self;
     int   multiple_threads;
@@ -57,9 +59,11 @@ void setupInitialTLS() {
     AlignmentObject align(max(ph->alignment, alignof(TLSControlBlock)));
     auto tlsAllocationSize = align.round_up(ph->memsize) + sizeof(TLSControlBlock);
     auto addr = reinterpret_cast<char*>(sbrk(tlsAllocationSize)); // @todo should be aligned to align.alignment()
+    ASSERT(addr != nullptr);
     auto tcbAddr = addr + align.round_up(ph->memsize);
-    auto tlsAddr = tcbAddr - align.round_up(ph->memsize);
+    auto tlsAddr = tcbAddr - AlignmentObject(ph->alignment).round_up(ph->memsize);
     
+    ASSERT(ph->filesize <= ph->memsize);
     memset(tlsAddr, 0, ph->memsize);
     memcpy(tlsAddr, (void*)(ph->vaddr), ph->filesize);
     new(tcbAddr) TLSControlBlock(); // placement new to set up the TCB
@@ -73,23 +77,31 @@ void setupInitialTLS() {
 
 void* setupNewTLS() {
     auto ph = findTLSHeader();
-    if (ph == nullptr || ph->type != elf64::Type::PT_TLS) return nullptr;
+    if (ph == nullptr || ph->type != elf64::Type::PT_TLS) {
+        MLOG_ERROR(mlog::app, "Load TLS found no TLS program header");
+        return nullptr;
+    }
 
     AlignmentObject align(max(ph->alignment, alignof(TLSControlBlock)));
     auto tlsAllocationSize = align.round_up(ph->memsize) + sizeof(TLSControlBlock);
 
     auto tmp = mythos::heap.alloc(tlsAllocationSize, align.alignment());
-    if (!tmp) return nullptr;
+    if (!tmp) {
+        MLOG_ERROR(mlog::app, "Load TLS could not allocate memory from heap",
+            DVAR(tlsAllocationSize), DVAR(align.alignment()), tmp.state());
+        return nullptr;
+    }
     auto addr = reinterpret_cast<char*>(*tmp);
 
     auto tcbAddr = addr + align.round_up(ph->memsize);
-    auto tlsAddr = tcbAddr - align.round_up(ph->memsize);
+    auto tlsAddr = tcbAddr - AlignmentObject(ph->alignment).round_up(ph->memsize);
     
+    ASSERT(ph->filesize <= ph->memsize);
     memset(tlsAddr, 0, ph->memsize);
     memcpy(tlsAddr, (void*)(ph->vaddr), ph->filesize);
     new(tcbAddr) TLSControlBlock(); // placement new to set up the TCB
 
-    MLOG_DETAIL(mlog::app, "Load TLS",DVARhex(tlsAddr), DVARhex(tcbAddr), 
+    MLOG_DETAIL(mlog::app, "Load TLS", DVARhex(tlsAddr), DVARhex(tcbAddr), 
                 DVARhex(ph), DVARhex(ph->offset), DVARhex(ph->filesize), 
                 DVARhex(ph->vaddr), DVARhex(ph->memsize));
     return tcbAddr;
