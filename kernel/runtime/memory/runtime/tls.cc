@@ -17,7 +17,9 @@ namespace {
 
 struct TLSControlBlock
 {
-    TLSControlBlock* tcb = {this};
+    TLSControlBlock() { tcb = this; }
+    
+    TLSControlBlock* tcb;
     void* dtv;
     void* self;
     int   multiple_threads;
@@ -59,8 +61,9 @@ void setupInitialTLS() {
     auto addr = reinterpret_cast<char*>(sbrk(tlsAllocationSize)); // @todo should be aligned to align.alignment()
     ASSERT(addr != nullptr);
     auto tcbAddr = addr + align.round_up(ph->memsize);
-    auto tlsAddr = tcbAddr - align.round_up(ph->memsize);
+    auto tlsAddr = tcbAddr - AlignmentObject(ph->alignment).round_up(ph->memsize);
     
+    ASSERT(ph->filesize <= ph->memsize);
     memset(tlsAddr, 0, ph->memsize);
     memcpy(tlsAddr, (void*)(ph->vaddr), ph->filesize);
     new(tcbAddr) TLSControlBlock(); // placement new to set up the TCB
@@ -91,13 +94,14 @@ void* setupNewTLS() {
     auto addr = reinterpret_cast<char*>(*tmp);
 
     auto tcbAddr = addr + align.round_up(ph->memsize);
-    auto tlsAddr = tcbAddr - align.round_up(ph->memsize);
+    auto tlsAddr = tcbAddr - AlignmentObject(ph->alignment).round_up(ph->memsize);
     
+    ASSERT(ph->filesize <= ph->memsize);
     memset(tlsAddr, 0, ph->memsize);
     memcpy(tlsAddr, (void*)(ph->vaddr), ph->filesize);
     new(tcbAddr) TLSControlBlock(); // placement new to set up the TCB
 
-    MLOG_DETAIL(mlog::app, "Load TLS",DVARhex(tlsAddr), DVARhex(tcbAddr), 
+    MLOG_DETAIL(mlog::app, "Load TLS", DVARhex(tlsAddr), DVARhex(tcbAddr), 
                 DVARhex(ph), DVARhex(ph->offset), DVARhex(ph->filesize), 
                 DVARhex(ph->vaddr), DVARhex(ph->memsize));
     return tcbAddr;

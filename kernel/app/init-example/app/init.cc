@@ -130,11 +130,20 @@ void test_float()
   MLOG_INFO(mlog::app, "float z:", int(z), ".", int(1000*(z-float(int(z)))));
 }
 
+
+uint64_t readFS(uintptr_t offset) {
+  uint64_t value;
+  asm ("movq %%fs:%1, %0" : "=r" (value) : "m" (*(char*)offset));
+  return value;
+}
+
 thread_local int x = 1024;
 thread_local int y = 2048;
 void test_tls()
 {
   MLOG_INFO(mlog::app, "testing thread local storage");
+  MLOG_INFO(mlog::app, "main thread TLS:", DVARhex(readFS(0)), DVARhex(readFS(0x28)));
+  
   mythos::PortalLock pl(portal);
   TEST_EQ(x, 1024); // just testing if access through %fs is successful
   TEST_EQ(y, 2048);
@@ -144,6 +153,7 @@ void test_tls()
   TEST_EQ(y, 4096);
 
   auto threadFun = [] (void *data) -> void* {
+    MLOG_INFO(mlog::app, "main thread TLS:", DVARhex(readFS(0)), DVARhex(readFS(0x28)));
     TEST_EQ(x, 1024);
     TEST_EQ(y, 2048);
     mythos::syscall_wait();
@@ -156,8 +166,8 @@ void test_tls()
   };
 
   mythos::ExecutionContext ec1(capAlloc());
-  MLOG_INFO(mlog::app, "test_EC: create ec1 TLS");
   auto tls = mythos::setupNewTLS();
+  MLOG_INFO(mlog::app, "test_EC: create ec1 TLS", DVARhex(tls));
   ASSERT(tls != nullptr);
   auto res1 = ec1.create(kmem).as(myAS).cs(myCS).sched(mythos::init::SCHEDULERS_START + 1)
     .prepareStack(thread1stack_top).startFun(threadFun, nullptr)
@@ -189,14 +199,14 @@ void test_heap() {
     delete a;
   }
   
-  int* tests[10];
-  for (int i=0;i<10;i++) {
-      tests[i] = new int[100];
-      TEST(tests[i] != nullptr);
-  }
-  for (int i=0;i<10;i++) {
-      delete tests[i];
-  }
+//   int* tests[10];
+//   for (int i=0;i<10;i++) {
+//       tests[i] = new int[100];
+//       TEST(tests[i] != nullptr);
+//   }
+//   for (int i=0;i<10;i++) {
+//       delete tests[i];
+//   }
   
   MLOG_INFO(mlog::app, "End Test heap");
 }
@@ -233,7 +243,7 @@ int main()
     TEST(res1);
 
     // map the frame into our address space
-    uintptr_t vaddr = 22*1024*1024;
+    uintptr_t vaddr = 24*1024*1024;
     auto res2 = myAS.mmap(pl, hostChannelFrame, vaddr, 2*1024*1024, 0x1).wait();
     MLOG_INFO(mlog::app, "mmap hostChannel frame", DVAR(res2.state()),
               DVARhex(res2.get().vaddr), DVARhex(res2.get().size), DVAR(res2.get().level));
