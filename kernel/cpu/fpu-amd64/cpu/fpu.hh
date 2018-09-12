@@ -48,6 +48,7 @@ namespace mythos {
 
       static void initCpu() {
         x86::setCR0((x86::getCR0() & ~0xC) | 0x19);
+        x86::setCR4((x86::getCR4() & ~0x0) | (x86::OSFXSR+x86::OSXSAVE+x86::OSXMMEXCPT));
         asm volatile ("clts");
         asm volatile ("fninit");
         /// @todo what about xcr0 ?

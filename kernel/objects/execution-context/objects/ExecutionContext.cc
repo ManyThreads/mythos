@@ -28,6 +28,7 @@
 
 #include "cpu/kernel_entry.hh"
 #include "cpu/ctrlregs.hh"
+#include "async/SynchronousTask.hh"
 #include "objects/mlog.hh"
 #include "objects/ops.hh"
 #include "objects/DebugMessage.hh"
@@ -52,11 +53,12 @@ namespace mythos {
     MLOG_DETAIL(mlog::ec, "set flag", DVAR(this), DVARhex(f), DVARhex(prev),
                 DVARhex(flags.load()), isReady());
     if (needPreemption(prev) && !isReady()) {
-      auto sched = _sched.get();
-      if (sched) sched->preempt(&ec_handle);
-      /// @todo dont rely on the scheduler, just end a preemption to currentPlace
+        auto place = currentPlace.load();
+        ASSERT(place != nullptr);
+        if (place) synchronousAt(place) << [this]() {
+            MLOG_DETAIL(mlog::ec, "suspended", DVAR(this));
+        };
     }
-    /// @todo maybe wait for IS_NOT_RUNNING, preemption is not synchronous
   }
 
   void ExecutionContext::clearFlagsResume(flag_t f)
@@ -145,7 +147,7 @@ namespace mythos {
   {
     MLOG_INFO(mlog::ec, "setScheduler unbind", DVAR(this));
     ASSERT(sched);
-    setFlags(NO_SCHED);
+    setFlagsSuspend(NO_SCHED);
     sched->unbind(&ec_handle);
   }
 
@@ -566,19 +568,23 @@ namespace mythos {
         current_ec->store(nullptr);
     }
 
-  optional<void> ExecutionContext::deleteCap(Cap self, IDeleter& del)
-  {
-    if (self.isOriginal()) { // the object gets deleted, not a capability reference
-      if (currentPlace.load() != nullptr) {
-          // @todo enforce saveState() on correct place ?
-      }
-      _as.reset();
-      _cs.reset();
-      _sched.reset();
-      del.deleteObject(del_handle);
+    optional<void> ExecutionContext::deleteCap(Cap self, IDeleter& del)
+    {
+        if (self.isOriginal()) { // the object gets deleted, not a capability reference
+            setFlags(NO_AS + NO_SCHED); // ensure that the EC looks blocked
+            // synchronously preempt and unload the own state
+            auto place = currentPlace.load();
+            if (place) synchronousAt(place) << [this]() {
+                this->saveState();
+                MLOG_DETAIL(mlog::ec, "preempted and unloaded state", DVAR(this));
+            };
+            _as.reset();
+            _cs.reset();
+            _sched.reset();
+            del.deleteObject(del_handle);
+        }
+        RETURN(Error::SUCCESS);
     }
-    RETURN(Error::SUCCESS);
-  }
 
   void ExecutionContext::deleteObject(Tasklet* t, IResult<void>* r)
   {

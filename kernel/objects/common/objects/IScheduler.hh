@@ -44,8 +44,8 @@ namespace mythos {
 
     virtual void bind(handle_t* ec_handle) = 0;
 
-    /** Removes the EC from all queues and pointers, interrupts the
-     * thread if it is currently running.
+    /** Removes the EC from all queues and pointers. Does not preempt the execution context
+     * if it is currently running. This is up to the execution context.
      */
     virtual void unbind(handle_t* ec_handle) = 0;
 
@@ -62,14 +62,6 @@ namespace mythos {
      * @param ec_handle the queue handle of the EC that shall be interrupted
      */
     virtual void preempt(Tasklet* t, IResult<void>* res, handle_t* ec_handle) = 0;
-
-    /** Interrupts the scheduler's hardware thread if it is currently
-     * running the referenced Execution Context. Is performed
-     * asynchronously and the caller cannot wait for completion.
-     */
-    virtual void preempt(handle_t* ec_handle) = 0;
-
-    virtual void yield(handle_t* ec_handle) = 0;
   };
 
 } // namespace mythos

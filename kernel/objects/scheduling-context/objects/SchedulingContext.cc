@@ -38,108 +38,75 @@ namespace mythos {
     {
     }
     
-  void SchedulingContext::unbind(handle_t* ec)
-  {
-    MLOG_DETAIL(mlog::sched, "unbind", ec);
-    readyQueue.remove(ec);
-    preempt(ec); /// @todo race when ec is deleted too early
-  }
-
-  void SchedulingContext::ready(handle_t* ec)
-  {
-    MLOG_INFO(mlog::sched, "ready", ec);
-    ASSERT(ec != nullptr);
-
-    readyQueue.remove(ec); /// @todo do not need to remove if already on the queue, just do nothing then
-
-    // set current_ec or push to the ready queue
-    handle_t* current = current_ec.load();
-    handle_t* const removed = reinterpret_cast<handle_t*>(REMOVED);
-    while (true) {
-      if (current == nullptr) {
-        if (current_ec.compare_exchange_strong(current, ec)) return preempt(); // wake him up
-      } else if (current == removed) {
-        if (current_ec.compare_exchange_strong(current, ec)) return;
-      } else if (!current->get()->isReady()) {
-        if (current_ec.compare_exchange_strong(current, ec)) return preempt(); // no longer ready
-      } else {
-        readyQueue.push(ec);
-        return;
-      }
+    void SchedulingContext::unbind(handle_t* ec)
+    {
+        ASSERT(ec != nullptr);
+        MLOG_DETAIL(mlog::sched, "unbind", DVAR(ec->get()));
+        readyQueue.remove(ec);
+        current_handle.store(nullptr);
     }
-  }
+
+    void SchedulingContext::ready(handle_t* ec)
+    {
+        ASSERT(ec != nullptr);
+        MLOG_INFO(mlog::sched, "ready", DVAR(ec->get()));
+
+        // do nothing if it is the current execution context
+        auto current = current_handle.load();
+        if (current == ec) return; /// @todo can this actually happen? 
+        
+        // add to the ready queue
+        readyQueue.remove(ec); /// @todo do not need to remove if already on the queue, just do nothing then. This needs additional information in handle_t of LinkedList
+        readyQueue.push(ec);
+
+        // wake up the hardware thread if it has no execution context running
+        if (current == nullptr) home->preempt();
+    }
 
   void SchedulingContext::preempt(Tasklet* t, IResult<void>* res, handle_t* ec)
   {
     MLOG_DETAIL(mlog::sched, "preempt", DVAR(t), DVAR(ec));
     ASSERT(ec != nullptr);
-    handle_t* const removed = reinterpret_cast<handle_t*>(REMOVED);
-    if (!current_ec.compare_exchange_strong(ec, removed))
-      return res->response(t, Error::SUCCESS); // was not selected, nothing to do
+    if (current_handle.load() != ec)
+        res->response(t, Error::SUCCESS); // was not selected, nothing to do
     // the ec was selected, make sure it is not running
     if (&getLocalPlace() == home)
       return res->response(t, Error::SUCCESS); // we are on the home thread already, nothing to do
-    if (preempting.test_and_set())
-      return res->response(t, Error::SUCCESS); // we are preempting the home already, nothing to do
     MLOG_DETAIL(mlog::sched, "send preemption message", DVAR(t), DVAR(home));
-    home->run(tasklet.set([=](Tasklet* t){
+    home->run(t->set([=](Tasklet* t){
           res->response(t, Error::SUCCESS);
-          preempting.clear();
         }));
   }
 
-  void SchedulingContext::preempt(handle_t* ec)
-  {
-    MLOG_DETAIL(mlog::sched, "preempt", DVAR(ec));
-    ASSERT(ec != nullptr);
-    handle_t* const removed = reinterpret_cast<handle_t*>(REMOVED);
-    if (!current_ec.compare_exchange_strong(ec, removed)) return; // was not selected, nothing to do
-    preempt(); // the thread was selected, make sure it is not running
-  }
 
-  void SchedulingContext::preempt() {
-    MLOG_DETAIL(mlog::sched, "preempt", DVAR(home));
-    if (&getLocalPlace() == home) return; // we are on the home thread already, nothing to do
-    if (preempting.test_and_set()) return; // we are preempting the home already, nothing to do
-    home->run(tasklet.set([=](Tasklet*){ preempting.clear(); }));
-  }
-
-  void SchedulingContext::yield(handle_t* ec)
-  {
-    MLOG_DETAIL(mlog::sched, "yield", DVAR(ec));
-    ASSERT(ec != nullptr);
-    if (current_ec != ec) return; // was not selected, nothing to do
-    if (readyQueue.empty()) return; // no other waiting thread, nothing to do
-    handle_t* const removed = reinterpret_cast<handle_t*>(REMOVED);
-    if (current_ec.compare_exchange_strong(ec, removed)) {
-      preempt(); // the thread was selected, make sure it is not running
-      if (ec->get()->isReady()) readyQueue.push(ec); // append to the ready list
-    }
-  }
-
-  void SchedulingContext::tryRunUser()
-  {
-    MLOG_DETAIL(mlog::sched, "tryRunUser");
-    ASSERT(&getLocalPlace() == home);
-    handle_t* current = current_ec;
-    handle_t* const removed = reinterpret_cast<handle_t*>(REMOVED);
-    while (true) {
-      if (current != nullptr && current != removed && current->get()->isReady()) {
-        current->get()->resume(); // will not return if successful, otherwise no longer ready
-        // replace and retry
-      } else {
-        handle_t* next = readyQueue.pull();
-        while (next != nullptr && !next->get()->isReady()) next = readyQueue.pull();
-        if (current == nullptr && next == nullptr) {
-          // go sleeping because we don't have anything to run
-          return;
+    void SchedulingContext::tryRunUser()
+    {
+        MLOG_DETAIL(mlog::sched, "tryRunUser");
+        ASSERT(&getLocalPlace() == home);
+        while (true) {
+            auto current = current_handle.load();
+            if (current != nullptr) {
+                MLOG_DETAIL(mlog::sched, "try current", current, DVAR(current->get()));
+                auto loaded = current_ec->load();
+                if (loaded != current->get()) {
+                    if (loaded != nullptr) loaded->saveState();
+                    current->get()->loadState();
+                }
+                current->get()->resume(); // if it returns, the ec is blocked
+                current_handle.store(nullptr);
+            }
+            MLOG_DETAIL(mlog::sched, "try from ready list");
+            // something on the ready list?
+            auto next = readyQueue.pull();
+            while (next != nullptr && !next->get()->isReady()) next = readyQueue.pull();
+            if (next == nullptr) {
+                // go sleeping because we don't have anything to run
+                MLOG_DETAIL(mlog::sched, "empty ready list, going to sleep");
+                return;
+            }
+            current_handle.store(next);
+            // now retry
         }
-        // next line is the only one writing nullptr to current_ec
-        if (current_ec.compare_exchange_strong(current, next)) continue; // retry with next
-        if (next != nullptr) readyQueue.push(next); // stuff next back to the queue
-        // retry with the new current
-      }
     }
-  }
 
 } // namespace mythos
