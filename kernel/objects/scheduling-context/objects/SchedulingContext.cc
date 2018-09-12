@@ -63,22 +63,6 @@ namespace mythos {
         if (current == nullptr) home->preempt();
     }
 
-  void SchedulingContext::preempt(Tasklet* t, IResult<void>* res, handle_t* ec)
-  {
-    MLOG_DETAIL(mlog::sched, "preempt", DVAR(t), DVAR(ec));
-    ASSERT(ec != nullptr);
-    if (current_handle.load() != ec)
-        res->response(t, Error::SUCCESS); // was not selected, nothing to do
-    // the ec was selected, make sure it is not running
-    if (&getLocalPlace() == home)
-      return res->response(t, Error::SUCCESS); // we are on the home thread already, nothing to do
-    MLOG_DETAIL(mlog::sched, "send preemption message", DVAR(t), DVAR(home));
-    home->run(t->set([=](Tasklet* t){
-          res->response(t, Error::SUCCESS);
-        }));
-  }
-
-
     void SchedulingContext::tryRunUser()
     {
         MLOG_DETAIL(mlog::sched, "tryRunUser");

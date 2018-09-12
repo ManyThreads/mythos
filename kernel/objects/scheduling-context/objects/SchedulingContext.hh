@@ -85,7 +85,6 @@ namespace mythos {
     void bind(handle_t* ec_handle) override;
     void unbind(handle_t* ec_handle) override;
     void ready(handle_t* ec_handle) override;
-    void preempt(Tasklet* tasklet, mythos::async::IResult< void >* res, handle_t* ec);
 
   public: // IKernelObject interface
     optional<void> deleteCap(Cap, IDeleter&) override { RETURN(Error::SUCCESS); }

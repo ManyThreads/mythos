@@ -40,8 +40,8 @@ namespace mythos {
   ExecutionContext::ExecutionContext(IAsyncFree* memory)
     : memory(memory)
   {
-    setFlags(IS_EXITED | NO_AS | NO_SCHED 
-        | DONT_PREMP_ON_SUSPEND | IS_NOT_LOADED | IS_NOT_RUNNING);
+    setFlags(IS_EXITED + NO_AS + NO_SCHED 
+        + DONT_PREMP_ON_SUSPEND + IS_NOT_LOADED + IS_NOT_RUNNING);
     threadState.clear();
     threadState.rflags = x86::FLAG_IF;
     fpuState.clear();
@@ -55,6 +55,7 @@ namespace mythos {
     if (needPreemption(prev) && !isReady()) {
         auto place = currentPlace.load();
         ASSERT(place != nullptr);
+        /// @todo is place->preempt() sufficient without waiting?
         if (place) synchronousAt(place) << [this]() {
             MLOG_DETAIL(mlog::ec, "suspended", DVAR(this));
         };
@@ -202,11 +203,14 @@ namespace mythos {
   {
     this->msg = msg;
     auto const& data = *msg->getMessage()->cast<protocol::ExecutionContext::ReadRegisters>();
-    if (data.suspend) setFlags(IS_TRAPPED);
-    setFlags(REGISTER_ACCESS);
-    auto sched = _sched.get();
-    if (sched) sched->preempt(t, &readSleepResponse, &ec_handle);
-    else readThreadRegisters(t, optional<void>(Error::SUCCESS));
+    setFlags(REGISTER_ACCESS | DONT_PREMP_ON_SUSPEND | (data.suspend?IS_TRAPPED:0));
+    
+    auto home = currentPlace.load();
+    if (home == nullptr) home = &getLocalPlace();
+    MLOG_DETAIL(mlog::ec, "send preemption message", DVAR(this), DVAR(home));
+    home->run(t->set([this](Tasklet* t){
+       this->readSleepResponse.response(t, optional<void>(Error::SUCCESS));
+    }));
     return Error::INHIBIT;
   }
 
@@ -246,9 +250,13 @@ namespace mythos {
     auto const& data = *msg->getMessage()->cast<protocol::ExecutionContext::WriteRegisters>();
     setFlags(REGISTER_ACCESS);
     if (data.resume) clearFlags(IS_TRAPPED);
-    auto sched = _sched.get();
-    if (sched) sched->preempt(t, &writeSleepResponse, &ec_handle);
-    else writeThreadRegisters(t, optional<void>(Error::SUCCESS));
+
+    auto home = currentPlace.load();
+    if (home == nullptr) home = &getLocalPlace();
+    MLOG_DETAIL(mlog::ec, "send preemption message", DVAR(this), DVAR(home));
+    home->run(t->set([this](Tasklet* t){
+       this->writeSleepResponse.response(t, optional<void>(Error::SUCCESS));
+    }));
     return Error::INHIBIT;
   }
 
@@ -309,10 +317,14 @@ namespace mythos {
   Error ExecutionContext::invokeSuspend(Tasklet* t, Cap, IInvocation* msg)
   {
     this->msg=msg;
-    setFlags(IS_TRAPPED);
-    auto sched = _sched.get();
-    if (sched) sched->preempt(t, &sleepResponse, &ec_handle);
-    else suspendThread(t, optional<void>(Error::SUCCESS));
+    setFlags(IS_TRAPPED + DONT_PREMP_ON_SUSPEND);
+
+    auto home = currentPlace.load();
+    if (home == nullptr) home = &getLocalPlace();
+    MLOG_DETAIL(mlog::ec, "send preemption message", DVAR(this), DVAR(home));
+    home->run(t->set([this](Tasklet* t){
+       this->sleepResponse.response(t, optional<void>(Error::SUCCESS));
+    }));
     return Error::INHIBIT;
   }
 

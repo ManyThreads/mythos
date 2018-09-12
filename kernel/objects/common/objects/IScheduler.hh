@@ -55,13 +55,6 @@ namespace mythos {
      */
     virtual void ready(handle_t* ec_handle) = 0;
 
-    /** Interrupts the scheduler's hardware thread if it is currently
-     * running the referenced Execution Context. Notifies the result sink when done.
-     * @param t the Tasklet to use
-     * @param res the result sink for the completion notification
-     * @param ec_handle the queue handle of the EC that shall be interrupted
-     */
-    virtual void preempt(Tasklet* t, IResult<void>* res, handle_t* ec_handle) = 0;
   };
 
 } // namespace mythos
