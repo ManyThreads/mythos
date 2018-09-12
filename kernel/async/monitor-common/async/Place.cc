@@ -40,20 +40,34 @@ namespace async {
     this->apicID = apicID;
     this->nestingMonitor = true;
     this->queue.tryAcquire();
+    this->queueSync.tryAcquire();
   }
 
-  void Place::processTasks()
-  {
-    while (true) {
-      auto msg = queue.pull();
-      if (msg != nullptr) msg->run();
-      else if (queue.tryRelease()) break;
+    void Place::processSyncTasks()
+    {
+        while (true) {
+            auto msg = queueSync.pull();
+            if (msg != nullptr) msg->run();
+            else break;
+        }
     }
-    hwthread_pollpause(); /// @todo wrong place, no polling here!
-    // this assertion races with concurrent push operations
-    //OOPS(!queue.isLocked());
-    nestingMonitor.store(false); // release?
-  }
+    
+    void Place::processTasks()
+    {
+        // process tasks until queues are empty and released
+        while (true) {
+            processSyncTasks(); // process all high priority tasks first 
+            // now one normal task
+            auto msg = queue.pull();
+            if (msg != nullptr) msg->run();
+            // Have to release the normal queue before the sync queue,
+            // because pushing to the sync queue acquires the normal queue as second step.
+            // Otherwise, messages that arrive at the sync queue after we released
+            // it can be overseen.
+            else if (queue.tryRelease() && queueSync.tryRelease()) break;
+        }
+        nestingMonitor.store(false); // release?
+    }
 
   void Place::setCR3(PhysPtr<void> value)
   {

@@ -76,18 +76,42 @@ public:
     if (queue.push(*msg)) wakeup();
   }
 
+  void pushSync(TaskletBase* msg) {
+    ASSERT(msg);
+    ASSERT(!isLocal());
+    MLOG_DETAIL(mlog::async, this, "push synchronous", msg);
+    if (queueSync.push(*msg)) preempt();
+  }
+
   /** prepare the kernel's task processing. returns true if nested entry. */
   bool enterKernel() {
     // ensure that incoming messages do not send IPI if we entered through local system call
     queue.tryAcquire();
+    queueSync.tryAcquire();
     return nestingMonitor.exchange(true); // relaxed?
   }
 
+  /** send an IPI if the destination was not in kernel. */
+  bool preempt() {
+      if (queue.tryAcquire()) {
+          wakeup();
+          return true;
+      }
+      return false;
+  }
+  
   /** Processes tasks until the queue is empty and the atomic
    * unlocking was successfull. Hence, the next sender will detect
    * that he has to wakeup this place.
    */
   void processTasks();
+  
+  /** Process high priority tasks until the queue is empty. Does not release the queue.
+   * This should be called in all spin locks that involve remote tasks.
+   */
+  void processSyncTasks();
+  
+  /** true if the hardware thread is currently in kernel mode and processing tasks. */
   bool isActive() const { return nestingMonitor.load(std::memory_order_relaxed); }
 
 protected:
@@ -113,6 +137,7 @@ protected:
   PhysPtr<void> _cr3 = PhysPtr<void>(0ul);
 
   TaskletQueueImpl<ChainFIFOBaseAligned> queue; //< for pending tasks
+  TaskletQueueImpl<ChainFIFOBaseAligned> queueSync; //< for pending high priority synchronous tasks
 };
 
 
