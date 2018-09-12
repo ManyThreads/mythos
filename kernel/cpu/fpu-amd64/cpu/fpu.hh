@@ -49,9 +49,10 @@ namespace mythos {
       static void initCpu() {
         x86::setCR0((x86::getCR0() & ~0xC) | 0x19);
         x86::setCR4((x86::getCR4() & ~0x0) | (x86::OSFXSR+x86::OSXSAVE+x86::OSXMMEXCPT));
+        x86::setXCR0(x86::getXCR0() | ((1<<1) + (1<<2)));
+        /// @todo for KNC/KNL: To enable AVX-512, set the OPMASK (bit 5), ZMM_Hi256 (bit 6), Hi16_ZMM (bit 7) of XCR0. You must ensure that these bits are valid first (see above). 
         asm volatile ("clts");
         asm volatile ("fninit");
-        /// @todo what about xcr0 ?
       }
 
     private:

@@ -121,6 +121,7 @@ void entry_ap(size_t apicID, size_t reason)
   mythos::boot::apboot_thread(apicID);
   MLOG_DETAIL(mlog::boot, "started hardware thread", DVAR(reason));
   mythos::cpu::FpuState::initCpu();
+  MLOG_DETAIL(mlog::boot, DVARhex(mythos::x86::getXCR0()));
   mythos::idle::wokeup(apicID, reason); // may not return
   runUser();
 }
