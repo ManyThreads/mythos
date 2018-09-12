@@ -25,7 +25,6 @@
  */
 #pragma once
 
-//#include "util/mstring.hh"
 #include "cpu/ctrlregs.hh"
 
 namespace mythos {
@@ -39,7 +38,11 @@ namespace mythos {
     class FpuState
     {
     public:
-//      FpuState() { save(); }
+      void clear() { 
+          memset(this, 0, sizeof(FpuState));
+          //save();
+      }
+      
       void save() { asm volatile("fxsaveq %0" : "=m" (*this)); }
       void restore() { asm volatile("fxrstorq %0" : "=m" (*this)); }
 
@@ -47,7 +50,7 @@ namespace mythos {
         x86::setCR0((x86::getCR0() & ~0xC) | 0x19);
         asm volatile ("clts");
         asm volatile ("fninit");
-        // what about xcr0 ?
+        /// @todo what about xcr0 ?
       }
 
     private:

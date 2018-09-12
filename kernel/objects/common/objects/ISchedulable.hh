@@ -38,33 +38,58 @@ namespace mythos {
   public:
     virtual ~ISchedulable() {}
 
-    /** Checks if the Execution Context can be loaded and resumed currently.
-     * This can be used to avoid loading ECs that are not executable anyway.
+    /** Checks if the Execution Context could be runnable.
+     * This can be used to avoid loading ECs that fail to resume anyway.
      * The EC's state can change concurrently but the actual resume() will solve this.
      */
     virtual bool isReady() const = 0;
 
-    /** tries to switch to user-mode execution if there is no reason
-     * to be blocked and return otherwise.
+    /** If there is no reason to be blocked, loads the thread's state and 
+     * switches to user-mode without ever coming back. Otherwise, 
+     * if the execution is blocked it returns.
+     * 
+     * It has to be called with the same execution context already loaded
+     * from a previous resume() or with clear current_ec, thread_state, 
+     * and currentPlace. Clearing is achieved by calling saveState() at
+     * the hardware thread where the execution context is currently loaded.
      *
-     * We do not check if the loaded EC is runnable. Instead just call
-     * resume() and it will run if possible. In that case control does
-     * not return from this function. Otherwise, the call will return.
+     * There would be a race between seeing that the thread is not blocked
+     * and blocking the thread from the outside. This is solved by 
      */
     virtual void resume() = 0;
 
-    virtual void handleTrap(cpu::ThreadState* ctx) = 0;
+    virtual void saveState() = 0;
 
-    virtual void handleSyscall(cpu::ThreadState* ctx) = 0;
+    virtual void handleTrap() = 0;
 
-    virtual void unload() = 0;
+    virtual void handleSyscall() = 0;
 
     virtual void semaphoreNotify() = 0;
   };
 
-  extern CoreLocal<std::atomic<ISchedulable*>> current_ec KERNEL_CLM_HOT;
+    /** The Execution Context that is currently loaded on each hardware thread. 
+    * This variable is updated only by the hardware thread's local scheduler or
+    * by the execution context's resume method but never remotely.
+    * It is used from the kernel entry points to handle system calls and traps.
+    * 
+    * @todo is the atomic really needed?
+    */
+    extern CoreLocal<std::atomic<ISchedulable*>> current_ec KERNEL_CLM_HOT;
 
-  inline void handle_trap(cpu::ThreadState* ctx) { current_ec->load()->handleTrap(ctx); }
-  inline void handle_syscall(cpu::ThreadState* ctx) { current_ec->load()->handleSyscall(ctx); }
+    /** Forward the trap handling to the currently loaded execution context.
+    * If current_ec is nullptr than we can not return from user space because we never left.
+    */
+    inline void handle_trap() {
+        ASSERT(current_ec->load() != nullptr);
+        current_ec->load()->handleTrap();
+    }
+    
+    /** Forward the system call handling to the currently loaded execution context.
+    * If current_ec is nullptr than we can not return from user space because we never left.
+    */
+    inline void handle_syscall() {
+        ASSERT(current_ec->load() != nullptr);
+        current_ec->load()->handleSyscall();
+    }
 
 } // namespace mythos

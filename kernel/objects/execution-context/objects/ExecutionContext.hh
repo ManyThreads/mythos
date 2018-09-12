@@ -29,6 +29,7 @@
 #include <atomic>
 
 #include "cpu/kernel_entry.hh"
+#include "cpu/fpu.hh"
 #include "async/NestedMonitorDelegating.hh"
 #include "objects/IKernelObject.hh"
 #include "objects/ISchedulable.hh"
@@ -70,8 +71,10 @@ namespace mythos {
     optional<void> setAddressSpace(optional<CapEntry*> pagemapref);
     void unsetAddressSpace() { _as.reset(); }
 
-    optional<void> setSchedulingContext(optional<CapEntry*> scref);
-    void unsetSchedulingContext() { _sched.reset(); }
+    /// only for initial setup
+    optional<void> setSchedulingContext(optional<CapEntry*> sce);
+    optional<void> setSchedulingContext(Tasklet* t, IInvocation* msg, optional<CapEntry*> sce);
+    Error unsetSchedulingContext();
 
     optional<void> setCapSpace(optional<CapEntry*> capmapref);
     void unsetCapSpace() { _cs.reset(); }
@@ -89,10 +92,10 @@ namespace mythos {
   public: // ISchedulable interface
     bool isReady() const override { return !isBlocked(flags.load()); }
     void resume() override;
-    void handleTrap(cpu::ThreadState* ctx) override;
-    void handleSyscall(cpu::ThreadState* ctx) override;
+    void handleTrap() override;
+    void handleSyscall() override;
     optional<void> syscallInvoke(CapPtr portal, CapPtr dest, uint64_t user);
-    void unload() override;
+    void saveState() override;
     void semaphoreNotify() override;
 
   public: // IPortalUser interface
@@ -112,7 +115,7 @@ namespace mythos {
     friend struct protocol::ExecutionContext;
     friend struct protocol::KernelObject;
 
-    Error invokeConfigure(Tasklet* t, Cap self, IInvocation* msg);
+    Error invokeConfigure(Tasklet* t, Cap, IInvocation* msg);
     Error invokeReadRegisters(Tasklet* t, Cap self, IInvocation* msg);
     void  readThreadRegisters(Tasklet* t, optional<void>);
     Error invokeWriteRegisters(Tasklet* t, Cap self, IInvocation* msg);
@@ -147,8 +150,8 @@ namespace mythos {
     CapRef<ExecutionContext,IScheduler> _sched;
     /// @todo reference/link to exception handler (portal/endpoint?)
 
-    cpu::ThreadState threadState;
-    std::atomic<ISchedulable*>* lastPlace = nullptr;
+    // the hardware thread where the fpu state is currently loaded
+    std::atomic<async::Place*> currentPlace = {nullptr};
     IScheduler::handle_t ec_handle = {this};
 
     IInvocation* msg;
@@ -158,6 +161,9 @@ namespace mythos {
       writeSleepResponse = {this};
     async::MSink<ExecutionContext, void, &ExecutionContext::suspendThread>
       sleepResponse = {this};
+
+    cpu::ThreadState threadState;
+    cpu::FpuState fpuState;
 
     LinkedList<IKernelObject*>::Queueable del_handle = {this};
     IAsyncFree* memory;

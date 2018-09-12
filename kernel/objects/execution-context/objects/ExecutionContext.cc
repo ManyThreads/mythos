@@ -37,10 +37,11 @@
 namespace mythos {
 
   ExecutionContext::ExecutionContext(IAsyncFree* memory)
-    :  flags(0), memory(memory)
+    : memory(memory)
   {
     setFlag(IS_EXITED | NO_AS | NO_SCHED);
-    memset(&threadState, 0, sizeof(threadState));
+    threadState.clear();
+    fpuState.clear();
     threadState.rflags = x86::FLAG_IF;
   }
 
@@ -88,11 +89,46 @@ namespace mythos {
   optional<void> ExecutionContext::setSchedulingContext(optional<CapEntry*> sce)
   {
     MLOG_INFO(mlog::ec, "setScheduler", DVAR(this), DVAR(sce));
+    ASSERT(currentPlace.load() == nullptr);
     TypedCap<IScheduler> obj(sce);
     if (!obj) RETHROW(obj);
     RETURN(_sched.set(this, *sce, obj.cap()));
   }
 
+  optional<void> ExecutionContext::setSchedulingContext(
+      Tasklet* t, IInvocation* msg, optional<CapEntry*> sce)
+  {
+    MLOG_INFO(mlog::ec, "setScheduler", DVAR(this), DVAR(sce));
+    TypedCap<IScheduler> obj(sce);
+    if (!obj) RETHROW(obj);
+    
+    // check if the EC state is currently loaded somewhere
+    auto place = currentPlace.exchange(nullptr);
+    if (place != nullptr) {
+        // save my state
+        place->run(t->set([this, msg, sce](Tasklet*){
+            this->fpuState.save();
+            TypedCap<IScheduler> obj(sce);
+            if (!obj) {
+              msg->replyResponse(obj.state());
+              monitor.requestDone();
+            }
+            auto res = _sched.set(this, *sce, obj.cap());
+            msg->replyResponse(res);
+            monitor.requestDone();
+            }));
+        RETURN(Error::INHIBIT);
+    } else {
+        RETURN(_sched.set(this, *sce, obj.cap()));
+    }
+  }
+  
+  Error ExecutionContext::unsetSchedulingContext()
+  {
+    _sched.reset();
+    return Error::SUCCESS;
+  }
+  
   void ExecutionContext::bind(optional<IScheduler*>)
   {
     MLOG_INFO(mlog::ec, "setScheduler bind", DVAR(this));
@@ -130,7 +166,7 @@ namespace mythos {
     RETURN(cs.lookup(ptr, ptrDepth, writable));
   }
 
-  Error ExecutionContext::invokeConfigure(Tasklet*, Cap, IInvocation* msg)
+  Error ExecutionContext::invokeConfigure(Tasklet* t, Cap, IInvocation* msg)
   {
     auto data = msg->getMessage()->read<protocol::ExecutionContext::Configure>();
 
@@ -147,9 +183,8 @@ namespace mythos {
     }
 
     if (data.sched() == delete_cap) { unsetSchedulingContext(); }
-    if (data.sched() != null_cap) {
-      auto err = setSchedulingContext(msg->lookupEntry(data.sched()));
-      if (!err) return err.state();
+    else if (data.sched() != null_cap) {
+      return setSchedulingContext(t, msg, msg->lookupEntry(data.sched())).state();
     }
 
     return Error::SUCCESS;
@@ -306,9 +341,9 @@ namespace mythos {
     notificationQueue.remove(event);
   }
 
-  void ExecutionContext::handleTrap(cpu::ThreadState* ctx)
+  void ExecutionContext::handleTrap()
   {
-    ASSERT(&threadState == ctx);
+    auto ctx = &threadState;
     MLOG_ERROR(mlog::ec, "user fault", DVAR(ctx->irq), DVAR(ctx->error),
          DVARhex(ctx->cr2));
     MLOG_ERROR(mlog::ec, "...", DVARhex(ctx->rip), DVARhex(ctx->rflags),
@@ -323,9 +358,9 @@ namespace mythos {
     setFlag(IS_TRAPPED); // mark as not executable until the exception is handled
   }
 
-  void ExecutionContext::handleSyscall(cpu::ThreadState* ctx)
+  void ExecutionContext::handleSyscall()
   {
-    ASSERT(&threadState == ctx);
+    auto ctx = &threadState;
     auto& code = ctx->rdi;
     auto& userctx = ctx->rsi;
     auto portal = ctx->rdx;
@@ -377,9 +412,9 @@ namespace mythos {
       }
 
       case SYSCALL_DEBUG: {
-        MLOG_INFO(mlog::syscall, "debug", DVARhex(userctx), DVAR(portal));
+        MLOG_DETAIL(mlog::syscall, "debug", (void*)userctx, portal);
         mlog::Logger<mlog::FilterAny> user("user");
-        // userctx => address in memory
+        // userctx => address in users virtual memory. Yes, we fully trust the user :(
         // portal => string length
         mlog::sink->write((char const*)userctx, portal);
         code = uint64_t(Error::SUCCESS);
@@ -418,6 +453,7 @@ namespace mythos {
     RETURN(p.sendInvocation(dest, user));
   }
 
+  // this is called by a scheduler on some hardware thread (aka place)
   void ExecutionContext::resume() {
     if (!isReady()) return;
     auto prevState = clearFlag(IN_WAIT);
@@ -434,38 +470,49 @@ namespace mythos {
         threadState.rsi = 0;
         threadState.rdi = uint64_t(Error::NO_MESSAGE);
       }
-      //MLOG_DETAIL(mlog::ec, DVARhex(threadState.rsi), DVAR(threadState.rdi));
-    }
-
-    // remove myself from the last place's current_ec if still there
-    std::atomic<ISchedulable*>* thisPlace = current_ec.addr();
-    if (lastPlace != nullptr && thisPlace != lastPlace) {
-      ISchedulable* self = this;
-      lastPlace->compare_exchange_strong(self, nullptr);
+      //MLOG_DETAIL(mlog::syscall, DVARhex(threadState.rsi), DVAR(threadState.rdi));
     }
 
     // load own context stuff if someone else was running on this place
-    ISchedulable* prev = thisPlace->load();
-    if (prev != this) {
-      if (prev) prev->unload();
-      TypedCap<IPageMap> as(_as);
-      if (!as) return (void)setFlag(NO_AS); // might have been revoked concurrently
+    if (cpu::thread_state.get() != &threadState) {
+      // the next this->saveState() will be executed at the same hardware thread
+      // and therefore can not race with us
+
+      // this should only be called if you are sure that the previous state has been saved
+      ASSERT(cpu::thread_state.get() == nullptr);
+      auto oldPlace = currentPlace.exchange(&getLocalPlace());
+      ASSERT(oldPlace == nullptr || oldPlace == &getLocalPlace());
+
       cpu::thread_state = &threadState;
-      lastPlace = thisPlace;
-      thisPlace->store(this);
+      fpuState.restore();
+
+      TypedCap<IPageMap> as(_as);
+      // might have been revoked concurrently
+      // @todo: setting the flag here might introduce are race with setting a new AS
+      // @todo: is the address space really reloaded when it was changed?
+      // @todo: this check should be done before loading all the context!
+      if (!as) return (void)setFlag(NO_AS);
       auto info = as->getPageMapInfo(as.cap());
       MLOG_DETAIL(mlog::ec, "load addrspace", DVAR(this), DVARhex(info.table.physint()));
       getLocalPlace().setCR3(info.table);
-      /// @todo restore FPU and vector state
     }
 
-    MLOG_INFO(mlog::ec, "resuming", DVAR(this), DVARhex(threadState.rip), DVARhex(threadState.rsp));
-    cpu::return_to_user();
+    MLOG_INFO(mlog::syscall, "resuming", DVAR(this), DVARhex(threadState.rip), DVARhex(threadState.rsp));
+    cpu::return_to_user(); // does never return to here
   }
-
-  void ExecutionContext::unload()
+  
+  void ExecutionContext::saveState()
   {
-    /// @todo save FPU and vector state
+      // can only be called once after resume, 
+      // and this still has to be the right execution context
+      ASSERT(cpu::thread_state.get() == &threadState);
+      cpu::thread_state = nullptr;
+
+      // remember that we saved the fpu state and don't need unloading on migration etc
+      auto oldPlace = currentPlace.exchange(nullptr);
+      ASSERT(oldPlace == &getLocalPlace());
+
+      fpuState.save();
   }
 
   optional<void> ExecutionContext::deleteCap(Cap self, IDeleter& del)
