@@ -25,6 +25,7 @@
  */
 
 #include "async/MutexDelegating.hh"
+#include "async/Place.hh"
 
 namespace mythos {
 namespace async {
@@ -59,8 +60,10 @@ namespace async {
 
   void MutexDelegating::wait(std::atomic<int>& done) {
     while (true) {
-      /// @todo process incoming high-priority tasks?
-      hwthread_pollpause();
+      hwthread_pollpause(); /// @todo exponential backoff?
+      // process incoming high-priority tasks although 
+      // not really necessary because the combiner ensures progress
+      getLocalPlace().processSyncTasks();
       int state = done.fetch_add(0, std::memory_order_acquire);
       if (state == HANDOVER) return process(done);
       if (state == DONE) return;
