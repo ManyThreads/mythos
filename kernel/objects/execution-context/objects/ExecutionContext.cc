@@ -39,24 +39,25 @@ namespace mythos {
   ExecutionContext::ExecutionContext(IAsyncFree* memory)
     : memory(memory)
   {
-    setFlag(IS_EXITED | NO_AS | NO_SCHED);
+    setFlags(IS_EXITED | NO_AS | NO_SCHED);
     threadState.clear();
     fpuState.clear();
     threadState.rflags = x86::FLAG_IF;
   }
 
-  void ExecutionContext::setFlagSuspend(uint8_t f)
+  void ExecutionContext::setFlagsSuspend(flag_t f)
   {
-    auto prev = setFlag(f);
-    if (!isBlocked(prev) && !isReady()) {
+    auto prev = setFlags(f | DONT_PREMP_ON_SUSPEND);
+    if (needPreemption(prev) && !isReady()) {
       auto sched = _sched.get();
       if (sched) sched->preempt(&ec_handle);
     }
+    // maybe wait for IS_NOT_RUNNING, preemption is not synchronous
   }
 
-  void ExecutionContext::clearFlagResume(uint8_t f)
+  void ExecutionContext::clearFlagsResume(flag_t f)
   {
-    auto prev = clearFlag(f);
+    auto prev = clearFlags(f);
     MLOG_DETAIL(mlog::ec, "cleared flag", DVAR(this), DVARhex(f), DVARhex(prev), DVARhex(flags.load()), isReady());
     if (isBlocked(prev) && isReady()) {
       auto sched = _sched.get();
@@ -77,13 +78,13 @@ namespace mythos {
   void ExecutionContext::bind(optional<IPageMap*>)
   {
     MLOG_INFO(mlog::ec, "setAddressSpace bind", DVAR(this));
-    clearFlagResume(NO_AS);
+    clearFlagsResume(NO_AS);
   }
 
   void ExecutionContext::unbind(optional<IPageMap*>)
   {
     MLOG_INFO(mlog::ec, "setAddressSpace unbind", DVAR(this));
-    setFlagSuspend(NO_AS);
+    setFlagsSuspend(NO_AS);
   }
 
   optional<void> ExecutionContext::setSchedulingContext(optional<CapEntry*> sce)
@@ -132,14 +133,14 @@ namespace mythos {
   void ExecutionContext::bind(optional<IScheduler*>)
   {
     MLOG_INFO(mlog::ec, "setScheduler bind", DVAR(this));
-    clearFlagResume(NO_SCHED);
+    clearFlagsResume(NO_SCHED);
   }
 
   void ExecutionContext::unbind(optional<IScheduler*> sched)
   {
     MLOG_INFO(mlog::ec, "setScheduler unbind", DVAR(this));
     ASSERT(sched);
-    setFlag(NO_SCHED);
+    setFlags(NO_SCHED);
     sched->unbind(&ec_handle);
   }
 
@@ -156,7 +157,7 @@ namespace mythos {
   {
     MLOG_INFO(mlog::ec, "EC setEntryPoint", DVARhex(rip));
     threadState.rip = rip;
-    clearFlagResume(IS_EXITED);
+    clearFlagsResume(IS_EXITED);
   }
 
   optional<CapEntryRef> ExecutionContext::lookupRef(CapPtr ptr, CapPtrDepth ptrDepth, bool writable)
@@ -194,8 +195,8 @@ namespace mythos {
   {
     this->msg = msg;
     auto const& data = *msg->getMessage()->cast<protocol::ExecutionContext::ReadRegisters>();
-    if (data.suspend) setFlag(IS_TRAPPED);
-    setFlag(REGISTER_ACCESS);
+    if (data.suspend) setFlags(IS_TRAPPED);
+    setFlags(REGISTER_ACCESS);
     auto sched = _sched.get();
     if (sched) sched->preempt(t, &readSleepResponse, &ec_handle);
     else readThreadRegisters(t, optional<void>(Error::SUCCESS));
@@ -225,7 +226,7 @@ namespace mythos {
         respData->regs.rbp = threadState.rbp;
         respData->regs.fs_base = threadState.fs_base;
         respData->regs.gs_base = threadState.gs_base;
-        clearFlagResume(REGISTER_ACCESS);
+        clearFlagsResume(REGISTER_ACCESS);
         msg->replyResponse(Error::SUCCESS);
         msg = nullptr;
         monitor.responseAndRequestDone();
@@ -236,8 +237,8 @@ namespace mythos {
   {
     this->msg=msg;
     auto const& data = *msg->getMessage()->cast<protocol::ExecutionContext::WriteRegisters>();
-    setFlag(REGISTER_ACCESS);
-    if (data.resume) clearFlag(IS_TRAPPED);
+    setFlags(REGISTER_ACCESS);
+    if (data.resume) clearFlags(IS_TRAPPED);
     auto sched = _sched.get();
     if (sched) sched->preempt(t, &writeSleepResponse, &ec_handle);
     else writeThreadRegisters(t, optional<void>(Error::SUCCESS));
@@ -250,8 +251,8 @@ namespace mythos {
     monitor.response(t,[=](Tasklet*){
         auto data = msg->getMessage()->read<protocol::ExecutionContext::WriteRegisters>();
         auto res = setRegisters(data.regs);
-        if (!res) setFlag(IS_TRAPPED);
-        clearFlagResume(REGISTER_ACCESS);
+        if (!res) setFlags(IS_TRAPPED);
+        clearFlagsResume(REGISTER_ACCESS);
         msg->replyResponse(res);
         msg = nullptr;
         monitor.responseAndRequestDone();
@@ -294,14 +295,14 @@ namespace mythos {
 
   Error ExecutionContext::invokeResume(Tasklet*, Cap, IInvocation*)
   {
-    clearFlagResume(IS_TRAPPED);
+    clearFlagsResume(IS_TRAPPED);
     return Error::SUCCESS;
   }
 
   Error ExecutionContext::invokeSuspend(Tasklet* t, Cap, IInvocation* msg)
   {
     this->msg=msg;
-    setFlag(IS_TRAPPED);
+    setFlags(IS_TRAPPED);
     auto sched = _sched.get();
     if (sched) sched->preempt(t, &sleepResponse, &ec_handle);
     else suspendThread(t, optional<void>(Error::SUCCESS));
@@ -323,8 +324,8 @@ namespace mythos {
     auto const& data = *msg->getMessage()->cast<protocol::ExecutionContext::SetFSGS>();
     auto res = setBaseRegisters(data.fs, data.gs);
     if (res) { // reschedule the EC in order to load the new values
-      setFlagSuspend(IS_TRAPPED);
-      clearFlagResume(IS_TRAPPED);
+      setFlagsSuspend(IS_TRAPPED);
+      clearFlagsResume(IS_TRAPPED);
     }
     return res.state();
   }
@@ -333,7 +334,7 @@ namespace mythos {
   {
     MLOG_INFO(mlog::ec, "got notification", DVAR(this), DVAR(event));
     notificationQueue.push(event);
-    clearFlagResume(IS_WAITING);
+    clearFlagsResume(IS_WAITING);
   }
 
   void ExecutionContext::denotify(INotifiable::handle_t* event)
@@ -355,11 +356,17 @@ namespace mythos {
          DVARhex(ctx->r11), DVARhex(ctx->r12), DVARhex(ctx->r13),
          DVARhex(ctx->r14), DVARhex(ctx->r15));
     MLOG_ERROR(mlog::ec, "...", DVARhex(ctx->fs_base), DVARhex(ctx->gs_base));
-    setFlag(IS_TRAPPED); // mark as not executable until the exception is handled
+    setFlags(IS_TRAPPED | IS_NOT_RUNNING); // mark as not executable until the exception is handled
+  }
+
+  void ExecutionContext::handleInterrupt()
+  {
+    setFlags(IS_NOT_RUNNING);
   }
 
   void ExecutionContext::handleSyscall()
   {
+    setFlags(IS_NOT_RUNNING);
     auto ctx = &threadState;
     auto& code = ctx->rdi;
     auto& userctx = ctx->rsi;
@@ -374,19 +381,19 @@ namespace mythos {
 
       case SYSCALL_EXIT:
         MLOG_INFO(mlog::syscall, "exit");
-        setFlag(IS_EXITED);
+        setFlags(IS_EXITED);
         break;
 
       case SYSCALL_POLL:
         MLOG_INFO(mlog::syscall, "poll");
-        setFlag(IN_WAIT);
+        setFlags(IN_WAIT);
         break;
 
       case SYSCALL_WAIT: {
-        auto prevState = setFlag(IN_WAIT | IS_WAITING);
+        auto prevState = setFlags(IN_WAIT | IS_WAITING);
         MLOG_INFO(mlog::syscall, "wait", DVARhex(prevState));
         if (!notificationQueue.empty() || (prevState & IS_NOTIFIED))
-          clearFlag(IS_WAITING); // because of race with notifier
+          clearFlags(IS_WAITING); // because of race with notifier
         break;
       }
 
@@ -398,16 +405,16 @@ namespace mythos {
       case SYSCALL_INVOKE_POLL:
         MLOG_INFO(mlog::syscall, "invoke_poll", DVAR(portal), DVAR(kobj), DVARhex(userctx));
         code = uint64_t(syscallInvoke(CapPtr(portal), CapPtr(kobj), userctx).state());
-        if (Error(code) == Error::SUCCESS) setFlag(IN_WAIT); // else return the error code
+        if (Error(code) == Error::SUCCESS) setFlags(IN_WAIT); // else return the error code
         break;
 
       case SYSCALL_INVOKE_WAIT: {
         MLOG_INFO(mlog::syscall, "invoke_wait", DVAR(portal), DVAR(kobj), DVARhex(userctx));
         code = uint64_t(syscallInvoke(CapPtr(portal), CapPtr(kobj), userctx).state());
         if (Error(code) != Error::SUCCESS) break; // just return the error code
-        auto prevState = setFlag(IN_WAIT | IS_WAITING);
+        auto prevState = setFlags(IN_WAIT | IS_WAITING);
         if (!notificationQueue.empty() || (prevState & IS_NOTIFIED))
-          clearFlag(IS_WAITING); // because of race with notifier
+          clearFlags(IS_WAITING); // because of race with notifier
         break;
       }
 
@@ -439,9 +446,9 @@ namespace mythos {
 
   void ExecutionContext::semaphoreNotify()
   {
-    auto prev = setFlag(IS_NOTIFIED);
+    auto prev = setFlags(IS_NOTIFIED);
     MLOG_DETAIL(mlog::syscall, "receiving notify syscall", DVARhex(prev));
-    clearFlagResume(IS_WAITING);
+    clearFlagsResume(IS_WAITING);
   }
 
   optional<void> ExecutionContext::syscallInvoke(CapPtr portal, CapPtr dest, uint64_t user)
@@ -456,11 +463,11 @@ namespace mythos {
   // this is called by a scheduler on some hardware thread (aka place)
   void ExecutionContext::resume() {
     if (!isReady()) return;
-    auto prevState = clearFlag(IN_WAIT);
+    auto prevState = clearFlags(IN_WAIT);
     MLOG_DETAIL(mlog::ec, "try to resume", DVARhex(prevState));
     if (prevState & IN_WAIT) {
       MLOG_DETAIL(mlog::ec, "try to resume from wait state");
-      clearFlag(IS_NOTIFIED); // this is safe because we wake up anyway
+      clearFlags(IS_NOTIFIED); // this is safe because we wake up anyway
       auto e = notificationQueue.pull();
       if (e) {
         auto ev = e->get()->deliver();
@@ -491,13 +498,14 @@ namespace mythos {
       // @todo: setting the flag here might introduce are race with setting a new AS
       // @todo: is the address space really reloaded when it was changed?
       // @todo: this check should be done before loading all the context!
-      if (!as) return (void)setFlag(NO_AS);
+      if (!as) return (void)setFlags(NO_AS);
       auto info = as->getPageMapInfo(as.cap());
       MLOG_DETAIL(mlog::ec, "load addrspace", DVAR(this), DVARhex(info.table.physint()));
       getLocalPlace().setCR3(info.table);
     }
 
     MLOG_INFO(mlog::syscall, "resuming", DVAR(this), DVARhex(threadState.rip), DVARhex(threadState.rsp));
+    clearFlags(IS_NOT_RUNNING); // TODO: check for races
     cpu::return_to_user(); // does never return to here
   }
   
