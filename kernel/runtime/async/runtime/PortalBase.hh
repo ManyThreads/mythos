@@ -55,6 +55,7 @@ namespace mythos {
     virtual ~PortalBase() { OOPS(refcount==0); }
 
     InvocationBuf* buf() const { return _buf; }
+	void setbuf(InvocationBuf *buf){ _buf = buf; }
 
     bool acquire() { int exp = 0; return refcount.compare_exchange_strong(exp, 1); }
     void incref() { refcount.fetch_add(1); }
