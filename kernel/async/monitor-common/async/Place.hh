@@ -78,7 +78,6 @@ public:
 
   void pushSync(TaskletBase* msg) {
     ASSERT(msg);
-    ASSERT(!isLocal());
     MLOG_DETAIL(mlog::async, this, "push synchronous", msg);
     if (queueSync.push(*msg)) preempt();
   }
