@@ -9,7 +9,7 @@ A design where the scheduler uses tasklet synchronisation too is possible. This 
 Comparing the complexity and performance of both approaches should be interesting.
 
 
-If the execution context's state, that is its register contents and FPU state, is stored in a frame, migrating threads can be achieved withouth migrating execution context kernel objects. Each execution context is created for a specific hardware thread and never moves. Instead the EC is supended, then the frame with the stored state is attached to another EC and this EC is resumed. Some of the state flags, e.g. IN_WAIT, IS_WAITING, IS_NOTIFIED need to be moved to the state stored in the frame in order to become migratable. The advantage of this design is, that all invocations and accesses can be directed to the EC's home, which significantly reduces synchronisation challenges. On the downside, the interruptions increase, but they would affect the execution context and hardware thread that they involve anyway.
+If the execution context's state, that is its register contents and FPU state, is stored in a frame, migrating threads can be achieved withouth migrating execution context kernel objects. Each execution context is created for a specific hardware thread and never moves. Instead the EC is supended, then the frame with the stored state is attached to another EC and this EC is resumed. Some of the state flags, e.g. IN_WAIT, IS_WAITING, IS_NOTIFIED need to be moved to the state stored in the frame in order to become migratable. The advantage of this design is, that all invocations and accesses can be directed to the EC's home, which significantly reduces synchronisation challenges. On the downside, the interruptions increase, but they would affect the execution context and hardware thread that they involve anyway. Some of the registers, e.g. rflags, need to be overridden and loaded from outside the frame in the kernel exit code. Otherwise, the user mode can disable interrupts and similar things.
 
 
 ## Life Cycle States
@@ -58,7 +58,7 @@ The IS_NOTIFIED flag implements a single binary semaphore. It is used as foundat
 
 IS_WAITING blocks the threads execution until IS_NOTIFIED is set. After setting IS_WAITING or IS_NOTIFIED, it is checked if both are now set. If this is the case, both are cleared, which makes the execution context runnable. 
 
-Seperately, IN_WAIT is used to remember that the execution context exited user mode with a wait() system call. It is cleared when resuming and transmits the notification to user mode.
+Seperately, IN_WAIT is used to remember that the execution context exited user mode with a wait() system call. This means that the kernel has to transmit a return value to the user mode. It is cleared when resuming and transmits the notification to user mode.
 
 TODO change to NOT_NOTIFIED simplifies the use of atomic clearFlags() and setFlags()?
 

@@ -34,6 +34,10 @@
 
 namespace mythos {
 
+    void SchedulingContext::bind(handle_t*) 
+    {
+    }
+    
   void SchedulingContext::unbind(handle_t* ec)
   {
     MLOG_DETAIL(mlog::sched, "unbind", ec);
@@ -49,7 +53,7 @@ namespace mythos {
     readyQueue.remove(ec); /// @todo do not need to remove if already on the queue, just do nothing then
 
     // set current_ec or push to the ready queue
-    handle_t* current = current_ec;
+    handle_t* current = current_ec.load();
     handle_t* const removed = reinterpret_cast<handle_t*>(REMOVED);
     while (true) {
       if (current == nullptr) {

@@ -86,7 +86,7 @@ namespace mythos {
     void preempt();
 
   public: // IScheduler interface
-    void bind(handle_t*) override {}
+    void bind(handle_t*) override;
     void unbind(handle_t* ec_handle) override;
     void ready(handle_t*) override;
     void preempt(Tasklet* t, IResult<void>* res, handle_t* ec_handle) override;

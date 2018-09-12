@@ -58,6 +58,8 @@ namespace mythos {
      */
     virtual void resume() = 0;
 
+    virtual void loadState() = 0;
+    
     virtual void saveState() = 0;
 
     virtual void handleTrap() = 0;
@@ -65,7 +67,6 @@ namespace mythos {
     virtual void handleInterrupt() = 0;
 
     virtual void handleSyscall() = 0;
-
 
     virtual void semaphoreNotify() = 0;
   };

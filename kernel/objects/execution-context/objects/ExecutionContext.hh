@@ -100,6 +100,7 @@ namespace mythos {
     void handleInterrupt() override;
     void handleSyscall() override;
     optional<void> syscallInvoke(CapPtr portal, CapPtr dest, uint64_t user);
+    void loadState() override;
     void saveState() override;
     void semaphoreNotify() override;
 

@@ -39,29 +39,34 @@ namespace mythos {
   ExecutionContext::ExecutionContext(IAsyncFree* memory)
     : memory(memory)
   {
-    setFlags(IS_EXITED | NO_AS | NO_SCHED);
+    setFlags(IS_EXITED | NO_AS | NO_SCHED 
+        | DONT_PREMP_ON_SUSPEND | IS_NOT_LOADED | IS_NOT_RUNNING);
     threadState.clear();
-    fpuState.clear();
     threadState.rflags = x86::FLAG_IF;
+    fpuState.clear();
   }
 
   void ExecutionContext::setFlagsSuspend(flag_t f)
   {
     auto prev = setFlags(f | DONT_PREMP_ON_SUSPEND);
+    MLOG_DETAIL(mlog::ec, "set flag", DVAR(this), DVARhex(f), DVARhex(prev),
+                DVARhex(flags.load()), isReady());
     if (needPreemption(prev) && !isReady()) {
       auto sched = _sched.get();
       if (sched) sched->preempt(&ec_handle);
+      /// @todo dont rely on the scheduler, just end a preemption to currentPlace
     }
-    // maybe wait for IS_NOT_RUNNING, preemption is not synchronous
+    /// @todo maybe wait for IS_NOT_RUNNING, preemption is not synchronous
   }
 
   void ExecutionContext::clearFlagsResume(flag_t f)
   {
     auto prev = clearFlags(f);
-    MLOG_DETAIL(mlog::ec, "cleared flag", DVAR(this), DVARhex(f), DVARhex(prev), DVARhex(flags.load()), isReady());
+    MLOG_DETAIL(mlog::ec, "cleared flag", DVAR(this), DVARhex(f), DVARhex(prev),
+                DVARhex(flags.load()), isReady());
     if (isBlocked(prev) && isReady()) {
       auto sched = _sched.get();
-      MLOG_DETAIL(mlog::ec, "trying to wake up the scheduler");
+      MLOG_DETAIL(mlog::ec, "inform the scheduler about becoming ready");
       if (sched) sched->ready(&ec_handle);
     }
   }
@@ -460,75 +465,112 @@ namespace mythos {
     RETURN(p.sendInvocation(dest, user));
   }
 
-  // this is called by a scheduler on some hardware thread (aka place)
-  void ExecutionContext::resume() {
-    if (!isReady()) return;
-    auto prevState = clearFlags(IN_WAIT);
-    MLOG_DETAIL(mlog::ec, "try to resume", DVARhex(prevState));
-    if (prevState & IN_WAIT) {
-      MLOG_DETAIL(mlog::ec, "try to resume from wait state");
-      clearFlags(IS_NOTIFIED); // this is safe because we wake up anyway
-      auto e = notificationQueue.pull();
-      if (e) {
-        auto ev = e->get()->deliver();
-        threadState.rsi = ev.user;
-        threadState.rdi = ev.state;
-      } else {
-        threadState.rsi = 0;
-        threadState.rdi = uint64_t(Error::NO_MESSAGE);
-      }
-      //MLOG_DETAIL(mlog::syscall, DVARhex(threadState.rsi), DVAR(threadState.rdi));
+    void ExecutionContext::resume() {
+        // This is called by a scheduler on some hardware thread (aka place).
+
+        // Atomically clear NOT_RUNNING and DONT_PREEMPT and check whether
+        // the execution context is (still) ready and loaded at this hardware thread.
+        // If it was not ready, then set both flags again and return.
+        auto prev = flags.load();
+        while (true) {
+            if (isBlocked(prev)) {
+                MLOG_DETAIL(mlog::ec, "resume failed because blocked",
+                            DVAR(this), DVARhex(prev));
+               return;
+            }
+            flag_t newflags = prev & flag_t(~(IS_NOT_RUNNING + DONT_PREMP_ON_SUSPEND));
+            if (flags.compare_exchange_weak(prev, newflags)) break;
+            // otherwise repeat with new prev
+        }
+        ASSERT(!(prev & IS_NOT_LOADED));
+        ASSERT(currentPlace.load() == &getLocalPlace());
+
+        // return one notification to the user mode if it was waiting for some
+        auto prevWait = clearFlags(IN_WAIT);
+        if (prevWait & IN_WAIT) {
+            // clear IS_NOTIFIED only if the user mode was waiting for it
+            // we won't clear it twice without a second wait() system call
+            clearFlags(IS_NOTIFIED); 
+            
+            // return a notification event if any
+            auto e = notificationQueue.pull();
+            if (e) {
+                auto ev = e->get()->deliver();
+                threadState.rsi = ev.user;
+                threadState.rdi = ev.state;
+            } else {
+                threadState.rsi = 0;
+                threadState.rdi = uint64_t(Error::NO_MESSAGE);
+            }
+            MLOG_DETAIL(mlog::ec, DVAR(this), "return one notification", 
+                        DVARhex(threadState.rsi), DVAR(threadState.rdi));
+        }
+
+        // Reload the address space if it has changed.
+        // It might have been revoked concurrently since we checked the blocking flags.
+        // In that case we abort the resume. The revoke will update NO_AS for us.
+        {
+            TypedCap<IPageMap> as(_as);
+            if (!as) return;
+            auto info = as->getPageMapInfo(as.cap());
+            MLOG_DETAIL(mlog::ec, "load addrspace", DVAR(this), DVARhex(info.table.physint()));
+            getLocalPlace().setCR3(info.table); // without reload if not changed
+        }
+        
+        MLOG_DETAIL(mlog::syscall, "resuming", DVAR(this),
+                    DVARhex(threadState.rip), DVARhex(threadState.rsp));
+        cpu::return_to_user(); // does never return
     }
 
-    // load own context stuff if someone else was running on this place
-    if (cpu::thread_state.get() != &threadState) {
-      // the next this->saveState() will be executed at the same hardware thread
-      // and therefore can not race with us
-
-      // this should only be called if you are sure that the previous state has been saved
-      ASSERT(cpu::thread_state.get() == nullptr);
-      auto oldPlace = currentPlace.exchange(&getLocalPlace());
-      ASSERT(oldPlace == nullptr || oldPlace == &getLocalPlace());
-
-      cpu::thread_state = &threadState;
-      fpuState.restore();
-
-      TypedCap<IPageMap> as(_as);
-      // might have been revoked concurrently
-      // @todo: setting the flag here might introduce are race with setting a new AS
-      // @todo: is the address space really reloaded when it was changed?
-      // @todo: this check should be done before loading all the context!
-      if (!as) return (void)setFlags(NO_AS);
-      auto info = as->getPageMapInfo(as.cap());
-      MLOG_DETAIL(mlog::ec, "load addrspace", DVAR(this), DVARhex(info.table.physint()));
-      getLocalPlace().setCR3(info.table);
-    }
-
-    MLOG_INFO(mlog::syscall, "resuming", DVAR(this), DVARhex(threadState.rip), DVARhex(threadState.rsp));
-    clearFlags(IS_NOT_RUNNING); // TODO: check for races
-    cpu::return_to_user(); // does never return to here
-  }
   
-  void ExecutionContext::saveState()
-  {
-      // can only be called once after resume, 
-      // and this still has to be the right execution context
-      ASSERT(cpu::thread_state.get() == &threadState);
-      cpu::thread_state = nullptr;
+    void ExecutionContext::loadState()
+    {
+        // the assertions are quite redundant, just to be safe during debugging
 
-      // remember that we saved the fpu state and don't need unloading on migration etc
-      auto oldPlace = currentPlace.exchange(nullptr);
-      ASSERT(oldPlace == &getLocalPlace());
+        // remember where the state is loaded in case the scheduler does not know,
+        // the state should not be loaded somewhere else.
+        // WARNING this has the same meaning as !IS_NOT_LOADED
+        auto oldPlace = currentPlace.exchange(&getLocalPlace());
+        ASSERT(oldPlace == nullptr);
 
-      fpuState.save();
-  }
+        // only one hardware thread can load the execution context, this atomic detects races
+        auto prev = clearFlags(IS_NOT_LOADED);
+        ASSERT(prev & IS_NOT_LOADED);
+        // load registers and fpu, no execution context must be loaded here already
+        ASSERT(cpu::thread_state.get() == nullptr);
+        cpu::thread_state = &threadState;
+        fpuState.restore();
+        // tell the kernel that this execution context is in charge now
+        // and check that no other was loaded.
+        ASSERT(current_ec->load() == nullptr);
+        current_ec->store(this);
+    }
+  
+    void ExecutionContext::saveState()
+    {
+        // the assertions are quite redundant, just to be safe during debugging
+
+        // can be called only after loadState on the same hardware thread
+        auto prev = setFlags(IS_NOT_LOADED);
+        ASSERT(!(prev & IS_NOT_LOADED));
+
+        auto oldPlace = currentPlace.exchange(nullptr);
+        ASSERT(oldPlace == &getLocalPlace());
+
+        ASSERT(cpu::thread_state.get() == &threadState);
+        cpu::thread_state = nullptr;
+        fpuState.save();
+
+        // tell the kernel that nobody is in charge now
+        ASSERT(current_ec->load() == this);
+        current_ec->store(nullptr);
+    }
 
   optional<void> ExecutionContext::deleteCap(Cap self, IDeleter& del)
   {
-    if (self.isOriginal()) {
-      if (lastPlace != nullptr) {
-        ISchedulable* self = this;
-        lastPlace->compare_exchange_strong(self, nullptr);
+    if (self.isOriginal()) { // the object gets deleted, not a capability reference
+      if (currentPlace.load() != nullptr) {
+          // @todo enforce saveState() on correct place ?
       }
       _as.reset();
       _cs.reset();
