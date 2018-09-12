@@ -75,7 +75,8 @@ namespace mythos {
     // the ec was selected, make sure it is not running
     if (&getLocalPlace() == home)
       return res->response(t, Error::SUCCESS); // we are on the home thread already, nothing to do
-    if (preempting.test_and_set()) return; // we are preempting the home already, nothing to do
+    if (preempting.test_and_set())
+      return res->response(t, Error::SUCCESS); // we are preempting the home already, nothing to do
     MLOG_DETAIL(mlog::sched, "send preemption message", DVAR(t), DVAR(home));
     home->run(tasklet.set([=](Tasklet* t){
           res->response(t, Error::SUCCESS);
