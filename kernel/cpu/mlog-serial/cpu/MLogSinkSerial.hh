@@ -28,6 +28,7 @@
 #include "util/ISink.hh"
 #include "cpu/SerialStreamBuf.hh"
 #include "util/TidexMutex.hh"
+#include "cpu/hwthreadid.hh"
 
 namespace mythos {
 
@@ -43,7 +44,7 @@ namespace mythos {
     virtual void flush() {}
   protected:
     SerialStreamBuf serial;
-    TidexMutex mutex;
+    TidexMutex<KernelMutexContext> mutex;
   };
 
 } // namespace mythos
