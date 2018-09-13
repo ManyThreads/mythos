@@ -40,7 +40,7 @@
 #include <cstdint>
 #include "util/optional.hh"
 #include "runtime/umem.hh"
-#include "util/UserMutex.hh"
+#include "runtime/Mutex.hh"
 
 mythos::InvocationBuf* msg_ptr asm("msg_ptr");
 int main() asm("main");

@@ -30,20 +30,21 @@
 #include <cstdint>
 
 namespace mythos{
-    
+
   struct KernelMutexContext {
     typedef uintptr_t ThreadID;
     static inline ThreadID getThreadID() {
         uintptr_t value;
         asm volatile ("movq %%fs:%1, %0" : "=r" (value) : "m" (*(char*)0));
+        ASSERT(value != 0);
         return value;
     }
     static inline void pollpause() { 
         asm volatile("pause");
     }
   };
-  
+
 typedef TidexMutex<KernelMutexContext> Mutex;
 
 } // namespace mythos
- 
+

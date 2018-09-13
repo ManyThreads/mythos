@@ -6,4 +6,4 @@
     incfiles = [ "util/ThreadMutex.hh" ]
 
 [module.user-mutex-tidex]
-    incfiles = [ "util/UserMutex.hh" ]
+    incfiles = [ "runtime/Mutex.hh" ]
