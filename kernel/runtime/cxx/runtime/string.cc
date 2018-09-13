@@ -25,6 +25,7 @@
  */
 
 #include <cstddef> // for size_t
+#include <cstdint>
 
 extern "C" void* memcpy(void* dst, void const* src, size_t count) {
     char* d = reinterpret_cast<char*>(dst);
@@ -58,3 +59,34 @@ extern "C" int strcmp(const char *s1, const char *s2)
   }
   return *s1 - *s2;
 }
+
+extern "C" void* memmove(void *dst, const void *src, size_t len)
+{
+	size_t i;
+
+	if ((uintptr_t)dst < (uintptr_t)src) {
+		return memcpy(dst, src, len);
+	}
+
+	if ((uintptr_t)dst % sizeof(long) == 0 &&
+	(uintptr_t)src % sizeof(long) == 0 &&
+	len % sizeof(long) == 0) {
+
+		long *d = static_cast<long*>(dst);
+		const long *s = static_cast<const long*>(src);
+
+		for (i=len/sizeof(long); i>0; i--) {
+		d[i-1] = s[i-1];
+		}
+	} else {
+		char *d = static_cast<char*>(dst);
+		const char *s = static_cast<const char*>(src);
+
+		for (i=len; i>0; i--) {
+			d[i-1] = s[i-1];
+		}
+	}
+
+	return dst;
+}
+
