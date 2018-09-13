@@ -31,7 +31,7 @@
 
 namespace mythos{
 
-  struct KernelMutexContext {
+  struct MutexUserContext {
     typedef uintptr_t ThreadID;
     static inline ThreadID getThreadID() {
         uintptr_t value;
@@ -44,7 +44,7 @@ namespace mythos{
     }
   };
 
-typedef TidexMutex<KernelMutexContext> Mutex;
+typedef TidexMutex<MutexUserContext> Mutex;
 
 } // namespace mythos
 
