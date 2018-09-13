@@ -54,7 +54,10 @@ namespace mythos {
      * the hardware thread where the execution context is currently loaded.
      *
      * There would be a race between seeing that the thread is not blocked
-     * and blocking the thread from the outside. This is solved by 
+     * and blocking the thread from the outside. This is solved by resume().
+     * It is called after the kernel released its task queues to ensure that
+     * any blocking cause will also preempt the hardware thread. And then resume()
+     * checks that it is actually still ready. Otherwise it returns.
      */
     virtual void resume() = 0;
 

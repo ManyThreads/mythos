@@ -63,9 +63,9 @@ namespace mythos {
       IN_WAIT    = 1<<5, // EC is in wait() syscall, next sysret should return a KEvent
       IS_NOTIFIED     = 1<<6, // used by notify() syscall for binary semaphore
       REGISTER_ACCESS = 1<<7, // accessing registers
-      IS_NOT_LOADED   = 1<<8, // CPU state is not loaded
-      DONT_PREMP_ON_SUSPEND  = 1<<9, // somebody else will send the preemption
-      IS_NOT_RUNNING  = 1<<10, // EC is not running
+      NOT_LOADED   = 1<<8, // CPU state is not loaded
+      DONT_PREEMPT  = 1<<9, // somebody else will send the preemption
+      NOT_RUNNING  = 1<<10, // EC is not running
       BLOCK_MASK = IS_WAITING | IS_TRAPPED | NO_AS | NO_SCHED | IS_EXITED | REGISTER_ACCESS
     };
 
@@ -146,7 +146,7 @@ namespace mythos {
     void setFlagsSuspend(flag_t f);
     void clearFlagsResume(flag_t f);
     bool isBlocked(flag_t f) const { return (f & BLOCK_MASK) != 0; }
-    bool needPreemption(flag_t f) const { return (f & DONT_PREMP_ON_SUSPEND) == 0; }
+    bool needPreemption(flag_t f) const { return (f & DONT_PREEMPT) == 0; }
 
   private:
     async::NestedMonitorDelegating monitor;

@@ -40,16 +40,16 @@ namespace mythos {
   ExecutionContext::ExecutionContext(IAsyncFree* memory)
     : memory(memory)
   {
-    setFlags(IS_EXITED + NO_AS + NO_SCHED 
-        + DONT_PREMP_ON_SUSPEND + IS_NOT_LOADED + IS_NOT_RUNNING);
+    setFlags(IS_EXITED + NO_AS + NO_SCHED
+        + DONT_PREEMPT + NOT_LOADED + NOT_RUNNING);
     threadState.clear();
-    threadState.rflags = x86::FLAG_IF;
+    threadState.rflags = x86::FLAG_IF; // ensure that interrupts are enabled in user mode
     fpuState.clear();
   }
 
   void ExecutionContext::setFlagsSuspend(flag_t f)
   {
-    auto prev = setFlags(f | DONT_PREMP_ON_SUSPEND);
+    auto prev = setFlags(f | DONT_PREEMPT);
     MLOG_DETAIL(mlog::ec, "set flag", DVAR(this), DVARhex(f), DVARhex(prev),
                 DVARhex(flags.load()), isReady());
     if (needPreemption(prev) && !isReady()) {
@@ -203,7 +203,7 @@ namespace mythos {
   {
     this->msg = msg;
     auto const& data = *msg->getMessage()->cast<protocol::ExecutionContext::ReadRegisters>();
-    setFlags(REGISTER_ACCESS | DONT_PREMP_ON_SUSPEND | (data.suspend?IS_TRAPPED:0));
+    setFlags(REGISTER_ACCESS | DONT_PREEMPT | (data.suspend?IS_TRAPPED:0));
     
     auto home = currentPlace.load();
     if (home == nullptr) home = &getLocalPlace();
@@ -317,7 +317,7 @@ namespace mythos {
   Error ExecutionContext::invokeSuspend(Tasklet* t, Cap, IInvocation* msg)
   {
     this->msg=msg;
-    setFlags(IS_TRAPPED + DONT_PREMP_ON_SUSPEND);
+    setFlags(IS_TRAPPED + DONT_PREEMPT);
 
     auto home = currentPlace.load();
     if (home == nullptr) home = &getLocalPlace();
@@ -375,17 +375,17 @@ namespace mythos {
          DVARhex(ctx->r11), DVARhex(ctx->r12), DVARhex(ctx->r13),
          DVARhex(ctx->r14), DVARhex(ctx->r15));
     MLOG_ERROR(mlog::ec, "...", DVARhex(ctx->fs_base), DVARhex(ctx->gs_base));
-    setFlags(IS_TRAPPED | IS_NOT_RUNNING); // mark as not executable until the exception is handled
+    setFlags(IS_TRAPPED | NOT_RUNNING); // mark as not executable until the exception is handled
   }
 
   void ExecutionContext::handleInterrupt()
   {
-    setFlags(IS_NOT_RUNNING);
+    setFlags(NOT_RUNNING);
   }
 
   void ExecutionContext::handleSyscall()
   {
-    setFlags(IS_NOT_RUNNING);
+    setFlags(NOT_RUNNING);
     auto ctx = &threadState;
     auto& code = ctx->rdi;
     auto& userctx = ctx->rsi;
@@ -492,11 +492,11 @@ namespace mythos {
                             DVAR(this), DVARhex(prev));
                return;
             }
-            flag_t newflags = prev & flag_t(~(IS_NOT_RUNNING + DONT_PREMP_ON_SUSPEND));
+            flag_t newflags = prev & flag_t(~(NOT_RUNNING + DONT_PREEMPT));
             if (flags.compare_exchange_weak(prev, newflags)) break;
             // otherwise repeat with new prev
         }
-        ASSERT(!(prev & IS_NOT_LOADED));
+        ASSERT(!(prev & NOT_LOADED));
         ASSERT(currentPlace.load() == &getLocalPlace());
 
         // return one notification to the user mode if it was waiting for some
@@ -543,13 +543,13 @@ namespace mythos {
 
         // remember where the state is loaded in case the scheduler does not know,
         // the state should not be loaded somewhere else.
-        // WARNING this has the same meaning as !IS_NOT_LOADED
+        // WARNING this has the same meaning as !NOT_LOADED
         auto oldPlace = currentPlace.exchange(&getLocalPlace());
         ASSERT(oldPlace == nullptr);
 
         // only one hardware thread can load the execution context, this atomic detects races
-        auto prev = clearFlags(IS_NOT_LOADED);
-        ASSERT(prev & IS_NOT_LOADED);
+        auto prev = clearFlags(NOT_LOADED);
+        ASSERT(prev & NOT_LOADED);
         // load registers and fpu, no execution context must be loaded here already
         ASSERT(cpu::thread_state.get() == nullptr);
         cpu::thread_state = &threadState;
@@ -565,8 +565,8 @@ namespace mythos {
         // the assertions are quite redundant, just to be safe during debugging
 
         // can be called only after loadState on the same hardware thread
-        auto prev = setFlags(IS_NOT_LOADED);
-        ASSERT(!(prev & IS_NOT_LOADED));
+        auto prev = setFlags(NOT_LOADED);
+        ASSERT(!(prev & NOT_LOADED));
 
         auto oldPlace = currentPlace.exchange(nullptr);
         ASSERT(oldPlace == &getLocalPlace());
