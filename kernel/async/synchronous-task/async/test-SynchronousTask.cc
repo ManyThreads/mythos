@@ -1,4 +1,4 @@
-/* -*- mode:C++; indent-tabs-mode:nil; -*- */
+/* -*- mode:C++; -*- */
 /* MIT License -- MyThOS: The Many-Threads Operating System
  *
  * Permission is hereby granted, free of charge, to any person
@@ -21,40 +21,42 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  *
- * Copyright 2016 Randolf Rotta, Robert Kuban, and contributors, BTU Cottbus-Senftenberg
+ * Copyright 2018 Randolf Rotta, and contributors, BTU Cottbus-Senftenberg
  */
-#pragma once
 
-#include "util/LinkedList.hh"
-#include "async/IResult.hh"
+#include "plugins/Plugin.hh"
+#include "async/Place.hh"
+#include "async/SynchronousTask.hh"
+#include "boot/mlog.hh"
+#include "cpu/hwthreadid.hh"
 
 namespace mythos {
 
-  class IThread;
-  class ISchedulable;
-  class Tasklet;
+class TestSynchronousTask
+    : public Plugin
+{
+public:
+    void initGlobal() { }
 
-  class IScheduler
-  {
-  public:
-    virtual ~IScheduler() {}
+    void initThread(cpu::ThreadID threadID)
+    {
+        MLOG_INFO(this->log, "TestSynchronousTask: my place is", 
+                    &mythos::async::getLocalPlace(),
+                    DVAR(threadID), cpu::getNumThreads());
 
-    typedef LinkedList<ISchedulable*> list_t;
-    typedef typename list_t::Queueable handle_t;
+        for (int i=0; i<1000; i++) {
+            for (mythos::cpu::ThreadID dst=0; dst<cpu::getNumThreads(); dst++) {
+                synchronousAt(async::getPlace(dst)) << [threadID,dst,this]() {
+                    //MLOG_DETAIL(this->log, "TestSynchronousTask: msg",
+                    //            DVAR(threadID), DVAR(dst), DVAR(cpu::getThreadID()));
+                };
+            }
+        }
+        MLOG_INFO(this->log, "TestSynchronousTask: done");
+    }
 
-    virtual void bind(handle_t* ec_handle) = 0;
+};
 
-    /** Removes the EC from all queues and pointers. Does not preempt the execution context
-     * if it is currently running. This is up to the execution context.
-     */
-    virtual void unbind(handle_t* ec_handle) = 0;
-
-    /** Notifies the scheduler when an EC became ready to run.
-     * If the scheduler's hardware thread is sleeping, it is woken up by this
-     * method.
-     */
-    virtual void ready(handle_t* ec_handle) = 0;
-
-  };
+TestSynchronousTask plugin_TestSynchronousTask;
 
 } // namespace mythos

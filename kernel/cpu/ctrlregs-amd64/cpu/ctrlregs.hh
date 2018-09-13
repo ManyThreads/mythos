@@ -247,6 +247,16 @@ namespace mythos {
     }
 
     inline void setCR4(size_t val) { asm volatile ("mov %0, %%cr4" : : "r"(val)); }
+    
+    inline uint64_t getXCR0() {
+        uint32_t eax, edx;
+        asm volatile ("xgetbv" : "=a" (eax), "=d" (edx) : "c" (0));
+        return uint64_t(edx)<<32 | eax;
+    }
+    
+    inline void setXCR0(uint64_t val) {
+        asm volatile ("xsetbv" : : "a" (val), "d" (val>>32), "c" (0));
+    }
  
   } // namespace x86
 

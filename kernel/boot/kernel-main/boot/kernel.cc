@@ -40,6 +40,7 @@
 #include "cpu/LAPIC.hh"
 #include "cpu/idle.hh"
 #include "cpu/hwthread_pause.hh"
+#include "cpu/fpu.hh"
 #include "boot/memory-layout.h"
 #include "boot/DeployKernelSpace.hh"
 #include "boot/DeployHWThread.hh"
@@ -119,6 +120,8 @@ void entry_ap(size_t apicID, size_t reason)
   //asm volatile("xchg %bx,%bx");
   mythos::boot::apboot_thread(apicID);
   MLOG_DETAIL(mlog::boot, "started hardware thread", DVAR(reason));
+  mythos::cpu::FpuState::initCpu();
+  MLOG_DETAIL(mlog::boot, DVARhex(mythos::x86::getXCR0()));
   mythos::idle::wokeup(apicID, reason); // may not return
   runUser();
 }
@@ -136,7 +139,7 @@ void mythos::cpu::syscall_entry_cxx(mythos::cpu::ThreadState* ctx)
   mythos::idle::enteredFromSyscall();
   MLOG_DETAIL(mlog::boot, "user system call", DVARhex(ctx->rdi), DVARhex(ctx->rsi),
       DVARhex(ctx->rip), DVARhex(ctx->rsp));
-  mythos::handle_syscall(ctx);
+  mythos::handle_syscall();
   runUser();
 }
 
@@ -147,9 +150,10 @@ void mythos::cpu::irq_entry_user(mythos::cpu::ThreadState* ctx)
   MLOG_DETAIL(mlog::boot, "user interrupt", DVARhex(ctx->irq), DVARhex(ctx->error),
       DVARhex(ctx->rip), DVARhex(ctx->rsp));
   if (ctx->irq<32) {
-    mythos::handle_trap(ctx); // handle traps, exceptions, bugs from user mode
+    mythos::handle_trap(); // handle traps, exceptions, bugs from user mode
   } else {
     // TODO then external and wakeup interrupts
+    mythos::handle_interrupt();
     mythos::lapic.endOfInterrupt();
   }
   runUser();

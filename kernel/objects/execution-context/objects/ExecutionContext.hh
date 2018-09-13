@@ -29,6 +29,7 @@
 #include <atomic>
 
 #include "cpu/kernel_entry.hh"
+#include "cpu/fpu.hh"
 #include "async/NestedMonitorDelegating.hh"
 #include "objects/IKernelObject.hh"
 #include "objects/ISchedulable.hh"
@@ -51,7 +52,8 @@ namespace mythos {
   {
   public:
 
-    enum Flags : uint8_t
+    typedef uint16_t flag_t;
+    enum Flags : flag_t
     {
       IS_WAITING = 1<<0, // used by wait() syscall
       IS_TRAPPED = 1<<1, // used by suspend/resume invocations and trap/exception handler
@@ -61,6 +63,9 @@ namespace mythos {
       IN_WAIT    = 1<<5, // EC is in wait() syscall, next sysret should return a KEvent
       IS_NOTIFIED     = 1<<6, // used by notify() syscall for binary semaphore
       REGISTER_ACCESS = 1<<7, // accessing registers
+      NOT_LOADED   = 1<<8, // CPU state is not loaded
+      DONT_PREEMPT  = 1<<9, // somebody else will send the preemption
+      NOT_RUNNING  = 1<<10, // EC is not running
       BLOCK_MASK = IS_WAITING | IS_TRAPPED | NO_AS | NO_SCHED | IS_EXITED | REGISTER_ACCESS
     };
 
@@ -70,8 +75,10 @@ namespace mythos {
     optional<void> setAddressSpace(optional<CapEntry*> pagemapref);
     void unsetAddressSpace() { _as.reset(); }
 
-    optional<void> setSchedulingContext(optional<CapEntry*> scref);
-    void unsetSchedulingContext() { _sched.reset(); }
+    /// only for initial setup
+    optional<void> setSchedulingContext(optional<CapEntry*> sce);
+    optional<void> setSchedulingContext(Tasklet* t, IInvocation* msg, optional<CapEntry*> sce);
+    Error unsetSchedulingContext();
 
     optional<void> setCapSpace(optional<CapEntry*> capmapref);
     void unsetCapSpace() { _cs.reset(); }
@@ -89,10 +96,12 @@ namespace mythos {
   public: // ISchedulable interface
     bool isReady() const override { return !isBlocked(flags.load()); }
     void resume() override;
-    void handleTrap(cpu::ThreadState* ctx) override;
-    void handleSyscall(cpu::ThreadState* ctx) override;
+    void handleTrap() override;
+    void handleInterrupt() override;
+    void handleSyscall() override;
     optional<void> syscallInvoke(CapPtr portal, CapPtr dest, uint64_t user);
-    void unload() override;
+    void loadState() override;
+    void saveState() override;
     void semaphoreNotify() override;
 
   public: // IPortalUser interface
@@ -112,7 +121,7 @@ namespace mythos {
     friend struct protocol::ExecutionContext;
     friend struct protocol::KernelObject;
 
-    Error invokeConfigure(Tasklet* t, Cap self, IInvocation* msg);
+    Error invokeConfigure(Tasklet* t, Cap, IInvocation* msg);
     Error invokeReadRegisters(Tasklet* t, Cap self, IInvocation* msg);
     void  readThreadRegisters(Tasklet* t, optional<void>);
     Error invokeWriteRegisters(Tasklet* t, Cap self, IInvocation* msg);
@@ -132,23 +141,24 @@ namespace mythos {
     void unbind(optional<ICapMap*>) {}
     void unbind(optional<IScheduler*>);
 
-    uint8_t setFlag(uint8_t f) { return flags.fetch_or(f); }
-    uint8_t clearFlag(uint8_t f) { return flags.fetch_and(uint8_t(~f)); }
-    void setFlagSuspend(uint8_t f);
-    void clearFlagResume(uint8_t f);
-    bool isBlocked(uint8_t f) const { return (f & BLOCK_MASK) != 0; }
+    flag_t setFlags(flag_t f) { return flags.fetch_or(f); }
+    flag_t clearFlags(flag_t f) { return flags.fetch_and(flag_t(~f)); }
+    void setFlagsSuspend(flag_t f);
+    void clearFlagsResume(flag_t f);
+    bool isBlocked(flag_t f) const { return (f & BLOCK_MASK) != 0; }
+    bool needPreemption(flag_t f) const { return (f & DONT_PREEMPT) == 0; }
 
   private:
     async::NestedMonitorDelegating monitor;
     INotifiable::list_t notificationQueue;
-    std::atomic<uint8_t> flags;
+    std::atomic<flag_t> flags;
     CapRef<ExecutionContext,IPageMap> _as;
     CapRef<ExecutionContext,ICapMap> _cs;
     CapRef<ExecutionContext,IScheduler> _sched;
     /// @todo reference/link to exception handler (portal/endpoint?)
 
-    cpu::ThreadState threadState;
-    std::atomic<ISchedulable*>* lastPlace = nullptr;
+    // the hardware thread where the fpu state is currently loaded
+    std::atomic<async::Place*> currentPlace = {nullptr};
     IScheduler::handle_t ec_handle = {this};
 
     IInvocation* msg;
@@ -158,6 +168,9 @@ namespace mythos {
       writeSleepResponse = {this};
     async::MSink<ExecutionContext, void, &ExecutionContext::suspendThread>
       sleepResponse = {this};
+
+    cpu::ThreadState threadState;
+    cpu::FpuState fpuState;
 
     LinkedList<IKernelObject*>::Queueable del_handle = {this};
     IAsyncFree* memory;

@@ -44,6 +44,9 @@ namespace mythos {
      */
     struct ThreadState
     {
+      ThreadState() {}
+      void clear() { memset(this, 0, sizeof(ThreadState)); }
+
       uint64_t rip; //< from %rcx, written by the syscall entry point
       uint64_t rflags; //< from %r11, written by the syscall entry point
       uint64_t rsp; //< from %rsp, written by the syscall entry point

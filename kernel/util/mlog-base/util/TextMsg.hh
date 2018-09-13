@@ -73,57 +73,57 @@ namespace mlog {
   };
 
   struct TextDetail
-    : public TextMsg<200>
+    : public TextMsg<400>
   {
     constexpr static size_t VERBOSITY = 0;
     template<typename... ARGS>
     TextDetail(char const* subsys, ARGS&&... args)
-      : TextMsg<200>("\x1b[0;34m", subsys, std::forward<ARGS>(args)...) {}
+      : TextMsg<400>("\x1b[0;34m", subsys, std::forward<ARGS>(args)...) {}
   };
   
   struct TextInfo
-    : public TextMsg<200>
+    : public TextMsg<400>
   {
     constexpr static size_t VERBOSITY = 1;
     template<typename... ARGS>
     TextInfo(char const* subsys, ARGS&&... args)
-      : TextMsg<200>("\x1b[0;97m", subsys, std::forward<ARGS>(args)...) {}
+      : TextMsg<400>("\x1b[0;97m", subsys, std::forward<ARGS>(args)...) {}
   };
 
   struct TextWarning
-    : public TextMsg<200>
+    : public TextMsg<400>
   {
     constexpr static size_t VERBOSITY = 2;
     template<typename... ARGS>
     TextWarning(char const* subsys, ARGS&&... args)
-      : TextMsg<200>("\x1b[0;33;1m", subsys, std::forward<ARGS>(args)...) {}
+      : TextMsg<400>("\x1b[0;33;1m", subsys, std::forward<ARGS>(args)...) {}
   };
 
   struct TextError
-    : public TextMsg<200>
+    : public TextMsg<400>
   {
     constexpr static size_t VERBOSITY = 3;
     template<typename... ARGS>
     TextError(char const* subsys, ARGS&&... args)
-      : TextMsg<200>("\x1b[0;31;1m", subsys, std::forward<ARGS>(args)...) {}
+      : TextMsg<400>("\x1b[0;31;1m", subsys, std::forward<ARGS>(args)...) {}
   };
 
   struct TextFailure
-    : public TextMsg<200>
+    : public TextMsg<400>
   {
     constexpr static size_t VERBOSITY = 3;
     template<typename... ARGS>
     TextFailure(char const* subsys, ARGS&&... args)
-      : TextMsg<200>("\x1b[0;91;1m", subsys, std::forward<ARGS>(args)...) {}
+      : TextMsg<400>("\x1b[0;91;1m", subsys, std::forward<ARGS>(args)...) {}
   };
 
   struct TextSuccess
-    : public TextMsg<200>
+    : public TextMsg<400>
   {
     constexpr static size_t VERBOSITY = 3;
     template<typename... ARGS>
     TextSuccess(char const* subsys, ARGS&&... args)
-      : TextMsg<200>("\x1b[0;92;1m", subsys, std::forward<ARGS>(args)...) {}
+      : TextMsg<400>("\x1b[0;92;1m", subsys, std::forward<ARGS>(args)...) {}
   };
 
   template<size_t MAXSIZE>
@@ -166,12 +166,12 @@ namespace mlog {
   };
 
   struct TextCSV
-    : public CsvTextMsg<200>
+    : public CsvTextMsg<512>
   {
     constexpr static size_t VERBOSITY = 3;
     template<typename... ARGS>
     TextCSV(char const* table, ARGS&&... args)
-      : CsvTextMsg<200>(table, std::forward<ARGS>(args)...) {}
+      : CsvTextMsg<512>(table, std::forward<ARGS>(args)...) {}
   };
   
 } // namespace mlog

@@ -71,11 +71,8 @@ namespace mythos {
     : public IKernelObject
     , public IScheduler
   {
-    enum Consts {
-      REMOVED = 1 // equivalent to "awaked"
-    };
   public:
-    SchedulingContext() { current_ec = (handle_t*)REMOVED; }
+    SchedulingContext() { }
     void init(async::Place* home) { this->home = home; }
     virtual ~SchedulingContext() {}
 
@@ -83,15 +80,11 @@ namespace mythos {
      * Returns only if no ready execution context was available.
      */
     void tryRunUser();
-    void preempt();
 
   public: // IScheduler interface
-    void bind(handle_t*) override {}
+    void bind(handle_t* ec_handle) override;
     void unbind(handle_t* ec_handle) override;
-    void ready(handle_t*) override;
-    void preempt(Tasklet* t, IResult<void>* res, handle_t* ec_handle) override;
-    void preempt(handle_t* ec_handle) override;
-    void yield(handle_t* ec_handle) override;
+    void ready(handle_t* ec_handle) override;
 
   public: // IKernelObject interface
     optional<void> deleteCap(Cap, IDeleter&) override { RETURN(Error::SUCCESS); }
@@ -103,9 +96,7 @@ namespace mythos {
   private:
     async::Place* home = nullptr;
     list_t readyQueue; //< the ready list of waiting execution contexts
-    std::atomic<handle_t*> current_ec; //< the currently selected execution context
-    std::atomic_flag preempting = ATOMIC_FLAG_INIT; //< true if preemption is sent off
-    Tasklet tasklet; //< used for the preemption
+    std::atomic<handle_t*> current_handle = {nullptr}; //< the currently selected execution context
   };
 
 } // namespace mythos
