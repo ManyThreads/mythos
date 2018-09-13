@@ -70,6 +70,9 @@ namespace async {
 
     bool isLocked() { return sharedTail() != Chainable::FREE; }
 
+    /** acquire the queue access without actually pushing anything to the queue.
+     * Returns true if the queue was in released state before.
+     */
     bool tryAcquire();
 
     /** pushed a task into the shared queue and implicitly tries to

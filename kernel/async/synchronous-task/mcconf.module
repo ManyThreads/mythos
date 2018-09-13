@@ -1,0 +1,6 @@
+# -*- mode:toml; -*-
+[module.synchronous-task]
+    incfiles = [ "async/SynchronousTask.hh" ]
+
+[module.test-synchronous-task]
+    kernelfiles = [ "async/test-SynchronousTask.cc" ]
