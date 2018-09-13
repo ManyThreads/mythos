@@ -21,41 +21,30 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  *
- * Copyright 2017 Randolf Rotta, Maik Krüger, Maximilian Heyne, and contributors, BTU Cottbus-Senftenberg
+ * Copyright 2016 Martin Messer, BTU Cottbus-Senftenberg
  */
+
 #pragma once
 
-#include "cpu/CoreLocal.hh"
-#include "util/assert.hh"
-#include "boot/memory-layout.h" // for MYTHOS_MAX_THREADS
+#include "util/TidexMutex.hh"
 #include <cstdint>
-#include "cpu/hwthread_pause.hh"
 
-namespace mythos {
-  namespace cpu {
+namespace mythos{
 
-    /** type for linear hardware thread identifiers */
-    typedef uint16_t ThreadID;
-
-    /** type for lAPIC identifiers, which may be non-contiguous. */
-    typedef uint32_t ApicID;
-
-    extern size_t hwThreadCount;
-    extern CoreLocal<size_t> hwThreadID_ KERNEL_CLM_HOT;
-
-    /** returns the number of actually present hardware threads. */
-    inline size_t getNumThreads() { return hwThreadCount; }
-
-    /** returns the own logical hardware thread identifier */
-    inline ThreadID getThreadID() { return ThreadID(hwThreadID_.get()); }
-
-  } // namespace cpu
-
-    
-  struct KernelMutexContext {
-    typedef cpu::ThreadID ThreadID;
-    static inline ThreadID getThreadID() { return cpu::getThreadID(); }
-    static inline void pollpause() { hwthread_pollpause(); }
+  struct MutexUserContext {
+    typedef uintptr_t ThreadID;
+    static inline ThreadID getThreadID() {
+        uintptr_t value;
+        asm volatile ("movq %%fs:%1, %0" : "=r" (value) : "m" (*(char*)0));
+        ASSERT(value != 0);
+        return value;
+    }
+    static inline void pollpause() { 
+        asm volatile("pause");
+    }
   };
-    
+
+typedef TidexMutex<MutexUserContext> Mutex;
+
 } // namespace mythos
+

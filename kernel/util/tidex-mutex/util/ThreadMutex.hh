@@ -27,9 +27,10 @@
 #pragma once
 
 #include "util/TidexMutex.hh"
+#include "cpu/hwthreadid.hh"
 
 namespace mythos{
 
-  typedef TidexMutex ThreadMutex;
+typedef TidexMutex<KernelMutexContext> ThreadMutex;
 
 } // namespace mythos
