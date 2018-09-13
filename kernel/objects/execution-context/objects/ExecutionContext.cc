@@ -206,11 +206,12 @@ namespace mythos {
     setFlags(REGISTER_ACCESS | DONT_PREEMPT | (data.suspend?IS_TRAPPED:0));
     
     auto home = currentPlace.load();
-    if (home == nullptr) home = &getLocalPlace();
-    MLOG_DETAIL(mlog::ec, "send preemption message", DVAR(this), DVAR(home));
-    home->run(t->set([this](Tasklet* t){
-       this->readSleepResponse.response(t, optional<void>(Error::SUCCESS));
-    }));
+    if (home != nullptr) {
+        MLOG_DETAIL(mlog::ec, "send preemption message", DVAR(this), DVAR(home));
+        home->run(t->set([this](Tasklet* t){
+            this->readSleepResponse.response(t, optional<void>(Error::SUCCESS));
+        }));
+    } else readThreadRegisters(t, optional<void>(Error::SUCCESS));
     return Error::INHIBIT;
   }
 
@@ -252,11 +253,12 @@ namespace mythos {
     if (data.resume) clearFlags(IS_TRAPPED);
 
     auto home = currentPlace.load();
-    if (home == nullptr) home = &getLocalPlace();
-    MLOG_DETAIL(mlog::ec, "send preemption message", DVAR(this), DVAR(home));
-    home->run(t->set([this](Tasklet* t){
-       this->writeSleepResponse.response(t, optional<void>(Error::SUCCESS));
-    }));
+    if (home != nullptr) {
+        MLOG_DETAIL(mlog::ec, "send preemption message", DVAR(this), DVAR(home));
+        home->run(t->set([this](Tasklet* t){
+            this->writeSleepResponse.response(t, optional<void>(Error::SUCCESS));
+        }));
+    } else writeThreadRegisters(t, optional<void>(Error::SUCCESS));
     return Error::INHIBIT;
   }
 
@@ -316,15 +318,16 @@ namespace mythos {
 
   Error ExecutionContext::invokeSuspend(Tasklet* t, Cap, IInvocation* msg)
   {
-    this->msg=msg;
+    this->msg = msg;
     setFlags(IS_TRAPPED + DONT_PREEMPT);
 
     auto home = currentPlace.load();
-    if (home == nullptr) home = &getLocalPlace();
-    MLOG_DETAIL(mlog::ec, "send preemption message", DVAR(this), DVAR(home));
-    home->run(t->set([this](Tasklet* t){
-       this->sleepResponse.response(t, optional<void>(Error::SUCCESS));
-    }));
+    if (home != nullptr) {
+        MLOG_DETAIL(mlog::ec, "send preemption message", DVAR(this), DVAR(home));
+        home->run(t->set([this](Tasklet* t){
+            this->sleepResponse.response(t, optional<void>(Error::SUCCESS));
+        }));
+    } else suspendThread(t, optional<void>(Error::SUCCESS));
     return Error::INHIBIT;
   }
 
