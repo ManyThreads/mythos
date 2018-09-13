@@ -40,6 +40,7 @@
 #include <cstdint>
 #include "util/optional.hh"
 #include "runtime/umem.hh"
+#include "util/UserMutex.hh"
 
 mythos::InvocationBuf* msg_ptr asm("msg_ptr");
 int main() asm("main");
@@ -59,9 +60,14 @@ char threadstack[stacksize];
 char* thread1stack_top = threadstack+stacksize/2;
 char* thread2stack_top = threadstack+stacksize;
 
+mythos::Mutex mutex;
+
 void* thread_main(void* ctx)
 {
   MLOG_INFO(mlog::app, "hello thread!", DVAR(ctx));
+  mutex << [ctx]() {
+    MLOG_INFO(mlog::app, "thread in mutex", DVAR(ctx));
+  };
   mythos::ISysretHandler::handle(mythos::syscall_wait());
   MLOG_INFO(mlog::app, "thread resumed from wait", DVAR(ctx));
   return 0;

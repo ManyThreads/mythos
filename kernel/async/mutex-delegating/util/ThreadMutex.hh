@@ -29,7 +29,7 @@
 #include "async/MutexDelegating.hh"
 
 namespace mythos{
-
+    
   typedef async::MutexDelegating ThreadMutex;
 
 } // namespace mythos

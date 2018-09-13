@@ -29,6 +29,7 @@
 #include "util/assert.hh"
 #include "boot/memory-layout.h" // for MYTHOS_MAX_THREADS
 #include <cstdint>
+#include "cpu/hwthread_pause.hh"
 
 namespace mythos {
   namespace cpu {
@@ -49,4 +50,12 @@ namespace mythos {
     inline ThreadID getThreadID() { return ThreadID(hwThreadID_.get()); }
 
   } // namespace cpu
+
+    
+  struct KernelMutexContext {
+    typedef cpu::ThreadID ThreadID;
+    static inline ThreadID getThreadID() { return cpu::getThreadID(); }
+    static inline void pollpause() { hwthread_pollpause(); }
+  };
+    
 } // namespace mythos
