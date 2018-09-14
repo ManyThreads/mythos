@@ -9,7 +9,7 @@ TARGETS += app/init.elf
 '''
 
     makefile_body = '''
-APP_LDFLAGS += -L../3rdparty/cxx/lib
+APP_LDFLAGS += -Wl,--eh-frame-hdr -L../3rdparty/cxx/lib
 APP_LIBS += -lc++ -lc++abi -lunwind -lgcc
 
 app/init.elf: $(INITAPPFILES_OBJ) $(APPFILES_OBJ) $(CRTFILES_OBJ)

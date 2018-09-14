@@ -9,11 +9,9 @@
 #include "mythos/syscall.hh"
 #include "mythos/Error.hh"
 
-namespace mythos {
+extern char __executable_start; //< provided by the default linker script
 
-namespace {
-    static const constexpr uint64_t ELF_tlsAddr = 0x400000;
-}
+namespace mythos {
 
 struct TLSControlBlock
 {
@@ -39,7 +37,7 @@ inline T max(T a, T b) { return (a>b)?a:b; }
  * In static non-reloc ELF without dynamic module loading we have just one TLS header.
  */
 mythos::elf64::PHeader const* findTLSHeader() {
-    mythos::elf64::Elf64Image img((void*) ELF_tlsAddr);
+    mythos::elf64::Elf64Image img(&__executable_start);
     for (uint64_t i = 0; i < img.phnum(); i++) {
         auto pheader = img.phdr(i);
         if (pheader->type == elf64::Type::PT_TLS) return pheader;

@@ -30,11 +30,14 @@
 
 #include "mythos/syscall.hh"
 #include "runtime/mlog.hh"
+#include "util/elf64.hh"
+
 
 /** cause abnormal process termination.
  * Defined in stdlib.h
  */
 extern "C" void abort() {
+    MLOG_ERROR(mlog::app, "abort");
     while(true) mythos::syscall_exit(-1); 
 }
 
@@ -50,18 +53,18 @@ extern "C" int fflush(FILE* stream) {
 }
 
 extern "C" int fprintf(FILE *stream, const char *format, ...) {
-    MLOG_ERROR(mlog::app, "fprintf", DVAR(stream), DVAR(format));
+    MLOG_ERROR(mlog::app, "fprintf", DVAR(stream), DSTR(format));
     return 0;
 }
 
 extern "C" int snprintf(char *str, size_t size, const char *format, ...) {
-    MLOG_ERROR(mlog::app, "snprintf", DVAR(str), DVAR(size), DVAR(format));
+    MLOG_ERROR(mlog::app, "snprintf", DVAR(str), DVAR(size), DSTR(format));
     str[0] = '\0';
     return 0;
 }
 
 extern "C" int vfprintf(FILE *stream, const char *format, va_list) {
-    MLOG_ERROR(mlog::app, "vfprintf", DVAR(stream), DVAR(format));
+    MLOG_ERROR(mlog::app, "vfprintf", DVAR(stream), DSTR(format));
     return 0;
 }
 
@@ -71,12 +74,12 @@ extern "C" int fputc(int c, FILE *stream) {
 }
 
 extern "C" size_t fwrite(const void *ptr, size_t size, size_t nmemb, FILE *stream) {
-    MLOG_ERROR(mlog::app, "fwrite", DVAR(stream), DVAR(ptr), DVAR(size), DVAR(nmemb));
+    MLOG_ERROR(mlog::app, "fwrite", DVAR(stream), mlog::DebugString((const char*)ptr,size*nmemb), DVAR(size), DVAR(nmemb));
     return nmemb;
 }
 
 extern "C" char *getenv(const char *name) {
-    MLOG_ERROR(mlog::app, "getenv", DVAR(name));
+    MLOG_ERROR(mlog::app, "getenv", DSTR(name));
     return nullptr;
 }
 
@@ -110,17 +113,48 @@ extern "C" int pthread_rwlock_wrlock(pthread_rwlock_t *rwlock) {
 }
 
 
-struct dl_phdr_info;
+struct dl_phdr_info
+{
+    void* dlpi_addr; /* Base address of object */
+    const char* dlpi_name; /* (Null-terminated) name of object */
+    const void* dlpi_phdr; /* Pointer to array of ELF program headers for this object */
+    uint16_t dlpi_phnum; /* # of items in dlpi_phdr */
+};
+
+
+extern char __executable_start; //< provided by the default linker script
 
 /** walk through list of shared objects.
  * http://man7.org/linux/man-pages/man3/dl_iterate_phdr.3.html
  * https://github.com/ensc/dietlibc/blob/master/libcruft/dl_iterate_phdr.c
+ * 
+ * WARNING: use --eh-frame-hdr linker flag to ensure the presence of the EH_FRAME segment!
  */
 extern "C" int dl_iterate_phdr(
     int (*callback) (dl_phdr_info *info, size_t size, void *data), void *data)
 {
-    MLOG_ERROR(mlog::app, "dl_iterate_phdr", DVAR((void*)callback));
-    return 0;
+    MLOG_ERROR(mlog::app, "dl_iterate_phdr", DVAR((void*)callback), DVAR(&__executable_start));
+    mythos::elf64::Elf64Image img(&__executable_start);
+    ASSERT(img.isValid());
+
+    // HACK this assumes llvm libunwind
+    // the targetAddr contains the instruction pointer where the exception was thrown
+    struct dl_iterate_cb_data {
+        void *addressSpace;
+        void *sects;
+        void *targetAddr;
+    };
+    auto cbdata = static_cast<dl_iterate_cb_data *>(data);
+    MLOG_ERROR(mlog::app, "dl_iterate_phdr", DVAR(cbdata->addressSpace),
+        DVAR(cbdata->sects), DVAR(cbdata->targetAddr));
+ 
+    dl_phdr_info info;
+    info.dlpi_addr = 0; // callback ignores this header if its target addr is smaller than this.
+    info.dlpi_name = "init.elf";
+    info.dlpi_phdr = (const void*)img.phdr(0);
+    info.dlpi_phnum = img.phnum();
+    auto res = (*callback) (&info, sizeof(info), data);
+    return res;
 }
 
 // http://wiki.osdev.org/C%2B%2B

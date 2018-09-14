@@ -227,6 +227,16 @@ struct HostChannel {
 mythos::PCIeRingProducer<HostChannel::CtrlChannel> app2host;
 mythos::PCIeRingConsumer<HostChannel::CtrlChannel> host2app;
 
+
+void test_exceptions() {
+    try{
+        MLOG_INFO(mlog::app, "throwing 42");
+        throw 42;
+    } catch (int i){
+        MLOG_INFO(mlog::app, "catched", i);
+    }
+}
+
 int main()
 {
   char const str[] = "hello world!";
@@ -239,6 +249,7 @@ int main()
   test_Portal();
   test_heap(); // heap must be initialized for tls test
   test_tls();
+  test_exceptions();
 
   {
     mythos::PortalLock pl(portal); // future access will fail if the portal is in use already

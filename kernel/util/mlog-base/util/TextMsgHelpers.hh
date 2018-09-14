@@ -29,6 +29,7 @@
 #include "util/PhysPtr.hh"
 #include "util/hash.hh"
 #include "util/Range.hh"
+#include <cstring>
 
 namespace mlog {
 
@@ -120,6 +121,18 @@ namespace mlog {
     size_t length;
   };
 
+#define DSTR(cstr) mlog::DebugCString(cstr)
+
+  struct DebugCString
+  {
+    DebugCString(char const* start) : start(start) {}
+    template<class S>
+    friend ostream_base<S>& operator<< (ostream_base<S>& out, DebugCString const& v) {
+        if (v.start == nullptr) return out << "nullptr" ;
+        else return out.write(v.start, strlen(v.start));
+    }
+    char const* start;
+  };
 
   struct DebugMemDump
   {
