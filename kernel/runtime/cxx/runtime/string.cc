@@ -44,6 +44,19 @@ extern "C" void* memset(void* dst, int value, size_t count) {
     return dst;
 }
 
+extern "C" void* memmove(void *dest, const void *src, size_t n) {
+    char* a = reinterpret_cast<char*>(dest);
+    const char* b = reinterpret_cast<const char*>(src);
+    if (src==dest) return dest;
+    if (src>dest) while (n--) *a++ = *b++;
+    else {
+      a += n-1;
+      b += n-1;
+      while (n--) *a-- = *b--;
+    }
+    return dest;
+}
+
 extern "C" size_t strlen(const char *s) {
     size_t len=0;
     while (s[len] != 0) len++;

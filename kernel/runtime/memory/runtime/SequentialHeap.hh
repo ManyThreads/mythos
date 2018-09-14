@@ -73,8 +73,12 @@ public:
     * Maybe additional meta data can be placed here.
     */
     struct Head {
-        char* begin;
-        size_t size;
+        Head() {}
+        bool isGood() const { return cannary == 0x08154711; }
+        size_t cannary = 0x08154711;
+        char* begin; //< the start of the allocated area, not same as "this" because of alignment 
+        size_t size; //< the size that was actually allocated starting at begin
+        size_t reqSize; //< the size that was requested in alloc()
     };
     
 
@@ -98,9 +102,10 @@ public:
         if (!res) return res;
         auto begin = reinterpret_cast<char*>(*res);
         auto addr = begin + headsize;
-        auto head = reinterpret_cast<Head*>(addr - sizeof(Head));
+        auto head = new(addr - sizeof(Head)) Head();
         head->begin = begin;
         head->size = allocSize;
+        head->reqSize = length;
         MLOG_DETAIL(mlog::app, "allocated", DVARhex(begin), DVARhex(addr),
                     DVAR(allocSize), DVAR(align));
         ASSERT(AlignmentObject(align).is_aligned(addr));
@@ -110,7 +115,8 @@ public:
 
     void free(addr_t start) {
         auto addr = reinterpret_cast<char*>(start);
-        auto head = reinterpret_cast<Head*>(start - sizeof(Head));
+        auto head = reinterpret_cast<Head*>(addr - sizeof(Head));
+        ASSERT(head->isGood());
         auto begin = head->begin;
         auto allocSize = head->size;
         ASSERT(Alignment::is_aligned(begin));
@@ -126,6 +132,13 @@ public:
             MLOG_DETAIL(mlog::app, "Add range", DVARhex(start), DVARhex(length));
             heap.addRange(start, length);
         };
+    }
+    
+    size_t getSize(void* ptr) {
+        auto addr = reinterpret_cast<char*>(ptr);
+        auto head = reinterpret_cast<Head*>(addr - sizeof(Head));
+        ASSERT(head->isGood());
+        return head->reqSize;
     }
 
 private:

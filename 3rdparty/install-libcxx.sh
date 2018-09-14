@@ -7,20 +7,30 @@
 # TODO: check libcxxrt (instead of libcxxabi) and compiler-rt (instead of libgcc)
 
 
-BASEDIR=`dirname $0`
-pushd "$BASEDIR"
+pushd `dirname $0`
+BASEDIR=`pwd`
+echo installing in $BASEDIR
+
+
+rm -rf cxx llvm libcxxabi libunwind libcxx
 
 # download stuff
 #svn co http://llvm.org/svn/llvm-project/libcxxabi/trunk libcxxabi
-git clone https://github.com/llvm-mirror/libcxxabi.git
-git clone https://github.com/llvm-mirror/libcxx.git
+curl -C - -LO http://releases.llvm.org/6.0.1/libcxxabi-6.0.1.src.tar.xz
+tar -xJf libcxxabi-6.0.1.src.tar.xz
+mv libcxxabi-6.0.1.src libcxxabi
+#git clone https://github.com/llvm-mirror/libcxxabi.git
+curl -C - -LO http://releases.llvm.org/6.0.1/libcxx-6.0.1.src.tar.xz
+tar -xJf libcxx-6.0.1.src.tar.xz
+mv libcxx-6.0.1.src libcxx
+#git clone https://github.com/llvm-mirror/libcxx.git
 #git clone https://github.com/llvm-mirror/llvm.git
-curl -LO http://releases.llvm.org/6.0.1/libunwind-6.0.1.src.tar.xz
+curl -C - -LO http://releases.llvm.org/6.0.1/libunwind-6.0.1.src.tar.xz
 tar -xJf libunwind-6.0.1.src.tar.xz
-curl -LO http://releases.llvm.org/6.0.1/llvm-6.0.1.src.tar.xz
+mv libunwind-6.0.1.src libunwind
+curl -C - -LO http://releases.llvm.org/6.0.1/llvm-6.0.1.src.tar.xz
 tar -xJf llvm-6.0.1.src.tar.xz
-ln -s llvm-6.0.1.src llvm
-
+mv llvm-6.0.1.src llvm
 
 # install pathscale's libunwind
 # git clone https://github.com/pathscale/libunwind.git
@@ -33,7 +43,7 @@ ln -s llvm-6.0.1.src llvm
 
 
 # install llvm's libunwind
-cd libunwind-6.0.1.src
+cd libunwind
 rm -rf build
 mkdir build && cd build
 cmake -DCMAKE_INSTALL_PREFIX:PATH="$BASEDIR/cxx" \
@@ -66,6 +76,7 @@ cd ../..
 
 # install libcxx with libcxxabi
 # alternative would be libcxxrt
+# see also https://libcxx.llvm.org/docs/BuildingLibcxx.html
 cd libcxx
 rm -rf build
 mkdir build && cd build
