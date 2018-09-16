@@ -3,7 +3,7 @@
     appfiles = [ "runtime/cxxsupport.cc", "runtime/string.cc", "runtime/cxxdelete.cc" ]
     provides = [ "vector", "queue", "functional" ]
     makefile_head = '''
-APP_CPPFLAGS += -I${vars.cxx_path}/include -Iruntime/cxx
+APP_CPPFLAGS += -I${vars.cxx_path}/include/c++/v1 -Iruntime/cxx
 APP_LDFLAGS += -Wl,--eh-frame-hdr -L${vars.cxx_path}/lib
 APP_LIBS += -lc++ -lc++abi -lunwind -lgcc
 '''
