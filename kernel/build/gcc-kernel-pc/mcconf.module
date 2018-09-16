@@ -61,5 +61,8 @@ APP_CXXFLAGS += -O2 -g
 APP_LD = $(LD)
 APP_LDFLAGS = -g -static
 
+# disable features which might require runtime support we don't have
+#APP_CXXFLAGS += -fno-exceptions -fno-rtti
+
 -include ../Makefile.user
 '''

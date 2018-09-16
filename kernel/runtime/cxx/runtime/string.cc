@@ -72,15 +72,15 @@ extern "C" void* memmove(void *dst, const void *src, size_t len)
 	(uintptr_t)src % sizeof(long) == 0 &&
 	len % sizeof(long) == 0) {
 
-		long *d = static_cast<long*>(dst);
-		const long *s = static_cast<const long*>(src);
+		long *d = reinterpret_cast<long*>(dst);
+		const long *s = reinterpret_cast<const long*>(src);
 
 		for (i=len/sizeof(long); i>0; i--) {
 		d[i-1] = s[i-1];
 		}
 	} else {
-		char *d = static_cast<char*>(dst);
-		const char *s = static_cast<const char*>(src);
+		char *d = reinterpret_cast<char*>(dst);
+		const char *s = reinterpret_cast<const char*>(src);
 
 		for (i=len; i>0; i--) {
 			d[i-1] = s[i-1];

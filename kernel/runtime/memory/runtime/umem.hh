@@ -25,8 +25,12 @@
 #pragma once
 #include "runtime/SequentialHeap.hh"
 
+extern "C" int posix_memalign(void **memptr, size_t alignment, size_t size);
+extern "C" void *calloc(size_t nmemb, size_t size);
+extern "C" void free(void *ptr);
+extern "C" void *malloc(size_t size);
+extern "C" void *realloc(void *ptr, size_t size);
 
 namespace mythos {
     extern SequentialHeap<uintptr_t> heap;
-    int posix_memalign(void **memptr, size_t alignment, size_t size);
 } // namespace mythos

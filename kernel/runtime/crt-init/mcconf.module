@@ -5,9 +5,6 @@
     requires = [ "runtime/cxxsupport.cc", "runtime/DebugSink.cc" ]
 
     makefile_head = '''
-# disable features which might require runtime support we don't have
-APP_CXXFLAGS += -fno-exceptions -fno-rtti
-
 INITAPP_CXX = $(APP_CXX)
 INITAPP_AS = $(APP_AS)
 INITAPP_CXXFLAGS = $(APP_CXXFLAGS)
