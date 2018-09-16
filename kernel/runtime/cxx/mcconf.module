@@ -1,9 +1,10 @@
 # -*- mode:toml; -*-
 [module.cxxabi-app]
-    incfiles = [ "runtime/cxx/algorithm", "runtime/cxx/stdexcept",
-             "runtime/cxx/string", "runtime/cxx/cstring", "runtime/cxx/stdlib.h" ]
     appfiles = [ "runtime/cxxsupport.cc", "runtime/string.cc", "runtime/cxxdelete.cc" ]
-    provides = [ "stdlib.h", "cstdarg", "vector", "functional" ]
+    provides = [ "vector", "queue", "functional" ]
     makefile_head = '''
-APP_CPPFLAGS += -Iruntime/cxx
+APP_CPPFLAGS += -I${vars.cxx_path}/include -Iruntime/cxx
+APP_LDFLAGS += -Wl,--eh-frame-hdr -L${vars.cxx_path}/lib
+APP_LIBS += -lc++ -lc++abi -lunwind -lgcc
 '''
+

@@ -24,13 +24,18 @@
  * Copyright 2016 Randolf Rotta, Robert Kuban, and contributors, BTU Cottbus-Senftenberg
  */
 
-#include "stdlib.h"
+#include <cstdlib>
 #include <cstddef>
 #include <atomic>
 
 #include "mythos/syscall.hh"
 #include "runtime/mlog.hh"
 #include "runtime/tls.hh"
+
+extern "C" typedef void (*atexit_func_t)();
+extern "C" int atexit(atexit_func_t func);
+extern "C" [[noreturn]] void _Exit(int exit_code);
+extern "C" [[noreturn]] void exit(int exit_code=0);
 
 extern atexit_func_t __preinit_array_start[] __attribute__((weak));
 extern atexit_func_t __preinit_array_end[] __attribute__((weak));
