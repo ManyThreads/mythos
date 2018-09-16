@@ -3,7 +3,7 @@
     incfiles = [ "runtime/cxx/algorithm", "runtime/cxx/stdexcept",
              "runtime/cxx/string", "runtime/cxx/cstring", "runtime/cxx/stdlib.h" ]
     appfiles = [ "runtime/cxxsupport.cc", "runtime/string.cc", "runtime/cxxdelete.cc" ]
-    provides = [ "stdlib.h" ]
+    provides = [ "stdlib.h", "cstdarg", "vector", "functional" ]
     makefile_head = '''
 APP_CPPFLAGS += -Iruntime/cxx
 '''
