@@ -42,6 +42,8 @@
 #include "runtime/umem.hh"
 #include "runtime/Mutex.hh"
 
+#include "vector"
+
 mythos::InvocationBuf* msg_ptr asm("msg_ptr");
 int main() asm("main");
 
@@ -250,6 +252,9 @@ int main()
   test_heap(); // heap must be initialized for tls test
   test_tls();
   test_exceptions();
+
+  std::vector<int> foo;
+  for (int i=0; i<100; i++) foo.push_back(i);
 
   {
     mythos::PortalLock pl(portal); // future access will fail if the portal is in use already

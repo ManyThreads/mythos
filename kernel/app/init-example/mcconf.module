@@ -9,9 +9,6 @@ TARGETS += app/init.elf
 '''
 
     makefile_body = '''
-APP_LDFLAGS += -Wl,--eh-frame-hdr -L../3rdparty/cxx/lib
-APP_LIBS += -lc++ -lc++abi -lunwind -lgcc
-
 app/init.elf: $(INITAPPFILES_OBJ) $(APPFILES_OBJ) $(CRTFILES_OBJ)
 	echo ld flags: $(APP_LDFLAGS)
 	$(APP_CXX) $(APP_LDFLAGS) $(APP_CXXFLAGS) -nostdlib -o $@ runtime/start.o runtime/crtbegin.o $(INITAPPFILES_OBJ) $(APPFILES_OBJ) $(APP_LIBS) runtime/crtend.o
@@ -19,3 +16,4 @@ app/init.elf: $(INITAPPFILES_OBJ) $(APPFILES_OBJ) $(CRTFILES_OBJ)
 	$(OBJDUMP) -dS $@ | c++filt > init.disasm
 	$(STRIP) $@
 '''
+
