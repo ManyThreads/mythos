@@ -20,14 +20,15 @@ Randolf Rotta, BTU Cottbus-Senftenberg
 * basic boot code
 
 Robert Kuban, BTU Cottbus-Senftenberg
+* capabilities: resource inheritance tree 
 * communication channels
 * synchronization primitives
 * task scheduling
 * testing framework
-* beginnings of C++ exception handling
+* error handling
 
 Stefan Bonfert, Uni Ulm
-* benchmarks
+* benchmarks and debugging
 
 Tim Naumann, BTU Cottbus-Senftenberg
 * X86 port (32bit)
@@ -46,3 +47,8 @@ Martin Messer, BTU Cottbus-Senftenberg
 
 Zuzana Gabonayova, BTU Cottbus-Senftenberg
 * tracing subsystem and trace analysis
+
+Stefan Hertrampf, BTU Cottbus-Senftenberg
+* improved xmicterm
+* improved mlog macros and output
+* cleanups in various kernel objects
