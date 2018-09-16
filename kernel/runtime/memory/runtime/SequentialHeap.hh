@@ -30,6 +30,7 @@
 #include "util/FirstFitHeap.hh"
 #include "cpu/hwthread_pause.hh"
 #include "runtime/mlog.hh"
+#include "runtime/Mutex.hh"
 #include <atomic>
 
 
@@ -37,6 +38,11 @@ namespace mythos {
 
 class SpinMutex {
 public:
+	SpinMutex()
+	{
+		flag.clear();
+	}
+
     void lock() {
         while (flag.test_and_set()) { mythos::hwthread_pause(); }
     }
@@ -130,7 +136,8 @@ public:
 
 private:
     FirstFitHeap<T, A> heap;
-    SpinMutex mutex;
+    //SpinMutex mutex;
+    Mutex mutex;
 
 };
 
