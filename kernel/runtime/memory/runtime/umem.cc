@@ -20,7 +20,7 @@ void* operator new[](std::size_t size) NOEXCEPT(true) {
 }
 
 void operator delete(void* ptr) NOEXCEPT(true) {
-    mythos::heap.free(reinterpret_cast<uintptr_t>(ptr));
+    if(ptr) mythos::heap.free(reinterpret_cast<uintptr_t>(ptr));
 }
 
 void operator delete[](void* ptr) NOEXCEPT(true) {
