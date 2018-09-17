@@ -1,3 +1,0 @@
-#pragma once
-
-// dummy header to get rid of the dependency from stdexcept to std::string

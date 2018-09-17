@@ -90,3 +90,7 @@ extern "C" void* memmove(void *dst, const void *src, size_t len)
 	return dst;
 }
 
+extern "C" void * __memmove_chk(void * dest, const void * src, size_t len, size_t destlen)
+{
+    return memmove(dest, src, len);
+}
