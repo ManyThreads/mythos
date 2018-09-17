@@ -29,6 +29,7 @@
 #include <cstdarg>
 #include <endian.h>
 #include <pthread.h>
+#include <atomic>
 
 #include "mythos/syscall.hh"
 #include "runtime/mlog.hh"
@@ -171,21 +172,40 @@ extern "C" int isxdigit(int ch) {
 extern "C" int pthread_once(pthread_once_t *once_control, 
     void (*init_routine)(void))
 {
+    MLOG_ERROR(mlog::app, "pthread_once", DVAR(once_control), DVAR((void*)init_routine));
+    auto& m = *reinterpret_cast<std::atomic<int>*>(once_control);
+    auto old = m.exchange(1);
+    if (old == 0) (*init_routine)();
     return 0;
 }
 
+struct DummyMutex
+{
+    std::atomic<int> flag;
+};
+
 extern "C" int pthread_mutex_lock(pthread_mutex_t *mutex)
 {
+    MLOG_ERROR(mlog::app, "pthread_mutex_lock", DVAR(mutex));
+    auto m = reinterpret_cast<DummyMutex*>(mutex);
+    while (m->flag.exchange(1) != 0);
     return 0;
 }
 
 extern "C" int pthread_mutex_trylock(pthread_mutex_t *mutex)
 {
-    return 0;
+    MLOG_ERROR(mlog::app, "pthread_mutex_trylock", DVAR(mutex));
+    auto m = reinterpret_cast<DummyMutex*>(mutex);
+    if (m->flag.exchange(1) == 0) return 0;
+    return -1;
 }
 
 extern "C" int pthread_mutex_unlock(pthread_mutex_t *mutex)
 {
+    MLOG_ERROR(mlog::app, "pthread_mutex_unlock", DVAR(mutex));
+    auto m = reinterpret_cast<DummyMutex*>(mutex);
+    auto old = m->flag.exchange(0);
+    ASSERT(old == 0);
     return 0;
 }
 
@@ -204,21 +224,31 @@ extern "C" int pthread_rwlock_wrlock(pthread_rwlock_t *rwlock) {
     return 0;
 }
 
+namespace { 
+    thread_local void* threadDataTable[64]; 
+    std::atomic<int> freeEntry = {0};
+}
+
 extern "C" void *pthread_getspecific(pthread_key_t key)
 {
-    return nullptr;
-    //ASSERT(false);
+    MLOG_ERROR(mlog::app, "pthread_getspecific", DVAR(key));
+    return threadDataTable[key];
 }
 
 extern "C" int pthread_setspecific(pthread_key_t key, const void *value)
 {
+    MLOG_ERROR(mlog::app, "pthread_setspecific", DVAR(key), DVAR(value));
+    threadDataTable[key] = (void*)value;
     return 0;
-    //ASSERT(false);
 }
 
 extern "C" int pthread_key_create(pthread_key_t *key, void (*destructor)(void*))
 {
-    ASSERT(false);
+    MLOG_ERROR(mlog::app, "pthread_key_create", DVAR(key), DVAR((void*)destructor));
+    ASSERT(freeEntry < 64);
+    auto prev = freeEntry.fetch_add(1);
+	*key = prev;
+    return 0;
 }
 
 struct dl_phdr_info
