@@ -42,7 +42,8 @@
 #include "runtime/umem.hh"
 #include "runtime/Mutex.hh"
 
-#include "vector"
+#include <vector>
+#include <array>
 
 mythos::InvocationBuf* msg_ptr asm("msg_ptr");
 int main() asm("main");

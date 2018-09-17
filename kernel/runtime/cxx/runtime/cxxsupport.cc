@@ -27,10 +27,71 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstdarg>
+#include <endian.h>
+#include <pthread.h>
 
 #include "mythos/syscall.hh"
 #include "runtime/mlog.hh"
 #include "util/elf64.hh"
+
+
+extern "C" _Noreturn void __assert_fail (const char *expr, const char *file, int line, const char *func)
+{
+    mlog::Logger<> logassert("assert");
+    logassert.error("ASSERT",expr,"failed in",file,":",line,func);
+    mythos::syscall_exit(-1); /// @TODO syscall_abort(); to see some stack backtrace etc
+}
+
+
+#if __BYTE_ORDER == __BIG_ENDIAN
+#define X(x) x
+#else
+#define X(x) (((x)/256 | (x)*256) % 65536)
+#endif
+
+// from musl libc
+static const unsigned short table[] = {
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+X(0x200),X(0x200),X(0x200),X(0x200),X(0x200),X(0x200),X(0x200),X(0x200),
+X(0x200),X(0x320),X(0x220),X(0x220),X(0x220),X(0x220),X(0x200),X(0x200),
+X(0x200),X(0x200),X(0x200),X(0x200),X(0x200),X(0x200),X(0x200),X(0x200),
+X(0x200),X(0x200),X(0x200),X(0x200),X(0x200),X(0x200),X(0x200),X(0x200),
+X(0x160),X(0x4c0),X(0x4c0),X(0x4c0),X(0x4c0),X(0x4c0),X(0x4c0),X(0x4c0),
+X(0x4c0),X(0x4c0),X(0x4c0),X(0x4c0),X(0x4c0),X(0x4c0),X(0x4c0),X(0x4c0),
+X(0x8d8),X(0x8d8),X(0x8d8),X(0x8d8),X(0x8d8),X(0x8d8),X(0x8d8),X(0x8d8),
+X(0x8d8),X(0x8d8),X(0x4c0),X(0x4c0),X(0x4c0),X(0x4c0),X(0x4c0),X(0x4c0),
+X(0x4c0),X(0x8d5),X(0x8d5),X(0x8d5),X(0x8d5),X(0x8d5),X(0x8d5),X(0x8c5),
+X(0x8c5),X(0x8c5),X(0x8c5),X(0x8c5),X(0x8c5),X(0x8c5),X(0x8c5),X(0x8c5),
+X(0x8c5),X(0x8c5),X(0x8c5),X(0x8c5),X(0x8c5),X(0x8c5),X(0x8c5),X(0x8c5),
+X(0x8c5),X(0x8c5),X(0x8c5),X(0x4c0),X(0x4c0),X(0x4c0),X(0x4c0),X(0x4c0),
+X(0x4c0),X(0x8d6),X(0x8d6),X(0x8d6),X(0x8d6),X(0x8d6),X(0x8d6),X(0x8c6),
+X(0x8c6),X(0x8c6),X(0x8c6),X(0x8c6),X(0x8c6),X(0x8c6),X(0x8c6),X(0x8c6),
+X(0x8c6),X(0x8c6),X(0x8c6),X(0x8c6),X(0x8c6),X(0x8c6),X(0x8c6),X(0x8c6),
+X(0x8c6),X(0x8c6),X(0x8c6),X(0x4c0),X(0x4c0),X(0x4c0),X(0x4c0),X(0x200),
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+};
+
+static const unsigned short *const ptable = table+128;
+
+// returns an pointer to an array!
+extern "C" const unsigned short **__ctype_b_loc() { return (const unsigned short **)&ptable; }
+
+
+// undefined reference to `__memmove_chk'
+// undefined reference to `pthread_getspecific'
+// undefined reference to `pthread_key_create'
+// undefined reference to `pthread_mutex_lock'
+// undefined reference to `pthread_mutex_unlock'
+// undefined reference to `pthread_once'
+// undefined reference to `pthread_setspecific'
+// undefined reference to `__snprintf_chk'
+// undefined reference to `__vfprintf_chk'
 
 
 /** cause abnormal process termination.
@@ -83,6 +144,19 @@ extern "C" char *getenv(const char *name) {
     return nullptr;
 }
 
+extern "C" int __fprintf_chk(FILE * stream, int /*flag*/, const char * format) {
+    return fprintf(stream, format);
+}
+
+extern "C" int __snprintf_chk(char * str, size_t maxlen, int flag, size_t strlen, const char * format)
+{
+    str[0] = '\0';
+    return strlen;
+}
+
+extern "C" int __vfprintf_chk(FILE * fp, int flag, const char * format, va_list ap) {
+    return vfprintf(fp,format, ap);
+}
 
 extern "C" int isupper(int c) {
   unsigned char x=c&0xff;
@@ -94,8 +168,26 @@ extern "C" int isxdigit(int ch) {
            (unsigned int)((ch | 0x20) - 'a') <  6u;
 }
 
+extern "C" int pthread_once(pthread_once_t *once_control, 
+    void (*init_routine)(void))
+{
+    return 0;
+}
 
-struct pthread_rwlock_t;
+extern "C" int pthread_mutex_lock(pthread_mutex_t *mutex)
+{
+    return 0;
+}
+
+extern "C" int pthread_mutex_trylock(pthread_mutex_t *mutex)
+{
+    return 0;
+}
+
+extern "C" int pthread_mutex_unlock(pthread_mutex_t *mutex)
+{
+    return 0;
+}
 
 extern "C" int pthread_rwlock_rdlock(pthread_rwlock_t* rwlock) {
     MLOG_ERROR(mlog::app, "pthread_rwlock_rdlock", DVAR(rwlock));
@@ -112,6 +204,22 @@ extern "C" int pthread_rwlock_wrlock(pthread_rwlock_t *rwlock) {
     return 0;
 }
 
+extern "C" void *pthread_getspecific(pthread_key_t key)
+{
+    return nullptr;
+    //ASSERT(false);
+}
+
+extern "C" int pthread_setspecific(pthread_key_t key, const void *value)
+{
+    return 0;
+    //ASSERT(false);
+}
+
+extern "C" int pthread_key_create(pthread_key_t *key, void (*destructor)(void*))
+{
+    ASSERT(false);
+}
 
 struct dl_phdr_info
 {

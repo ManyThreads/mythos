@@ -1,9 +1,9 @@
 # -*- mode:toml; -*-
 [module.cxxabi-app]
     appfiles = [ "runtime/cxxsupport.cc", "runtime/string.cc", "runtime/cxxdelete.cc" ]
-    provides = [ "vector", "queue", "functional" ]
+    provides = [ "vector", "queue", "functional", "pthread.h", "endian.h" ]
     makefile_head = '''
-APP_CPPFLAGS += -I${vars.cxx_path}/include -Iruntime/cxx
+APP_CPPFLAGS += -I${vars.cxx_path}/include/c++/v1 -I${vars.cxx_path}/include
 APP_LDFLAGS += -Wl,--eh-frame-hdr -L${vars.cxx_path}/lib
 APP_LIBS += -lc++ -lc++abi -lunwind -lgcc
 '''

@@ -71,3 +71,8 @@ extern "C" int strcmp(const char *s1, const char *s2)
   }
   return *s1 - *s2;
 }
+
+extern "C" void * __memmove_chk(void * dest, const void * src, size_t len, size_t destlen)
+{
+    return memmove(dest, src, len);
+}
