@@ -58,6 +58,7 @@ extern "C" void* memmove(void *dest, const void *src, size_t n) {
 }
 
 extern "C" size_t strlen(const char *s) {
+    if (s == nullptr) return 0;
     size_t len=0;
     while (s[len] != 0) len++;
     return len;
