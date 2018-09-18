@@ -64,76 +64,6 @@ if test ! -d libunwind ; then
 fi
 
 
-### compile for Intel XeonPhi KNC if cross-compiler is present
-if test -n `which k1om-mpss-linux-g++` ; then 
-  export AS=k1om-mpss-linux-as
-  export CXX=k1om-mpss-linux-g++
-  export CC=k1om-mpss-linux-gcc
-  export LD=k1om-mpss-linux-ld
-  export NM=k1om-mpss-linux-nm
-  export OBJDUMP=k1om-mpss-linux-objdump
-  export STRIP=k1om-mpss-linux-strip
-
-  ### build musl libc for knc
-  # don't do parallel builds!
-#  cd musl
-#  rm -rf build-knc && mkdir build-knc && cd build-knc
-#  ../configure --target=k1om-mpss-linux --prefix="$BASEDIR/cxx-knc" \
-#    && make && make install
-#  if test $? -ne 0 ; then exit $? ; fi
-#  cd ../..
-
-  ### install llvm's libunwind for knc
-  cd libunwind
-  rm -rf build-knc && mkdir build-knc && cd build-knc
-  cmake -DCMAKE_INSTALL_PREFIX:PATH="$BASEDIR/cxx-knc" \
-    -DLLVM_PATH="$BASEDIR/cxx-src/llvm" \
-    -DCMAKE_BUILD_TYPE=Release \
-    -DCMAKE_CXX_COMPILER=k1om-mpss-linux-g++ \
-    -DCMAKE_C_COMPILER=k1om-mpss-linux-gcc \
-    ../ && make && make install
-  if test $? -ne 0 ; then exit $? ; fi
-  cd ../..
-
-  ### install libcxxabi for knc
-  # -DLIBCXXABI_ENABLE_STATIC_UNWINDER=ON \
-  cd libcxxabi
-  rm -rf build-knc && mkdir build-knc && cd build-knc
-  cmake -DLIBCXXABI_LIBCXX_PATH="$BASEDIR/cxx-src/libcxx" \
-    -DCMAKE_INSTALL_PREFIX="$BASEDIR/cxx-knc" \
-    -DLIBCXXABI_USE_LLVM_UNWINDER=ON \
-    -DLIBCXXABI_ENABLE_NEW_DELETE_DEFINITIONS=OFF \
-    -DLLVM_PATH="$BASEDIR/cxx-src/llvm" \
-    -DCMAKE_BUILD_TYPE=Release \
-    -DCMAKE_CXX_COMPILER=k1om-mpss-linux-g++ \
-    -DCMAKE_C_COMPILER=k1om-mpss-linux-gcc \
-    -DLIBCXXABI_SHARED_LINK_FLAGS="-L$BASEDIR/cxx-knc/lib" \
-    ../ && make -j && make install
-  if test $? -ne 0 ; then exit $? ; fi
-  cd ../..
-
-  # install libcxx with libcxxabi for knc
-  cd libcxx
-  rm -rf build-knc && mkdir build-knc && cd build-knc
-  cmake -G "Unix Makefiles" \
-    -DLIBCXX_CXX_ABI=libcxxabi \
-    -DLIBCXX_CXX_ABI_INCLUDE_PATHS="$BASEDIR/cxx-src/libcxxabi/include" \
-    -DLIBCXX_CXX_ABI_LIBRARY_PATH="$BASEDIR/cxx-knc/lib" \
-    -DLLVM_PATH="$BASEDIR/cxx-src/llvm" \
-    -DLIBCXX_ENABLE_STATIC_ABI_LIBRARY=ON \
-    -DCMAKE_BUILD_TYPE=Release \
-    -DCMAKE_CXX_COMPILER=k1om-mpss-linux-g++ \
-    -DCMAKE_C_COMPILER=k1om-mpss-linux-gcc \
-    -DCMAKE_INSTALL_PREFIX="$BASEDIR/cxx-knc" \
-    ../ && make -j && make install
-  if test $? -ne 0 ; then exit $? ; fi
-  cd ../..
-
-fi # done for KNC
-
-echo "all compilation was successfull :)"
-exit 0;
-
 
 ### build musl libc for amd64
 # don't try parallel builds
@@ -197,6 +127,74 @@ cmake -G "Unix Makefiles" \
     ../ && make -j && make install
 if test $? -ne 0 ; then exit $? ; fi
 cd ../..
+
+
+### compile for Intel XeonPhi KNC if cross-compiler is present
+if test -n `which k1om-mpss-linux-g++` ; then 
+  export AS=k1om-mpss-linux-as
+  export CXX=k1om-mpss-linux-g++
+  export CC=k1om-mpss-linux-gcc
+  export LD=k1om-mpss-linux-ld
+  export NM=k1om-mpss-linux-nm
+  export OBJDUMP=k1om-mpss-linux-objdump
+  export STRIP=k1om-mpss-linux-strip
+
+  ### build musl libc for knc
+  # don't do parallel builds!
+  cd musl
+  rm -rf build-knc && mkdir build-knc && cd build-knc
+  ../configure --target=k1om-mpss-linux --prefix="$BASEDIR/cxx-knc" \
+    && make && make install
+  if test $? -ne 0 ; then exit $? ; fi
+  cd ../..
+
+  ### install llvm's libunwind for knc
+  cd libunwind
+  rm -rf build-knc && mkdir build-knc && cd build-knc
+  cmake -DCMAKE_INSTALL_PREFIX:PATH="$BASEDIR/cxx-knc" \
+    -DLLVM_PATH="$BASEDIR/cxx-src/llvm" \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_CXX_COMPILER=k1om-mpss-linux-g++ \
+    -DCMAKE_C_COMPILER=k1om-mpss-linux-gcc \
+    ../ && make && make install
+  if test $? -ne 0 ; then exit $? ; fi
+  cd ../..
+
+  ### install libcxxabi for knc
+  # -DLIBCXXABI_ENABLE_STATIC_UNWINDER=ON \
+  cd libcxxabi
+  rm -rf build-knc && mkdir build-knc && cd build-knc
+  cmake -DLIBCXXABI_LIBCXX_PATH="$BASEDIR/cxx-src/libcxx" \
+    -DCMAKE_INSTALL_PREFIX="$BASEDIR/cxx-knc" \
+    -DLIBCXXABI_USE_LLVM_UNWINDER=ON \
+    -DLIBCXXABI_ENABLE_NEW_DELETE_DEFINITIONS=OFF \
+    -DLLVM_PATH="$BASEDIR/cxx-src/llvm" \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_CXX_COMPILER=k1om-mpss-linux-g++ \
+    -DCMAKE_C_COMPILER=k1om-mpss-linux-gcc \
+    -DLIBCXXABI_SHARED_LINK_FLAGS="-L$BASEDIR/cxx-knc/lib" \
+    ../ && make -j && make install
+  if test $? -ne 0 ; then exit $? ; fi
+  cd ../..
+
+  # install libcxx with libcxxabi for knc
+  cd libcxx
+  rm -rf build-knc && mkdir build-knc && cd build-knc
+  cmake -G "Unix Makefiles" \
+    -DLIBCXX_CXX_ABI=libcxxabi \
+    -DLIBCXX_CXX_ABI_INCLUDE_PATHS="$BASEDIR/cxx-src/libcxxabi/include" \
+    -DLIBCXX_CXX_ABI_LIBRARY_PATH="$BASEDIR/cxx-knc/lib" \
+    -DLLVM_PATH="$BASEDIR/cxx-src/llvm" \
+    -DLIBCXX_ENABLE_STATIC_ABI_LIBRARY=ON \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_CXX_COMPILER=k1om-mpss-linux-g++ \
+    -DCMAKE_C_COMPILER=k1om-mpss-linux-gcc \
+    -DCMAKE_INSTALL_PREFIX="$BASEDIR/cxx-knc" \
+    ../ && make -j && make install
+  if test $? -ne 0 ; then exit $? ; fi
+  cd ../..
+
+fi # done for KNC
 
 echo "all compilation was successfull :)"
 
