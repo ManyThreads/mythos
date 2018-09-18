@@ -75,12 +75,13 @@ if test -n `which k1om-mpss-linux-g++` ; then
   export STRIP=k1om-mpss-linux-strip
 
   ### build musl libc for knc
-  cd musl
-  rm -rf build-knc && mkdir build-knc && cd build-knc
-  ../configure --prefix="$BASEDIR/cxx-knc" \
-    && make -j && make install
-  if test $? -ne 0 ; then exit $? ; fi
-  cd ../..
+  # don't do parallel builds!
+#  cd musl
+#  rm -rf build-knc && mkdir build-knc && cd build-knc
+#  ../configure --target=k1om-mpss-linux --prefix="$BASEDIR/cxx-knc" \
+#    && make && make install
+#  if test $? -ne 0 ; then exit $? ; fi
+#  cd ../..
 
   ### install llvm's libunwind for knc
   cd libunwind
@@ -88,23 +89,26 @@ if test -n `which k1om-mpss-linux-g++` ; then
   cmake -DCMAKE_INSTALL_PREFIX:PATH="$BASEDIR/cxx-knc" \
     -DLLVM_PATH="$BASEDIR/cxx-src/llvm" \
     -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_CXX_COMPILER=k1om-mpss-linux-g++ \
+    -DCMAKE_C_COMPILER=k1om-mpss-linux-gcc \
     ../ && make && make install
   if test $? -ne 0 ; then exit $? ; fi
   cd ../..
 
   ### install libcxxabi for knc
+  # -DLIBCXXABI_ENABLE_STATIC_UNWINDER=ON \
   cd libcxxabi
   rm -rf build-knc && mkdir build-knc && cd build-knc
   cmake -DLIBCXXABI_LIBCXX_PATH="$BASEDIR/cxx-src/libcxx" \
     -DCMAKE_INSTALL_PREFIX="$BASEDIR/cxx-knc" \
     -DLIBCXXABI_USE_LLVM_UNWINDER=ON \
-    -DLIBCXXABI_ENABLE_STATIC_UNWINDER=ON \
     -DLIBCXXABI_ENABLE_NEW_DELETE_DEFINITIONS=OFF \
     -DLLVM_PATH="$BASEDIR/cxx-src/llvm" \
     -DCMAKE_BUILD_TYPE=Release \
-    ../ \
-    && LIBRARY_PATH=$BASEDIR/cxx-knc/lib make -j \
-    && make install
+    -DCMAKE_CXX_COMPILER=k1om-mpss-linux-g++ \
+    -DCMAKE_C_COMPILER=k1om-mpss-linux-gcc \
+    -DLIBCXXABI_SHARED_LINK_FLAGS="-L$BASEDIR/cxx-knc/lib" \
+    ../ && make -j && make install
   if test $? -ne 0 ; then exit $? ; fi
   cd ../..
 
@@ -118,6 +122,8 @@ if test -n `which k1om-mpss-linux-g++` ; then
     -DLLVM_PATH="$BASEDIR/cxx-src/llvm" \
     -DLIBCXX_ENABLE_STATIC_ABI_LIBRARY=ON \
     -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_CXX_COMPILER=k1om-mpss-linux-g++ \
+    -DCMAKE_C_COMPILER=k1om-mpss-linux-gcc \
     -DCMAKE_INSTALL_PREFIX="$BASEDIR/cxx-knc" \
     ../ && make -j && make install
   if test $? -ne 0 ; then exit $? ; fi
@@ -130,10 +136,11 @@ exit 0;
 
 
 ### build musl libc for amd64
+# don't try parallel builds
 cd musl
 rm -rf build-amd64 && mkdir build-amd64 && cd build-amd64
 ../configure --prefix="$BASEDIR/cxx-amd64" \
-  && make -j && make install
+  && make && make install
 if test $? -ne 0 ; then exit $? ; fi
 cd ../..
 
