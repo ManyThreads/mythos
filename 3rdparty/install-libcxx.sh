@@ -20,7 +20,7 @@ cd cxx-src
 ### download libraries
 if test ! -d musl ; then
   git clone git://git.musl-libc.org/musl
-  if test ! $? ; then return $? ; fi
+  if test $? -ne 0 ; then exit $? ; fi
 fi
 
 if test ! -d libcxxabi ; then
@@ -28,39 +28,39 @@ if test ! -d libcxxabi ; then
   #git clone https://github.com/llvm-mirror/libcxxabi.git
   if test ! -e libcxxabi-6.0.1.src.tar.xz ; then  
     curl -C - -LO http://releases.llvm.org/6.0.1/libcxxabi-6.0.1.src.tar.xz
-    if test ! $? ; then return $? ; fi
+    if test $? -ne 0 ; then exit $? ; fi
   fi
   tar -xJf libcxxabi-6.0.1.src.tar.xz && mv libcxxabi-6.0.1.src libcxxabi
-  if test ! $? ; then return $? ; fi
+  if test $? -ne 0 ; then exit $? ; fi
 fi
 
 if test ! -d libcxx ; then
   #git clone https://github.com/llvm-mirror/libcxx.git
   if test ! -e libcxx-6.0.1.src.tar.xz ; then  
     curl -C - -LO http://releases.llvm.org/6.0.1/libcxx-6.0.1.src.tar.xz
-    if test ! $? ; then return $? ; fi
+    if test $? -ne 0 ; then exit $? ; fi
   fi
   tar -xJf libcxx-6.0.1.src.tar.xz && mv libcxx-6.0.1.src libcxx
-  if test ! $? ; then return $? ; fi
+  if test $? -ne 0 ; then exit $? ; fi
 fi
 
 if test ! -d llvm ; then
   #git clone https://github.com/llvm-mirror/llvm.git
   if test ! -e libllvm-6.0.1.src.tar.xz ; then  
     curl -C - -LO http://releases.llvm.org/6.0.1/llvm-6.0.1.src.tar.xz
-    if test ! $? ; then return $? ; fi
+    if test $? -ne 0 ; then exit $? ; fi
   fi
   tar -xJf llvm-6.0.1.src.tar.xz && mv llvm-6.0.1.src llvm
-  if test ! $? ; then return $? ; fi
+  if test $? -ne 0 ; then exit $? ; fi
 fi
 
 if test ! -d libunwind ; then
   if test ! -e libunwind-6.0.1.src.tar.xz ; then  
     curl -C - -LO http://releases.llvm.org/6.0.1/libunwind-6.0.1.src.tar.xz
-    if test ! $? ; then return $? ; fi
+    if test $? -ne 0 ; then exit $? ; fi
   fi
   tar -xJf libunwind-6.0.1.src.tar.xz && mv libunwind-6.0.1.src libunwind
-  if test ! $? ; then return $? ; fi
+  if test $? -ne 0 ; then exit $? ; fi
 fi
 
 
@@ -79,7 +79,7 @@ if test -n `which k1om-mpss-linux-g++` ; then
   rm -rf build-knc && mkdir build-knc && cd build-knc
   ../configure --prefix="$BASEDIR/cxx-knc" \
     && make -j && make install
-  if test ! $? ; then return $? ; fi
+  if test $? -ne 0 ; then exit $? ; fi
   cd ../..
 
   ### install llvm's libunwind for knc
@@ -89,7 +89,7 @@ if test -n `which k1om-mpss-linux-g++` ; then
     -DLLVM_PATH="$BASEDIR/cxx-src/llvm" \
     -DCMAKE_BUILD_TYPE=Release \
     ../ && make && make install
-  if test ! $? ; then return $? ; fi
+  if test $? -ne 0 ; then exit $? ; fi
   cd ../..
 
   ### install libcxxabi for knc
@@ -105,7 +105,7 @@ if test -n `which k1om-mpss-linux-g++` ; then
     ../ \
     && LIBRARY_PATH=$BASEDIR/cxx-knc/lib make -j \
     && make install
-  if test ! $? ; then return $? ; fi
+  if test $? -ne 0 ; then exit $? ; fi
   cd ../..
 
   # install libcxx with libcxxabi for knc
@@ -120,7 +120,7 @@ if test -n `which k1om-mpss-linux-g++` ; then
     -DCMAKE_BUILD_TYPE=Release \
     -DCMAKE_INSTALL_PREFIX="$BASEDIR/cxx-knc" \
     ../ && make -j && make install
-  if test ! $? ; then return $? ; fi
+  if test $? -ne 0 ; then exit $? ; fi
   cd ../..
 
 fi # done for KNC
@@ -134,7 +134,7 @@ cd musl
 rm -rf build-amd64 && mkdir build-amd64 && cd build-amd64
 ../configure --prefix="$BASEDIR/cxx-amd64" \
   && make -j && make install
-if test ! $? ; then return $? ; fi
+if test $? -ne 0 ; then exit $? ; fi
 cd ../..
 
 
@@ -145,7 +145,7 @@ cmake -DCMAKE_INSTALL_PREFIX:PATH="$BASEDIR/cxx-amd64" \
     -DLLVM_PATH="$BASEDIR/cxx-src/llvm" \
     -DCMAKE_BUILD_TYPE=Release \
     ../ && make && make install
-if test ! $? ; then return $? ; fi
+if test $? -ne 0 ; then exit $? ; fi
 cd ../..
 
 
@@ -167,7 +167,7 @@ cmake -DLIBCXXABI_LIBCXX_PATH="$BASEDIR/cxx-src/libcxx" \
     ../ \
   && LIBRARY_PATH=$BASEDIR/cxx-amd64/lib make -j \
   && make install
-if test ! $? ; then return $? ; fi
+if test $? -ne 0 ; then exit $? ; fi
 cd ../..
 
 
@@ -188,7 +188,7 @@ cmake -G "Unix Makefiles" \
     -DCMAKE_BUILD_TYPE=Release \
     -DCMAKE_INSTALL_PREFIX="$BASEDIR/cxx-amd64" \
     ../ && make -j && make install
-if test ! $? ; then return $? ; fi
+if test $? -ne 0 ; then exit $? ; fi
 cd ../..
 
 echo "all compilation was successfull :)"
