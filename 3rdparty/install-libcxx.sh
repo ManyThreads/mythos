@@ -33,13 +33,16 @@ cd cxx-src
 ### download libraries
 if test ! -d musl ; then
   git clone git://git.musl-libc.org/musl || fail
+  cd musl
+  git apply ../../musl-k1om.patch || fail
+  cd ..
 fi
 
 if test ! -d libcxxabi ; then
   #svn co http://llvm.org/svn/llvm-project/libcxxabi/trunk libcxxabi
   #git clone https://github.com/llvm-mirror/libcxxabi.git
   if test ! -e libcxxabi-6.0.1.src.tar.xz ; then  
-    curl -C - -LO http://releases.llvm.org/6.0.1/libcxxabi-6.0.1.src.tar.xz || fail
+    curl -O http://releases.llvm.org/6.0.1/libcxxabi-6.0.1.src.tar.xz || fail
   fi
   tar -xJf libcxxabi-6.0.1.src.tar.xz && mv libcxxabi-6.0.1.src libcxxabi || fail
 fi
@@ -47,7 +50,7 @@ fi
 if test ! -d libcxx ; then
   #git clone https://github.com/llvm-mirror/libcxx.git
   if test ! -e libcxx-6.0.1.src.tar.xz ; then  
-    curl -C - -LO http://releases.llvm.org/6.0.1/libcxx-6.0.1.src.tar.xz || fail
+    curl -O http://releases.llvm.org/6.0.1/libcxx-6.0.1.src.tar.xz || fail
   fi
   tar -xJf libcxx-6.0.1.src.tar.xz && mv libcxx-6.0.1.src libcxx || fail
 fi
@@ -55,14 +58,14 @@ fi
 if test ! -d llvm ; then
   #git clone https://github.com/llvm-mirror/llvm.git
   if test ! -e libllvm-6.0.1.src.tar.xz ; then  
-    curl -C - -LO http://releases.llvm.org/6.0.1/llvm-6.0.1.src.tar.xz || fail
+    curl -O http://releases.llvm.org/6.0.1/llvm-6.0.1.src.tar.xz || fail
   fi
   tar -xJf llvm-6.0.1.src.tar.xz && mv llvm-6.0.1.src llvm || fail
 fi
 
 if test ! -d libunwind ; then
   if test ! -e libunwind-6.0.1.src.tar.xz ; then  
-    curl -C - -LO http://releases.llvm.org/6.0.1/libunwind-6.0.1.src.tar.xz || fail
+    curl -O http://releases.llvm.org/6.0.1/libunwind-6.0.1.src.tar.xz || fail
   fi
   tar -xJf libunwind-6.0.1.src.tar.xz && mv libunwind-6.0.1.src libunwind || fail
 fi
