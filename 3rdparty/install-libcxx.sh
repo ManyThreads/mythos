@@ -2,9 +2,22 @@
 
 # based on https://wiki.musl-libc.org/building-llvm.html
 
-# need: curl, cmake, libtool, make
+function fail {
+  echo $1
+  exit 1
+}
 
+
+command -v curl >/dev/null 2>&1 || fail "require curl but it's not installed."
+command -v cmake >/dev/null 2>&1 || fail "require cmake but it's not installed."
+command -v make >/dev/null 2>&1 || fail "require make but it's not installed"
+command -v g++ >/dev/null 2>&1 || fail "require g++ but it's not installed"
+command -v git >/dev/null 2>&1 || fail "require git but it's not installed"
+
+# need: libtool ???
 # TODO: check compiler-rt (instead of libgcc)
+
+command -v k1om-mpss-linux-g++ >/dev/null 2>&1 && CROSS_K1OM=1
 
 
 ### change to basedir
@@ -19,48 +32,39 @@ cd cxx-src
 
 ### download libraries
 if test ! -d musl ; then
-  git clone git://git.musl-libc.org/musl
-  if test $? -ne 0 ; then exit $? ; fi
+  git clone git://git.musl-libc.org/musl || fail
 fi
 
 if test ! -d libcxxabi ; then
   #svn co http://llvm.org/svn/llvm-project/libcxxabi/trunk libcxxabi
   #git clone https://github.com/llvm-mirror/libcxxabi.git
   if test ! -e libcxxabi-6.0.1.src.tar.xz ; then  
-    curl -C - -LO http://releases.llvm.org/6.0.1/libcxxabi-6.0.1.src.tar.xz
-    if test $? -ne 0 ; then exit $? ; fi
+    curl -C - -LO http://releases.llvm.org/6.0.1/libcxxabi-6.0.1.src.tar.xz || fail
   fi
-  tar -xJf libcxxabi-6.0.1.src.tar.xz && mv libcxxabi-6.0.1.src libcxxabi
-  if test $? -ne 0 ; then exit $? ; fi
+  tar -xJf libcxxabi-6.0.1.src.tar.xz && mv libcxxabi-6.0.1.src libcxxabi || fail
 fi
 
 if test ! -d libcxx ; then
   #git clone https://github.com/llvm-mirror/libcxx.git
   if test ! -e libcxx-6.0.1.src.tar.xz ; then  
-    curl -C - -LO http://releases.llvm.org/6.0.1/libcxx-6.0.1.src.tar.xz
-    if test $? -ne 0 ; then exit $? ; fi
+    curl -C - -LO http://releases.llvm.org/6.0.1/libcxx-6.0.1.src.tar.xz || fail
   fi
-  tar -xJf libcxx-6.0.1.src.tar.xz && mv libcxx-6.0.1.src libcxx
-  if test $? -ne 0 ; then exit $? ; fi
+  tar -xJf libcxx-6.0.1.src.tar.xz && mv libcxx-6.0.1.src libcxx || fail
 fi
 
 if test ! -d llvm ; then
   #git clone https://github.com/llvm-mirror/llvm.git
   if test ! -e libllvm-6.0.1.src.tar.xz ; then  
-    curl -C - -LO http://releases.llvm.org/6.0.1/llvm-6.0.1.src.tar.xz
-    if test $? -ne 0 ; then exit $? ; fi
+    curl -C - -LO http://releases.llvm.org/6.0.1/llvm-6.0.1.src.tar.xz || fail
   fi
-  tar -xJf llvm-6.0.1.src.tar.xz && mv llvm-6.0.1.src llvm
-  if test $? -ne 0 ; then exit $? ; fi
+  tar -xJf llvm-6.0.1.src.tar.xz && mv llvm-6.0.1.src llvm || fail
 fi
 
 if test ! -d libunwind ; then
   if test ! -e libunwind-6.0.1.src.tar.xz ; then  
-    curl -C - -LO http://releases.llvm.org/6.0.1/libunwind-6.0.1.src.tar.xz
-    if test $? -ne 0 ; then exit $? ; fi
+    curl -C - -LO http://releases.llvm.org/6.0.1/libunwind-6.0.1.src.tar.xz || fail
   fi
-  tar -xJf libunwind-6.0.1.src.tar.xz && mv libunwind-6.0.1.src libunwind
-  if test $? -ne 0 ; then exit $? ; fi
+  tar -xJf libunwind-6.0.1.src.tar.xz && mv libunwind-6.0.1.src libunwind || fail
 fi
 
 
@@ -70,8 +74,7 @@ fi
 cd musl
 rm -rf build-amd64 && mkdir build-amd64 && cd build-amd64
 ../configure --prefix="$BASEDIR/cxx-amd64" \
-  && make && make install
-if test $? -ne 0 ; then exit $? ; fi
+  && make && make install || fail
 cd ../..
 
 
@@ -81,8 +84,7 @@ rm -rf build-amd64 && mkdir build-amd64 && cd build-amd64
 cmake -DCMAKE_INSTALL_PREFIX:PATH="$BASEDIR/cxx-amd64" \
     -DLLVM_PATH="$BASEDIR/cxx-src/llvm" \
     -DCMAKE_BUILD_TYPE=Release \
-    ../ && make && make install
-if test $? -ne 0 ; then exit $? ; fi
+    ../ && make && make install || fail
 cd ../..
 
 
@@ -100,11 +102,9 @@ cmake -DLIBCXXABI_LIBCXX_PATH="$BASEDIR/cxx-src/libcxx" \
     -DLIBCXXABI_ENABLE_STATIC_UNWINDER=ON \
     -DLIBCXXABI_ENABLE_NEW_DELETE_DEFINITIONS=OFF \
     -DLLVM_PATH="$BASEDIR/cxx-src/llvm" \
+    -DLIBCXXABI_SHARED_LINK_FLAGS="-L$BASEDIR/cxx-amd64/lib" \
     -DCMAKE_BUILD_TYPE=Release \
-    ../ \
-  && LIBRARY_PATH=$BASEDIR/cxx-amd64/lib make -j \
-  && make install
-if test $? -ne 0 ; then exit $? ; fi
+    ../ && make -j && make install || fail
 cd ../..
 
 
@@ -124,13 +124,12 @@ cmake -G "Unix Makefiles" \
     -DLIBCXX_ENABLE_STATIC_ABI_LIBRARY=ON \
     -DCMAKE_BUILD_TYPE=Release \
     -DCMAKE_INSTALL_PREFIX="$BASEDIR/cxx-amd64" \
-    ../ && make -j && make install
-if test $? -ne 0 ; then exit $? ; fi
+    ../ && make -j && make install || fail
 cd ../..
 
 
 ### compile for Intel XeonPhi KNC if cross-compiler is present
-if test -n `which k1om-mpss-linux-g++` ; then 
+if test f$CROSS_K1OM = f1 ; then 
   export AS=k1om-mpss-linux-as
   export CXX=k1om-mpss-linux-g++
   export CC=k1om-mpss-linux-gcc
@@ -144,8 +143,7 @@ if test -n `which k1om-mpss-linux-g++` ; then
   cd musl
   rm -rf build-knc && mkdir build-knc && cd build-knc
   ../configure --target=k1om-mpss-linux --prefix="$BASEDIR/cxx-knc" \
-    && make && make install
-  if test $? -ne 0 ; then exit $? ; fi
+    && make && make install || fail
   cd ../..
 
   ### install llvm's libunwind for knc
@@ -156,8 +154,7 @@ if test -n `which k1om-mpss-linux-g++` ; then
     -DCMAKE_BUILD_TYPE=Release \
     -DCMAKE_CXX_COMPILER=k1om-mpss-linux-g++ \
     -DCMAKE_C_COMPILER=k1om-mpss-linux-gcc \
-    ../ && make && make install
-  if test $? -ne 0 ; then exit $? ; fi
+    ../ && make && make install || fail
   cd ../..
 
   ### install libcxxabi for knc
@@ -167,14 +164,14 @@ if test -n `which k1om-mpss-linux-g++` ; then
   cmake -DLIBCXXABI_LIBCXX_PATH="$BASEDIR/cxx-src/libcxx" \
     -DCMAKE_INSTALL_PREFIX="$BASEDIR/cxx-knc" \
     -DLIBCXXABI_USE_LLVM_UNWINDER=ON \
+    -DLIBCXXABI_ENABLE_STATIC_UNWINDER=ON \
     -DLIBCXXABI_ENABLE_NEW_DELETE_DEFINITIONS=OFF \
     -DLLVM_PATH="$BASEDIR/cxx-src/llvm" \
     -DCMAKE_BUILD_TYPE=Release \
     -DCMAKE_CXX_COMPILER=k1om-mpss-linux-g++ \
     -DCMAKE_C_COMPILER=k1om-mpss-linux-gcc \
     -DLIBCXXABI_SHARED_LINK_FLAGS="-L$BASEDIR/cxx-knc/lib" \
-    ../ && make -j && make install
-  if test $? -ne 0 ; then exit $? ; fi
+    ../ && make -j && make install || fail
   cd ../..
 
   # install libcxx with libcxxabi for knc
@@ -190,9 +187,11 @@ if test -n `which k1om-mpss-linux-g++` ; then
     -DCMAKE_CXX_COMPILER=k1om-mpss-linux-g++ \
     -DCMAKE_C_COMPILER=k1om-mpss-linux-gcc \
     -DCMAKE_INSTALL_PREFIX="$BASEDIR/cxx-knc" \
-    ../ && make -j && make install
-  if test $? -ne 0 ; then exit $? ; fi
+    ../ && make -j && make install || fail
   cd ../..
+
+else
+  echo "skipping K!OM/KNC because cross-compiler k1om-mpss-linux-g++ not found."
 
 fi # done for KNC
 
