@@ -76,14 +76,25 @@ fi
 # don't try parallel builds
 cd musl
 rm -rf build-amd64 && mkdir build-amd64 && cd build-amd64
+env CXXFLAGS="-nostdinc" \
 ../configure --prefix="$BASEDIR/cxx-amd64" \
   && make && make install || fail
 cd ../..
 
+### build preliminary libcxx just for the header files
+cd libcxx
+rm -rf build-amd64 && mkdir build-amd64 && cd build-amd64
+env CXXFLAGS="-nostdinc -I$BASEDIR/cxx-amd64/include" \
+cmake -G "Unix Makefiles" \
+    -DLLVM_PATH="$BASEDIR/cxx-src/llvm" \
+    -DCMAKE_INSTALL_PREFIX="$BASEDIR/cxx-amd64" \
+    ../ && make -j && make install || fail
+cd ../..
 
 ### install llvm's libunwind for amd64
 cd libunwind
 rm -rf build-amd64 && mkdir build-amd64 && cd build-amd64
+env CXXFLAGS="-nostdinc -I$BASEDIR/cxx-amd64/include/c++/v1 -I$BASEDIR/cxx-amd64/include" \
 cmake -DCMAKE_INSTALL_PREFIX:PATH="$BASEDIR/cxx-amd64" \
     -DLLVM_PATH="$BASEDIR/cxx-src/llvm" \
     -DCMAKE_BUILD_TYPE=Release \
@@ -99,9 +110,11 @@ cd ../..
 # on linux you may need -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++
 cd libcxxabi
 rm -rf build-amd64 && mkdir build-amd64 && cd build-amd64
+env CXXFLAGS="-nostdinc -I$BASEDIR/cxx-amd64/include -I$BASEDIR/cxx-amd64/include/c++/v1 -I$BASEDIR/cxx-amd64/include" \
 cmake -DLIBCXXABI_LIBCXX_PATH="$BASEDIR/cxx-src/libcxx" \
     -DCMAKE_INSTALL_PREFIX="$BASEDIR/cxx-amd64" \
     -DLIBCXXABI_USE_LLVM_UNWINDER=ON \
+    -DLIBCXXABI_LIBUNWIND_INCLUDES="$BASEDIR/cxx-src/libunwind/include" \
     -DLIBCXXABI_ENABLE_STATIC_UNWINDER=ON \
     -DLIBCXXABI_ENABLE_NEW_DELETE_DEFINITIONS=OFF \
     -DLLVM_PATH="$BASEDIR/cxx-src/llvm" \
@@ -119,6 +132,7 @@ cd ../..
 #    -DLIBCXX_HAS_MUSL_LIBC=ON 
 cd libcxx
 rm -rf build-amd64 && mkdir build-amd64 && cd build-amd64
+env CXXFLAGS="-nostdinc -I$BASEDIR/cxx-amd64/include -I$BASEDIR/cxx-amd64/include/c++/v1 -I$BASEDIR/cxx-amd64/include" \
 cmake -G "Unix Makefiles" \
     -DLIBCXX_CXX_ABI=libcxxabi \
     -DLIBCXX_CXX_ABI_INCLUDE_PATHS="$BASEDIR/cxx-src/libcxxabi/include" \
@@ -152,7 +166,7 @@ if test f$CROSS_K1OM = f1 ; then
   ### install llvm's libunwind for knc
   cd libunwind
   rm -rf build-knc && mkdir build-knc && cd build-knc
-  cmake -DCMAKE_INSTALL_PREFIX:PATH="$BASEDIR/cxx-knc" \
+  cmake -DCMAKE_INSTALL_PREFIX="$BASEDIR/cxx-knc" \
     -DLLVM_PATH="$BASEDIR/cxx-src/llvm" \
     -DCMAKE_BUILD_TYPE=Release \
     -DCMAKE_CXX_COMPILER=k1om-mpss-linux-g++ \
@@ -194,7 +208,7 @@ if test f$CROSS_K1OM = f1 ; then
   cd ../..
 
 else
-  echo "skipping K!OM/KNC because cross-compiler k1om-mpss-linux-g++ not found."
+  echo "skipping K1OM/KNC because cross-compiler k1om-mpss-linux-g++ not found."
 
 fi # done for KNC
 
