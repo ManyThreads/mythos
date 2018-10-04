@@ -33,7 +33,7 @@
 #include "runtime/tls.hh"
 
 extern "C" typedef void (*atexit_func_t)();
-extern "C" int atexit(atexit_func_t func);
+//extern "C" int atexit(atexit_func_t func);
 extern "C" [[noreturn]] void _Exit(int exit_code);
 extern "C" [[noreturn]] void exit(int exit_code=0);
 
@@ -86,7 +86,7 @@ constexpr size_t atexit_funcs_max = 32;
 static std::atomic<size_t> atexit_funcs_count = {0};
 static atexit_func_t atexit_funcs[atexit_funcs_max];
 
-extern "C" int atexit(atexit_func_t func)
+extern "C" int atexit(atexit_func_t func) noexcept
 {
   size_t pos = atexit_funcs_count.fetch_add(1);
   if (pos >= atexit_funcs_max) {
