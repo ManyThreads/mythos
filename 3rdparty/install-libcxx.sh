@@ -35,6 +35,7 @@ if test ! -d musl ; then
   git clone git://git.musl-libc.org/musl || fail
   cd musl
   git apply ../../musl-k1om.patch || fail
+  git apply ../../musl-strtoll_l.patch || fail
   cd ..
 fi
 
@@ -45,6 +46,8 @@ if test ! -d libcxxabi ; then
     curl -O http://releases.llvm.org/6.0.1/libcxxabi-6.0.1.src.tar.xz || fail
   fi
   tar -xJf libcxxabi-6.0.1.src.tar.xz && mv libcxxabi-6.0.1.src libcxxabi || fail
+  cd libcxxabi
+  patch -p1 < ../../libcxxabi-cmake.patch
 fi
 
 if test ! -d libcxx ; then
@@ -77,49 +80,51 @@ fi
 cd musl
 rm -rf build-amd64 && mkdir build-amd64 && cd build-amd64
 env CXXFLAGS="-nostdinc" \
-../configure --prefix="$BASEDIR/cxx-amd64" \
+../configure --prefix="$BASEDIR/cxx-amd64/usr" \
   && make && make install || fail
 cd ../..
 
 ### build preliminary libcxx just for the header files
 cd libcxx
 rm -rf build-amd64 && mkdir build-amd64 && cd build-amd64
-env CXXFLAGS="-nostdinc -I$BASEDIR/cxx-amd64/include" \
-cmake -G "Unix Makefiles" \
+env CXXFLAGS="-isystem $BASEDIR/cxx-amd64/usr/include -isystem $BASEDIR/cxx-amd64/usr/include/c++/v1" \
+cmake -DCMAKE_INSTALL_PREFIX="$BASEDIR/cxx-amd64/usr" \
+    -DCMAKE_SYSROOT="$BASEDIR/cxx-amd64" \
     -DLLVM_PATH="$BASEDIR/cxx-src/llvm" \
-    -DCMAKE_INSTALL_PREFIX="$BASEDIR/cxx-amd64" \
     ../ && make -j && make install || fail
 cd ../..
 
 ### install llvm's libunwind for amd64
 cd libunwind
 rm -rf build-amd64 && mkdir build-amd64 && cd build-amd64
-env CXXFLAGS="-nostdinc -I$BASEDIR/cxx-amd64/include/c++/v1 -I$BASEDIR/cxx-amd64/include" \
-cmake -DCMAKE_INSTALL_PREFIX:PATH="$BASEDIR/cxx-amd64" \
-    -DLLVM_PATH="$BASEDIR/cxx-src/llvm" \
+env CXXFLAGS="-isystem $BASEDIR/cxx-amd64/usr/include -isystem $BASEDIR/cxx-amd64/usr/include/c++/v1" \
+cmake -DCMAKE_INSTALL_PREFIX="$BASEDIR/cxx-amd64/usr" \
+    -DCMAKE_SYSROOT="$BASEDIR/cxx-amd64" \
     -DCMAKE_BUILD_TYPE=Release \
+    -DLLVM_PATH="$BASEDIR/cxx-src/llvm" \
     ../ && make && make install || fail
 cd ../..
 
 
 ### install libcxxabi for amd64
-# -DLIBUNWIND_CXX_INCLUDE_PATHS
 # -DLIBUNWIND_SYSROOT ## for cross-compiling
 # -DLIBCXXABI_ENABLE_THREADS=OFF \
 # -DLIBCXXABI_BAREMETAL=ON \
 # on linux you may need -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++
 cd libcxxabi
 rm -rf build-amd64 && mkdir build-amd64 && cd build-amd64
-env CXXFLAGS="-nostdinc -I$BASEDIR/cxx-amd64/include -I$BASEDIR/cxx-amd64/include/c++/v1 -I$BASEDIR/cxx-amd64/include" \
-cmake -DLIBCXXABI_LIBCXX_PATH="$BASEDIR/cxx-src/libcxx" \
-    -DCMAKE_INSTALL_PREFIX="$BASEDIR/cxx-amd64" \
+env CXXFLAGS="-isystem $BASEDIR/cxx-amd64/usr/include -isystem $BASEDIR/cxx-amd64/usr/include/c++/v1" \
+cmake -DCMAKE_INSTALL_PREFIX="$BASEDIR/cxx-amd64/usr" \
+    -DCMAKE_SYSROOT="$BASEDIR/cxx-amd64" \
+    -DLIBCXXABI_SYSROOT="$BASEDIR/cxx-amd64" \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DLIBCXXABI_LIBCXX_PATH="$BASEDIR/cxx-src/libcxx" \
     -DLIBCXXABI_USE_LLVM_UNWINDER=ON \
     -DLIBCXXABI_LIBUNWIND_INCLUDES="$BASEDIR/cxx-src/libunwind/include" \
     -DLIBCXXABI_ENABLE_STATIC_UNWINDER=ON \
     -DLIBCXXABI_ENABLE_NEW_DELETE_DEFINITIONS=OFF \
+    -DLIBCXXABI_SHARED_LINK_FLAGS="-L$BASEDIR/cxx-amd64/usr/lib" \
     -DLLVM_PATH="$BASEDIR/cxx-src/llvm" \
-    -DLIBCXXABI_SHARED_LINK_FLAGS="-L$BASEDIR/cxx-amd64/lib" \
-    -DCMAKE_BUILD_TYPE=Release \
     ../ && make -j && make install || fail
 cd ../..
 
@@ -132,15 +137,15 @@ cd ../..
 #    -DLIBCXX_HAS_MUSL_LIBC=ON 
 cd libcxx
 rm -rf build-amd64 && mkdir build-amd64 && cd build-amd64
-env CXXFLAGS="-nostdinc -I$BASEDIR/cxx-amd64/include -I$BASEDIR/cxx-amd64/include/c++/v1 -I$BASEDIR/cxx-amd64/include" \
-cmake -G "Unix Makefiles" \
+env CXXFLAGS="-isystem $BASEDIR/cxx-amd64/usr/include -isystem $BASEDIR/cxx-amd64/usr/include/c++/v1" \
+cmake -DCMAKE_INSTALL_PREFIX="$BASEDIR/cxx-amd64/usr" \
+    -DCMAKE_SYSROOT="$BASEDIR/cxx-amd64" \
+    -DCMAKE_BUILD_TYPE=Release \
     -DLIBCXX_CXX_ABI=libcxxabi \
     -DLIBCXX_CXX_ABI_INCLUDE_PATHS="$BASEDIR/cxx-src/libcxxabi/include" \
-    -DLIBCXX_CXX_ABI_LIBRARY_PATH="$BASEDIR/cxx-amd64/lib" \
+    -DLIBCXX_CXX_ABI_LIBRARY_PATH="$BASEDIR/cxx-amd64/usr/lib" \
     -DLLVM_PATH="$BASEDIR/cxx-src/llvm" \
     -DLIBCXX_ENABLE_STATIC_ABI_LIBRARY=ON \
-    -DCMAKE_BUILD_TYPE=Release \
-    -DCMAKE_INSTALL_PREFIX="$BASEDIR/cxx-amd64" \
     ../ && make -j && make install || fail
 cd ../..
 
