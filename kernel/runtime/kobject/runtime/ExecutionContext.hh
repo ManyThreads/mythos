@@ -92,6 +92,7 @@ namespace mythos {
     typedef protocol::ExecutionContext::Amd64Registers register_t;
     typedef void* (*StartFun)(void*);
 
+    ExecutionContext() {}
     ExecutionContext(CapPtr cap) : KObject(cap) {}
     
     Msg<protocol::ExecutionContext::Create> 
