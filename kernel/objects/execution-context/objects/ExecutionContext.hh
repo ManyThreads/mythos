@@ -59,14 +59,13 @@ namespace mythos {
       IS_TRAPPED = 1<<1, // used by suspend/resume invocations and trap/exception handler
       NO_AS      = 1<<2, // set if address space is missing
       NO_SCHED   = 1<<3, // set if scheduler is missing
-      IS_EXITED  = 1<<4, // set by exit() syscall
       IN_WAIT    = 1<<5, // EC is in wait() syscall, next sysret should return a KEvent
       IS_NOTIFIED     = 1<<6, // used by notify() syscall for binary semaphore
       REGISTER_ACCESS = 1<<7, // accessing registers
       NOT_LOADED   = 1<<8, // CPU state is not loaded
       DONT_PREEMPT  = 1<<9, // somebody else will send the preemption
       NOT_RUNNING  = 1<<10, // EC is not running
-      BLOCK_MASK = IS_WAITING | IS_TRAPPED | NO_AS | NO_SCHED | IS_EXITED | REGISTER_ACCESS
+      BLOCK_MASK = IS_WAITING | IS_TRAPPED | NO_AS | NO_SCHED | REGISTER_ACCESS
     };
 
     ExecutionContext(IAsyncFree* memory);
@@ -84,6 +83,8 @@ namespace mythos {
     void unsetCapSpace() { _cs.reset(); }
 
     void setEntryPoint(uintptr_t rip);
+    void setTrapped(bool val);
+
     cpu::ThreadState& getThreadState() { return threadState; }
 
     optional<void> setRegisters(const mythos::protocol::ExecutionContext::Amd64Registers&);

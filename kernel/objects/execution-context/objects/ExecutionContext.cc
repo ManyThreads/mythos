@@ -40,7 +40,7 @@ namespace mythos {
   ExecutionContext::ExecutionContext(IAsyncFree* memory)
     : memory(memory)
   {
-    setFlags(IS_EXITED + NO_AS + NO_SCHED
+    setFlags(IS_TRAPPED + NO_AS + NO_SCHED
         + DONT_PREEMPT + NOT_LOADED + NOT_RUNNING);
     threadState.clear();
     threadState.rflags = x86::FLAG_IF; // ensure that interrupts are enabled in user mode
@@ -165,7 +165,6 @@ namespace mythos {
   {
     MLOG_INFO(mlog::ec, "EC setEntryPoint", DVARhex(rip));
     threadState.rip = rip;
-    clearFlagsResume(IS_EXITED);
   }
 
   optional<CapEntryRef> ExecutionContext::lookupRef(CapPtr ptr, CapPtrDepth ptrDepth, bool writable)
@@ -316,6 +315,12 @@ namespace mythos {
     return Error::SUCCESS;
   }
 
+  void ExecutionContext::setTrapped(bool val)
+  {
+	if (val) setFlagsSuspend(IS_TRAPPED);
+	else clearFlagsResume(IS_TRAPPED);
+  }
+
   Error ExecutionContext::invokeSuspend(Tasklet* t, Cap, IInvocation* msg)
   {
     this->msg = msg;
@@ -403,7 +408,7 @@ namespace mythos {
 
       case SYSCALL_EXIT:
         MLOG_INFO(mlog::syscall, "exit");
-        setFlags(IS_EXITED);
+        setFlags(IS_TRAPPED);
         break;
 
       case SYSCALL_POLL:
@@ -661,9 +666,8 @@ namespace mythos {
           auto res = obj->setSchedulingContext(msg->lookupEntry(data->sched()));
           if (!res) RETHROW(res);
         }
-        if (data->start) {
-          obj->setEntryPoint(data->regs.rip);
-        }
+        obj->setEntryPoint(data->regs.rip);
+        if (data->start) obj->setTrapped(false);
       }
       return *obj;
     }
