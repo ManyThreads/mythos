@@ -39,6 +39,7 @@ namespace mythos {
     typedef protocol::PageMap::PageMapReq PageMapReq;
     typedef protocol::PageMap::MapFlags MapFlags;
 
+    PageMap() {}
     PageMap(CapPtr cap) : KObject(cap) {}
 
     PortalFuture<void> create(PortalLock pr, KernelMemory kmem, size_t level,
