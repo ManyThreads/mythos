@@ -25,7 +25,7 @@ cd `dirname $0`
 BASEDIR=`pwd`
 echo installing in $BASEDIR
 mkdir -p "$BASEDIR/cxx-src"
-mkdir -p "$BASEDIR/cxx-amd64"
+mkdir -p "$DSTDIR"
 mkdir -p "$BASEDIR/cxx-knc"
 
 cd cxx-src
@@ -36,6 +36,8 @@ if test ! -d musl ; then
   cd musl
   git apply ../../musl-k1om.patch || fail
   git apply ../../musl-strtoll_l.patch || fail
+  # printf_chk based on https://www.openwall.com/lists/musl/2015/06/20/5
+  git apply ../../musl-printf_chk.patch || fail
   cd ..
 fi
 
@@ -47,7 +49,8 @@ if test ! -d libcxxabi ; then
   fi
   tar -xJf libcxxabi-6.0.1.src.tar.xz && mv libcxxabi-6.0.1.src libcxxabi || fail
   cd libcxxabi
-  patch -p1 < ../../libcxxabi-cmake.patch
+  #patch -p1 < ../../libcxxabi-cmake.patch
+  cd ..
 fi
 
 if test ! -d libcxx ; then
@@ -74,32 +77,36 @@ if test ! -d libunwind ; then
 fi
 
 
+function compile {
 
 ### build musl libc for amd64
 # don't try parallel builds
 cd musl
-rm -rf build-amd64 && mkdir build-amd64 && cd build-amd64
+rm -rf build && mkdir build && cd build
 env CXXFLAGS="-nostdinc" \
-../configure --prefix="$BASEDIR/cxx-amd64/usr" \
+../configure $MUSLTARGET --prefix="$DSTDIR/usr" \
   && make && make install || fail
 cd ../..
 
 ### build preliminary libcxx just for the header files
+#    -DCMAKE_CC_COMPILER="$DSTDIR/usr/bin/musl-gcc"
 cd libcxx
-rm -rf build-amd64 && mkdir build-amd64 && cd build-amd64
-env CXXFLAGS="-isystem $BASEDIR/cxx-amd64/usr/include -isystem $BASEDIR/cxx-amd64/usr/include/c++/v1" \
-cmake -DCMAKE_INSTALL_PREFIX="$BASEDIR/cxx-amd64/usr" \
-    -DCMAKE_SYSROOT="$BASEDIR/cxx-amd64" \
+rm -rf build && mkdir build && cd build
+cmake -DCMAKE_INSTALL_PREFIX="$DSTDIR/usr" \
+    -DCMAKE_C_COMPILER="$DSTDIR/usr/bin/musl-gcc" \
+    -DCMAKE_CXX_COMPILER="$DSTDIR/usr/bin/musl-gcc" \
+    -DCMAKE_CXX_FLAGS="-isystem $DSTDIR/usr/include -isystem $DSTDIR/usr/include/c++/v1" \
     -DLLVM_PATH="$BASEDIR/cxx-src/llvm" \
     ../ && make -j && make install || fail
 cd ../..
 
 ### install llvm's libunwind for amd64
 cd libunwind
-rm -rf build-amd64 && mkdir build-amd64 && cd build-amd64
-env CXXFLAGS="-isystem $BASEDIR/cxx-amd64/usr/include -isystem $BASEDIR/cxx-amd64/usr/include/c++/v1" \
-cmake -DCMAKE_INSTALL_PREFIX="$BASEDIR/cxx-amd64/usr" \
-    -DCMAKE_SYSROOT="$BASEDIR/cxx-amd64" \
+rm -rf build && mkdir build && cd build
+cmake -DCMAKE_INSTALL_PREFIX="$DSTDIR/usr" \
+    -DCMAKE_C_COMPILER="$DSTDIR/usr/bin/musl-gcc" \
+    -DCMAKE_CXX_COMPILER="$DSTDIR/usr/bin/musl-gcc" \
+    -DCMAKE_CXX_FLAGS="-isystem $DSTDIR/usr/include -isystem $DSTDIR/usr/include/c++/v1" \
     -DCMAKE_BUILD_TYPE=Release \
     -DLLVM_PATH="$BASEDIR/cxx-src/llvm" \
     ../ && make && make install || fail
@@ -112,18 +119,19 @@ cd ../..
 # -DLIBCXXABI_BAREMETAL=ON \
 # on linux you may need -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++
 cd libcxxabi
-rm -rf build-amd64 && mkdir build-amd64 && cd build-amd64
-env CXXFLAGS="-isystem $BASEDIR/cxx-amd64/usr/include -isystem $BASEDIR/cxx-amd64/usr/include/c++/v1" \
-cmake -DCMAKE_INSTALL_PREFIX="$BASEDIR/cxx-amd64/usr" \
-    -DCMAKE_SYSROOT="$BASEDIR/cxx-amd64" \
-    -DLIBCXXABI_SYSROOT="$BASEDIR/cxx-amd64" \
+rm -rf build && mkdir build && cd build
+cmake -DCMAKE_INSTALL_PREFIX="$DSTDIR/usr" \
+    -DCMAKE_C_COMPILER="$DSTDIR/usr/bin/musl-gcc" \
+    -DCMAKE_CXX_COMPILER="$DSTDIR/usr/bin/musl-gcc" \
+    -DCMAKE_CXX_FLAGS="-isystem $DSTDIR/usr/include -isystem $DSTDIR/usr/include/c++/v1" \
+    -DLIBCXXABI_SYSROOT="$DSTDIR" \
     -DCMAKE_BUILD_TYPE=Release \
     -DLIBCXXABI_LIBCXX_PATH="$BASEDIR/cxx-src/libcxx" \
     -DLIBCXXABI_USE_LLVM_UNWINDER=ON \
     -DLIBCXXABI_LIBUNWIND_INCLUDES="$BASEDIR/cxx-src/libunwind/include" \
     -DLIBCXXABI_ENABLE_STATIC_UNWINDER=ON \
     -DLIBCXXABI_ENABLE_NEW_DELETE_DEFINITIONS=OFF \
-    -DLIBCXXABI_SHARED_LINK_FLAGS="-L$BASEDIR/cxx-amd64/usr/lib" \
+    -DLIBCXXABI_SHARED_LINK_FLAGS="-L$DSTDIR/usr/lib" \
     -DLLVM_PATH="$BASEDIR/cxx-src/llvm" \
     ../ && make -j && make install || fail
 cd ../..
@@ -136,86 +144,39 @@ cd ../..
 #LIBRARY_PATH=$BASEDIR/cxx/lib make install
 #    -DLIBCXX_HAS_MUSL_LIBC=ON 
 cd libcxx
-rm -rf build-amd64 && mkdir build-amd64 && cd build-amd64
-env CXXFLAGS="-isystem $BASEDIR/cxx-amd64/usr/include -isystem $BASEDIR/cxx-amd64/usr/include/c++/v1" \
-cmake -DCMAKE_INSTALL_PREFIX="$BASEDIR/cxx-amd64/usr" \
-    -DCMAKE_SYSROOT="$BASEDIR/cxx-amd64" \
+rm -rf build && mkdir build && cd build
+cmake -DCMAKE_INSTALL_PREFIX="$DSTDIR/usr" \
+    -DCMAKE_C_COMPILER="$DSTDIR/usr/bin/musl-gcc" \
+    -DCMAKE_CXX_COMPILER="$DSTDIR/usr/bin/musl-gcc" \
+    -DCMAKE_CXX_FLAGS="-isystem $DSTDIR/usr/include -isystem $DSTDIR/usr/include/c++/v1" \
     -DCMAKE_BUILD_TYPE=Release \
     -DLIBCXX_CXX_ABI=libcxxabi \
     -DLIBCXX_CXX_ABI_INCLUDE_PATHS="$BASEDIR/cxx-src/libcxxabi/include" \
-    -DLIBCXX_CXX_ABI_LIBRARY_PATH="$BASEDIR/cxx-amd64/usr/lib" \
+    -DLIBCXX_CXX_ABI_LIBRARY_PATH="$DSTDIR/usr/lib" \
     -DLLVM_PATH="$BASEDIR/cxx-src/llvm" \
     -DLIBCXX_ENABLE_STATIC_ABI_LIBRARY=ON \
     ../ && make -j && make install || fail
 cd ../..
 
+} # function compile
+
+
+
+export DSTDIR="$BASEDIR/cxx-amd64"
+export MUSLTARGET=""
+#export REALGCC=
+compile
 
 ### compile for Intel XeonPhi KNC if cross-compiler is present
 if test f$CROSS_K1OM = f1 ; then 
-  export AS=k1om-mpss-linux-as
-  export CXX=k1om-mpss-linux-g++
-  export CC=k1om-mpss-linux-gcc
-  export LD=k1om-mpss-linux-ld
-  export NM=k1om-mpss-linux-nm
-  export OBJDUMP=k1om-mpss-linux-objdump
-  export STRIP=k1om-mpss-linux-strip
-
-  ### build musl libc for knc
-  # don't do parallel builds!
-  cd musl
-  rm -rf build-knc && mkdir build-knc && cd build-knc
-  ../configure --target=k1om-mpss-linux --prefix="$BASEDIR/cxx-knc" \
-    && make && make install || fail
-  cd ../..
-
-  ### install llvm's libunwind for knc
-  cd libunwind
-  rm -rf build-knc && mkdir build-knc && cd build-knc
-  cmake -DCMAKE_INSTALL_PREFIX="$BASEDIR/cxx-knc" \
-    -DLLVM_PATH="$BASEDIR/cxx-src/llvm" \
-    -DCMAKE_BUILD_TYPE=Release \
-    -DCMAKE_CXX_COMPILER=k1om-mpss-linux-g++ \
-    -DCMAKE_C_COMPILER=k1om-mpss-linux-gcc \
-    ../ && make && make install || fail
-  cd ../..
-
-  ### install libcxxabi for knc
-  # -DLIBCXXABI_ENABLE_STATIC_UNWINDER=ON \
-  cd libcxxabi
-  rm -rf build-knc && mkdir build-knc && cd build-knc
-  cmake -DLIBCXXABI_LIBCXX_PATH="$BASEDIR/cxx-src/libcxx" \
-    -DCMAKE_INSTALL_PREFIX="$BASEDIR/cxx-knc" \
-    -DLIBCXXABI_USE_LLVM_UNWINDER=ON \
-    -DLIBCXXABI_ENABLE_STATIC_UNWINDER=ON \
-    -DLIBCXXABI_ENABLE_NEW_DELETE_DEFINITIONS=OFF \
-    -DLLVM_PATH="$BASEDIR/cxx-src/llvm" \
-    -DCMAKE_BUILD_TYPE=Release \
-    -DCMAKE_CXX_COMPILER=k1om-mpss-linux-g++ \
-    -DCMAKE_C_COMPILER=k1om-mpss-linux-gcc \
-    -DLIBCXXABI_SHARED_LINK_FLAGS="-L$BASEDIR/cxx-knc/lib" \
-    ../ && make -j && make install || fail
-  cd ../..
-
-  # install libcxx with libcxxabi for knc
-  cd libcxx
-  rm -rf build-knc && mkdir build-knc && cd build-knc
-  cmake -G "Unix Makefiles" \
-    -DLIBCXX_CXX_ABI=libcxxabi \
-    -DLIBCXX_CXX_ABI_INCLUDE_PATHS="$BASEDIR/cxx-src/libcxxabi/include" \
-    -DLIBCXX_CXX_ABI_LIBRARY_PATH="$BASEDIR/cxx-knc/lib" \
-    -DLLVM_PATH="$BASEDIR/cxx-src/llvm" \
-    -DLIBCXX_ENABLE_STATIC_ABI_LIBRARY=ON \
-    -DCMAKE_BUILD_TYPE=Release \
-    -DCMAKE_CXX_COMPILER=k1om-mpss-linux-g++ \
-    -DCMAKE_C_COMPILER=k1om-mpss-linux-gcc \
-    -DCMAKE_INSTALL_PREFIX="$BASEDIR/cxx-knc" \
-    ../ && make -j && make install || fail
-  cd ../..
-
+  export DSTDIR="$BASEDIR/cxx-knc"
+  export MUSLTARGET="--target=k1om-mpss-linux"
+  export REALGCC="k1om-mpss-linux-gcc"
+  export CC="k1om-mpss-linux-gcc"
+  export CXX="k1om-mpss-linux-g++"
+  compile
 else
   echo "skipping K1OM/KNC because cross-compiler k1om-mpss-linux-g++ not found."
-
 fi # done for KNC
 
 echo "all compilation was successfull :)"
-
