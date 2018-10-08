@@ -35,6 +35,7 @@ namespace mythos {
 
     // based on information from https://www.uclibc.org/docs/elf-64-gen.pdf
     // and https://en.wikipedia.org/wiki/Executable_and_Linkable_Format
+    // http://refspecs.linuxbase.org/elf/gabi4+/ch4.intro.html
     struct PACKED Header
     {
       uint32_t magic; // 0x7F followed by ELF(45 4c 46)
@@ -77,6 +78,20 @@ namespace mythos {
       uint64_t memsize; // target size in the memory
       uint64_t alignment;
     };
+    
+    struct PACKED SHeader
+    {
+        uint32_t name; // index into section name table
+        uint32_t type;
+        uint64_t flags;
+        uint64_t addr;
+        uint64_t offset;
+        uint64_t size;
+        uint32_t link;
+        uint32_t info;
+        uint64_t addralign;
+        uint64_t entsize;
+    };
 
     class Elf64Image
     {
@@ -86,10 +101,23 @@ namespace mythos {
         ASSERT(header()->phentsize >= sizeof(PHeader));
         return header()->isElf64Header();
       }
-      size_t phnum() const { return header()->phnum; }
+ 
       Header const* header() const { return reinterpret_cast<Header*>(start); }
+      size_t phnum() const { return header()->phnum; }
       PHeader const* phdr(size_t idx) const {
         return reinterpret_cast<PHeader*>(start + header()->phoffset + idx*header()->phentsize);
+      }
+
+      size_t shnum() const { return header()->shnum; }
+      SHeader const* shdr(size_t idx) const {
+        return reinterpret_cast<SHeader*>(start + header()->shoffset + idx*header()->shentsize);
+      }
+
+      const char* sectionName(size_t idx) const {
+          if (header()->shstrndx > shnum()) return nullptr;
+          auto names = shdr(header()->shstrndx);
+          if (names->size - shdr(idx)->name < 1) return nullptr;
+          return reinterpret_cast<const char*>(start + names->offset + shdr(idx)->name);
       }
 
     protected:

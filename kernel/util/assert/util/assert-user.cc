@@ -27,7 +27,7 @@
 #include "util/Logger.hh"
 #include "mythos/syscall.hh"
 
-extern "C" NORETURN bool __assert_fail(char const* file, unsigned int line, const char* expr, char const * message) {
+extern "C" NORETURN bool massert_fail(char const* file, unsigned int line, const char* expr, char const * message) {
   mlog::Logger<> logassert("assert");
   if (message)
     logassert.error("USER ASSERTION in",file,":",line,"failed:",expr,"-",message);
@@ -36,7 +36,7 @@ extern "C" NORETURN bool __assert_fail(char const* file, unsigned int line, cons
   mythos::syscall_exit(-1); /// @TODO syscall_abort(); to see some stack backtrace etc
 }
 
-bool __oops_fail(char const* file, unsigned int line, const char* expr, char const * message) {
+bool moops_fail(char const* file, unsigned int line, const char* expr, char const * message) {
   mlog::Logger<> logassert("assert");
   if (message)
     logassert.error("USER OOPS in",file,":",line,"failed:",expr,"-",message);
@@ -45,7 +45,7 @@ bool __oops_fail(char const* file, unsigned int line, const char* expr, char con
   return true;
 }
 
-extern "C" NORETURN bool __panic_fail(char const* file, unsigned int line, const char* expr, char const * message) {
+extern "C" NORETURN bool mpanic_fail(char const* file, unsigned int line, const char* expr, char const * message) {
   mlog::Logger<> logassert("assert");
   if (message)
     logassert.error("USER PANIC in",file,":",line,"failed:",expr,"-",message);

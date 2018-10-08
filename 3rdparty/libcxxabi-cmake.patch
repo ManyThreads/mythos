@@ -1,0 +1,19 @@
+diff -r -U3 libcxxabi.orig/cmake/config-ix.cmake libcxxabi/cmake/config-ix.cmake
+--- libcxxabi.orig/cmake/config-ix.cmake	2017-06-12 01:59:26.000000000 +0200
++++ libcxxabi/cmake/config-ix.cmake	2018-10-04 18:46:23.256915999 +0200
+@@ -82,8 +82,10 @@
+ check_cxx_compiler_flag(/EHa-                 LIBCXXABI_HAS_NO_EHA_FLAG)
+ check_cxx_compiler_flag(/GR-                  LIBCXXABI_HAS_NO_GR_FLAG)
+ 
+-# Check libraries
+-check_library_exists(dl dladdr "" LIBCXXABI_HAS_DL_LIB)
+-check_library_exists(pthread pthread_once "" LIBCXXABI_HAS_PTHREAD_LIB)
+-check_library_exists(c __cxa_thread_atexit_impl ""
+-  LIBCXXABI_HAS_CXA_THREAD_ATEXIT_IMPL)
++# Check libraries, does not work for cross-compiling
++#check_library_exists(dl dladdr "" LIBCXXABI_HAS_DL_LIB)
++#check_library_exists(pthread pthread_once "" LIBCXXABI_HAS_PTHREAD_LIB)
++set(LIBCXXABI_HAS_PTHREAD_LIB)
++#check_library_exists(c __cxa_thread_atexit_impl ""
++#  LIBCXXABI_HAS_CXA_THREAD_ATEXIT_IMPL)
++

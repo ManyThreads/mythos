@@ -59,7 +59,7 @@ APP_CXXFLAGS += -std=c++11
 #APP_CXXFLAGS += -O2 -g3 -ggdb -gdwarf-2
 APP_CXXFLAGS += -O2 -g
 APP_LD = $(LD)
-APP_LDFLAGS = -g -static
+APP_LDFLAGS += -g -static
 
 -include ../Makefile.user
 '''

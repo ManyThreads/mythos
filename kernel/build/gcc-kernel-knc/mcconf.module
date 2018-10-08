@@ -42,7 +42,7 @@ KERNEL_CXXFLAGS += -mno-red-zone
 #KERNEL_CXXFLAGS += -mpreferred-stack-boundary=4
 
 # The -mcmodel=large argument enables us to run the kernel at any 64-bit virtual memory address we want (only in GCC 4.3+). In fact, using the 'large' code model is discouraged due to its inefficiency, but it can be fine as a start. Check the SysV AMD64 ABI document for extra details.
-KERNEL_CXXFLAGS += -mcmodel=kernel -fno-pic
+KERNEL_CXXFLAGS += -mcmodel=kernel -fno-pic -fno-stack-protector
 
 # use -gdwarf-2 in order to avoid gdb <cant compute CFA for this frame> bug
 # use -gdwarf-2 in order to avoid linker error in gcc4.7
@@ -62,7 +62,7 @@ APP_CXXFLAGS += -std=c++11
 #APP_CXXFLAGS += -O2 -g3 -ggdb -gdwarf-2
 APP_CXXFLAGS += -O2 -g
 APP_LD = $(LD)
-APP_LDFLAGS = -g -static
+APP_LDFLAGS += -g -static
 
 -include ../Makefile.user
 '''

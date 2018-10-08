@@ -32,7 +32,7 @@ namespace mlog {
   mlog::Logger<> assert("assert");
 } // namespace mlog
 
-extern "C" NORETURN bool __assert_fail(char const* file, unsigned int line,
+extern "C" NORETURN bool massert_fail(char const* file, unsigned int line,
                                        const char* expr, char const* message)
 {
   mlog::assert.error("ASSERTION in",file,":",line,"failed:",expr,(message)?message:"");
@@ -40,14 +40,14 @@ extern "C" NORETURN bool __assert_fail(char const* file, unsigned int line,
   mythos::sleep_infinitely();
 }
 
-bool __oops_fail(char const* file, unsigned int line, const char* expr, char const* message)
+bool moops_fail(char const* file, unsigned int line, const char* expr, char const* message)
 {
   mlog::assert.error("KERNEL OOPS in",file,":",line,"failed:",expr,(message)?message:"");
   for (auto frame : mythos::StackTrace()) { mlog::assert.info("trace", frame.ret); }
   return true;
 }
 
-extern "C" NORETURN bool __panic_fail(char const* file, unsigned int line,
+extern "C" NORETURN bool mpanic_fail(char const* file, unsigned int line,
                                       const char* expr, char const* message)
 {
   mlog::assert.error("KERNEL PANIC in",file,":",line,"failed:",expr,(message)?message:"");
