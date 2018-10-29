@@ -36,7 +36,7 @@
 #include "util/elf64.hh"
 
 
-extern "C" _Noreturn void __assert_fail (const char *expr, const char *file, int line, const char *func)
+extern "C" [[noreturn]] void __assert_fail (const char *expr, const char *file, int line, const char *func)
 {
     mlog::Logger<> logassert("assert");
     logassert.error("ASSERT",expr,"failed in",file,":",line,func);
