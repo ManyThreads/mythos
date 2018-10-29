@@ -83,9 +83,10 @@ function compile {
 # don't try parallel builds
 cd musl
 rm -rf build && mkdir build && cd build
-env CXXFLAGS="-nostdinc" \
+env CC=$REALGCC CFLAGS="-nostdinc" \
 ../configure $MUSLTARGET --prefix="$DSTDIR/usr" \
-  && make && make install || fail
+    --disable-shared \
+    && make && make install || fail
 cd ../..
 
 ### build preliminary libcxx just for the header files
@@ -96,6 +97,7 @@ cmake -DCMAKE_INSTALL_PREFIX="$DSTDIR/usr" \
     -DCMAKE_C_COMPILER="$DSTDIR/usr/bin/musl-gcc" \
     -DCMAKE_CXX_COMPILER="$DSTDIR/usr/bin/musl-gcc" \
     -DCMAKE_CXX_FLAGS="-isystem $DSTDIR/usr/include -isystem $DSTDIR/usr/include/c++/v1" \
+    -DLIBCXX_ENABLE_SHARED=OFF \
     -DLLVM_PATH="$BASEDIR/cxx-src/llvm" \
     ../ && make -j && make install || fail
 cd ../..
@@ -107,6 +109,7 @@ cmake -DCMAKE_INSTALL_PREFIX="$DSTDIR/usr" \
     -DCMAKE_C_COMPILER="$DSTDIR/usr/bin/musl-gcc" \
     -DCMAKE_CXX_COMPILER="$DSTDIR/usr/bin/musl-gcc" \
     -DCMAKE_CXX_FLAGS="-isystem $DSTDIR/usr/include -isystem $DSTDIR/usr/include/c++/v1" \
+    -DLIBUNWIND_ENABLE_SHARED=OFF \
     -DCMAKE_BUILD_TYPE=Release \
     -DLLVM_PATH="$BASEDIR/cxx-src/llvm" \
     ../ && make && make install || fail
@@ -124,8 +127,8 @@ cmake -DCMAKE_INSTALL_PREFIX="$DSTDIR/usr" \
     -DCMAKE_C_COMPILER="$DSTDIR/usr/bin/musl-gcc" \
     -DCMAKE_CXX_COMPILER="$DSTDIR/usr/bin/musl-gcc" \
     -DCMAKE_CXX_FLAGS="-isystem $DSTDIR/usr/include -isystem $DSTDIR/usr/include/c++/v1" \
-    -DLIBCXXABI_SYSROOT="$DSTDIR" \
     -DCMAKE_BUILD_TYPE=Release \
+    -DLIBCXXABI_ENABLE_SHARED=OFF \
     -DLIBCXXABI_LIBCXX_PATH="$BASEDIR/cxx-src/libcxx" \
     -DLIBCXXABI_USE_LLVM_UNWINDER=ON \
     -DLIBCXXABI_LIBUNWIND_INCLUDES="$BASEDIR/cxx-src/libunwind/include" \
@@ -150,6 +153,7 @@ cmake -DCMAKE_INSTALL_PREFIX="$DSTDIR/usr" \
     -DCMAKE_CXX_COMPILER="$DSTDIR/usr/bin/musl-gcc" \
     -DCMAKE_CXX_FLAGS="-isystem $DSTDIR/usr/include -isystem $DSTDIR/usr/include/c++/v1" \
     -DCMAKE_BUILD_TYPE=Release \
+    -DLIBCXX_ENABLE_SHARED=OFF \
     -DLIBCXX_CXX_ABI=libcxxabi \
     -DLIBCXX_CXX_ABI_INCLUDE_PATHS="$BASEDIR/cxx-src/libcxxabi/include" \
     -DLIBCXX_CXX_ABI_LIBRARY_PATH="$DSTDIR/usr/lib" \
@@ -172,8 +176,6 @@ if test f$CROSS_K1OM = f1 ; then
   export DSTDIR="$BASEDIR/cxx-knc"
   export MUSLTARGET="--target=k1om-mpss-linux"
   export REALGCC="k1om-mpss-linux-gcc"
-  export CC="k1om-mpss-linux-gcc"
-  export CXX="k1om-mpss-linux-g++"
   compile
 else
   echo "skipping K1OM/KNC because cross-compiler k1om-mpss-linux-g++ not found."
