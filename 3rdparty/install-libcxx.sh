@@ -24,9 +24,6 @@ command -v k1om-mpss-linux-g++ >/dev/null 2>&1 && CROSS_K1OM=1
 cd `dirname $0`
 BASEDIR=`pwd`
 echo installing in $BASEDIR
-mkdir -p "$BASEDIR/cxx-src"
-mkdir -p "$DSTDIR"
-mkdir -p "$BASEDIR/cxx-knc"
 
 cd cxx-src
 
@@ -78,6 +75,8 @@ fi
 
 
 function compile {
+
+mkdir -p "$DSTDIR"
 
 ### build musl libc for amd64
 # don't try parallel builds
@@ -177,6 +176,7 @@ if test f$CROSS_K1OM = f1 ; then
   export MUSLTARGET="--target=k1om-mpss-linux"
   export REALGCC="k1om-mpss-linux-gcc"
   compile
+  cp -v `k1om-mpss-linux-gcc --print-sysroot`/usr/lib64/k1om-mpss-linux/5.1.1/libgcc.a $DSTDIR/usr/lib/
 else
   echo "skipping K1OM/KNC because cross-compiler k1om-mpss-linux-g++ not found."
 fi # done for KNC
