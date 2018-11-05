@@ -2,3 +2,6 @@
 	path = 3rdparty/mcconf
 	url = https://github.com/ManyThreads/mcconf.git
 	branch = master
+[submodule "3rdparty/musl"]
+	path = 3rdparty/musl
+	url = git@github.com:ManyThreads/musl-mythos.git
