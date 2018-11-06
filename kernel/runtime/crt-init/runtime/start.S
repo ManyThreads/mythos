@@ -25,7 +25,7 @@
  */
 
 .extern initstack_top
-.extern main
+.extern start_c
 .extern msg_ptr
 .extern __libc_init_array
 .extern exit
@@ -36,12 +36,22 @@ _start:
         mov initstack_top, %rsp
         xor %rbp, %rbp
         mov %rdi, msg_ptr       // store first argument to global variable
-        fninit                  // initialize the FPU
-        call __libc_init_array
-        call main
-        mov $0, %rdi
+/*        fninit                  // initialize the FPU
+        call __libc_init_array*/
+        call start_c
+/*        mov $0, %rdi
         call exit
-1:      jmp 1b
+1:      jmp 1b*/
+
+/* A handle for __cxa_finalize to manage c++ local destructors.  */
+.global __dso_handle
+.type __dso_handle,@object
+.size __dso_handle,8
+.section .bss
+.align 8
+__dso_handle:
+.skip  8
+.hidden __dso_handle
 
 .section .init
 .global _init
