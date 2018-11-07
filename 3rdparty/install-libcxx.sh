@@ -25,7 +25,7 @@ cd `dirname $0`
 BASEDIR=`pwd`
 echo installing in $BASEDIR
 
-git submodule update
+#git submodule update
 
 cd cxx-src
 
@@ -76,6 +76,7 @@ fi
 
 function compile {
 
+rm -rf "$DSTDIR"
 mkdir -p "$DSTDIR"
 
 ### build musl libc for amd64
