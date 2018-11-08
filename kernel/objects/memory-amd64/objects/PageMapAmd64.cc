@@ -149,8 +149,8 @@ namespace mythos {
   }
 
   PageMap::MmapOp::MmapOp(uintptr_t vaddr, size_t vsize,
-                             optional<CapEntry*> frameEntry, MapFlags flags)
-    : FrameOp(vaddr, vsize)
+                          optional<CapEntry*> frameEntry, MapFlags flags, size_t offset)
+    : FrameOp(vaddr, vsize, offset)
   {
     frameOp.flags = flags;
     frameOp.frame = TypedCap<IFrame>(frameEntry);
@@ -222,68 +222,63 @@ namespace mythos {
     RETURN(Error::SUCCESS);
   }
 
-  template<>
-  optional<void> PageMap::operateFrame<1>(PageTableEntry* table, FrameOp& op)
-  {
-    size_t startIndex = (op.vaddr()/pageSize(1)) % 512; // the part inside current table
-    size_t numEntries = (op.vaddr()+op.vsize()+pageSize(1)-1)/pageSize(1) - op.vaddr()/pageSize(1);
-    if (numEntries > 512-startIndex) numEntries = 512-startIndex;
-    for (size_t i=0; i < numEntries; i++) {
-      op.level = 1;
-      ASSERT(Align4k::is_aligned(op.vaddr())); // checked in invoke*()
-      ASSERT(op.vsize() >= Align4k::alignment()); // checked in invoke*()
-      auto res = op.applyFrame(table, startIndex+i);
-      if (!res) return res;
-      op.moveForward(pageSize(1));
-    }
-    RETURN(Error::SUCCESS);
-  }
-
   template<size_t LEVEL>
   optional<void> PageMap::operateFrame(PageTableEntry* table, FrameOp& op)
   {
-    size_t startIndex = (op.vaddr()/pageSize(LEVEL)) % 512; // the part inside current table
+    // calculate the start inside the current table. The %512 is correct for the recursive table walk because 
+    // we advance page by page. Just the begin of the walk has to check that it actually lies within the root table.
+    size_t startIndex = (op.vaddr()/pageSize(LEVEL)) % 512;
+    // calculate the number of entries by rounding up the end of the range and then substract the rounded down start.
     size_t numEntries = (op.vaddr()+op.vsize()+pageSize(LEVEL)-1)/pageSize(LEVEL) - op.vaddr()/pageSize(LEVEL);
-    if (numEntries > 512-startIndex) numEntries = 512-startIndex;
+    if (numEntries > 512-startIndex) numEntries = 512-startIndex; // correct number if larger than this table
+    if (LEVEL == 4 && startIndex+numEntries-1 >= 128) THROW(Error::REQUEST_DENIED); // never touch the kernel space
     for (size_t i=0; i < numEntries; i++) {
       op.level = LEVEL;
       auto pme = table[startIndex+i];
       MLOG_DETAIL(mlog::cap, "operateFrame", DVARhex(op.vaddr()), DVARhex(op.vsize()),
                   DVARhex(op.offset()), DVAR(op.level));
-      if (pme.present && !pme.page) { // recurse into lower page map
+      if (LEVEL > 1 && pme.present && !pme.page) { // recurse into lower page map
         if (!pme.configurable) THROW(Error::PAGEMAP_NOCONF); /// @todo or just skip?
-        auto res = operateFrame<LEVEL-1>(phys2kernel<PageTableEntry>(pme.getAddr()), op);
+        auto res = operateFrame<((LEVEL>1)?LEVEL-1:1)>(phys2kernel<PageTableEntry>(pme.getAddr()), op); // recursive descent
         if (!res) RETHROW(res);
-        continue; // don't do moveForward(), was done by LEVEL-1
+        // don't do moveForward() because it was done by LEVEL-1
       } else if (pme.present && pme.page) { // apply frame operator on mapped page
-        if (LEVEL == 2) { // check if the operation is just on a part of the 2MiB page
-          if (!Align2M::is_aligned(op.vaddr())) THROW(Error::PAGEMAP_MISSING);
-          if (op.vsize() < Align2M::alignment()) THROW(Error::PAGEMAP_MISSING);
+        if (LEVEL >= 2) { // check if the operation is aligned to the complete page, otherwise a pagemap is needed
+          if (op.vaddr() % pageSize(LEVEL) != 0) THROW(Error::PAGEMAP_MISSING); // TODO should be more specific error
+          if (op.vsize() < pageSize(LEVEL)) THROW(Error::PAGEMAP_MISSING);
+        } else if (LEVEL == 1) { // check alignment
+          if (op.vaddr() % pageSize(LEVEL) != 0) THROW(Error::UNALIGNED);
+          if (op.vsize() < pageSize(LEVEL)) THROW(Error::UNALIGNED);
         }
-        auto res = op.applyFrame(table, startIndex+i);
+        auto res = op.applyFrame(table, startIndex+i); // map the frame in over the existing frame
         if (!res) RETHROW(res);
+        op.moveForward(pageSize(LEVEL));
       } else if (!op.skip_nonmapped) { // nothing mapped here but should be
+        // TODO handle 1GiB level 3 pages if supported by the hardware
         if (LEVEL > 2) THROW(Error::PAGEMAP_MISSING); // no pages possible in PML3 & PML4
-        if (LEVEL == 2) { // check if the operation is just on a part of the 2MiB page
-          if (!Align2M::is_aligned(op.vaddr())) THROW(Error::PAGEMAP_MISSING);
-          if (op.vsize() < Align2M::alignment()) THROW(Error::PAGEMAP_MISSING);
+        if (LEVEL == 2 || LEVEL == 3) { // check if the operation is aligned to the complete page, otherwise a pagemap is needed
+          if (op.vaddr() % pageSize(LEVEL) != 0) THROW(Error::PAGEMAP_MISSING);
+          if (op.vsize() < pageSize(LEVEL)) THROW(Error::PAGEMAP_MISSING);
+        } else if (LEVEL == 1) { // check alignment
+          if (op.vaddr() % pageSize(LEVEL) != 0) THROW(Error::UNALIGNED);
+          if (op.vsize() < pageSize(LEVEL)) THROW(Error::UNALIGNED);
         }
-        auto res = op.applyFrame(table, startIndex+i);
+        auto res = op.applyFrame(table, startIndex+i); // map the frame in
         if (!res) RETHROW(res);
+        op.moveForward(pageSize(LEVEL));
+      } else { // nothing was mapped and we shall skip this entry
+        op.moveForward(pageSize(LEVEL) - op.vaddr() % pageSize(LEVEL)); // move to the begin of the next entry
       }
-      // move forward one page, but correct vaddr starting inside the page
-      op.moveForward(pageSize(LEVEL) - op.vaddr() % pageSize(LEVEL));
     }
     RETURN(Error::SUCCESS);
   }
 
   optional<void> PageMap::operateFrame(FrameOp& op, InvocationBuf* msg)
   {
-    if (op.vaddr() / pageSize() != 0
-        || !Align4k::is_aligned(op.vaddr())
-        || !Align4k::is_aligned(op.vsize())) {
+    // abort if the virtual addres lies outsite of the root table
+    if (op.vaddr() / pageSize() >= 512) {
       msg->write<protocol::PageMap::Result>(op.vaddr(), op.vsize(), level());
-      THROW(Error::UNALIGNED);
+      THROW(Error::UNALIGNED); // TODO more specific error
     }
 
     optional<void> res;
@@ -317,13 +312,6 @@ namespace mythos {
     return map->unmapEntry(index);
   }
 
-  template<>
-  optional<void> PageMap::operateTable<1>(PageTableEntry* table, TableOp& op)
-  {
-    size_t index = op.vaddr/pageSize(1) % 512; // the part inside current table
-    return op.applyTable(table2PageMap(table), index);
-  }
-
   template<size_t LEVEL>
   optional<void> PageMap::operateTable(PageTableEntry* table, TableOp& op)
   {
@@ -333,16 +321,16 @@ namespace mythos {
     if (LEVEL == 4 && index >= 128) THROW(Error::REQUEST_DENIED);
     if (op.tgtLevel == LEVEL) { // apply
       RETURN(op.applyTable(table2PageMap(table), index));
-    } else if (pme.present && !pme.page) { // recurse into lower page map
+    } else if (LEVEL > 1 && pme.present && !pme.page) { // recurse into lower page map
       if (!pme.configurable) THROW(Error::PAGEMAP_NOCONF);
-      RETURN(operateTable<LEVEL-1>(phys2kernel<PageTableEntry>(pme.getAddr()), op));
+      RETURN(operateTable<((LEVEL>1)?LEVEL-1:1)>(phys2kernel<PageTableEntry>(pme.getAddr()), op));
     } else THROW(Error::PAGEMAP_MISSING);
   }
 
   optional<void> PageMap::operateTable(TableOp& op, InvocationBuf* msg)
   {
     if (op.tgtLevel<1 || op.tgtLevel>4
-        || op.vaddr / pageSize() != 0 || op.vaddr % pageSize(op.tgtLevel) != 0) {
+        || op.vaddr / pageSize() >= 512 || op.vaddr % pageSize(op.tgtLevel) != 0) {
       msg->write<protocol::PageMap::Result>(op.vaddr, 0u, level());
       THROW(Error::UNALIGNED);
     }
@@ -389,9 +377,9 @@ namespace mythos {
     PageMapData pd(self);
     if (!pd.writable) return Error::REQUEST_DENIED;
     auto data = msg->getMessage()->read<protocol::PageMap::Mmap>();
-    MmapOp op(data.vaddr, data.size, msg->lookupEntry(data.tgtFrame()), data.flags);
+    MmapOp op(data.vaddr, data.size, msg->lookupEntry(data.tgtFrame()), data.flags, data.offset);
     if (!op.frameOp.frame) return op.frameOp.frame.state();
-    if (op.vsize() > op.frameOp.frameInfo.size) return Error::INSUFFICIENT_RESOURCES;
+    if (op.vsize() > op.frameOp.frameInfo.size - data.offset) return Error::INSUFFICIENT_RESOURCES;
     // note: unaligned frames cannot exist by construction
     ASSERT(Align4k::is_aligned(op.frameOp.frameInfo.start.physint()));
     return operateFrame(op, msg->getMessage()).state();

@@ -63,8 +63,8 @@ namespace mythos {
       struct InstallMap : public InvocationBase {
         constexpr static uint16_t label = (proto << 8) + INSTALLMAP;
         InstallMap(CapPtr pagemap, uintptr_t vaddr, size_t level, MapFlags flags)
-	  : InvocationBase(label, getLength(this)), vaddr(vaddr), level(level), flags(flags)
-	{
+        : InvocationBase(label, getLength(this)), vaddr(vaddr), level(level), flags(flags)
+        {
           addExtraCap(pagemap);
         }
         CapPtr pagemap() const { return capPtrs[0]; }
@@ -76,7 +76,7 @@ namespace mythos {
       struct RemoveMap : public InvocationBase {
         constexpr static uint16_t label = (proto << 8) + REMOVEMAP;
         RemoveMap(uintptr_t vaddr, size_t level)
-	  : InvocationBase(label, getLength(this)), vaddr(vaddr), level(level)
+        : InvocationBase(label, getLength(this)), vaddr(vaddr), level(level)
         {}
         uintptr_t vaddr;
         size_t level;
@@ -84,15 +84,16 @@ namespace mythos {
 
       struct Mmap : public InvocationBase {
         constexpr static uint16_t label = (proto << 8) + MAP;
-        Mmap(CapPtr frame, uintptr_t vaddr, size_t size, MapFlags flags)
-	  : InvocationBase(label, getLength(this)), vaddr(vaddr), size(size), flags(flags)
-	{
+        Mmap(CapPtr frame, uintptr_t vaddr, size_t size, MapFlags flags, size_t offset)
+        : InvocationBase(label, getLength(this)), vaddr(vaddr), size(size), flags(flags), offset(offset)
+        {
           addExtraCap(frame);
         }
         CapPtr tgtFrame() const { return capPtrs[0]; }
         uintptr_t vaddr;
-	size_t size;
+        size_t size;
         MapFlags flags;
+        size_t offset;
       };
 
       struct Remap : public InvocationBase {

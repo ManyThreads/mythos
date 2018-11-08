@@ -69,22 +69,23 @@ public: // IPageMap interface
   void print() const override;
 
   struct FrameOp {
-    FrameOp(uintptr_t vaddr, size_t vsize)
-      : start_vaddr(vaddr), start_vsize(vsize), offs(0), level(0), skip_nonmapped(false) {}
+    FrameOp(uintptr_t vaddr, size_t vsize, size_t poffs=0)
+      : start_vaddr(vaddr), start_vsize(vsize), start_poffs(poffs), offs(0), level(0), skip_nonmapped(false) {}
     virtual optional<void> applyFrame(PageTableEntry* table, size_t index) = 0;
-    uintptr_t start_vaddr;
-    size_t start_vsize;
-    size_t offs;
-    size_t level; // for error reporting
+    const uintptr_t start_vaddr;
+    const size_t start_vsize;
+    const size_t start_poffs; //< start offset in the physical range
+    size_t offs; //< current offset in virtual range, advances during the walk
+    size_t level; //< for error reporting
     bool skip_nonmapped;
     uintptr_t vaddr() const { return start_vaddr+offs; }
     size_t vsize() const { return start_vsize-offs; }
-    size_t offset() const { return offs; }
+    size_t offset() const { return start_poffs+offs; }
     void moveForward(size_t pagesize) { offs += pagesize; }
   };
 
   struct MmapOp : public FrameOp {
-    MmapOp(uintptr_t vaddr, size_t vsize, optional<CapEntry*> frameEntry, MapFlags flags);
+    MmapOp(uintptr_t vaddr, size_t vsize, optional<CapEntry*> frameEntry, MapFlags flags, size_t offset);
     optional<void> applyFrame(PageTableEntry* table, size_t index) override;
     IPageMap::FrameOp frameOp;
   };
