@@ -27,6 +27,7 @@ echo installing in $BASEDIR
 
 #git submodule update
 
+mkdir cxx-src
 cd cxx-src
 
 ### download libraries
