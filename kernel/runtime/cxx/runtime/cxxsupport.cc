@@ -58,6 +58,7 @@ extern "C" [[noreturn]] void __assert_fail (const char *expr, const char *file, 
 extern "C" long mythos_musl_syscall(long num, long a1, long a2, long a3,
 	             long a4, long a5, long a6)
 {
+    // see http://blog.rchapman.org/posts/Linux_System_Call_Table_for_x86_64/
     switch (num) {
     case 60: // exit(exit_code)
         asm volatile ("syscall" : : "D"(0), "S"(a1) : "memory");
