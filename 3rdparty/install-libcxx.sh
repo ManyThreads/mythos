@@ -30,48 +30,42 @@ echo installing in $BASEDIR
 cd cxx-src
 
 ### download libraries
-if test ! -d musl ; then
-  ln -s ../musl
-  # printf_chk based on https://www.openwall.com/lists/musl/2015/06/20/5
-fi
+rm -rf musl
+ln -s ../musl
 
-if test ! -d libcxxabi ; then
-  #svn co http://llvm.org/svn/llvm-project/libcxxabi/trunk libcxxabi
-  #git clone https://github.com/llvm-mirror/libcxxabi.git
-  if test ! -e libcxxabi-7.0.0.src.tar.xz ; then  
-    curl -O http://releases.llvm.org/7.0.0/libcxxabi-7.0.0.src.tar.xz || fail
-  fi
-  tar -xJf libcxxabi-7.0.0.src.tar.xz && mv libcxxabi-7.0.0.src libcxxabi || fail
-  cd libcxxabi
-  #patch -p1 < ../../libcxxabi-cmake.patch
-  cd ..
+#svn co http://llvm.org/svn/llvm-project/libcxxabi/trunk libcxxabi
+#git clone https://github.com/llvm-mirror/libcxxabi.git
+if test ! -e libcxxabi-7.0.0.src.tar.xz ; then  
+  curl -O http://releases.llvm.org/7.0.0/libcxxabi-7.0.0.src.tar.xz || fail
 fi
+rm -rf libcxxabi
+tar -xJf libcxxabi-7.0.0.src.tar.xz && mv libcxxabi-7.0.0.src libcxxabi || fail
+#cd libcxxabi
+#patch -p1 < ../../libcxxabi-cmake.patch
+#cd ..
 
-if test ! -d libcxx ; then
-  #git clone https://github.com/llvm-mirror/libcxx.git
-  if test ! -e libcxx-7.0.0.src.tar.xz ; then  
-    curl -O http://releases.llvm.org/7.0.0/libcxx-7.0.0.src.tar.xz || fail
-  fi
-  tar -xJf libcxx-7.0.0.src.tar.xz && mv libcxx-7.0.0.src libcxx || fail
-  cd libcxx
-  patch -p1 < ../../libcxx-nolinux.patch
-  cd ..
+#git clone https://github.com/llvm-mirror/libcxx.git
+if test ! -e libcxx-7.0.0.src.tar.xz ; then  
+  curl -O http://releases.llvm.org/7.0.0/libcxx-7.0.0.src.tar.xz || fail
 fi
+rm -rf libcxx
+tar -xJf libcxx-7.0.0.src.tar.xz && mv libcxx-7.0.0.src libcxx || fail
+cd libcxx
+patch -p1 < ../../libcxx-nolinux.patch
+cd ..
 
-if test ! -d llvm ; then
-  #git clone https://github.com/llvm-mirror/llvm.git
-  if test ! -e libllvm-7.0.0.src.tar.xz ; then  
-    curl -O http://releases.llvm.org/7.0.0/llvm-7.0.0.src.tar.xz || fail
-  fi
-  tar -xJf llvm-7.0.0.src.tar.xz && mv llvm-7.0.0.src llvm || fail
+#git clone https://github.com/llvm-mirror/llvm.git
+if test ! -e llvm-7.0.0.src.tar.xz ; then  
+  curl -O http://releases.llvm.org/7.0.0/llvm-7.0.0.src.tar.xz || fail
 fi
+rm -rf llvm
+tar -xJf llvm-7.0.0.src.tar.xz && mv llvm-7.0.0.src llvm || fail
 
-if test ! -d libunwind ; then
-  if test ! -e libunwind-7.0.0.src.tar.xz ; then  
-    curl -O http://releases.llvm.org/7.0.0/libunwind-7.0.0.src.tar.xz || fail
-  fi
-  tar -xJf libunwind-7.0.0.src.tar.xz && mv libunwind-7.0.0.src libunwind || fail
+if test ! -e libunwind-7.0.0.src.tar.xz ; then  
+  curl -O http://releases.llvm.org/7.0.0/libunwind-7.0.0.src.tar.xz || fail
 fi
+rm -rf libunwind
+tar -xJf libunwind-7.0.0.src.tar.xz && mv libunwind-7.0.0.src libunwind || fail
 
 
 function compile {
@@ -103,6 +97,7 @@ cmake -DCMAKE_INSTALL_PREFIX="$DSTDIR/usr" \
     -DCMAKE_C_COMPILER="$DSTDIR/usr/bin/musl-gcc" \
     -DCMAKE_CXX_COMPILER="$DSTDIR/usr/bin/musl-gcc" \
     -DCMAKE_CXX_FLAGS="-isystem $DSTDIR/usr/include -isystem $DSTDIR/usr/include/c++/v1" \
+    -DCMAKE_BUILD_TYPE=Release \
     -DLIBCXX_SYSROOT="$DSTDIR" \
     -DLIBCXX_ENABLE_SHARED=OFF \
     -DLLVM_PATH="$BASEDIR/cxx-src/llvm" \
