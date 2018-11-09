@@ -52,7 +52,7 @@ namespace mythos {
       Result(InvocationBuf* ib) {
         auto msg = ib->cast<protocol::PageMap::Result>();
         vaddr = msg->vaddr;
-	size = msg->size;
+        size = msg->size;
         level = msg->level;
       }
       uintptr_t vaddr = 0;

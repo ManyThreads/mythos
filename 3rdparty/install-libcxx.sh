@@ -24,10 +24,7 @@ command -v k1om-mpss-linux-g++ >/dev/null 2>&1 && CROSS_K1OM=1
 cd `dirname $0`
 BASEDIR=`pwd`
 echo installing in $BASEDIR
-mkdir -p "$BASEDIR/cxx-src"
-mkdir -p "$DSTDIR"
-mkdir -p "$BASEDIR/cxx-knc"
-
+mkdir cxx-src
 cd cxx-src
 
 ### download libraries
@@ -78,6 +75,8 @@ fi
 
 
 function compile {
+
+mkdir -p "$DSTDIR"
 
 ### build musl libc for amd64
 # don't try parallel builds

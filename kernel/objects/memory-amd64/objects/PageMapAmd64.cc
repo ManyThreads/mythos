@@ -212,33 +212,37 @@ namespace mythos {
   optional<void> PageMap::MprotectOp::applyFrame(PageTableEntry* table, size_t index)
   {
     MLOG_INFO(mlog::cap, "mprotect", DVAR(index), DVARhex(flags.value));
-    PageTableEntry pme = table[index]; // copy the entry for later compare_exchange!
-    ASSERT(pme.page); // otherwise we should not have ended up here
+    PageTableEntry pme = table[index].load(); // atomic load of the entry for later compare_exchange!
+    // no assert here because the table could have been modified since the previous check! 
+    if (!pme.present || !pme.page) RETURN(Error::LOST_RACE);
     auto entry = pme.writeable(flags.writable && pme.configurable)
       //.executeDisabled(!req.executable) // not working on KNC
       .writeThrough(flags.write_through)
       .cacheDisabled(flags.cache_disabled);
-    table[index].replace(pme, entry); // simply ignore lost races
+    if (!table[index].replace(pme, entry)) RETURN(Error::LOST_RACE); // TODO or simply ignore the lost race?
     RETURN(Error::SUCCESS);
   }
 
   template<size_t LEVEL>
   optional<void> PageMap::operateFrame(PageTableEntry* table, FrameOp& op)
   {
-    // calculate the start inside the current table. The %512 is correct for the recursive table walk because 
+    // calculate the start inside the current table. The %num_caps(LEVEL) is correct for the recursive table walk because 
     // we advance page by page. Just the begin of the walk has to check that it actually lies within the root table.
-    size_t startIndex = (op.vaddr()/pageSize(LEVEL)) % 512;
+    size_t startIndex = (op.vaddr()/pageSize(LEVEL)) % num_caps(LEVEL);
     // calculate the number of entries by rounding up the end of the range and then substract the rounded down start.
     size_t numEntries = (op.vaddr()+op.vsize()+pageSize(LEVEL)-1)/pageSize(LEVEL) - op.vaddr()/pageSize(LEVEL);
-    if (numEntries > 512-startIndex) numEntries = 512-startIndex; // correct number if larger than this table
-    if (LEVEL == 4 && startIndex+numEntries-1 >= 128) THROW(Error::REQUEST_DENIED); // never touch the kernel space
+    if (numEntries > num_caps(LEVEL)-startIndex) numEntries = num_caps(LEVEL)-startIndex; // correct number if larger than this table
+    // can't happen after prev line: 
+    // if (LEVEL == 4 && startIndex+numEntries-1 >= num_caps(LEVEL)) THROW(Error::REQUEST_DENIED); // never touch the kernel space
     for (size_t i=0; i < numEntries; i++) {
       op.level = LEVEL;
-      auto pme = table[startIndex+i];
+      auto pme = table[startIndex+i].load(); // atomic copy 
       MLOG_DETAIL(mlog::cap, "operateFrame", DVARhex(op.vaddr()), DVARhex(op.vsize()),
                   DVARhex(op.offset()), DVAR(op.level));
       if (LEVEL > 1 && pme.present && !pme.page) { // recurse into lower page map
         if (!pme.configurable) THROW(Error::PAGEMAP_NOCONF); /// @todo or just skip?
+        // The table pointed to by the pme cannot be deleted concurrently because of the delete synchronisation broadcast.
+        // Thus, we arrive at a valid page table in the recursive call. 
         auto res = operateFrame<((LEVEL>1)?LEVEL-1:1)>(phys2kernel<PageTableEntry>(pme.getAddr()), op); // recursive descent
         if (!res) RETHROW(res);
         // don't do moveForward() because it was done by LEVEL-1
@@ -250,6 +254,7 @@ namespace mythos {
           if (op.vaddr() % pageSize(LEVEL) != 0) THROW(Error::UNALIGNED);
           if (op.vsize() < pageSize(LEVEL)) THROW(Error::UNALIGNED);
         }
+        // the pme checks can become invalid by concurrent modifications but this is checked later again
         auto res = op.applyFrame(table, startIndex+i); // map the frame in over the existing frame
         if (!res) RETHROW(res);
         op.moveForward(pageSize(LEVEL));
@@ -263,6 +268,7 @@ namespace mythos {
           if (op.vaddr() % pageSize(LEVEL) != 0) THROW(Error::UNALIGNED);
           if (op.vsize() < pageSize(LEVEL)) THROW(Error::UNALIGNED);
         }
+        // the pme checks can become invalid by concurrent modifications but this is checked later again
         auto res = op.applyFrame(table, startIndex+i); // map the frame in
         if (!res) RETHROW(res);
         op.moveForward(pageSize(LEVEL));
@@ -276,7 +282,7 @@ namespace mythos {
   optional<void> PageMap::operateFrame(FrameOp& op, InvocationBuf* msg)
   {
     // abort if the virtual addres lies outsite of the root table
-    if (op.vaddr() / pageSize() >= 512) {
+    if (op.vaddr() / pageSize() >= num_caps()) {
       msg->write<protocol::PageMap::Result>(op.vaddr(), op.vsize(), level());
       THROW(Error::UNALIGNED); // TODO more specific error
     }
@@ -315,10 +321,10 @@ namespace mythos {
   template<size_t LEVEL>
   optional<void> PageMap::operateTable(PageTableEntry* table, TableOp& op)
   {
-    size_t index = op.vaddr/pageSize(LEVEL) % 512; // the part inside current table
+    size_t index = op.vaddr/pageSize(LEVEL) % num_caps(LEVEL); // the part inside current table
     op.level = LEVEL;
-    auto pme = table[index];
-    if (LEVEL == 4 && index >= 128) THROW(Error::REQUEST_DENIED);
+    auto pme = table[index].load();
+    if (LEVEL == 4 && index >= num_caps(LEVEL)) THROW(Error::REQUEST_DENIED);
     if (op.tgtLevel == LEVEL) { // apply
       RETURN(op.applyTable(table2PageMap(table), index));
     } else if (LEVEL > 1 && pme.present && !pme.page) { // recurse into lower page map
@@ -330,7 +336,7 @@ namespace mythos {
   optional<void> PageMap::operateTable(TableOp& op, InvocationBuf* msg)
   {
     if (op.tgtLevel<1 || op.tgtLevel>4
-        || op.vaddr / pageSize() >= 512 || op.vaddr % pageSize(op.tgtLevel) != 0) {
+        || op.vaddr / pageSize() >= num_caps() || op.vaddr % pageSize(op.tgtLevel) != 0) {
       msg->write<protocol::PageMap::Result>(op.vaddr, 0u, level());
       THROW(Error::UNALIGNED);
     }

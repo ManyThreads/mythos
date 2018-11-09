@@ -119,13 +119,14 @@ namespace mythos {
   UIntField<value_t, base_t, 52, 10> pmPtr; // MyThOS: table's partial IPageMap* in first 3 entries
   BoolField<value_t, base_t, 63> executeDisabled;
   PageTableEntry() : value(0) {}
-  PageTableEntry(PageTableEntry& v) : value(v.value) {}
+  PageTableEntry(PageTableEntry const& v) : value(v.value) {}
   /// @todo add atomic variant for compare_exchange
   std::atomic<uint64_t> atomic;
   static_assert(sizeof(std::atomic<uint64_t>) == sizeof(uint64_t), "insufficient atomic op");
   void reset() { atomic = PageTableEntry().pmPtr(pmPtr); }
   void set(PageTableEntry v) { atomic = v.value; }
-  bool replace(PageTableEntry oldVal, PageTableEntry newVal) {
+  PageTableEntry load() { return atomic.load(); }
+  bool replace(PageTableEntry& oldVal, PageTableEntry newVal) {
     return atomic.compare_exchange_strong(oldVal.value, newVal.value);
   }
   base_t withAddr(uint64_t a) { return addr(a>>12); }

@@ -184,7 +184,8 @@ private:
   IResult<void>* _deletionSink;
   optional<void> _Obj(IDeleter& del);
 
-  optional<PageTableEntry> _lookup(uintptr_t vaddr, const PageTableEntry* table, size_t level) const;
+  // not used anymore?
+  // optional<PageTableEntry> _lookup(uintptr_t vaddr, const PageTableEntry* table, size_t level) const;
 };
 
   class PageMapFactory : public FactoryBase
