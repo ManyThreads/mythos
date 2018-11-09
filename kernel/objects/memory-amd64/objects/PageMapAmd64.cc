@@ -415,7 +415,7 @@ namespace mythos {
     if (!tableEntry) THROW(Error::INVALID_CAPABILITY);
     InstallMapOp op(vaddr, level, *tableEntry, flags);
     auto res = operateTable(op);
-    *failaddr = op.vaddr;
+    *failaddr = (vaddr/pageSize(op.level))*pageSize(op.level);
     *faillevel = op.level;
     RETHROW(res.state());
   }
