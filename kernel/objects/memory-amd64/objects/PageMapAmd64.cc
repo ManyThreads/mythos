@@ -375,7 +375,7 @@ namespace mythos {
     uintptr_t failaddr; 
     size_t faillevel;
     auto res = this->mapFrame(data.vaddr, data.size, msg->lookupEntry(data.tgtFrame()), data.flags, data.offset, &failaddr, &faillevel);
-    msg->getMessage()->write<protocol::PageMap::Result>(failaddr, 0u, faillevel);
+    msg->getMessage()->write<protocol::PageMap::Result>(failaddr, faillevel);
     return res.state();
   }
 
@@ -393,7 +393,7 @@ namespace mythos {
     auto data = msg->getMessage()->read<protocol::PageMap::Munmap>();
     MunmapOp op(data.vaddr, data.size);
     auto res = operateFrame(op);
-    msg->getMessage()->write<protocol::PageMap::Result>(op.vaddr(), op.vsize(), op.level);
+    msg->getMessage()->write<protocol::PageMap::Result>(op.vaddr(), op.level);
     return res.state();
   }
 
@@ -404,7 +404,7 @@ namespace mythos {
     auto data = msg->getMessage()->read<protocol::PageMap::Mprotect>();
     MprotectOp op(data.vaddr, data.size, data.flags);
     auto res = operateFrame(op);
-    msg->getMessage()->write<protocol::PageMap::Result>(op.vaddr(), op.vsize(), op.level);
+    msg->getMessage()->write<protocol::PageMap::Result>(op.vaddr(), op.level);
     return res.state();
   }
 
@@ -429,7 +429,7 @@ namespace mythos {
     uintptr_t failaddr; 
     size_t faillevel;
     auto res = this->mapTable(data.vaddr, data.level, msg->lookupEntry(data.pagemap()), data.flags, &failaddr, &faillevel);
-    msg->getMessage()->write<protocol::PageMap::Result>(failaddr, 0u, faillevel);
+    msg->getMessage()->write<protocol::PageMap::Result>(failaddr, faillevel);
     return res.state();
   }
 
@@ -440,7 +440,7 @@ namespace mythos {
     auto data = msg->getMessage()->read<protocol::PageMap::RemoveMap>();
     RemoveMapOp op(data.vaddr, data.level);
     auto res = operateTable(op);
-    msg->getMessage()->write<protocol::PageMap::Result>(op.failaddr, 0u, op.level);
+    msg->getMessage()->write<protocol::PageMap::Result>(op.failaddr, op.level);
     return res.state();
   }
 

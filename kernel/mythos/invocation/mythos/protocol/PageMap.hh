@@ -135,11 +135,10 @@ namespace mythos {
 
       struct Result : public InvocationBase {
         constexpr static uint16_t label = (proto << 8) + RESULT;
-        Result(uintptr_t vaddr, size_t size, size_t level)
-	  : InvocationBase(label, getLength(this)), vaddr(vaddr), size(size), level(level)
-	{}
+        Result(uintptr_t vaddr, size_t level)
+          : InvocationBase(label, getLength(this)), vaddr(vaddr), level(level)
+        {}
         uintptr_t vaddr;
-	size_t size;
         size_t level;
       };
 

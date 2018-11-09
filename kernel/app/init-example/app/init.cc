@@ -111,7 +111,7 @@ void test_Portal()
   MLOG_INFO(mlog::app, "test_Portal: map frame");
   auto res3 = myAS.mmap(pl, f, vaddr, 2*1024*1024, 0x1).wait();
   MLOG_INFO(mlog::app, "mmap frame", DVAR(res3.state()),
-            DVARhex(res3->vaddr), DVARhex(res3->size), DVAR(res3->level));
+            DVARhex(res3->vaddr), DVAR(res3->level));
   TEST(res3);
   // bind the portal in order to receive responses
   MLOG_INFO(mlog::app, "test_Portal: configure portal");
@@ -201,7 +201,7 @@ void test_heap() {
   auto res3 = myAS.mmap(pl, f, vaddr, size, 0x1).wait();
   TEST(res3);
   MLOG_INFO(mlog::app, "mmap frame", DVAR(res3.state()),
-            DVARhex(res3->vaddr), DVARhex(res3->size), DVAR(res3->level));
+            DVARhex(res3->vaddr), DVAR(res3->level));
   mythos::heap.addRange(vaddr, size);
   for (int i : {10, 100, 1000, 10000, 100000}) {
     int *a = new int[i];
@@ -269,7 +269,7 @@ int main()
     uintptr_t vaddr = 24*1024*1024;
     auto res2 = myAS.mmap(pl, hostChannelFrame, vaddr, 2*1024*1024, 0x1).wait();
     MLOG_INFO(mlog::app, "mmap hostChannel frame", DVAR(res2.state()),
-              DVARhex(res2.get().vaddr), DVARhex(res2.get().size), DVAR(res2.get().level));
+              DVARhex(res2.get().vaddr), DVAR(res2.get().level));
     TEST(res2);
 
     // initialise the memory
