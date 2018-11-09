@@ -111,9 +111,10 @@ public: // IPageMap interface
 
   struct TableOp {
     TableOp(uintptr_t vaddr, size_t tgtLevel)
-      : vaddr(vaddr), tgtLevel(tgtLevel), level(0) {}
+      : vaddr(vaddr), failaddr(0), tgtLevel(tgtLevel), level(0) {}
     virtual optional<void> applyTable(IPageMap* map, size_t index) = 0;
     uintptr_t vaddr;
+    uintptr_t failaddr; // for error reporting
     size_t tgtLevel;
     size_t level; // for error reporting
   };

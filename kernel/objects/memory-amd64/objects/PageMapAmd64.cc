@@ -308,6 +308,7 @@ namespace mythos {
   {
     size_t index = op.vaddr/pageSize(LEVEL) % num_caps(LEVEL); // the part inside current table
     op.level = LEVEL;
+    op.failaddr = (op.vaddr/pageSize(LEVEL))*pageSize(LEVEL);
     auto pme = table[index].load();
     if (LEVEL == 4 && index >= num_caps(LEVEL)) THROW(Error::REQUEST_DENIED);
     if (op.tgtLevel == LEVEL) { // apply
@@ -415,7 +416,7 @@ namespace mythos {
     if (!tableEntry) THROW(Error::INVALID_CAPABILITY);
     InstallMapOp op(vaddr, level, *tableEntry, flags);
     auto res = operateTable(op);
-    *failaddr = (vaddr/pageSize(op.level))*pageSize(op.level);
+    *failaddr = op.failaddr;
     *faillevel = op.level;
     RETHROW(res.state());
   }
@@ -439,7 +440,7 @@ namespace mythos {
     auto data = msg->getMessage()->read<protocol::PageMap::RemoveMap>();
     RemoveMapOp op(data.vaddr, data.level);
     auto res = operateTable(op);
-    msg->getMessage()->write<protocol::PageMap::Result>(op.vaddr, 0u, op.level);
+    msg->getMessage()->write<protocol::PageMap::Result>(op.failaddr, 0u, op.level);
     return res.state();
   }
 
