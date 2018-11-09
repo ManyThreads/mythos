@@ -68,6 +68,11 @@ public: // IPageMap interface
 
   void print() const override;
 
+  virtual optional<void> mapFrame(uintptr_t vaddr, size_t size, optional<CapEntry*> frameEntry, MapFlags flags, uintptr_t offset, 
+                                   uintptr_t* failaddr, size_t* faillevel); 
+  virtual optional<void> mapTable(uintptr_t vaddr, size_t level, optional<CapEntry*> tableEntry, MapFlags flags,
+                                    uintptr_t* failaddr, size_t* faillevel);
+
   struct FrameOp {
     FrameOp(uintptr_t vaddr, size_t vsize, size_t poffs=0)
       : start_vaddr(vaddr), start_vsize(vsize), start_poffs(poffs), offs(0), level(0), skip_nonmapped(false) {}
@@ -129,14 +134,14 @@ public: // IPageMap interface
 
   template<size_t LEVEL>
   static optional<void> operateFrame(PageTableEntry* table, FrameOp& op);
-  optional<void> operateFrame(FrameOp& op, InvocationBuf* msg);
+  optional<void> operateFrame(FrameOp& op);
 
   optional<void> mapFrame(size_t index, IPageMap::FrameOp const& op, size_t offset) override;
   optional<void> unmapEntry(size_t index) override;
 
   template<size_t LEVEL>
   static optional<void> operateTable(PageTableEntry* table, TableOp& op);
-  optional<void> operateTable(TableOp& op, InvocationBuf* msg);
+  optional<void> operateTable(TableOp& op);
 
   optional<void> mapTable(CapEntry* table, MapFlags req, size_t index) override;
 

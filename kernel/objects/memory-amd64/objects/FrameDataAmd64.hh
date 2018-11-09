@@ -115,7 +115,7 @@ namespace mythos {
   BoolField<value_t, base_t, 8> global;
   BoolField<value_t, base_t, 12> pat2; // only for mapped 2MiB and 1GiB pages
   UIntField<value_t, base_t, 12, (MAXPHYADDR - 12)> addr;
-  BoolField<value_t, base_t, 8> configurable; // MyThOS: can modify the mapped table (not page)
+  BoolField<value_t, base_t, 8> configurable; // MyThOS page table: can modify the mapped table, MYTHOS page: has write access rights
   UIntField<value_t, base_t, 52, 10> pmPtr; // MyThOS: table's partial IPageMap* in first 3 entries
   BoolField<value_t, base_t, 63> executeDisabled;
   PageTableEntry() : value(0) {}

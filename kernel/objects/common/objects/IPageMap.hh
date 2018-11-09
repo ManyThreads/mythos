@@ -55,9 +55,10 @@ namespace mythos {
     // for testing
     virtual void print() const = 0;
 
-    // would need an inverted optional<size_t> because
-    // mmap(vaddr, size, framecap, offset, flags) -> (retval,failoffset,faillevel)
-    // mapTable(vaddr, tablecap, flags) -> (retval, failvaddr?, faillevel)
+    virtual optional<void> mapFrame(uintptr_t vaddr, size_t size, optional<CapEntry*> frameEntry, MapFlags flags, uintptr_t offset, 
+                                   uintptr_t* failaddr, size_t* faillevel) = 0; 
+    virtual optional<void> mapTable(uintptr_t vaddr, size_t level, optional<CapEntry*> tableEntry, MapFlags flags,
+                                    uintptr_t* failaddr, size_t* faillevel) = 0;
     
     struct FrameOp {
       MapFlags flags;
