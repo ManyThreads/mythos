@@ -148,31 +148,25 @@ namespace mythos {
     return PageMapData(self).mint(self, PageMapReq(request));
   }
 
-  PageMap::MmapOp::MmapOp(uintptr_t vaddr, size_t vsize,
-                          optional<CapEntry*> frameEntry, MapFlags flags, size_t offset)
-    : FrameOp(vaddr, vsize, offset)
+  optional<void> PageMap::MapFrameVisitor::applyPage(PageTableEntry* table, size_t index)
   {
-    frameOp.flags = flags;
-    frameOp.frame = TypedCap<IFrame>(frameEntry);
-    if (frameEntry) frameOp.frameEntry = *frameEntry;
-    if (frameOp.frame) frameOp.frameInfo = frameOp.frame.getFrameInfo();
+    return table2PageMap(table)->mapFrame(index, frameEntry, flags, offset());
   }
 
-  optional<void> PageMap::MmapOp::applyFrame(PageTableEntry* table, size_t index)
+  optional<void> PageMap::mapFrame(size_t index, CapEntry* frameEntry, MapFlags flags, size_t offset)
   {
-    return table2PageMap(table)->mapFrame(index, frameOp, offset());
-  }
-
-  optional<void> PageMap::mapFrame(size_t index, IPageMap::FrameOp const& op, size_t offset)
-  {
-    MLOG_INFO(mlog::cap, "mapFrame", DVAR(level()), DVAR(op.frame.cap()), DVAR(index), DVAR(offset),
-                  DVARhex(op.frameInfo.start.physint()), DVARhex(op.frameInfo.size));
-    ASSERT(op.frame);
+    TypedCap<IFrame> frame(frameEntry);
+    if (!frame) RETHROW(frame);
+    IFrame::Info frameInfo;
+    if (frame) frameInfo = frame.getFrameInfo(); 
+   
+    MLOG_INFO(mlog::cap, "mapFrame", DVAR(level()), DVAR(frame.cap()), DVAR(index), DVAR(offset),
+                  DVARhex(frameInfo.start.physint()), DVARhex(frameInfo.size));
     ASSERT(index < num_caps());
     // check sizes and alignment
-    uintptr_t frameaddr = op.frameInfo.start.physint() + offset;
+    uintptr_t frameaddr = frameInfo.start.physint() + offset;
     if (frameaddr % pageSize() != 0) THROW(Error::PAGEMAP_MISSING);
-    if (offset + pageSize() > op.frameInfo.size) THROW(Error::INSUFFICIENT_RESOURCES);
+    if (offset + pageSize() > frameInfo.size) THROW(Error::INSUFFICIENT_RESOURCES);
     MLOG_DETAIL(mlog::cap, "mapFrame checks done");
 
     // build entry: page flag only valid on PML2 and higher
@@ -180,22 +174,22 @@ namespace mythos {
     /// @todo what about write_combine? (PAT/PAT2)
     auto pme = &_pm_table(index);
     auto entry = PageTableEntry().present(true).userMode(true).page(level() > 1)
-      .writeable(op.flags.writable && op.frameInfo.writable)
+      .writeable(flags.writable && frameInfo.writable)
       //.executeDisabled(!req.executable) // not working on KNC
-      .writeThrough(op.flags.write_through)
-      .cacheDisabled(op.flags.cache_disabled)
+      .writeThrough(flags.write_through)
+      .cacheDisabled(flags.cache_disabled)
       .withAddr(frameaddr)
-      .configurable(op.frameInfo.writable)
+      .configurable(frameInfo.writable)
       .pmPtr(pme->pmPtr);
-    auto newCap = PageMapData::mapFrame(this, op.frame.cap(), op.frameInfo, index);
+    auto newCap = PageMapData::mapFrame(this, frame.cap(), frameInfo, index);
 
     // inherit
     cap::resetReference([=]{ pme->reset(); }, _cap_table(index));
     return cap::setReference([=,&entry]{ pme->set(entry); },
-                            _cap_table(index), newCap, *op.frameEntry, op.frame.cap());
+                            _cap_table(index), newCap, *frameEntry, frame.cap());
   }
 
-  optional<void> PageMap::MunmapOp::applyFrame(PageTableEntry* table, size_t index)
+  optional<void> PageMap::UnmapFrameVisitor::applyPage(PageTableEntry* table, size_t index)
   {
     return table2PageMap(table)->unmapEntry(index);
   }
@@ -209,7 +203,7 @@ namespace mythos {
     RETURN(Error::SUCCESS);
   }
 
-  optional<void> PageMap::MprotectOp::applyFrame(PageTableEntry* table, size_t index)
+  optional<void> PageMap::ProtectPageVisitor::applyPage(PageTableEntry* table, size_t index)
   {
     MLOG_INFO(mlog::cap, "mprotect", DVAR(index), DVARhex(flags.value));
     PageTableEntry pme = table[index].load(); // atomic load of the entry for later compare_exchange!
@@ -223,39 +217,38 @@ namespace mythos {
     RETURN(Error::SUCCESS);
   }
 
-  template<size_t LEVEL>
-  optional<void> PageMap::operateFrame(PageTableEntry* table, FrameOp& op)
+  optional<void> PageMap::visitPages(PageTableEntry* table, size_t LEVEL, PageOp& op)
   {
     // calculate the start inside the current table. The %num_caps(LEVEL) is correct for the recursive table walk because 
     // we advance page by page. Just the begin of the walk has to check that it actually lies within the root table.
     size_t startIndex = (op.vaddr()/pageSize(LEVEL)) % num_caps(LEVEL);
     // calculate the number of entries by rounding up the end of the range and then substract the rounded down start.
-    size_t numEntries = (op.vaddr()+op.vsize()+pageSize(LEVEL)-1)/pageSize(LEVEL) - op.vaddr()/pageSize(LEVEL);
+    size_t numEntries = (op.vaddr()+op.sizeRemaining()+pageSize(LEVEL)-1)/pageSize(LEVEL) - op.vaddr()/pageSize(LEVEL);
     if (numEntries > num_caps(LEVEL)-startIndex) numEntries = num_caps(LEVEL)-startIndex; // correct number if larger than this table
     // can't happen after prev line: 
     // if (LEVEL == 4 && startIndex+numEntries-1 >= num_caps(LEVEL)) THROW(Error::REQUEST_DENIED); // never touch the kernel space
     for (size_t i=0; i < numEntries; i++) {
-      op.level = LEVEL;
+      op.current_level = LEVEL;
       auto pme = table[startIndex+i].load(); // atomic copy 
-      MLOG_DETAIL(mlog::cap, "operateFrame", DVARhex(op.vaddr()), DVARhex(op.vsize()),
-                  DVARhex(op.offset()), DVAR(op.level));
+      MLOG_DETAIL(mlog::cap, "operateFrame", DVARhex(op.vaddr()), DVARhex(op.sizeRemaining()),
+                  DVARhex(op.offset()), DVAR(op.current_level));
       if (LEVEL > 1 && pme.present && !pme.page) { // recurse into lower page map
         if (!pme.configurable) THROW(Error::PAGEMAP_NOCONF); /// @todo or just skip?
         // The table pointed to by the pme cannot be deleted concurrently because of the delete synchronisation broadcast.
         // Thus, we arrive at a valid page table in the recursive call. 
-        auto res = operateFrame<((LEVEL>1)?LEVEL-1:1)>(phys2kernel<PageTableEntry>(pme.getAddr()), op); // recursive descent
+        auto res = visitPages(phys2kernel<PageTableEntry>(pme.getAddr()), LEVEL-1, op); // recursive descent
         if (!res) RETHROW(res);
         // don't do moveForward() because it was done by LEVEL-1
       } else if (pme.present && pme.page) { // apply frame operator on mapped page
         if (LEVEL >= 2) { // check if the operation is aligned to the complete page, otherwise a pagemap is needed
           if (op.vaddr() % pageSize(LEVEL) != 0) THROW(Error::PAGEMAP_MISSING); // TODO should be more specific error
-          if (op.vsize() < pageSize(LEVEL)) THROW(Error::PAGEMAP_MISSING);
+          if (op.sizeRemaining() < pageSize(LEVEL)) THROW(Error::PAGEMAP_MISSING);
         } else if (LEVEL == 1) { // check alignment
           if (op.vaddr() % pageSize(LEVEL) != 0) THROW(Error::UNALIGNED);
-          if (op.vsize() < pageSize(LEVEL)) THROW(Error::UNALIGNED);
+          if (op.sizeRemaining() < pageSize(LEVEL)) THROW(Error::UNALIGNED);
         }
         // the pme checks can become invalid by concurrent modifications but this is checked later again
-        auto res = op.applyFrame(table, startIndex+i); // map the frame in over the existing frame
+        auto res = op.applyPage(table, startIndex+i); // map the frame in over the existing frame
         if (!res) RETHROW(res);
         op.moveForward(pageSize(LEVEL));
       } else if (!op.skip_nonmapped) { // nothing mapped here but should be
@@ -263,13 +256,13 @@ namespace mythos {
         if (LEVEL > 2) THROW(Error::PAGEMAP_MISSING); // no pages possible in PML3 & PML4
         if (LEVEL == 2 || LEVEL == 3) { // check if the operation is aligned to the complete page, otherwise a pagemap is needed
           if (op.vaddr() % pageSize(LEVEL) != 0) THROW(Error::PAGEMAP_MISSING);
-          if (op.vsize() < pageSize(LEVEL)) THROW(Error::PAGEMAP_MISSING);
+          if (op.sizeRemaining() < pageSize(LEVEL)) THROW(Error::PAGEMAP_MISSING);
         } else if (LEVEL == 1) { // check alignment
           if (op.vaddr() % pageSize(LEVEL) != 0) THROW(Error::UNALIGNED);
-          if (op.vsize() < pageSize(LEVEL)) THROW(Error::UNALIGNED);
+          if (op.sizeRemaining() < pageSize(LEVEL)) THROW(Error::UNALIGNED);
         }
         // the pme checks can become invalid by concurrent modifications but this is checked later again
-        auto res = op.applyFrame(table, startIndex+i); // map the frame in
+        auto res = op.applyPage(table, startIndex+i); // map the frame in
         if (!res) RETHROW(res);
         op.moveForward(pageSize(LEVEL));
       } else { // nothing was mapped and we shall skip this entry
@@ -279,60 +272,45 @@ namespace mythos {
     RETURN(Error::SUCCESS);
   }
 
-  optional<void> PageMap::operateFrame(FrameOp& op)
+  optional<void> PageMap::visitPages(PageOp& op)
   {
     // abort if the virtual address lies outsite of the root table
     if (op.vaddr() / pageSize() >= num_caps()) THROW(Error::UNALIGNED); // TODO more specific error
-    switch (level()) {
-    case 1: RETURN(operateFrame<1>(&_pm_table(0), op));
-    case 2: RETURN(operateFrame<2>(&_pm_table(0), op));
-    case 3: RETURN(operateFrame<3>(&_pm_table(0), op));
-    case 4: RETURN(operateFrame<4>(&_pm_table(0), op));
-    default: break;
-    }
-    THROW(Error::UNSET);
+    RETURN(visitPages(&_pm_table(0), level(), op));
   }
 
-  optional<void> PageMap::InstallMapOp::applyTable(IPageMap* map, size_t index)
+  optional<void> PageMap::MapTableVisitor::applyTable(IPageMap* map, size_t index)
   {
     return map->mapTable(mapEntry, flags, index);
   }
 
-  optional<void> PageMap::RemoveMapOp::applyTable(IPageMap* map, size_t index)
+  optional<void> PageMap::UnmapTableVisitor::applyTable(IPageMap* map, size_t index)
   {
     return map->unmapEntry(index);
   }
 
-  template<size_t LEVEL>
-  optional<void> PageMap::operateTable(PageTableEntry* table, TableOp& op)
+  optional<void> PageMap::visitTables(PageTableEntry* table, size_t LEVEL, TableOp& op)
   {
     size_t index = op.vaddr/pageSize(LEVEL) % num_caps(LEVEL); // the part inside current table
-    op.level = LEVEL;
+    op.current_level = LEVEL;
     op.failaddr = (op.vaddr/pageSize(LEVEL))*pageSize(LEVEL);
     auto pme = table[index].load();
     if (LEVEL == 4 && index >= num_caps(LEVEL)) THROW(Error::REQUEST_DENIED);
-    if (op.tgtLevel == LEVEL) { // apply
+    if (op.target_level == LEVEL) { // apply
       RETURN(op.applyTable(table2PageMap(table), index));
     } else if (LEVEL > 1 && pme.present && !pme.page) { // recurse into lower page map
       if (!pme.configurable) THROW(Error::PAGEMAP_NOCONF);
-      RETURN(operateTable<((LEVEL>1)?LEVEL-1:1)>(phys2kernel<PageTableEntry>(pme.getAddr()), op));
+      RETURN(visitTables(phys2kernel<PageTableEntry>(pme.getAddr()), LEVEL-1, op));
     } else THROW(Error::PAGEMAP_MISSING);
   }
 
-  optional<void> PageMap::operateTable(TableOp& op)
+  optional<void> PageMap::visitTables(TableOp& op)
   {
     // abort if the virtual address lies outsite of the root table
-    if (op.tgtLevel<1 || op.tgtLevel>4
+    if (op.target_level<1 || op.target_level>4
         || op.vaddr / pageSize() >= num_caps()
-        || op.vaddr % pageSize(op.tgtLevel) != 0) THROW(Error::UNALIGNED);
-    switch (level()) {
-    case 1: RETURN(operateTable<1>(&_pm_table(0), op));
-    case 2: RETURN(operateTable<2>(&_pm_table(0), op));
-    case 3: RETURN(operateTable<3>(&_pm_table(0), op));
-    case 4: RETURN(operateTable<4>(&_pm_table(0), op));
-    default: break;
-    }
-    THROW(Error::UNSET);
+        || op.vaddr % pageSize(op.target_level) != 0) THROW(Error::UNALIGNED);
+    RETURN(visitTables(&_pm_table(0), level(), op));
   }
 
   void PageMap::invoke(Tasklet* t, Cap self, IInvocation* msg)
@@ -351,19 +329,16 @@ namespace mythos {
       } );
   }
 
-  optional<void> PageMap::mapFrame(uintptr_t vaddr, size_t size, optional<CapEntry*> frameEntry, MapFlags flags, uintptr_t offset, 
+  optional<void> PageMap::mapFrame(uintptr_t vaddr, size_t size, CapEntry* frameEntry, MapFlags flags, uintptr_t offset, 
                                    uintptr_t* failaddr, size_t* faillevel)
   {
     *failaddr = 0;
     *faillevel = 0;
-    MmapOp op(vaddr, size, frameEntry, flags, offset);
-    if (!op.frameOp.frame) RETHROW(op.frameOp.frame.state());
-    if (op.vsize() + offset > op.frameOp.frameInfo.size) THROW(Error::INSUFFICIENT_RESOURCES);
-    // note: unaligned frames cannot exist by construction
-    ASSERT(Align4k::is_aligned(op.frameOp.frameInfo.start.physint()));
-    auto res = operateFrame(op);
+    MapFrameVisitor op(vaddr, size, frameEntry, flags, offset);
+    if (!op.frame) RETHROW(op.frame.state());
+    auto res = visitPages(op);
     *failaddr = op.vaddr();
-    *faillevel = op.level;
+    *faillevel = op.current_level;
     RETHROW(res.state());
   }
 
@@ -374,7 +349,9 @@ namespace mythos {
     auto data = msg->getMessage()->read<protocol::PageMap::Mmap>();
     uintptr_t failaddr; 
     size_t faillevel;
-    auto res = this->mapFrame(data.vaddr, data.size, msg->lookupEntry(data.tgtFrame()), data.flags, data.offset, &failaddr, &faillevel);
+    auto frameEntry = msg->lookupEntry(data.tgtFrame());
+    if (!frameEntry) return Error::INVALID_CAPABILITY;
+    auto res = this->mapFrame(data.vaddr, data.size, *frameEntry, data.flags, data.offset, &failaddr, &faillevel);
     msg->getMessage()->write<protocol::PageMap::Result>(failaddr, faillevel);
     return res.state();
   }
@@ -391,9 +368,9 @@ namespace mythos {
     PageMapData pd(self);
     if (!pd.writable) return Error::REQUEST_DENIED;
     auto data = msg->getMessage()->read<protocol::PageMap::Munmap>();
-    MunmapOp op(data.vaddr, data.size);
-    auto res = operateFrame(op);
-    msg->getMessage()->write<protocol::PageMap::Result>(op.vaddr(), op.level);
+    UnmapFrameVisitor op(data.vaddr, data.size);
+    auto res = visitPages(op);
+    msg->getMessage()->write<protocol::PageMap::Result>(op.vaddr(), op.current_level);
     return res.state();
   }
 
@@ -402,22 +379,21 @@ namespace mythos {
     PageMapData pd(self);
     if (!pd.writable) return Error::REQUEST_DENIED;
     auto data = msg->getMessage()->read<protocol::PageMap::Mprotect>();
-    MprotectOp op(data.vaddr, data.size, data.flags);
-    auto res = operateFrame(op);
-    msg->getMessage()->write<protocol::PageMap::Result>(op.vaddr(), op.level);
+    ProtectPageVisitor op(data.vaddr, data.size, data.flags);
+    auto res = visitPages(op);
+    msg->getMessage()->write<protocol::PageMap::Result>(op.vaddr(), op.current_level);
     return res.state();
   }
 
-  optional<void> PageMap::mapTable(uintptr_t vaddr, size_t level, optional<CapEntry*> tableEntry, MapFlags flags,
+  optional<void> PageMap::mapTable(uintptr_t vaddr, size_t level, CapEntry* tableEntry, MapFlags flags,
                                     uintptr_t* failaddr, size_t* faillevel)
   {
     *failaddr = 0;
     *faillevel = 0;
-    if (!tableEntry) THROW(Error::INVALID_CAPABILITY);
-    InstallMapOp op(vaddr, level, *tableEntry, flags);
-    auto res = operateTable(op);
+    MapTableVisitor op(vaddr, level, tableEntry, flags);
+    auto res = visitTables(op);
     *failaddr = op.failaddr;
-    *faillevel = op.level;
+    *faillevel = op.current_level;
     RETHROW(res.state());
   }
 
@@ -428,7 +404,9 @@ namespace mythos {
     auto data = msg->getMessage()->read<protocol::PageMap::InstallMap>();
     uintptr_t failaddr; 
     size_t faillevel;
-    auto res = this->mapTable(data.vaddr, data.level, msg->lookupEntry(data.pagemap()), data.flags, &failaddr, &faillevel);
+    auto tableEntry = msg->lookupEntry(data.pagemap());
+    if (!tableEntry) return Error::INVALID_CAPABILITY;
+    auto res = this->mapTable(data.vaddr, data.level, *tableEntry, data.flags, &failaddr, &faillevel);
     msg->getMessage()->write<protocol::PageMap::Result>(failaddr, faillevel);
     return res.state();
   }
@@ -438,9 +416,9 @@ namespace mythos {
     PageMapData pd(self);
     if (!pd.writable) return Error::REQUEST_DENIED;
     auto data = msg->getMessage()->read<protocol::PageMap::RemoveMap>();
-    RemoveMapOp op(data.vaddr, data.level);
-    auto res = operateTable(op);
-    msg->getMessage()->write<protocol::PageMap::Result>(op.failaddr, op.level);
+    UnmapTableVisitor op(data.vaddr, data.level);
+    auto res = visitTables(op);
+    msg->getMessage()->write<protocol::PageMap::Result>(op.failaddr, op.current_level);
     return res.state();
   }
 
