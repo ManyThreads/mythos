@@ -148,10 +148,6 @@ namespace mythos {
     return PageMapData(self).mint(self, PageMapReq(request));
   }
 
-  optional<void> PageMap::MapFrameVisitor::applyPage(PageTableEntry* table, size_t index)
-  {
-    return table2PageMap(table)->mapFrame(index, frameEntry, flags, offset());
-  }
 
   optional<void> PageMap::mapFrame(size_t index, CapEntry* frameEntry, MapFlags flags, size_t offset)
   {
@@ -189,11 +185,6 @@ namespace mythos {
                             _cap_table(index), newCap, *frameEntry, frame.cap());
   }
 
-  optional<void> PageMap::UnmapFrameVisitor::applyPage(PageTableEntry* table, size_t index)
-  {
-    return table2PageMap(table)->unmapEntry(index);
-  }
-
   optional<void> PageMap::unmapEntry(size_t index)
   {
     MLOG_INFO(mlog::cap, "unmapEntry", DVAR(level()), DVAR(index));
@@ -219,14 +210,12 @@ namespace mythos {
 
   optional<void> PageMap::visitPages(PageTableEntry* table, size_t LEVEL, PageOp& op)
   {
-    // calculate the start inside the current table. The %num_caps(LEVEL) is correct for the recursive table walk because 
-    // we advance page by page. Just the begin of the walk has to check that it actually lies within the root table.
-    size_t startIndex = (op.vaddr()/pageSize(LEVEL)) % num_caps(LEVEL);
+    size_t tableStart = op.table_vaddr;
+    size_t startIndex = (op.vaddr()-op.table_vaddr)/pageSize(LEVEL);
+    if (startIndex >= num_caps(LEVEL)) THROW(Error::REQUEST_DENIED);
     // calculate the number of entries by rounding up the end of the range and then substract the rounded down start.
     size_t numEntries = (op.vaddr()+op.sizeRemaining()+pageSize(LEVEL)-1)/pageSize(LEVEL) - op.vaddr()/pageSize(LEVEL);
-    if (numEntries > num_caps(LEVEL)-startIndex) numEntries = num_caps(LEVEL)-startIndex; // correct number if larger than this table
-    // can't happen after prev line: 
-    // if (LEVEL == 4 && startIndex+numEntries-1 >= num_caps(LEVEL)) THROW(Error::REQUEST_DENIED); // never touch the kernel space
+    if (numEntries > num_caps(LEVEL)-startIndex) numEntries = num_caps(LEVEL)-startIndex; // restrict range to this table
     for (size_t i=0; i < numEntries; i++) {
       op.current_level = LEVEL;
       auto pme = table[startIndex+i].load(); // atomic copy 
@@ -235,7 +224,8 @@ namespace mythos {
       if (LEVEL > 1 && pme.present && !pme.page) { // recurse into lower page map
         if (!pme.configurable) THROW(Error::PAGEMAP_NOCONF); /// @todo or just skip?
         // The table pointed to by the pme cannot be deleted concurrently because of the delete synchronisation broadcast.
-        // Thus, we arrive at a valid page table in the recursive call. 
+        // Thus, we arrive at a valid page table in the recursive call.
+        op.table_vaddr = tableStart + (startIndex+i)*pageSize(LEVEL);
         auto res = visitPages(phys2kernel<PageTableEntry>(pme.getAddr()), LEVEL-1, op); // recursive descent
         if (!res) RETHROW(res);
         // don't do moveForward() because it was done by LEVEL-1
@@ -272,45 +262,22 @@ namespace mythos {
     RETURN(Error::SUCCESS);
   }
 
-  optional<void> PageMap::visitPages(PageOp& op)
-  {
-    // abort if the virtual address lies outsite of the root table
-    if (op.vaddr() / pageSize() >= num_caps()) THROW(Error::UNALIGNED); // TODO more specific error
-    RETURN(visitPages(&_pm_table(0), level(), op));
-  }
-
-  optional<void> PageMap::MapTableVisitor::applyTable(IPageMap* map, size_t index)
-  {
-    return map->mapTable(mapEntry, flags, index);
-  }
-
-  optional<void> PageMap::UnmapTableVisitor::applyTable(IPageMap* map, size_t index)
-  {
-    return map->unmapEntry(index);
-  }
 
   optional<void> PageMap::visitTables(PageTableEntry* table, size_t LEVEL, TableOp& op)
   {
-    size_t index = op.vaddr/pageSize(LEVEL) % num_caps(LEVEL); // the part inside current table
+    size_t tableStart = op.table_vaddr;
+    size_t index = (op.vaddr-op.table_vaddr)/pageSize(LEVEL);
     op.current_level = LEVEL;
     op.failaddr = (op.vaddr/pageSize(LEVEL))*pageSize(LEVEL);
+    if (index >= num_caps(LEVEL)) THROW(Error::REQUEST_DENIED);
     auto pme = table[index].load();
-    if (LEVEL == 4 && index >= num_caps(LEVEL)) THROW(Error::REQUEST_DENIED);
     if (op.target_level == LEVEL) { // apply
       RETURN(op.applyTable(table2PageMap(table), index));
     } else if (LEVEL > 1 && pme.present && !pme.page) { // recurse into lower page map
       if (!pme.configurable) THROW(Error::PAGEMAP_NOCONF);
+      op.table_vaddr = tableStart + index*pageSize(LEVEL);
       RETURN(visitTables(phys2kernel<PageTableEntry>(pme.getAddr()), LEVEL-1, op));
     } else THROW(Error::PAGEMAP_MISSING);
-  }
-
-  optional<void> PageMap::visitTables(TableOp& op)
-  {
-    // abort if the virtual address lies outsite of the root table
-    if (op.target_level<1 || op.target_level>4
-        || op.vaddr / pageSize() >= num_caps()
-        || op.vaddr % pageSize(op.target_level) != 0) THROW(Error::UNALIGNED);
-    RETURN(visitTables(&_pm_table(0), level(), op));
   }
 
   void PageMap::invoke(Tasklet* t, Cap self, IInvocation* msg)
@@ -336,7 +303,7 @@ namespace mythos {
     *faillevel = 0;
     MapFrameVisitor op(vaddr, size, frameEntry, flags, offset);
     if (!op.frame) RETHROW(op.frame.state());
-    auto res = visitPages(op);
+    auto res = visitPages(&_pm_table(0), level(), op);
     *failaddr = op.vaddr();
     *faillevel = op.current_level;
     RETHROW(res.state());
@@ -369,7 +336,7 @@ namespace mythos {
     if (!pd.writable) return Error::REQUEST_DENIED;
     auto data = msg->getMessage()->read<protocol::PageMap::Munmap>();
     UnmapFrameVisitor op(data.vaddr, data.size);
-    auto res = visitPages(op);
+    auto res = visitPages(&_pm_table(0), level(), op);
     msg->getMessage()->write<protocol::PageMap::Result>(op.vaddr(), op.current_level);
     return res.state();
   }
@@ -380,18 +347,19 @@ namespace mythos {
     if (!pd.writable) return Error::REQUEST_DENIED;
     auto data = msg->getMessage()->read<protocol::PageMap::Mprotect>();
     ProtectPageVisitor op(data.vaddr, data.size, data.flags);
-    auto res = visitPages(op);
+    auto res = visitPages(&_pm_table(0), level(), op);
     msg->getMessage()->write<protocol::PageMap::Result>(op.vaddr(), op.current_level);
     return res.state();
   }
 
-  optional<void> PageMap::mapTable(uintptr_t vaddr, size_t level, CapEntry* tableEntry, MapFlags flags,
+  optional<void> PageMap::mapTable(uintptr_t vaddr, size_t target_level, CapEntry* tableEntry, MapFlags flags,
                                     uintptr_t* failaddr, size_t* faillevel)
   {
     *failaddr = 0;
     *faillevel = 0;
-    MapTableVisitor op(vaddr, level, tableEntry, flags);
-    auto res = visitTables(op);
+    MapTableVisitor op(vaddr, target_level, tableEntry, flags);
+    if (op.target_level<1 || op.target_level>4 || op.vaddr % pageSize(op.target_level) != 0) THROW(Error::UNALIGNED);
+    auto res = visitTables(&_pm_table(0), level(), op);
     *failaddr = op.failaddr;
     *faillevel = op.current_level;
     RETHROW(res.state());
@@ -417,7 +385,11 @@ namespace mythos {
     if (!pd.writable) return Error::REQUEST_DENIED;
     auto data = msg->getMessage()->read<protocol::PageMap::RemoveMap>();
     UnmapTableVisitor op(data.vaddr, data.level);
-    auto res = visitTables(op);
+    if (op.target_level<1 || op.target_level>4 || op.vaddr % pageSize(op.target_level) != 0) {
+      msg->getMessage()->write<protocol::PageMap::Result>(op.failaddr, op.current_level);
+      return Error::UNALIGNED;
+    }
+    auto res = visitTables(&_pm_table(0), level(), op);
     msg->getMessage()->write<protocol::PageMap::Result>(op.failaddr, op.current_level);
     return res.state();
   }
