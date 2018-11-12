@@ -55,14 +55,12 @@ namespace mythos {
     // for testing
     virtual void print() const = 0;
 
-    struct FrameOp {
-      MapFlags flags;
-      CapEntry* frameEntry;
-      TypedCap<IFrame> frame;
-      IFrame::Info frameInfo;
-    };
-
-    virtual optional<void> mapFrame(size_t index, FrameOp const& op, size_t offset) = 0;
+    virtual optional<void> mapFrame(uintptr_t vaddr, size_t size, CapEntry* frameEntry, MapFlags flags, uintptr_t offset, 
+                                   uintptr_t* failaddr, size_t* faillevel) = 0; 
+    virtual optional<void> mapTable(uintptr_t vaddr, size_t level, CapEntry* tableEntry, MapFlags flags,
+                                    uintptr_t* failaddr, size_t* faillevel) = 0;
+    
+    virtual optional<void> mapFrame(size_t index, CapEntry* frameEntry, MapFlags flags, size_t offset) = 0;
     virtual optional<void> unmapEntry(size_t index) = 0;
 
     virtual optional<void> mapTable(CapEntry* table, MapFlags req, size_t index) = 0;

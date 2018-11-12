@@ -214,6 +214,7 @@ optional<void> InitLoader::mapDirectory(size_t target, size_t entry, size_t inde
 {
   TypedCap<IPageMap> pm(_cspace->get(target));
   auto tableEntry = _cspace->get(entry);
+  if (!tableEntry) THROW(Error::INVALID_CAPABILITY);
   auto req = protocol::PageMap::MapFlags().writable(true).configurable(true);
   if (!pm) RETHROW(pm);
   RETURN(pm->mapTable(tableEntry, req, index));
@@ -236,17 +237,14 @@ optional<size_t> InitLoader::mapFrame(size_t pageNum, bool writable, bool execut
 {
   auto frameNum = allocFrame();
   auto memEntry = _cspace->get(DYNAMIC_REGION);
+  if (!memEntry) THROW(Error::INVALID_CAPABILITY);
 
   TypedCap<IPageMap> pml2(_cspace->get(PML2));
   if (!pml2) RETHROW(pml2);
 
-  IPageMap::FrameOp op;
-  op.flags = protocol::PageMap::MapFlags().writable(writable).executable(executable);
-  op.frameEntry = memEntry;
-  op.frame = TypedCap<IFrame>(memEntry);
-  if (!op.frame) RETHROW(op.frame);
-  op.frameInfo = op.frame.getFrameInfo();
-  auto res = pml2->mapFrame(pageNum, op, frameNum*PageAlign::alignment());
+  auto res = pml2->mapFrame(pageNum, memEntry, 
+                            protocol::PageMap::MapFlags().writable(writable).executable(executable), 
+                            frameNum*PageAlign::alignment());
   if (!res) RETHROW(res);
   return frameNum;
 }
