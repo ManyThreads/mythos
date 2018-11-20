@@ -37,6 +37,7 @@
 #include "runtime/SimpleCapAlloc.hh"
 #include "runtime/tls.hh"
 #include "runtime/mlog.hh"
+#include "runtime/InterruptControl.hh"
 #include <cstdint>
 #include "util/optional.hh"
 #include "runtime/umem.hh"
@@ -62,6 +63,10 @@ mythos::SimpleCapAllocDel capAlloc(portal, myCS, mythos::init::APP_CAP_START,
 char threadstack[stacksize];
 char* thread1stack_top = threadstack+stacksize/2;
 char* thread2stack_top = threadstack+stacksize;
+
+char threadstack2[stacksize];
+char* thread3stack_top = threadstack2+stacksize/2;
+char* thread4stack_top = threadstack2+stacksize;
 
 mythos::Mutex mutex;
 
@@ -139,7 +144,6 @@ void test_float()
   MLOG_INFO(mlog::app, "float z:", int(z), ".", int(1000*(z-float(int(z)))));
 }
 
-
 uint64_t readFS(uintptr_t offset) {
   uint64_t value;
   asm ("movq %%fs:%1, %0" : "=r" (value) : "m" (*(char*)offset));
@@ -184,7 +188,27 @@ void test_tls()
     .invokeVia(pl).wait();
   TEST(res1);
   TEST(ec1.setFSGS(pl,(uint64_t) tls, 0).wait());
-  mythos::syscall_notify(ec1.cap());
+  mythos::syscall_signal(ec1.cap());
+}
+
+void test_InterruptControl() {
+  MLOG_INFO(mlog::app, "test_InterruptControl start");
+  mythos::InterruptControl ic(mythos::init::INTERRUPT_CONTROL_START);
+
+  mythos::PortalLock pl(portal); // future access will fail if the portal is in use already
+
+  mythos::ExecutionContext ec(capAlloc());
+  auto tls = mythos::setupNewTLS();
+  ASSERT(tls != nullptr);
+  auto res1 = ec.create(kmem).as(myAS).cs(myCS).sched(mythos::init::SCHEDULERS_START + 2)
+    .prepareStack(thread3stack_top).startFun(&thread_main, nullptr)
+    .suspended(false).fs(tls)
+    .invokeVia(pl).wait();
+  TEST(res1);
+  TEST(ic.registerForInterrupt(pl, ec.cap(), 0x32).wait());
+  TEST(ic.unregisterForInterrupt(pl, ec.cap(), 0x32).wait());
+  TEST(capAlloc.free(ec, pl));
+  MLOG_INFO(mlog::app, "test_InterruptControl end");
 }
 
 void test_heap() {
@@ -253,6 +277,7 @@ int main()
   test_heap(); // heap must be initialized for tls test
   test_tls();
   test_exceptions();
+  test_InterruptControl();
 
   std::vector<int> foo;
   for (int i=0; i<100; i++) foo.push_back(i);
@@ -314,8 +339,8 @@ int main()
   }
 
   MLOG_INFO(mlog::app, "sending notifications");
-  mythos::syscall_notify(ec1.cap());
-  mythos::syscall_notify(ec2.cap());
+  mythos::syscall_signal(ec1.cap());
+  mythos::syscall_signal(ec2.cap());
 
   mythos::syscall_debug(end, sizeof(end)-1);
 

@@ -10,4 +10,5 @@
              "mythos/protocol/Example.hh",
              "mythos/protocol/CapMap.hh",
              "mythos/protocol/Portal.hh",
+             "mythos/protocol/InterruptControl.hh",
              ]

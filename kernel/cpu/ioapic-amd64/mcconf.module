@@ -1,0 +1,5 @@
+# -*- mode:toml; -*-
+[module.ioapic-amd64]
+    incfiles    = [ "cpu/IOApic.hh" ]
+    kernelfiles = [ "cpu/IOApicAmd64.cc" ]
+    requires    = [ "tag/cpu/amd64ioapic" ]

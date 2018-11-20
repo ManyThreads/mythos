@@ -1,0 +1,4 @@
+# -*- mode:toml; -*-
+[module.objects-interrupt-control]
+    incfiles = [ "objects/InterruptControl.hh" ]
+    kernelfiles = [ "objects/InterruptControl.cc" ]

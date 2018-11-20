@@ -317,8 +317,8 @@ namespace mythos {
 
   void ExecutionContext::setTrapped(bool val)
   {
-	if (val) setFlagsSuspend(IS_TRAPPED);
-	else clearFlagsResume(IS_TRAPPED);
+	  if (val) setFlagsSuspend(IS_TRAPPED);
+	  else clearFlagsResume(IS_TRAPPED);
   }
 
   Error ExecutionContext::invokeSuspend(Tasklet* t, Cap, IInvocation* msg)
@@ -351,6 +351,7 @@ namespace mythos {
     auto const& data = *msg->getMessage()->cast<protocol::ExecutionContext::SetFSGS>();
     auto res = setBaseRegisters(data.fs, data.gs);
     if (res) { // reschedule the EC in order to load the new values
+      // TODO is FS snd GS saved on suspend? Then async syscall will be overwritten by the suspend code!
       setFlagsSuspend(IS_TRAPPED);
       clearFlagsResume(IS_TRAPPED);
     }
@@ -384,11 +385,6 @@ namespace mythos {
          DVARhex(ctx->r14), DVARhex(ctx->r15));
     MLOG_ERROR(mlog::ec, "...", DVARhex(ctx->fs_base), DVARhex(ctx->gs_base));
     setFlags(IS_TRAPPED | NOT_RUNNING); // mark as not executable until the exception is handled
-  }
-
-  void ExecutionContext::handleInterrupt()
-  {
-    setFlags(NOT_RUNNING);
   }
 
   void ExecutionContext::handleSyscall()
@@ -455,13 +451,13 @@ namespace mythos {
         break;
       }
 
-      case SYSCALL_NOTIFY: {
+      case SYSCALL_SIGNAL: {
         TypedCap<ICapMap> cs(_cs); // .cap()
         if (!cs) { code = uint64_t(cs.state()); break; }
-        TypedCap<ISchedulable> th(cs.lookup(CapPtr(portal), 32, false));
+        TypedCap<ISignalable> th(cs.lookup(CapPtr(portal), 32, false));
         if (!th) { code = uint64_t(th.state()); break; }
-        MLOG_INFO(mlog::syscall, "semaphore notify syscall", DVAR(portal), DVAR(th.obj()));
-        th->semaphoreNotify();
+        MLOG_INFO(mlog::syscall, "semaphore signal syscall", DVAR(portal), DVAR(th.obj()));
+        th->signal(th.cap().data());
         code = uint64_t(Error::SUCCESS);
         break;
       }
@@ -471,11 +467,12 @@ namespace mythos {
     MLOG_DETAIL(mlog::syscall, DVARhex(userctx), DVAR(code));
   }
 
-  void ExecutionContext::semaphoreNotify()
+  optional<void> ExecutionContext::signal(CapData data)
   {
     auto prev = setFlags(IS_NOTIFIED);
-    MLOG_DETAIL(mlog::syscall, "receiving notify syscall", DVARhex(prev));
+    MLOG_DETAIL(mlog::syscall, "receiving signal", DVAR(data), DVARhex(prev));
     clearFlagsResume(IS_WAITING);
+    RETURN(Error::SUCCESS);
   }
 
   optional<void> ExecutionContext::syscallInvoke(CapPtr portal, CapPtr dest, uint64_t user)

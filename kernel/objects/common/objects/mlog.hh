@@ -54,4 +54,9 @@ namespace mlog {
 #endif
   extern Logger<MLOG_KM> km;
 
+#ifndef MLOG_IRQ
+#define MLOG_IRQ FilterWarning
+#endif
+  extern Logger<MLOG_IRQ> irq;
+
 } // namespace mlog

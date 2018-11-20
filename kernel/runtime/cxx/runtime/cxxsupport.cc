@@ -114,6 +114,11 @@ extern "C" int fflush(FILE* stream) {
     return 0;
 }
 
+extern "C" int printf(const char *format, ...) {
+    MLOG_ERROR(mlog::app, "printf", DSTR(format));
+    return 0;
+}
+
 extern "C" int fprintf(FILE *stream, const char *format, ...) {
     MLOG_ERROR(mlog::app, "fprintf", DVAR(stream), DSTR(format));
     return 0;
@@ -162,6 +167,11 @@ extern "C" int __vfprintf_chk(FILE * fp, int flag, const char * format, va_list 
 extern "C" int isupper(int c) {
   unsigned char x=c&0xff;
   return (x>='A' && x<='Z') || (x>=192 && x<=222 && x!=215);
+}
+
+extern "C" int islower(int c) {
+  unsigned char x=c&0xff;
+  return (x>='a' && x<='z');
 }
 
 extern "C" int isxdigit(int ch) {

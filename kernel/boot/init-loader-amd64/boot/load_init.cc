@@ -188,6 +188,13 @@ optional<void> InitLoader::initCSpace()
     if (!res) RETHROW(res);
   }
 
+  ASSERT(cpu::getNumThreads() <= INTERRUPT_CONTROL_START-APP_CAP_START);
+  MLOG_INFO(mlog::boot, "... create interrupt controller caps in caps", INTERRUPT_CONTROL_START, "till", INTERRUPT_CONTROL_START+cpu::getNumThreads()-1);
+  for (cpu::ThreadID id = 0; id < cpu::getNumThreads(); ++id) {
+    auto res = csSet(INTERRUPT_CONTROL_START+id, boot::getInterruptController(id));
+    if (!res) RETHROW(res);
+  }
+
   initLoaderEvent.trigger_after(*this);
 
   RETURN(Error::SUCCESS);

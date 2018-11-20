@@ -1,5 +1,5 @@
-/* -*- mode:C++; -*- */
-/* MIT License -- MyThOS: The Many-Threads Operating System
+/* -*- mode:C++; indent-tabs-mode:nil; -*- */
+/* MyThOS: The Many-Threads Operating System
  *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
@@ -21,29 +21,37 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  *
- * Copyright 2014 Randolf Rotta, Maik Krüger, and contributors, BTU Cottbus-Senftenberg
+ * Copyright 2016 Randolf Rotta, Robert Kuban, and contributors, BTU Cottbus-Senftenberg
  */
 #pragma once
 
-#include <cstddef>
+#include "runtime/PortalBase.hh"
+#include "mythos/protocol/InterruptControl.hh"
+#include "runtime/KernelMemory.hh"
+#include "mythos/init.hh"
 
 namespace mythos {
 
-  class ACPIApicTopology
+  class InterruptControl : public KObject
   {
   public:
-    ACPIApicTopology();
-    size_t numThreads() const { return n_threads; }
-    size_t threadID(size_t idx) const { return lapicIDs[idx]; }
-    void* ioApicBase() {return ioApic; }
-  protected:
-    bool systemDetected;
-    size_t n_threads;
-    enum { CPU_MAX=256 };
-    unsigned int lapicIDs[CPU_MAX];
-    void* ioApic = nullptr; // Just one ioapic supported at the time
-    bool disablePICs;
-    //char ioapic_irqs[24]; // TODO randolf does not understand the init code
+    InterruptControl(CapPtr cap) : KObject(cap) {}
+
+    PortalFuture<void> registerForInterrupt(PortalLock pr, CapPtr ec, uint32_t interrupt) {
+      return pr.invoke<protocol::InterruptControl::Register>(_cap, ec, interrupt);
+    }
+
+    PortalFuture<void> unregisterForInterrupt(PortalLock pr, CapPtr ec, uint32_t interrupt) {
+      return pr.invoke<protocol::InterruptControl::Unregister>(_cap, ec, interrupt);
+    }
+
+    PortalFuture<void> maskIRQ(PortalLock pr, uint32_t interrupt) {
+      return pr.invoke<protocol::InterruptControl::MaskIRQ>(_cap, interrupt);
+    }
+
+    PortalFuture<void> unmaskIRQ(PortalLock pr, uint32_t interrupt) {
+      return pr.invoke<protocol::InterruptControl::UnmaskIRQ>(_cap, interrupt);
+    }
   };
 
 } // namespace mythos

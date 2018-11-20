@@ -67,11 +67,7 @@ namespace mythos {
 
     virtual void handleTrap() = 0;
 
-    virtual void handleInterrupt() = 0;
-
     virtual void handleSyscall() = 0;
-
-    virtual void semaphoreNotify() = 0;
   };
 
     /** The Execution Context that is currently loaded on each hardware thread. 
@@ -99,9 +95,4 @@ namespace mythos {
         current_ec->load()->handleSyscall();
     }
 
-    inline void handle_interrupt() {
-        auto ec = current_ec->load();
-        if (ec) ec->handleInterrupt();
-    }
- 
 } // namespace mythos
