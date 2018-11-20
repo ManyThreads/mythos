@@ -23,6 +23,6 @@ The MyThOS project was funded by the Federal Ministry of Education and Research 
 
 * [Universität Ulm, Institut für Organisation und Management von Informationssystemen / Kommunikations & Informationszentrum – Prof. Dr. Stefan Wesner](http://www.uni-ulm.de/in/omi/)
 * [Höchstleistungsrechenzentrum Stuttgart – Prof. Dr. Michael Resch](http://www.hlrs.de/)
-* [Brandenburgische Technische Universität Cottbus – Prof. Jörg Nolte](http://www.tu-cottbus.de/fakultaet1/de/betriebssysteme/)
+* [Brandenburgische Technische Universität Cottbus – Prof. Jörg Nolte](https://www.b-tu.de/fg-betriebssysteme/)
 * [Alcatel-Lucent Deutschland AG, Bell Labs – Peter Domschitz](https://www.bell-labs.com/)
 * [Universität Siegen, Simulationstechnik und Wissenschaftliches Rechnen – Prof. Dr. Sabine Roller](http://www.mb.uni-siegen.de/sts/)
