@@ -35,6 +35,7 @@ namespace mythos {
   class Frame : public KObject
   {
   public:
+    Frame() {}
     Frame(CapPtr cap) : KObject(cap) {}
 
     PortalFuture<void> create(PortalLock pr, KernelMemory kmem,

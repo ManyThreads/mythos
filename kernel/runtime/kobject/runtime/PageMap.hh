@@ -39,6 +39,7 @@ namespace mythos {
     typedef protocol::PageMap::PageMapReq PageMapReq;
     typedef protocol::PageMap::MapFlags MapFlags;
 
+    PageMap() {}
     PageMap(CapPtr cap) : KObject(cap) {}
 
     PortalFuture<void> create(PortalLock pr, KernelMemory kmem, size_t level,
@@ -51,11 +52,9 @@ namespace mythos {
       Result(InvocationBuf* ib) {
         auto msg = ib->cast<protocol::PageMap::Result>();
         vaddr = msg->vaddr;
-	size = msg->size;
         level = msg->level;
       }
       uintptr_t vaddr = 0;
-      size_t size = 0;
       size_t level = 0;
     };
 
@@ -70,8 +69,8 @@ namespace mythos {
     }
 
     PortalFuture<Result>
-    mmap(PortalLock pr, Frame frame, uintptr_t vaddr, size_t size, MapFlags flags) {
-      return pr.invoke<protocol::PageMap::Mmap>(_cap, frame.cap(), vaddr, size, flags);
+    mmap(PortalLock pr, Frame frame, uintptr_t vaddr, size_t size, MapFlags flags, size_t offset=0) {
+      return pr.invoke<protocol::PageMap::Mmap>(_cap, frame.cap(), vaddr, size, flags, offset);
     }
 
     PortalFuture<Result>

@@ -40,8 +40,10 @@ namespace mythos {
   class KObject
   {
   public:
+    KObject() : _cap(null_cap) {}
     KObject(CapPtr cap) : _cap(cap) {}
     CapPtr cap() const { return _cap; }
+    void setCap(CapPtr cap) { _cap = cap; }
   protected:
     CapPtr _cap;
   };

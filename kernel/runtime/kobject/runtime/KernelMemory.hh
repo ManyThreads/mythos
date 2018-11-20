@@ -34,6 +34,7 @@ namespace mythos {
   class KernelMemory : public KObject
   {
   public:
+    KernelMemory() {}
     KernelMemory(CapPtr cap) : KObject(cap) {}
 
     PortalFuture<void> create(PortalLock pr, KernelMemory kmem,

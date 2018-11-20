@@ -68,77 +68,101 @@ public: // IPageMap interface
 
   void print() const override;
 
-  struct FrameOp {
-    FrameOp(uintptr_t vaddr, size_t vsize)
-      : start_vaddr(vaddr), start_vsize(vsize), offs(0), level(0), skip_nonmapped(false) {}
-    virtual optional<void> applyFrame(PageTableEntry* table, size_t index) = 0;
-    uintptr_t start_vaddr;
-    size_t start_vsize;
-    size_t offs;
-    size_t level; // for error reporting
-    bool skip_nonmapped;
-    uintptr_t vaddr() const { return start_vaddr+offs; }
-    size_t vsize() const { return start_vsize-offs; }
-    size_t offset() const { return offs; }
-    void moveForward(size_t pagesize) { offs += pagesize; }
-  };
-
-  struct MmapOp : public FrameOp {
-    MmapOp(uintptr_t vaddr, size_t vsize, optional<CapEntry*> frameEntry, MapFlags flags);
-    optional<void> applyFrame(PageTableEntry* table, size_t index) override;
-    IPageMap::FrameOp frameOp;
-  };
-
-  struct MunmapOp : public FrameOp {
-    MunmapOp(uintptr_t vaddr, size_t vsize) : FrameOp(vaddr, vsize) {
-      skip_nonmapped = true;
-    }
-    optional<void> applyFrame(PageTableEntry* table, size_t index) override;
-  };
-
-  struct MprotectOp : public FrameOp {
-    MprotectOp(uintptr_t vaddr, size_t vsize, MapFlags flags)
-      : FrameOp(vaddr, vsize), flags(flags) { skip_nonmapped = true; }
-    optional<void> applyFrame(PageTableEntry* table, size_t index) override;
-    MapFlags flags;
-  };
-
-  struct TableOp {
-    TableOp(uintptr_t vaddr, size_t tgtLevel)
-      : vaddr(vaddr), tgtLevel(tgtLevel), level(0) {}
-    virtual optional<void> applyTable(IPageMap* map, size_t index) = 0;
-    uintptr_t vaddr;
-    size_t tgtLevel;
-    size_t level; // for error reporting
-  };
-
-  struct InstallMapOp : public TableOp {
-    InstallMapOp(uintptr_t vaddr, size_t tgtLevel, CapEntry* mapEntry, MapFlags flags)
-      : TableOp(vaddr, tgtLevel), mapEntry(mapEntry), flags(flags) {}
-    CapEntry* mapEntry;
-    MapFlags flags;
-    optional<void> applyTable(IPageMap* map, size_t index) override;
-  };
-
-  struct RemoveMapOp : public TableOp {
-    RemoveMapOp(uintptr_t vaddr, size_t tgtLevel)
-      : TableOp(vaddr, tgtLevel) {}
-    optional<void> applyTable(IPageMap* map, size_t index) override;
-  };
-
-  template<size_t LEVEL>
-  static optional<void> operateFrame(PageTableEntry* table, FrameOp& op);
-  optional<void> operateFrame(FrameOp& op, InvocationBuf* msg);
-
-  optional<void> mapFrame(size_t index, IPageMap::FrameOp const& op, size_t offset) override;
+  optional<void> mapFrame(uintptr_t vaddr, size_t size, CapEntry* frameEntry, MapFlags flags, uintptr_t offset, 
+                                   uintptr_t* failaddr, size_t* faillevel) override; 
+  optional<void> mapTable(uintptr_t vaddr, size_t level, CapEntry* tableEntry, MapFlags flags,
+                                    uintptr_t* failaddr, size_t* faillevel) override;
+  optional<void> mapFrame(size_t index, CapEntry* frameEntry, MapFlags flags, size_t offset) override;
   optional<void> unmapEntry(size_t index) override;
-
-  template<size_t LEVEL>
-  static optional<void> operateTable(PageTableEntry* table, TableOp& op);
-  optional<void> operateTable(TableOp& op, InvocationBuf* msg);
-
   optional<void> mapTable(CapEntry* table, MapFlags req, size_t index) override;
 
+
+  /** visitor state for operations on pages: mapFrame, unmapFrame, protectPage. */ 
+  struct PageOp {
+    PageOp(uintptr_t vaddr, size_t size, size_t frame_offset, bool skip_nonmapped=false)
+      : start_vaddr(vaddr), start_size(size), frame_offset(frame_offset), skip_nonmapped(skip_nonmapped) {}
+    /** the operation to perform on every page in the target range from start_vaddr to start_vaddr+start_size.
+     * TODO pass the page map entry value
+     */
+    virtual optional<void> applyPage(PageTableEntry* table, size_t index) = 0;
+    const uintptr_t start_vaddr; //< start address in the logical address space
+    const size_t start_size;
+    const size_t frame_offset; //< start offset in the physical frame
+    const bool skip_nonmapped; //< true if non-present pages should be ignored
+    size_t table_vaddr = 0; //< start address of the currently visited page map 
+    size_t page_offset = 0; //< current offset in virtual range, advances during the walk
+    size_t current_level = 0; //< current level in the page map tree, for error reporting
+    uintptr_t vaddr() const { return start_vaddr+page_offset; }
+    size_t sizeRemaining() const { return start_size-page_offset; }
+    size_t offset() const { return frame_offset+page_offset; }
+    void moveForward(size_t pagesize) { page_offset += pagesize; }
+  };
+
+  /** entry point for the table walk for operations on pages. */
+  optional<void> visitPages(PageOp& op);
+
+  /** recursion through the page map tree, apply the operation on all pages in the target range. */
+  static optional<void> visitPages(PageTableEntry* table, size_t LEVEL, PageOp& op);
+
+  struct MapFrameVisitor : public PageOp {
+    MapFrameVisitor(uintptr_t vaddr, size_t size, CapEntry* frameEntry, MapFlags flags, size_t offset)
+      : PageOp(vaddr, size, offset, false), flags(flags), frameEntry(frameEntry), frame(frameEntry) {}
+    optional<void> applyPage(PageTableEntry* table, size_t index) override {
+      return table2PageMap(table)->mapFrame(index, frameEntry, flags, offset());
+    }
+    MapFlags flags;
+    CapEntry* frameEntry;
+    TypedCap<IFrame> frame;
+  };
+
+  struct UnmapFrameVisitor : public PageOp {
+    UnmapFrameVisitor(uintptr_t vaddr, size_t size) : PageOp(vaddr, size, 0, true) {}
+    optional<void> applyPage(PageTableEntry* table, size_t index) override { 
+      return table2PageMap(table)->unmapEntry(index);
+    }
+  };
+
+  struct ProtectPageVisitor : public PageOp {
+    ProtectPageVisitor(uintptr_t vaddr, size_t size, MapFlags flags) : PageOp(vaddr, size, 0, true), flags(flags) {}
+    optional<void> applyPage(PageTableEntry* table, size_t index) override;
+    MapFlags flags;
+  };
+
+  
+  
+  /** visitor state for operations on tables (page maps): mapTable, unmapTable. */ 
+  struct TableOp {
+    TableOp(uintptr_t vaddr, size_t target_level)
+      : vaddr(vaddr), target_level(target_level) {}
+    /** the operation to perform on the target page map at the selected logical address and target level.
+     * TODO pass the page map entry value
+     */
+    virtual optional<void> applyTable(IPageMap* map, size_t index) = 0;
+    const uintptr_t vaddr;
+    const size_t target_level;
+    size_t table_vaddr = 0; //< start address of the currently visited page map 
+    uintptr_t failaddr = 0; // for error reporting
+    size_t current_level = 0; // for error reporting
+  };
+
+  /** recursion through the page map tree, apply the operation on the target page table. */
+  static optional<void> visitTables(PageTableEntry* table, size_t LEVEL, TableOp& op);
+
+  struct MapTableVisitor : public TableOp {
+    MapTableVisitor(uintptr_t vaddr, size_t target_level, CapEntry* mapEntry, MapFlags flags)
+      : TableOp(vaddr, target_level), mapEntry(mapEntry), flags(flags) {}
+    CapEntry* mapEntry;
+    MapFlags flags;
+    optional<void> applyTable(IPageMap* map, size_t index) override { return map->mapTable(mapEntry, flags, index); }
+  };
+
+  struct UnmapTableVisitor : public TableOp {
+    UnmapTableVisitor(uintptr_t vaddr, size_t target_level)
+      : TableOp(vaddr, target_level) {}
+    optional<void> applyTable(IPageMap* map, size_t index) override { return map->unmapEntry(index); }
+  };
+
+  
 public:
   /** IResult<optional> interface, used for shootdown. */
   virtual void response(Tasklet*, optional<void>) override;
@@ -183,7 +207,8 @@ private:
   IResult<void>* _deletionSink;
   optional<void> _Obj(IDeleter& del);
 
-  optional<PageTableEntry> _lookup(uintptr_t vaddr, const PageTableEntry* table, size_t level) const;
+  // not used anymore?
+  // optional<PageTableEntry> _lookup(uintptr_t vaddr, const PageTableEntry* table, size_t level) const;
 };
 
   class PageMapFactory : public FactoryBase

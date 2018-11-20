@@ -35,6 +35,7 @@ namespace mythos {
   class CapMap : public KObject
   {
   public:
+    CapMap() {}
     CapMap(CapPtr cap) : KObject(cap) {}
 
     PortalFuture<void> create(PortalLock pr, KernelMemory kmem,
