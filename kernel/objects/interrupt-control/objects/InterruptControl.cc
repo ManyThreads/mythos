@@ -62,12 +62,6 @@ void InterruptControl::invoke(Tasklet* t, Cap self, IInvocation* msg)
     } );
 }
 
-void InterruptControl::bind(optional<ISignalable*>) {
-}
-
-void InterruptControl::unbind(optional<ISignalable*>) {
-}
-
 Error InterruptControl::getDebugInfo(Cap self, IInvocation* msg)
 {
     return writeDebugInfo("InterruptControl", self, msg);
@@ -80,9 +74,8 @@ Error InterruptControl::getDebugInfo(Cap self, IInvocation* msg)
  */
 Error InterruptControl::registerForInterrupt(Tasklet *t, Cap self, IInvocation *msg) {
     auto data = msg->getMessage()->read<protocol::InterruptControl::Register>();
-    if (!isValid(data.interrupt)) {
-        return Error::INVALID_ARGUMENT;
-    }
+    if (!isValid(data.interrupt)) return Error::INVALID_ARGUMENT;
+    // TODO this check can be removed. The user can overwrite the entry anyway! Its just some additional error checking
     if (destinations[data.interrupt].isUsable()) {
         MLOG_INFO(mlog::irq, "Tried to register to an interrupt already taken:", data.interrupt);
         return Error::REQUEST_DENIED;
@@ -95,22 +88,10 @@ Error InterruptControl::registerForInterrupt(Tasklet *t, Cap self, IInvocation *
     return Error::SUCCESS;
 }
 
-Error InterruptControl::unregisterForInterrupt(Tasklet*/* t*/, Cap self, IInvocation *msg) {
+Error InterruptControl::unregisterInterrupt(Tasklet*/* t*/, Cap self, IInvocation *msg) {
     auto data = msg->getMessage()->read<protocol::InterruptControl::Unregister>();
-    if (!isValid(data.interrupt)) {
-        return Error::INVALID_ARGUMENT;
-    }
-    MLOG_DETAIL(mlog::irq, "unregisterForInterrupt", DVAR(self), DVAR(data.ec()), DVAR(data.interrupt));
-    if (destinations[data.interrupt].isUsable()) {
-        optional<CapEntry*> capEntry = msg->lookupEntry(data.ec());
-        TypedCap<ISignalable> obj(capEntry);
-
-        // TODO: this can probably be done better. Check if object to unregister is registered object in array
-        if (obj && destinations[data.interrupt].cap().getPtr() != obj.cap().getPtr()) {
-            MLOG_DETAIL(mlog::irq, "Tried to unregister an ISignalable that wasnt registerd", DVAR(data.interrupt), DVAR(data.ec()));
-            return Error::INVALID_ARGUMENT;
-        }
-    }
+    if (!isValid(data.interrupt)) return Error::INVALID_ARGUMENT;
+    MLOG_DETAIL(mlog::irq, "unregisterInterrupt", DVAR(self), DVAR(data.interrupt));
     destinations[data.interrupt].reset();
     ASSERT(!destinations[data.interrupt].isUsable());
     return Error::SUCCESS;
@@ -118,40 +99,28 @@ Error InterruptControl::unregisterForInterrupt(Tasklet*/* t*/, Cap self, IInvoca
 
 Error InterruptControl::maskIRQ(Tasklet* /*t*/, Cap /*self*/, IInvocation *msg) {
     auto data = msg->getMessage()->read<protocol::InterruptControl::MaskIRQ>();
-    if (!isValid(data.interrupt)) {
-        return Error::INVALID_ARGUMENT;
-    }
+    if (!isValid(data.interrupt)) return Error::INVALID_ARGUMENT;
     maskIRQ(data.interrupt);
     return Error::SUCCESS;
 }
 
 Error InterruptControl::unmaskIRQ(Tasklet* /*t*/, Cap /*self*/, IInvocation *msg) {
     auto data = msg->getMessage()->read<protocol::InterruptControl::MaskIRQ>();
-    if (!isValid(data.interrupt)) {
-        return Error::INVALID_ARGUMENT;
-    }
+    if (!isValid(data.interrupt)) return Error::INVALID_ARGUMENT;
     unmaskIRQ(data.interrupt);
     return Error::SUCCESS;
 }
 
 void InterruptControl::handleInterrupt(uint64_t interrupt) {
     ASSERT(isValid(interrupt));
-    if (interrupt == 32) { // just acknowledge IPI
-        MLOG_DETAIL(mlog::irq, "Acknowledge received IPI");
+    if (destinations[interrupt].isUsable()) {
+        MLOG_DETAIL(mlog::irq, "Forward interrupt ", DVAR(interrupt));
+        maskIRQ(interrupt);
         mythos::lapic.endOfInterrupt();
-        return;
-    }
-
-    if (!destinations[interrupt].isUsable()) {
-        MLOG_WARN(mlog::irq, "No one registered for", DVAR(interrupt));
+        TypedCap<ISignalable> signalable(destinations[interrupt].cap());
+        if (signalable) signalable.obj()->signal(signalable.cap().data());
+    } else {
         mythos::lapic.endOfInterrupt();
-        return;
-    }
-    maskIRQ(interrupt);
-    mythos::lapic.endOfInterrupt();
-    TypedCap<ISignalable> signalable(destinations[interrupt].cap());
-    if (signalable) {
-        signalable.obj()->signal((uint32_t) interrupt);
     }
 }
 

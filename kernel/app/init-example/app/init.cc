@@ -206,7 +206,7 @@ void test_InterruptControl() {
     .invokeVia(pl).wait();
   TEST(res1);
   TEST(ic.registerForInterrupt(pl, ec.cap(), 0x32).wait());
-  TEST(ic.unregisterForInterrupt(pl, ec.cap(), 0x32).wait());
+  TEST(ic.unregisterInterrupt(pl, 0x32).wait());
   TEST(capAlloc.free(ec, pl));
   MLOG_INFO(mlog::app, "test_InterruptControl end");
 }

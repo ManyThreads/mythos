@@ -43,17 +43,19 @@ public: // IKernelObject interface
     optional<void const*> vcast(TypeId id) const override;
     optional<void> deleteCap(Cap self, IDeleter& del) override;
     void invoke(Tasklet* t, Cap, IInvocation* msg) override;
-    Error invokeBind(Tasklet* t, Cap, IInvocation* msg);
+public: // for CapRef
+    void bind(optional<ISignalable*>) { }
+    void unbind(optional<ISignalable*>) {
+        // triggered by cap revoke
+        // TODO would need to revoke notification if we use INotifiable instead of ISignalable
+    }
 public: // protocol 
     friend struct protocol::KernelObject;
     Error getDebugInfo(Cap self, IInvocation* msg);
     Error registerForInterrupt(Tasklet *t, Cap self, IInvocation *msg);
-    Error unregisterForInterrupt(Tasklet *t, Cap self, IInvocation *msg);
+    Error unregisterInterrupt(Tasklet *t, Cap self, IInvocation *msg);
     Error maskIRQ(Tasklet *t, Cap self, IInvocation *msg);
     Error unmaskIRQ(Tasklet *t, Cap self, IInvocation *msg);
-public:
-    void bind(optional<ISignalable*>);
-    void unbind(optional<ISignalable*>);
 public:
     void handleInterrupt(uint64_t interrupt);
     void maskIRQ(uint64_t interrupt);

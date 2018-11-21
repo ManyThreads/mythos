@@ -33,6 +33,10 @@
 
 namespace mythos {
 
+  /**
+   *
+   * Subject is the owner of the CapRef instance.
+   */ 
   class CapRefBase
     : protected IKernelObject
   {

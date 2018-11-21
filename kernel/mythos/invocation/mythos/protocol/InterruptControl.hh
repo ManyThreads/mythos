@@ -44,12 +44,10 @@ namespace mythos {
       struct Register : public InvocationBase {
         typedef InvocationBase response_type;
         constexpr static uint16_t label = (proto<<8) + REGISTER;
-        Register(CapPtr ec, uint32_t interrupt_)
-          : InvocationBase(label,getLength(this))
+        Register(CapPtr ec, uint32_t interrupt)
+          : InvocationBase(label,getLength(this)), interrupt(interrupt)
         {
           addExtraCap(ec);
-          interrupt = interrupt_;
-
         }
         CapPtr ec() const { return this->capPtrs[0]; }
         uint32_t interrupt;
@@ -58,35 +56,24 @@ namespace mythos {
       struct Unregister : public InvocationBase {
         typedef InvocationBase response_type;
         constexpr static uint16_t label = (proto<<8) + UNREGISTER;
-        Unregister(CapPtr ec, uint32_t interrupt_)
-          : InvocationBase(label,getLength(this))
-        {
-          addExtraCap(ec);
-          interrupt = interrupt_;
-        }
-        CapPtr ec() const { return this->capPtrs[0]; }
+        Unregister(uint32_t interrupt)
+          : InvocationBase(label,getLength(this)), interrupt(interrupt) { }
         uint32_t interrupt;
       };
 
       struct MaskIRQ : public InvocationBase {
         typedef InvocationBase response_type;
         constexpr static uint16_t label = (proto<<8) + MASK_IRQ;
-        MaskIRQ(uint32_t interrupt_)
-          : InvocationBase(label,getLength(this))
-        {
-          interrupt = interrupt_;
-        }
+        MaskIRQ(uint32_t interrupt)
+          : InvocationBase(label,getLength(this)), interrupt(interrupt) { }
         uint32_t interrupt;
       };
 
       struct UnmaskIRQ : public InvocationBase {
         typedef InvocationBase response_type;
         constexpr static uint16_t label = (proto<<8) + UNMASK_IRQ;
-        UnmaskIRQ(uint32_t interrupt_)
-          : InvocationBase(label,getLength(this))
-        {
-          interrupt = interrupt_;
-        }
+        UnmaskIRQ(uint32_t interrupt)
+          : InvocationBase(label,getLength(this)), interrupt(interrupt) { }
         uint32_t interrupt;
       };
 
@@ -96,7 +83,7 @@ namespace mythos {
       static Error dispatchRequest(IMPL* obj, uint8_t m, ARGS const&...args) {
         switch(Methods(m)) {
         case REGISTER:   return obj->registerForInterrupt(args...);
-        case UNREGISTER: return obj->unregisterForInterrupt(args...);
+        case UNREGISTER: return obj->unregisterInterrupt(args...);
         case MASK_IRQ:    return obj->maskIRQ(args...);
         case UNMASK_IRQ:    return obj->unmaskIRQ(args...);
         default: return Error::NOT_IMPLEMENTED;
