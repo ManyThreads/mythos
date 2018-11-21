@@ -43,6 +43,7 @@ namespace mythos {
       PORTAL,
       EXAMPLE,
       CPUDRIVERKNC,
+      INTERRUPT_CONTROL,
     };
 
   } // namespace protocol

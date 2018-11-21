@@ -55,7 +55,8 @@ namespace init {
     STATIC_MEM_START,
     SCHEDULERS_START = 512,
     CPUDRIVER = 768,
-    APP_CAP_START = 769,
+    INTERRUPT_CONTROL_START = 769,
+    APP_CAP_START = 1025,
     SIZE = 4096
   };
 

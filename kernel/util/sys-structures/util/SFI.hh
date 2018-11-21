@@ -192,6 +192,16 @@ namespace mythos {
         }
         return nullptr;
       }
+
+      void getApics(Apic **apics) {
+        uint64_t counter = 0;
+        for (unsigned i = 0; i < size(); i++) {
+          Apic* apic = static_cast<Apic*>(entry[i].log());
+          if (apic->isCorrectType()) {
+             apics[counter++] = apic;
+          }
+        }
+      }
     };
 
   } // namespace SFI
@@ -201,12 +211,17 @@ namespace mythos {
     public:
       typedef SFI::Syst const Syst;
 
+      enum Const {
+        MAX_IOAPICS = 25,
+      };
+
       SFIInfo()
       {
         syst = SFI::Syst::find();
         if (syst) {
           mmap = syst->getMmap();
           cpus = syst->getCpus();
+          syst->getApics(apics);
         }
       }
 
@@ -215,6 +230,13 @@ namespace mythos {
       bool hasSyst() const { return syst != nullptr; }
       bool hasMmap() const { return mmap != nullptr; }
       bool hasCpus() const { return cpus != nullptr; }
+
+      uint64_t numApics() const {
+        for (unsigned i = 0; i < MAX_IOAPICS; i++) {
+          if (apics[i] == nullptr) return i;
+        }
+        return MAX_IOAPICS;
+      }
 
       SFI::Mmap* getMmap()
       {
@@ -233,10 +255,15 @@ namespace mythos {
         return (*cpus)[idx];
       }
 
+      SFI::Apic** getApics() {
+        return apics;
+      }
+
     protected:
       SFI::Syst* syst;
       SFI::Mmap* mmap;
       SFI::Cpus* cpus;
+      SFI::Apic* apics[MAX_IOAPICS] = {nullptr};
   };
 
 } // namespace mythos

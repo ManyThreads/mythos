@@ -39,6 +39,7 @@ namespace mythos {
     void loadKernelSpace();
 
     void mapLapic(uintptr_t phys);
+    void mapIOApic(uintptr_t phys);
 
     /** maps a kernel stack to the given physical address and returns the logical address */
     uintptr_t initKernelStack(size_t idx, uintptr_t paddr);

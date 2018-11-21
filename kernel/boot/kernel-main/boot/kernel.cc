@@ -54,6 +54,7 @@
 #include "objects/StaticMemoryRegion.hh"
 #include "objects/ISchedulable.hh"
 #include "objects/SchedulingContext.hh"
+#include "objects/InterruptControl.hh"
 #include "boot/memory-root.hh"
 
 ALIGN_4K uint8_t boot_stack[BOOT_STACK_SIZE] SYMBOL("BOOT_STACK");
@@ -76,6 +77,7 @@ void entry_bsp()
 {
   mythos::boot::initKernelSpace();
   mythos::boot::mapLapic(mythos::x86::getApicBase()); // make LAPIC accessible
+
   mythos::GdtAmd64 tempGDT;
   tempGDT.init();
   tempGDT.load();
@@ -139,7 +141,7 @@ void mythos::cpu::syscall_entry_cxx(mythos::cpu::ThreadState* ctx)
   mythos::idle::enteredFromSyscall();
   MLOG_DETAIL(mlog::boot, "user system call", DVARhex(ctx->rdi), DVARhex(ctx->rsi),
       DVARhex(ctx->rip), DVARhex(ctx->rsp));
-  mythos::handle_syscall();
+  mythos::ec_handle_syscall();
   runUser();
 }
 
@@ -150,11 +152,11 @@ void mythos::cpu::irq_entry_user(mythos::cpu::ThreadState* ctx)
   MLOG_DETAIL(mlog::boot, "user interrupt", DVARhex(ctx->irq), DVARhex(ctx->error),
       DVARhex(ctx->rip), DVARhex(ctx->rsp));
   if (ctx->irq<32) {
-    mythos::handle_trap(); // handle traps, exceptions, bugs from user mode
+    mythos::ec_handle_trap(); // handle traps, exceptions, bugs from user mode
   } else {
-    // TODO then external and wakeup interrupts
-    mythos::handle_interrupt();
-    mythos::lapic.endOfInterrupt();
+    mythos::ec_interrupted(); // inform the current execution context that it was interrupted
+    ASSERT(ctx->irq < 256);
+    mythos::boot::getLocalInterruptController().handleInterrupt(ctx->irq);
   }
   runUser();
 }
@@ -167,9 +169,8 @@ void mythos::cpu::irq_entry_kernel(mythos::cpu::KernelIRQFrame* ctx)
   bool wasbug = handle_bugirqs(ctx); // initiate irq processing: first kernel bugs
   bool nested = mythos::async::getLocalPlace().enterKernel();
   if (!wasbug) {
-    // TODO then external and wakeup interrupts
-    MLOG_INFO(mlog::boot, "ack the interrupt");
-    mythos::lapic.endOfInterrupt();
+    ASSERT(ctx->irq < 256);
+    mythos::boot::getLocalInterruptController().handleInterrupt(ctx->irq);
   }
 
   if (!nested) runUser();

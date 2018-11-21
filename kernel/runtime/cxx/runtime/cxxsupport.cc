@@ -43,18 +43,6 @@ extern "C" [[noreturn]] void __assert_fail (const char *expr, const char *file, 
     mythos::syscall_exit(-1); /// @TODO syscall_abort(); to see some stack backtrace etc
 }
 
-
-// undefined reference to `__memmove_chk'
-// undefined reference to `pthread_getspecific'
-// undefined reference to `pthread_key_create'
-// undefined reference to `pthread_mutex_lock'
-// undefined reference to `pthread_mutex_unlock'
-// undefined reference to `pthread_once'
-// undefined reference to `pthread_setspecific'
-// undefined reference to `__snprintf_chk'
-// undefined reference to `__vfprintf_chk'
-
-
 extern "C" long mythos_musl_syscall(long num, long a1, long a2, long a3,
 	             long a4, long a5, long a6)
 {
@@ -117,3 +105,4 @@ extern "C" int dl_iterate_phdr(
     auto res = (*callback) (&info, sizeof(info), data);
     return res;
 }
+

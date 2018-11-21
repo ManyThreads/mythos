@@ -39,6 +39,7 @@
 #include "async/Place.hh"
 #include "objects/DeleteBroadcast.hh"
 #include "objects/SchedulingContext.hh"
+#include "objects/InterruptControl.hh"
 #include "boot/memory-layout.h"
 #include "boot/DeployKernelSpace.hh"
 #include "boot/mlog.hh"
@@ -51,8 +52,14 @@ namespace mythos {
     extern SchedulingContext schedulers[MYTHOS_MAX_THREADS];
     extern CoreLocal<SchedulingContext*> localScheduler KERNEL_CLM;
 
+    extern InterruptControl interruptController[MYTHOS_MAX_THREADS];
+    extern CoreLocal<InterruptControl*> localInterruptController KERNEL_CLM;
+
     inline SchedulingContext& getScheduler(cpu::ThreadID threadID) { return schedulers[threadID]; }
     inline SchedulingContext& getLocalScheduler() { return *localScheduler.get(); }
+
+    InterruptControl& getInterruptController(cpu::ThreadID threadID) { return interruptController[threadID]; }
+    InterruptControl& getLocalInterruptController() { return *localInterruptController.get(); }
 
 struct DeployHWThread
 {
@@ -90,6 +97,7 @@ struct DeployHWThread
     cpu::hwThreadID_.setAt(threadID, threadID);
     async::getPlace(threadID)->init(threadID, apicID);
     localScheduler.setAt(threadID, &getScheduler(threadID));
+    localInterruptController.setAt(threadID, &getInterruptController(threadID));
     getScheduler(threadID).init(async::getPlace(threadID));
     cpu::initSyscallStack(threadID, stacks[apicID]);
     MLOG_DETAIL(mlog::boot, "  hw thread", DVAR(threadID), DVAR(apicID),

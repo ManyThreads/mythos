@@ -37,6 +37,7 @@
 #include "objects/IFactory.hh"
 #include "objects/IPageMap.hh"
 #include "objects/INotifiable.hh"
+#include "objects/ISignalable.hh"
 #include "objects/IPortal.hh"
 #include "objects/CapEntry.hh"
 #include "objects/CapRef.hh"
@@ -49,6 +50,7 @@ namespace mythos {
     : public IKernelObject
     , public ISchedulable
     , public IPortalUser
+    , public ISignalable
   {
   public:
 
@@ -98,12 +100,14 @@ namespace mythos {
     bool isReady() const override { return !isBlocked(flags.load()); }
     void resume() override;
     void handleTrap() override;
-    void handleInterrupt() override;
+    void handleInterrupt() override { setFlags(NOT_RUNNING); }
     void handleSyscall() override;
     optional<void> syscallInvoke(CapPtr portal, CapPtr dest, uint64_t user);
     void loadState() override;
     void saveState() override;
-    void semaphoreNotify() override;
+
+  public: // ISignalable interface
+    optional<void> signal(CapData data) override;
 
   public: // IPortalUser interface
     optional<CapEntryRef> lookupRef(CapPtr ptr, CapPtrDepth ptrDepth, bool writeable) override;
@@ -112,6 +116,7 @@ namespace mythos {
     optional<void const*> vcast(TypeId id) const override {
       if (id == typeId<ISchedulable>()) return static_cast<ISchedulable const*>(this);
       if (id == typeId<IPortalUser>()) return static_cast<IPortalUser const*>(this);
+      if (id == typeId<ISignalable>()) return static_cast<ISignalable const*>(this);
       THROW(Error::TYPE_MISMATCH);
     }
     optional<void> deleteCap(Cap self, IDeleter& del) override;

@@ -1,4 +1,4 @@
-/* -*- mode:C++; -*- */
+/* -*- mode:C++; indent-tabs-mode:nil; -*- */
 /* MIT License -- MyThOS: The Many-Threads Operating System
  *
  * Permission is hereby granted, free of charge, to any person
@@ -21,16 +21,22 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  *
- * Copyright 2014 Randolf Rotta, Maik Krüger, and contributors, BTU Cottbus-Senftenberg
+ * Copyright 2016 Randolf Rotta, Robert Kuban, and contributors, BTU Cottbus-Senftenberg
  */
+#pragma once
 
-#include "objects/mlog.hh"
+#include "cpu/CoreLocal.hh"
+#include <atomic>
 
-namespace mlog {
-  Logger<MLOG_CAP> cap("cap");
-  Logger<MLOG_SCHED> sched("sched");
-  Logger<MLOG_SYSCALL> syscall("syscall");
-  Logger<MLOG_EC> ec("ec");
-  Logger<MLOG_KM> km("km");
-  Logger<MLOG_IRQ> irq("irq");
-} // namespace mlog
+namespace mythos {
+
+  class ISignalable
+  {
+  public:
+    virtual ~ISignalable() {}
+
+    virtual optional<void> signal(CapData data) = 0;
+  };
+
+
+} // namespace mythos

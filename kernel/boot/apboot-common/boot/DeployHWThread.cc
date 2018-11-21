@@ -42,6 +42,9 @@ namespace mythos {
     SchedulingContext schedulers[MYTHOS_MAX_THREADS];
     CoreLocal<SchedulingContext*> localScheduler KERNEL_CLM;
 
+    InterruptControl interruptController[MYTHOS_MAX_THREADS];
+    CoreLocal<InterruptControl*> localInterruptController KERNEL_CLM;
+
     void initAPTrampoline(size_t startIP) {
       PhysPtr<uint16_t> trampoline_phys_high(0x469ul);
       PhysPtr<uint16_t> trampoline_phys_low(0x467ul);
