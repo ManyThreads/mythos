@@ -100,6 +100,7 @@ namespace mythos {
     bool isReady() const override { return !isBlocked(flags.load()); }
     void resume() override;
     void handleTrap() override;
+    void handleInterrupt() override { setFlags(NOT_RUNNING); }
     void handleSyscall() override;
     optional<void> syscallInvoke(CapPtr portal, CapPtr dest, uint64_t user);
     void loadState() override;

@@ -65,8 +65,13 @@ namespace mythos {
     
     virtual void saveState() = 0;
 
+    /** informs the execution context that the user-mode code trapped and error handling is needed. */
     virtual void handleTrap() = 0;
 
+    /** informs the execution context that it was interrupted. */
+    virtual void handleInterrupt() = 0;
+
+    /** lets the execution context process the current system call. */ 
     virtual void handleSyscall() = 0;
   };
 
@@ -82,7 +87,7 @@ namespace mythos {
     /** Forward the trap handling to the currently loaded execution context.
     * If current_ec is nullptr than we can not return from user space because we never left.
     */
-    inline void handle_trap() {
+    inline void ec_handle_trap() {
         ASSERT(current_ec->load() != nullptr);
         current_ec->load()->handleTrap();
     }
@@ -90,9 +95,13 @@ namespace mythos {
     /** Forward the system call handling to the currently loaded execution context.
     * If current_ec is nullptr than we can not return from user space because we never left.
     */
-    inline void handle_syscall() {
+    inline void ec_handle_syscall() {
         ASSERT(current_ec->load() != nullptr);
         current_ec->load()->handleSyscall();
     }
 
+    inline void ec_interrupted() {
+        auto ec = current_ec->load();
+        if (ec) ec->handleInterrupt();
+    }
 } // namespace mythos

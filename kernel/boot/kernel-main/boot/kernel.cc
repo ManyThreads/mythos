@@ -141,7 +141,7 @@ void mythos::cpu::syscall_entry_cxx(mythos::cpu::ThreadState* ctx)
   mythos::idle::enteredFromSyscall();
   MLOG_DETAIL(mlog::boot, "user system call", DVARhex(ctx->rdi), DVARhex(ctx->rsi),
       DVARhex(ctx->rip), DVARhex(ctx->rsp));
-  mythos::handle_syscall();
+  mythos::ec_handle_syscall();
   runUser();
 }
 
@@ -152,8 +152,9 @@ void mythos::cpu::irq_entry_user(mythos::cpu::ThreadState* ctx)
   MLOG_DETAIL(mlog::boot, "user interrupt", DVARhex(ctx->irq), DVARhex(ctx->error),
       DVARhex(ctx->rip), DVARhex(ctx->rsp));
   if (ctx->irq<32) {
-    mythos::handle_trap(); // handle traps, exceptions, bugs from user mode
+    mythos::ec_handle_trap(); // handle traps, exceptions, bugs from user mode
   } else {
+    mythos::ec_interrupted(); // inform the current execution context that it was interrupted
     ASSERT(ctx->irq < 256);
     mythos::boot::getLocalInterruptController().handleInterrupt(ctx->irq);
   }

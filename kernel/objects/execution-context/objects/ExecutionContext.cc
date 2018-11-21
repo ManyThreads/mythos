@@ -386,7 +386,7 @@ namespace mythos {
     MLOG_ERROR(mlog::ec, "...", DVARhex(ctx->fs_base), DVARhex(ctx->gs_base));
     setFlags(IS_TRAPPED | NOT_RUNNING); // mark as not executable until the exception is handled
   }
-
+  
   void ExecutionContext::handleSyscall()
   {
     setFlags(NOT_RUNNING);
