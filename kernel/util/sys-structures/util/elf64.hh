@@ -104,6 +104,7 @@ namespace mythos {
  
       Header const* header() const { return reinterpret_cast<Header*>(start); }
       size_t phnum() const { return header()->phnum; }
+      size_t phent() const { return header()->phentsize; }
       PHeader const* phdr(size_t idx) const {
         return reinterpret_cast<PHeader*>(start + header()->phoffset + idx*header()->phentsize);
       }

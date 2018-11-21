@@ -1,0 +1,20 @@
+diff -r -U3 libcxx.orig/src/filesystem/operations.cpp libcxx/src/filesystem/operations.cpp
+--- libcxx.orig/src/filesystem/operations.cpp	2018-11-05 15:40:44.157125056 +0100
++++ libcxx/src/filesystem/operations.cpp	2018-11-05 16:00:15.914711055 +0100
+@@ -26,16 +26,6 @@
+ #include <time.h>
+ #include <fcntl.h> /* values for fchmodat */
+ 
+-#if defined(__linux__)
+-#include <linux/version.h>
+-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 33)
+-#include <sys/sendfile.h>
+-#define _LIBCPP_USE_SENDFILE
+-#endif
+-#elif defined(__APPLE__) || __has_include(<copyfile.h>)
+-#include <copyfile.h>
+-#define _LIBCPP_USE_COPYFILE
+-#endif
+ 
+ #if !defined(__APPLE__)
+ #define _LIBCPP_USE_CLOCK_GETTIME

@@ -47,6 +47,31 @@ mythos::elf64::PHeader const* findTLSHeader() {
 
 extern mythos::InvocationBuf* msg_ptr asm("msg_ptr");
 
+/** make a system call to set the new FS base address.
+ * Called from musl __init_tls.
+ * Original was using set_thread_area system call, but passed the pointer instead of a GDT struct. 
+ * Did not match the man page.
+ */
+extern "C" int __set_thread_area(void *p)
+{
+    msg_ptr->write<protocol::ExecutionContext::SetFSGS>(reinterpret_cast<uintptr_t>(p), 0);
+    auto result = syscall_invoke_wait(mythos::init::PORTAL, mythos::init::EC, (void*)0xDEADBEEF);
+    ASSERT(result.user == (uintptr_t)0xDEADBEEF);
+    ASSERT(result.state == (uint64_t)Error::SUCCESS);
+
+    return 0;
+}
+
+/** allocate memory for the thread local storage.
+ * Called from musl __init_tls.
+ * Original was using mmap systemcall for anonymous memory at arbitrary position.
+ */
+extern "C" void* __mythos_get_tlsmem(unsigned long size)
+{
+    return sbrk(size);
+}
+
+
 void setupInitialTLS() {
     // find the TLS program header
     auto ph = findTLSHeader();
@@ -56,7 +81,7 @@ void setupInitialTLS() {
     // allocate some memory from sbrk and then copy the TLS segment and control block there
     AlignmentObject align(max(ph->alignment, alignof(TLSControlBlock)));
     auto tlsAllocationSize = align.round_up(ph->memsize) + sizeof(TLSControlBlock);
-    auto addr = reinterpret_cast<char*>(sbrk(tlsAllocationSize)); // @todo should be aligned to align.alignment()
+    auto addr = reinterpret_cast<char*>(__mythos_get_tlsmem(tlsAllocationSize)); // @todo should be aligned to align.alignment()
     ASSERT(addr != nullptr);
     auto tcbAddr = addr + align.round_up(ph->memsize);
     auto tlsAddr = tcbAddr - AlignmentObject(ph->alignment).round_up(ph->memsize);
@@ -66,11 +91,7 @@ void setupInitialTLS() {
     memcpy(tlsAddr, (void*)(ph->vaddr), ph->filesize);
     new(tcbAddr) TLSControlBlock(); // placement new to set up the TCB
 
-    // make a system call to set the new FS base address
-    msg_ptr->write<protocol::ExecutionContext::SetFSGS>(reinterpret_cast<uintptr_t>(tcbAddr), 0);
-    auto result = syscall_invoke_wait(mythos::init::PORTAL, mythos::init::EC, (void*)0xDEADBEEF);
-    ASSERT(result.user == (uintptr_t)0xDEADBEEF);
-    ASSERT(result.state == (uint64_t)Error::SUCCESS);
+    __set_thread_area(reinterpret_cast<void*>(tcbAddr));
 }
 
 void* setupNewTLS() {

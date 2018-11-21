@@ -24,67 +24,68 @@ command -v k1om-mpss-linux-g++ >/dev/null 2>&1 && CROSS_K1OM=1
 cd `dirname $0`
 BASEDIR=`pwd`
 echo installing in $BASEDIR
+
+#git submodule update
+
 mkdir cxx-src
 cd cxx-src
 
 ### download libraries
-if test ! -d musl ; then
-  git clone git://git.musl-libc.org/musl || fail
-  cd musl
-  git apply ../../musl-k1om.patch || fail
-  git apply ../../musl-strtoll_l.patch || fail
-  # printf_chk based on https://www.openwall.com/lists/musl/2015/06/20/5
-  git apply ../../musl-printf_chk.patch || fail
-  cd ..
-fi
+rm -rf musl
+ln -s ../musl
 
-if test ! -d libcxxabi ; then
-  #svn co http://llvm.org/svn/llvm-project/libcxxabi/trunk libcxxabi
-  #git clone https://github.com/llvm-mirror/libcxxabi.git
-  if test ! -e libcxxabi-6.0.1.src.tar.xz ; then  
-    curl -O http://releases.llvm.org/6.0.1/libcxxabi-6.0.1.src.tar.xz || fail
-  fi
-  tar -xJf libcxxabi-6.0.1.src.tar.xz && mv libcxxabi-6.0.1.src libcxxabi || fail
-  cd libcxxabi
-  #patch -p1 < ../../libcxxabi-cmake.patch
-  cd ..
+#svn co http://llvm.org/svn/llvm-project/libcxxabi/trunk libcxxabi
+#git clone https://github.com/llvm-mirror/libcxxabi.git
+if test ! -e libcxxabi-7.0.0.src.tar.xz ; then  
+  curl -O http://releases.llvm.org/7.0.0/libcxxabi-7.0.0.src.tar.xz || fail
 fi
+rm -rf libcxxabi
+tar -xJf libcxxabi-7.0.0.src.tar.xz && mv libcxxabi-7.0.0.src libcxxabi || fail
+#cd libcxxabi
+#patch -p1 < ../../libcxxabi-cmake.patch
+#cd ..
 
-if test ! -d libcxx ; then
-  #git clone https://github.com/llvm-mirror/libcxx.git
-  if test ! -e libcxx-6.0.1.src.tar.xz ; then  
-    curl -O http://releases.llvm.org/6.0.1/libcxx-6.0.1.src.tar.xz || fail
-  fi
-  tar -xJf libcxx-6.0.1.src.tar.xz && mv libcxx-6.0.1.src libcxx || fail
+#git clone https://github.com/llvm-mirror/libcxx.git
+if test ! -e libcxx-7.0.0.src.tar.xz ; then  
+  curl -O http://releases.llvm.org/7.0.0/libcxx-7.0.0.src.tar.xz || fail
 fi
+rm -rf libcxx
+tar -xJf libcxx-7.0.0.src.tar.xz && mv libcxx-7.0.0.src libcxx || fail
+cd libcxx
+patch -p1 < ../../libcxx-nolinux.patch
+cd ..
 
-if test ! -d llvm ; then
-  #git clone https://github.com/llvm-mirror/llvm.git
-  if test ! -e libllvm-6.0.1.src.tar.xz ; then  
-    curl -O http://releases.llvm.org/6.0.1/llvm-6.0.1.src.tar.xz || fail
-  fi
-  tar -xJf llvm-6.0.1.src.tar.xz && mv llvm-6.0.1.src llvm || fail
+#git clone https://github.com/llvm-mirror/llvm.git
+if test ! -e llvm-7.0.0.src.tar.xz ; then  
+  curl -O http://releases.llvm.org/7.0.0/llvm-7.0.0.src.tar.xz || fail
 fi
+rm -rf llvm
+tar -xJf llvm-7.0.0.src.tar.xz && mv llvm-7.0.0.src llvm || fail
 
-if test ! -d libunwind ; then
-  if test ! -e libunwind-6.0.1.src.tar.xz ; then  
-    curl -O http://releases.llvm.org/6.0.1/libunwind-6.0.1.src.tar.xz || fail
-  fi
-  tar -xJf libunwind-6.0.1.src.tar.xz && mv libunwind-6.0.1.src libunwind || fail
+if test ! -e libunwind-7.0.0.src.tar.xz ; then  
+  curl -O http://releases.llvm.org/7.0.0/libunwind-7.0.0.src.tar.xz || fail
 fi
+rm -rf libunwind
+tar -xJf libunwind-7.0.0.src.tar.xz && mv libunwind-7.0.0.src libunwind || fail
 
 
 function compile {
 
+rm -rf "$DSTDIR"
 mkdir -p "$DSTDIR"
 
 ### build musl libc for amd64
 # don't try parallel builds
+# need to define mythos-platform as derivate of k1om and x86-64
+# need to define SYSCALL_NO_INLINE and just call external function mythos_syscall
+# then dispatch the few syscalls we are actually interested in
+# also define a new thread/x86-64/syscall_cp.s and clone.s, set_thread_area and unmapself
 cd musl
 rm -rf build && mkdir build && cd build
 env CC=$REALGCC CFLAGS="-nostdinc" \
 ../configure $MUSLTARGET --prefix="$DSTDIR/usr" \
     --disable-shared \
+    --enable-wrapper=all \
     && make && make install || fail
 cd ../..
 
@@ -93,9 +94,12 @@ cd ../..
 cd libcxx
 rm -rf build && mkdir build && cd build
 cmake -DCMAKE_INSTALL_PREFIX="$DSTDIR/usr" \
+    -DCMAKE_FIND_ROOT_PATH="$DSTDIR" \
     -DCMAKE_C_COMPILER="$DSTDIR/usr/bin/musl-gcc" \
     -DCMAKE_CXX_COMPILER="$DSTDIR/usr/bin/musl-gcc" \
     -DCMAKE_CXX_FLAGS="-isystem $DSTDIR/usr/include -isystem $DSTDIR/usr/include/c++/v1" \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DLIBCXX_SYSROOT="$DSTDIR" \
     -DLIBCXX_ENABLE_SHARED=OFF \
     -DLLVM_PATH="$BASEDIR/cxx-src/llvm" \
     ../ && make -j && make install || fail
@@ -108,6 +112,7 @@ cmake -DCMAKE_INSTALL_PREFIX="$DSTDIR/usr" \
     -DCMAKE_C_COMPILER="$DSTDIR/usr/bin/musl-gcc" \
     -DCMAKE_CXX_COMPILER="$DSTDIR/usr/bin/musl-gcc" \
     -DCMAKE_CXX_FLAGS="-isystem $DSTDIR/usr/include -isystem $DSTDIR/usr/include/c++/v1" \
+    -DLIBUNWIND_SYSROOT="$DSTDIR" \
     -DLIBUNWIND_ENABLE_SHARED=OFF \
     -DCMAKE_BUILD_TYPE=Release \
     -DLLVM_PATH="$BASEDIR/cxx-src/llvm" \
@@ -116,9 +121,8 @@ cd ../..
 
 
 ### install libcxxabi for amd64
-# -DLIBUNWIND_SYSROOT ## for cross-compiling
-# -DLIBCXXABI_ENABLE_THREADS=OFF \
-# -DLIBCXXABI_BAREMETAL=ON \
+# -DLIBCXXABI_ENABLE_THREADS=OFF would also disable c++11 atomics :(
+# -DLIBCXXABI_BAREMETAL=ON 
 # on linux you may need -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++
 cd libcxxabi
 rm -rf build && mkdir build && cd build
@@ -127,6 +131,7 @@ cmake -DCMAKE_INSTALL_PREFIX="$DSTDIR/usr" \
     -DCMAKE_CXX_COMPILER="$DSTDIR/usr/bin/musl-gcc" \
     -DCMAKE_CXX_FLAGS="-isystem $DSTDIR/usr/include -isystem $DSTDIR/usr/include/c++/v1" \
     -DCMAKE_BUILD_TYPE=Release \
+    -DLIBCXXABI_SYSROOT="$DSTDIR" \
     -DLIBCXXABI_ENABLE_SHARED=OFF \
     -DLIBCXXABI_LIBCXX_PATH="$BASEDIR/cxx-src/libcxx" \
     -DLIBCXXABI_USE_LLVM_UNWINDER=ON \
@@ -141,7 +146,6 @@ cd ../..
 
 # install libcxx with libcxxabi for amd64
 # see also https://libcxx.llvm.org/docs/BuildingLibcxx.html
-#     -DLIBCXX_ENABLE_THREADS=OFF 
 #LIBRARY_PATH=$BASEDIR/cxx/lib make -j
 #LIBRARY_PATH=$BASEDIR/cxx/lib make install
 #    -DLIBCXX_HAS_MUSL_LIBC=ON 
@@ -152,6 +156,7 @@ cmake -DCMAKE_INSTALL_PREFIX="$DSTDIR/usr" \
     -DCMAKE_CXX_COMPILER="$DSTDIR/usr/bin/musl-gcc" \
     -DCMAKE_CXX_FLAGS="-isystem $DSTDIR/usr/include -isystem $DSTDIR/usr/include/c++/v1" \
     -DCMAKE_BUILD_TYPE=Release \
+    -DLIBCXX_SYSROOT="$DSTDIR" \
     -DLIBCXX_ENABLE_SHARED=OFF \
     -DLIBCXX_CXX_ABI=libcxxabi \
     -DLIBCXX_CXX_ABI_INCLUDE_PATHS="$BASEDIR/cxx-src/libcxxabi/include" \
@@ -176,6 +181,7 @@ if test f$CROSS_K1OM = f1 ; then
   export MUSLTARGET="--target=k1om-mpss-linux"
   export REALGCC="k1om-mpss-linux-gcc"
   compile
+  cp -v `k1om-mpss-linux-gcc --print-sysroot`/usr/lib64/k1om-mpss-linux/5.1.1/libgcc.a $DSTDIR/usr/lib/
 else
   echo "skipping K1OM/KNC because cross-compiler k1om-mpss-linux-g++ not found."
 fi # done for KNC
