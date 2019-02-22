@@ -60,7 +60,7 @@ synchronisation.
 ## Running on the Intel XeonPhi KNC
 
 In order to run MyThOS on an Intel XeonPhi Knights Corner processor, a recent version of Intel's MPSS software stack is needed. In addition a not too old C++ compiler is needed for the host tools. After loading the respective environment variables:
-* First, run `git submodule init && git submodule update && 3rdparty/install-python-libs.sh` in order to install the needed libraries for the build configuration tool. This requires python and pip (a widespread package installer for python).
+* First, run `git submodule init && git submodule update && 3rdparty/mcconf/install-python-libs.sh` in order to install the needed libraries for the build configuration tool. This requires python and pip (a widespread package installer for python).
 * Run `3rdparty/install-libcxx.sh`
 * Now you can run `make` in the root folder. This will assemble the source code into the subfolders `kernel-amd64`, `kernel-knc` and `host-knc`.
 * Change into the `host-knc` folder and run `make` in order to compile the `xmicterm` application. This is used to receive the debugging and log messages from the MyThOS kernel and applications.
