@@ -67,6 +67,17 @@ In order to run MyThOS on an Intel XeonPhi Knights Corner processor, a recent ve
 * Then, change into the `kernel-knc` folder and run `make` in order to compile the init application and the kernel.
 * In order to boot the system on the XeonPhi, you need root access (sudo). Run `make micrun` in order to stop any running coprocessor OS and boot MyThOS. If everything goes well, the script will start the `xmicterm` and you see the debug output. Stop it with CTRL-c and use `make micstop` to shut down the coprocessor. You can enable more detailed debug messages by editing `Makefile.user` and recompiling the kernel.
 
+## Running as cokernel next to linux (Cent-OS) with IHK
+
+* First, run `git submodule init && git submodule update && 3rdparty/mcconf/install-python-libs.sh` in order to install the needed libraries for the build configuration tool. This requires python and pip (a widespread package installer for python).
+* Run `3rdparty/install-libcxx.sh`
+* Disable SELinux: `vim /etc/selinux/config` and change the file to SELINUX=disabled
+* Reboot the machine: `sudo reboot`
+* Install required packages: `sudo yum install cmake kernel-devel binutils-devel systemd-devel numactl-devel`
+* Grant read permission to the System.map file of your kernel version: `sudo chmod a+r /boot/System.map-`uname -r` `
+* Run `3rdparty/install-ihk.sh`
+* Now you can run `make` in the root folder. This will assemble the source code into the subfolders `kernel-amd64`, kernel-ihk, `kernel-knc` and `host-knc`.
+
 # Acknowledgements
 
 The MyThOS project was funded by the Federal Ministry of Education and Research (BMBF) under Grant No. 01IH13003 from October 2013 to September 2016. The grant was part of the 3rd HPC-Call of the Gauss Allianz.
