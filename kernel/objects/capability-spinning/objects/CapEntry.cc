@@ -67,6 +67,15 @@ namespace mythos {
     _cap.store(Cap().value());
   }
 
+  void CapEntry::setPrevPreserveFlags(CapEntry* ptr)
+  {
+    auto expected = _prev.load();
+    auto desired = Link(ptr).withFlags(Link(expected)).val();
+    while (!_prev.compare_exchange_weak(expected, desired)) {
+      desired = Link(ptr).withFlags(Link(expected));
+    }
+  }
+
   optional<void> CapEntry::insertAfter(const Cap& thisCap, CapEntry& target)
   {
     ASSERT(isKernelAddress(this));
@@ -79,10 +88,12 @@ namespace mythos {
       THROW(Error::LOST_RACE);
     }
     auto nextEntry = Link(_next.load()).ptr();
-    nextEntry->_prev.store(Link(&target));
+    nextEntry->setPrevPreserveFlags(&target);
     target._next.store(Link(nextEntry));
+    // deleted or revoking can not be set in target._prev
+    // as we allocated target for being inserted
     target._prev.store(Link(this));
-    this->_next.store(Link(&target));
+    this->_next.store(Link(&target)); // unlocks this entry
     RETURN(Error::SUCCESS);
   }
 
@@ -106,8 +117,10 @@ namespace mythos {
     auto nextEntry = Link(_next).ptr();
     auto prevEntry = Link(_prev).ptr();
 
-    nextEntry->_prev.store(Link(&other));
+    nextEntry->setPrevPreserveFlags(&other);
     other._next.store(Link(nextEntry));
+    // deleted or revoking can not be set in other._prev
+    // as we allocated other for moving
     other._prev.store(Link(prevEntry));
     prevEntry->_next.store(Link(&other));
     other.commit(thisCap);
