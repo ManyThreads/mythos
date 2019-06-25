@@ -104,9 +104,17 @@ namespace mythos {
     bool isUnlinked() const { return cap().isZombie() && !Link(_next).ptr() && !Link(_prev).ptr(); }
 
   private:
+
+    // called by move and insertAfter
+    void setPrevPreserveFlags(CapEntry* ptr);
+
     static constexpr uintlink_t LOCKED_FLAG = 1;
     static constexpr uintlink_t REVOKING_FLAG = 1 << 1;
     static constexpr uintlink_t DELETED_FLAG = 1 << 2;
+    static constexpr uintlink_t FLAG_MASK = 7;
+
+    static_assert((DELETED_FLAG | REVOKING_FLAG | FLAG_MASK) == FLAG_MASK, "prev flags do not fit");
+    static_assert((LOCKED_FLAG | FLAG_MASK) == FLAG_MASK, "next flags do not fit");
 
     class Link {
     public:
@@ -119,6 +127,7 @@ namespace mythos {
       CapEntry* ptr() const { return _toPtr(); }
       bool has(uintlink_t flags) const { return (_val & flags) == flags; }
       Link with(uintlink_t flags) const { return Link(_val & flags); }
+      Link withFlags(const Link& other) const { return Link(_val).with(other._val & FLAG_MASK); }
     protected:
       static uintlink_t _pack(CapEntry* entry, uintlink_t flags)
       {
