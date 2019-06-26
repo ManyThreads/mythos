@@ -1,0 +1,47 @@
+IHK integration
+===============
+
+IHK offers
+----------
+
+ihkconfig:
+- configures the IHK device
+
+ihkmond:
+- Sequence hungup detector and kmsg taker with the coordination with creation/destruction events of McKernel
+
+ihkosctl:
+- configures the OSs on coprocessors
+
+IHK/McKernel boot sequence
+---------------------------------- 
+
+$sudo ./sbin/mcreboot.sh -c 1 -m 512m 
+ 1. (Start) ihkmond:
+	- kill ihkmond if running
+	- maybe start ihkmond
+ 2. Figure out number of cores
+ 3. Stop irqbalance and save irq affinities (only first mcreboot) 
+ 4. Prevent /proc/irq/*/smp_affinity from getting zero after offlining McKernel CPUs by using the following algorithm.
+ 5. Set umask so that proc/sys files/directories created by mcctrl.ko and mcreboot.sh have appropriate permission bits
+ 6. Load IHK kernel module if not loaded
+ 7. Increase swappiness so that we have better chance to allocate memory for IHK
+ 8. Drop Linux caches to free memory
+ 9. Merge free memory areas into large, physically contigous ones
+ 10. Load IHK-SMP kernel module if not loaded
+ 11. Offline-reonline RAM (special cases)
+ 12. Reserve CPUs and memory
+ 13. Load mcctrl kernel module if not loaded
+ 14. Check that different versions of binaries/scripts are not mixed
+ 15. Destroy all LWK (Light-weight kernel, mcos) instances
+ 16. Create OS instance (ihkconfig create) 
+ 17. Assign CPUs
+ 18. Assign memory
+ 19. Load kernel image
+ 20. Set kernel arguments
+ 21. Boot OS instance
+ 22. Set device file ownership
+ 23. Start irqbalance with CPUs and IRQ for McKernel banned
+
+$./sbin/ihkosctl 0 kmsg
+ 1.
