@@ -1,0 +1,463 @@
+#!/bin/bash
+# IHK/McKernel SMP boot script.
+# author: Balazs Gerofi <bgerofi@riken.jp>
+#      Copyright (C) 2014  RIKEN AICS
+# modified: Fujitsu Ltd.
+#      Copyright (C) 2018
+# modified: Philipp Gypser (gypsephi@b-tu.de)
+#      Copyright (C) 2019
+#
+# This is an example script for loading IHK, configuring a partition and
+# booting McKernel on it.  Unless specific CPUs and memory are requested,
+# the script reserves half of the CPU cores and 512MB of RAM from
+# NUMA node 0 when IHK is loaded for the first time.
+# Otherwise, it destroys the current McKernel instance and reboots it using
+# the same set of resources as it used previously.
+# Note that the script does not output anything unless an error occurs.
+#
+# This script is meant to be run under sudo. Running it with regular user
+# privileges requires /etc/sudoers to contain the following persmissions:
+#
+# hpcuser ALL=(root) NOPASSWD: /sbin/insmod, /sbin/rmmod, /sbin/setenforce, /bin/systemctl, /bin/cat, /bin/chown * /dev/mcd*, /bin/chown * /dev/mcos*, /*/*/*/*/ihkconfig, /*/*/*/*/ihkosctl, /usr/bin/tee, /bin/sync, /usr/bin/mkdir, /usr/bin/rmdir /run/systemd/system/irqbalance.service.d, /usr/bin/rm -rf /run/systemd/system/irqbalance.service.d/mckernel.conf /run/sysconfig/irqbalance_mck /run/sysconfig/irqbalance_mck_affinities
+
+SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+
+ret=1
+prefix=${SCRIPTDIR}
+#BINDIR="${prefix}/bin"
+SBINDIR="${prefix}/ihk/install/sbin"
+#ETCDIR=/home/pgypser/ihk+mckernel/etc
+KMODDIR="${prefix}/ihk/install/kmod"
+MCK_BUILDID=c505d9c
+ENABLE_LINUX_WORK_IRQ_FOR_IKC="ON"
+
+
+mem="512M@0"
+cpus=""
+ikc_map=""
+kernelpath=""
+
+if [ "${BASH_VERSINFO[0]}" -lt 4 ]; then
+	echo "You need at least bash-4.0 to run this script." >&2
+	exit 1
+fi
+
+# Check SELinux
+if which getenforce 1>/dev/null 2>/dev/null && [ "`getenforce | tr '[:upper:]' '[:lower:]'`" == "enforcing" ]; then
+	echo "error: SELinux must not be enabled when running McKernel (update /etc/selinux/config or see setenforce)"
+	exit 1
+fi
+
+redirect_kmsg=0
+mon_interval="-1"
+DUMP_LEVEL=24
+facility="LOG_LOCAL6"
+chown_option=`id -un 2> /dev/null`
+SUDO="sudo"
+# For the case when the entire script is run with sudo fall back to login name
+if [ "${chown_option}" == "root" ]; then
+	chown_option=`logname 2> /dev/null`
+	SUDO=""
+fi
+
+
+
+irqbalance_used="no"
+systemctl status irqbalance.service &>/dev/null && irqbalance_used="yes"
+
+turbo=""
+ihk_irq=""
+safe_kernel_map=""
+umask_old=`umask`
+idle_halt=""
+allow_oversubscribe=""
+time_sharing="time_sharing"
+
+while getopts stk:c:m:o:f:r:q:i:d:e:hOT: OPT
+do
+	case ${OPT} in
+	p)	kernelpath=${OPTARG}
+		;;
+	f)	facility=${OPTARG}
+		;;
+	o)	chown_option=${OPTARG}
+		;;
+	k)	redirect_kmsg=${OPTARG}
+		;;
+	c) cpus=${OPTARG}
+		;;
+	m) mem=${OPTARG}
+		;;
+	s) safe_kernel_map="safe_kernel_map"
+		;;
+	r) ikc_map=${OPTARG}
+		;;
+	q) ihk_irq=${OPTARG}
+		;;
+	t) turbo="turbo"
+		;;
+	e) extra_kopts=${OPTARG}
+		;;
+	d) DUMP_LEVEL=${OPTARG}
+		;;
+	i) mon_interval=${OPTARG}
+		;;
+	h) idle_halt="idle_halt"
+		;;
+	O) allow_oversubscribe="allow_oversubscribe"
+		;;
+	T)
+		case ${OPTARG} in
+		    1) time_sharing="time_sharing"
+			;;
+		    0) time_sharing=""
+			;;
+		esac
+		;;
+	\?) exit 1
+		;;
+	esac
+done
+
+# Start ihkmond
+pid=`pidof ihkmond`
+if [ "${pid}" != "" ]; then
+    ${SUDO} kill -9 ${pid} > /dev/null 2> /dev/null
+fi
+if [ "${redirect_kmsg}" != "0" -o "${mon_interval}" != "-1" ]; then
+    ${SBINDIR}/ihkmond -f ${facility} -k ${redirect_kmsg} -i ${mon_interval}
+fi
+
+disable_irqbalance_mck() {
+	if [ -f /run/systemd/system/irqbalance.service.d/mckernel.conf ]; then
+		for f in /run/sysconfig/irqbalance_mck_affinities/proc/irq/*/smp_affinity; do
+			cat "$f" | ${SUDO} tee "${f#/run/sysconfig/irqbalance_mck_affinities}" >/dev/null 2>&1
+		done
+		${SUDO} rm -rf /run/systemd/system/irqbalance.service.d/mckernel.conf \
+			/run/sysconfig/irqbalance_mck /run/sysconfig/irqbalance_mck_affinities
+		${SUDO} rmdir /run/systemd/system/irqbalance.service.d 2>/dev/null
+		${SUDO} systemctl daemon-reload
+		${SUDO} systemctl restart irqbalance.service
+	fi
+}
+
+#
+# Revert any state that has been initialized before the error occured.
+#
+error_exit() {
+	local status=$1
+
+	case $status in
+	os_created)
+		# Destroy all LWK instances
+		if ls /dev/mcos* 1>/dev/null 2>&1; then
+			for i in /dev/mcos*; do
+				ind=`echo $i|cut -c10-`;
+				if ! ${SUDO} ${SBINDIR}/ihkconfig 0 destroy $ind; then
+					echo "warning: failed to destroy LWK instance $ind" >&2
+				fi
+			done
+		fi
+		;&
+	mcctrl_loaded)
+		#${SUDO} rmmod mcctrl 2>/dev/null || echo "warning: failed to remove mcctrl" >&2
+		;&
+	cpus_reserved)
+		cpus=`${SUDO} ${SBINDIR}/ihkconfig 0 query cpu`
+		if [ "${cpus}" != "" ]; then
+			if ! ${SUDO} ${SBINDIR}/ihkconfig 0 release cpu $cpus > /dev/null; then
+				echo "warning: failed to release CPUs" >&2
+			fi
+		fi
+		;&
+	mem_reserved)
+		mem=`${SUDO} ${SBINDIR}/ihkconfig 0 query mem`
+		if [ "${mem}" != "" ]; then
+			if ! ${SUDO} ${SBINDIR}/ihkconfig 0 release mem $mem > /dev/null; then
+				echo "warning: failed to release memory" >&2
+			fi
+		fi
+		;&
+	ihk_smp_loaded)
+		${SUDO} rmmod ihk_smp_x86_64 2>/dev/null || echo "warning: failed to remove ihk_smp_x86_64" >&2
+		;&
+	ihk_loaded)
+		${SUDO} rmmod ihk 2>/dev/null || echo "warning: failed to remove ihk" >&2
+		;&
+	smp_affinity_modified)
+		umask $umask_old
+		if [ "${irqbalance_used}" == "yes" ]; then
+			disable_irqbalance_mck
+		fi
+		;&
+	irqbalance_stopped)
+		if [ "${irqbalance_used}" == "yes" ]; then
+		    if ! ${SUDO} systemctl start irqbalance.service; then
+			echo "warning: failed to start irqbalance" >&2;
+		    fi
+		fi
+		;&
+	initial)
+		# Nothing more to revert
+		;;
+	esac
+
+	# Propagate exit status if any
+	exit $ret
+}
+
+ihk_ikc_irq_core=0
+
+release=`uname -r`
+major=`echo ${release} | sed -e 's/^\([0-9]*\).*/\1/'`
+minor=`echo ${release} | sed -e 's/^[0-9]*.\([0-9]*\).*/\1/'`
+patch=`echo ${release} | sed -e 's/^[0-9]*.[0-9]*.\([0-9]*\).*/\1/'`
+linux_version_code=`expr \( ${major} \* 65536 \) + \( ${minor} \* 256 \) + ${patch}`
+rhel_release=`echo ${release} | sed -e 's/^[0-9]*.[0-9]*.[0-9]*-\([0-9]*\).*/\1/'`
+if [ "${release}" == "${rhel_release}" ]; then
+	rhel_release="";
+fi
+
+# Figure out CPUs if not requested by user
+if [ "$cpus" == "" ]; then
+	# Get the number of CPUs on NUMA node 0
+	nr_cpus=`lscpu --parse | awk -F"," '{if ($4 == 0) print $4}' | wc -l`
+	echo "found $nr_cpus cpus"
+
+	# Use the second half of the cores
+	let nr_cpus="$nr_cpus / 2"
+	cpus=`lscpu --parse | awk -F"," '{if ($4 == 0) print $1}' | tail -n $nr_cpus | xargs echo -n | sed 's/ /,/g'`
+	if [ "$cpus" == "" ]; then
+		echo "error: no available CPUs on NUMA node 0?" >&2
+		exit 1
+	fi
+fi
+
+# Stop irqbalance and save irq affinities (only first mcreboot)
+${SUDO} systemctl stop irqbalance.service >/dev/null 2>&1
+
+if [[ "${irqbalance_used}" == "yes" && ! -e "/run/sysconfig/irqbalance_mck_affinities" ]]; then
+	for f in /proc/irq/*/smp_affinity; do
+		copy=/run/sysconfig/irqbalance_mck_affinities/$f
+		${SUDO} mkdir -p "${copy%/*}"
+		${SUDO} cat $f | ${SUDO} tee "$copy" >/dev/null || error_exit "irqbalance_stopped"
+	done
+
+# Prevent /proc/irq/*/smp_affinity from getting zero after offlining
+# McKernel CPUs by using the following algorithm.
+# if (smp_affinity & mck_cores) {
+#     smp_affinity = (mck_cores ^ -1);
+# }
+	ncpus=`lscpu | grep -E '^CPU\(s\):' | awk '{print $2}'`
+	smp_affinity_mask=`echo $cpus | ncpus=$ncpus perl -e 'while(<>){@tokens = split /,/;foreach $token (@tokens) {@nums = split /-/,$token; for($num = $nums[0]; $num <= $nums[$#nums]; $num++) {$ndx=int($num/32); $mask[$ndx] |= (1<<($num % 32))}}} $nint32s = int(($ENV{'ncpus'}+31)/32); for($j = $nint32s - 1; $j >= 0; $j--) { if($j != $nint32s - 1){print ",";} $nblks = ($j != $nint32s - 1) ? 8 : ($ENV{'ncpus'} % 32 != 0) ? int((($ENV{'ncpus'} + 3) % 32) / 4) : 8; for($i = $nblks - 1;$i >= 0;$i--){ printf("%01x",($mask[$j] >> ($i*4)) & 0xf);}}'`
+	# echo cpus=$cpus ncpus=$ncpus smp_affinity_mask=$smp_affinity_mask
+
+	if ! ncpus=$ncpus smp_affinity_mask=$smp_affinity_mask perl -e '@dirs = grep { -d } glob "/proc/irq/*"; foreach $dir (@dirs) { $hit = 0; $affinity_str = `'${SUDO}' cat $dir/smp_affinity`; chomp $affinity_str; @int32strs = split /,/, $affinity_str; @int32strs_mask=split /,/, $ENV{'smp_affinity_mask'}; for($i=0;$i <= $#int32strs_mask; $i++) { $int32strs_inv[$i] = sprintf("%08x",hex($int32strs_mask[$i])^0xffffffff); if($i == 0) { $len = int((($ENV{'ncpus'}%32)+3)/4); if($len != 0) { $int32strs_inv[$i] = substr($int32strs_inv[$i], -$len, $len); } } } $inv = join(",", @int32strs_inv); $nint32s = int(($ENV{'ncpus'}+31)/32); for($j = $nint32s - 1; $j >= 0; $j--) { if(hex($int32strs[$nint32s - 1 - $j]) & hex($int32strs_mask[$nint32s - 1 - $j])) { $hit = 1; }} if($hit == 1) { system("echo $inv | '${SUDO}' tee $dir/smp_affinity >/dev/null 2>&1")}}'; then
+		echo "error: modifying /proc/irq/*/smp_affinity" >&2
+		error_exit "irqbalance_stopped"
+	fi
+fi
+
+# Set umask so that proc/sys files/directories created by
+# mcctrl.ko and mcreboot.sh have appropriate permission bits
+umask_dec=$(( 8#${umask_old} & 8#0002 ))
+umask 0`printf "%o" ${umask_dec}`
+
+# Load IHK if not loaded
+if ! grep -E 'ihk\s' /proc/modules &>/dev/null; then
+	if ! taskset -c 0 ${SUDO} insmod ${KMODDIR}/ihk.ko 2>/dev/null; then
+		echo "error: loading ihk" >&2
+		error_exit "smp_affinity_modified"
+	fi
+fi
+
+# Increase swappiness so that we have better chance to allocate memory for IHK
+echo 100 | ${SUDO} tee /proc/sys/vm/swappiness 1>/dev/null
+
+# Drop Linux caches to free memory
+${SUDO} sync && echo 3 | ${SUDO} tee /proc/sys/vm/drop_caches 1>/dev/null
+
+# Merge free memory areas into large, physically contigous ones
+echo 1 | ${SUDO} tee /proc/sys/vm/compact_memory 1>/dev/null 2>/dev/null
+
+${SUDO} sync
+
+# Load IHK-SMP if not loaded and reserve CPUs and memory
+if ! grep ihk_smp_x86_64 /proc/modules &>/dev/null; then
+	if [ "$ihk_irq" == "" ] && [ "$ENABLE_LINUX_WORK_IRQ_FOR_IKC" != "ON" ]; then
+		for i in `seq 64 255`; do
+			if [ ! -d /proc/irq/$i ] && [ "`cat /proc/interrupts | grep ":" | awk '{print $1}' | grep -o '[0-9]*' | grep -e '^$i$'`" == "" ]; then
+				ihk_irq=$i
+				break
+			fi
+		done
+		if [ "$ihk_irq" == "" ]; then
+			echo "error: no IRQ available" >&2
+			error_exit "ihk_loaded"
+		fi
+	fi
+
+	IHK_IRQ_ARG=""
+	if [ "${ihk_irq}" != "" ]; then
+		IHK_IRQ_ARG="ihk_start_irq=${ihk_irq}"
+	fi
+
+	if ! taskset -c 0 ${SUDO} insmod ${KMODDIR}/ihk-smp-x86_64.ko ${IHK_IRQ_ARG} ihk_ikc_irq_core=$ihk_ikc_irq_core 2>/dev/null; then
+		echo "error: loading ihk-smp-x86_64" >&2
+		error_exit "ihk_loaded"
+	fi
+
+	# Offline-reonline RAM (special case for OFP SNC-4 flat mode)
+	if [ "`hostname | grep "c[0-9][0-9][0-9][0-9].ofp"`" != "" ] && [ "`cat /sys/devices/system/node/online`" == "0-7" ]; then
+		for i in  0 1 2 3; do
+			find /sys/devices/system/node/node$i/memory*/ -name "online" | while read f; do
+				echo 0 | ${SUDO} tee $f 2>/dev/null
+			done
+			find /sys/devices/system/node/node$i/memory*/ -name "online" | while read f; do
+				echo 1 | ${SUDO} tee $f 2>/dev/null
+			done
+		done
+		for i in 4 5 6 7; do
+			find /sys/devices/system/node/node$i/memory*/ -name "online" | while read f; do
+				echo 0 | ${SUDO} tee $f 2>/dev/null
+			done
+		done
+		for i in 4 5 6 7; do
+			find /sys/devices/system/node/node$i/memory*/ -name "online" | while read f; do
+				echo 1 | ${SUDO} tee $f 2>/dev/null
+			done
+		done
+	fi
+
+	# Offline-reonline RAM (special case for OFP Quadrant flat mode)
+	if [ "`hostname | grep "c[0-9][0-9][0-9][0-9].ofp"`" != "" ] && [ "`cat /sys/devices/system/node/online`" == "0-1" ]; then
+		for i in 1; do
+			find /sys/devices/system/node/node$i/memory*/ -name "online" | while read f; do
+				echo 0 | ${SUDO} tee $f 2>/dev/null
+			done
+		done
+		for i in 1; do
+			find /sys/devices/system/node/node$i/memory*/ -name "online" | while read f; do
+				echo 1 | ${SUDO} tee $f 2>/dev/null
+			done
+		done
+	fi
+
+	if ! ${SUDO} ${SBINDIR}/ihkconfig 0 reserve mem ${mem}; then
+		echo "error: reserving memory" >&2
+		error_exit "ihk_smp_loaded"
+	fi
+	if ! ${SUDO} ${SBINDIR}/ihkconfig 0 reserve cpu ${cpus}; then
+		echo "error: reserving CPUs" >&2;
+		error_exit "mem_reserved"
+	fi
+fi
+
+# Load mcctrl if not loaded
+#if ! grep mcctrl /proc/modules &>/dev/null; then
+	#if ! taskset -c 0 ${SUDO} insmod ${KMODDIR}/mcctrl.ko 2>/dev/null; then
+		#echo "error: inserting mcctrl.ko" >&2
+		#error_exit "cpus_reserved"
+	#fi
+#fi
+
+# Check that different versions of binaries/scripts are not mixed
+#IHK_BUILDID=`${SUDO} ${SBINDIR}/ihkconfig 0 get buildid`
+#if [  "${IHK_BUILDID}" != "${MCK_BUILDID}" ]; then
+	#echo "IHK build-id (${IHK_BUILDID}) didn't match McKernel build-id (${MCK_BUILDID})." >&2
+	#error_exit "mcctrl_loaded"
+#fi
+
+# Destroy all LWK instances
+if ls /dev/mcos* 1>/dev/null 2>&1; then
+	for i in /dev/mcos*; do
+		ind=`echo $i|cut -c10-`;
+		# Retry when conflicting with ihkmond
+		nretry=0
+		until ${SUDO} ${SBINDIR}/ihkconfig 0 destroy $ind || [ $nretry -ge 4 ]; do
+		    sleep 0.25
+		    nretry=$[ $nretry + 1 ]
+		done
+		if [ $nretry -eq 4 ]; then
+		    echo "error: destroying LWK instance $ind failed" >&2
+		    error_exit "mcctrl_loaded"
+		fi
+	done
+fi
+
+# Create OS instance
+if ! ${SUDO} ${SBINDIR}/ihkconfig 0 create; then
+	echo "error: creating OS instance" >&2
+	error_exit "mcctrl_loaded"
+fi
+
+# Assign CPUs
+if ! ${SUDO} ${SBINDIR}/ihkosctl 0 assign cpu ${cpus}; then
+	echo "error: assign CPUs" >&2
+	error_exit "os_created"
+fi
+
+if [ "$ikc_map" != "" ]; then
+	# Specify IKC map
+	if ! ${SUDO} ${SBINDIR}/ihkosctl 0 set ikc_map ${ikc_map}; then
+		echo "error: assign CPUs" >&2
+		error_exit "os_created"
+	fi
+fi
+
+# Assign memory
+if ! ${SUDO} ${SBINDIR}/ihkosctl 0 assign mem ${mem}; then
+	echo "error: assign memory" >&2
+	error_exit "os_created"
+fi
+
+# Load kernel image
+if ! [ -f kernelpath ]; then
+    echo "error: kernel image not found: ${kernelpath}"
+	error_exit "os_created"
+fi
+if ! ${SUDO} ${SBINDIR}/ihkosctl 0 load ${KERNDIR}/mckernel.img; then
+	echo "error: loading kernel image: ${KERNDIR}/mckernel.img" >&2
+	error_exit "os_created"
+fi
+
+# Set kernel arguments
+if ! ${SUDO} ${SBINDIR}/ihkosctl 0 kargs "hidos $turbo $safe_kernel_map $idle_halt dump_level=${DUMP_LEVEL} $extra_kopts $allow_oversubscribe $time_sharing"; then
+	echo "error: setting kernel arguments" >&2
+	error_exit "os_created"
+fi
+
+# Boot OS instance
+if ! ${SUDO} ${SBINDIR}/ihkosctl 0 boot; then
+	echo "error: booting" >&2
+	error_exit "os_created"
+fi
+
+# Set device file ownership
+if ! ${SUDO} chown ${chown_option} /dev/mcd* /dev/mcos*; then
+	echo "warning: failed to chown device files" >&2
+fi
+
+# Start irqbalance with CPUs and IRQ for McKernel banned
+if [ "${irqbalance_used}" == "yes" ]; then
+	banirq=`cat /proc/interrupts| perl -e 'while(<>) { if(/^\s*(\d+).*IHK\-SMP\s*$/) {print $1;}}'`
+
+	sed -e "s/%mask%/$smp_affinity_mask/g" -e "s/%banirq%/$banirq/g" \
+		"$ETCDIR/irqbalance_mck.in" | ${SUDO} tee /run/sysconfig/irqbalance_mck >/dev/null
+	${SUDO} mkdir /run/systemd/system/irqbalance.service.d 2>/dev/null
+	echo -e '[Service]\nEnvironmentFile=\nEnvironmentFile=/run/sysconfig/irqbalance_mck' | \
+		${SUDO} tee /run/systemd/system/irqbalance.service.d/mckernel.conf >/dev/null
+	${SUDO} systemctl daemon-reload
+
+	if ! ${SUDO} systemctl restart irqbalance.service 2>/dev/null ; then
+		echo "error: restarting irqbalance with mckernelconfig" >&2
+		error_exit "mcos_sys_mounted"
+	fi
+#	echo cpus=$cpus ncpus=$ncpus banirq=$banirq
+fi
+
+# Restore umask
+umask ${umask_old}
+
+exit 0
+
