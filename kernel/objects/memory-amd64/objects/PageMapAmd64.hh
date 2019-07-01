@@ -168,7 +168,7 @@ public:
   virtual void response(Tasklet*, optional<void>) override;
 
 public: // IKernelObject interface
-  Range<uintptr_t> addressRange(Cap self) override;
+  Range<uintptr_t> addressRange(CapEntry&, Cap self) override;
   optional<void const*> vcast(TypeId id) const override {
     if (id == typeId<IPageMap>()) return static_cast<IPageMap const*>(this);
     THROW(Error::TYPE_MISMATCH);
@@ -176,7 +176,7 @@ public: // IKernelObject interface
 
   optional<void> deleteCap(Cap self, IDeleter& del) override;
   void deleteObject(Tasklet* t, IResult<void>* r) override;
-  optional<Cap> mint(Cap self, CapRequest request, bool derive) override;
+  optional<Cap> mint(CapEntry&, Cap self, CapRequest request, bool derive) override;
 
   void invoke(Tasklet* t, Cap self, IInvocation* msg) override;
   Error invokeMmap(Tasklet* t, Cap self, IInvocation* msg);

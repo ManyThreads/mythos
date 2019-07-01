@@ -73,9 +73,9 @@ namespace mythos {
       THROW(Error::TYPE_MISMATCH);
     }
 
-    Range<uintptr_t> addressRange(Cap) override { return _range; }
+    Range<uintptr_t> addressRange(CapEntry&, Cap) override { return _range; }
 
-    optional<Cap> mint(Cap self, CapRequest, bool derive) override {
+    optional<Cap> mint(CapEntry&, Cap self, CapRequest, bool derive) override {
       if (derive) THROW(Error::INVALID_REQUEST);
       return self;
     }

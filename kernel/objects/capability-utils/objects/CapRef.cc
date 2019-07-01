@@ -56,10 +56,10 @@ namespace mythos {
       this->entry);
   }
 
-  Range<uintptr_t> CapRefBase::addressRange(Cap) {
+  Range<uintptr_t> CapRefBase::addressRange(CapEntry& entry, Cap) {
     Cap obj = Cap(this->orig.load());
     ASSERT(obj.isUsable());
-    return obj.getPtr()->addressRange(obj);
+    return obj.getPtr()->addressRange(entry, obj);
   }
 
   optional<void> CapRefBase::deleteCap(Cap self, IDeleter& /*del*/)

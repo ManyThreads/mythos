@@ -69,12 +69,12 @@ public: // IKernelObject interface
 
   optional<void> deleteCap(Cap, IDeleter&) override { RETURN(Error::SUCCESS); }
 
-  optional<Cap> mint(Cap self, CapRequest request, bool derive) override {
+  optional<Cap> mint(CapEntry&, Cap self, CapRequest request, bool derive) override {
     if (!derive) return FrameData(self).referenceRegion(self, FrameReq(request));
     else return FrameData(self).deriveRegion(self, frame, FrameReq(request), SIZE);
   }
 
-  Range<uintptr_t> addressRange(Cap) override { return {frame.start, frame.start+SIZE}; }
+  Range<uintptr_t> addressRange(CapEntry&, Cap) override { return {frame.start, frame.start+SIZE}; }
 
   void invoke(Tasklet* t, Cap self, IInvocation* msg) override {
     Error err = Error::NOT_IMPLEMENTED;

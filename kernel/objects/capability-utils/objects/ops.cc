@@ -33,13 +33,13 @@
 namespace mythos {
   namespace cap {
 
-  bool isParentOf(Cap parent, Cap other)
+  bool isParentOf(CapEntry& parentEntry, Cap parent, CapEntry& otherEntry, Cap other)
   {
     ASSERT(parent.getPtr());
     ASSERT(other.getPtr());
     // first check ranges
-    auto parentRange = parent.getPtr()->addressRange(parent);
-    auto otherRange = other.getPtr()->addressRange(other);
+    auto parentRange = parent.getPtr()->addressRange(parentEntry, parent);
+    auto otherRange = other.getPtr()->addressRange(otherEntry, other);
     //MLOG_DETAIL(mlog::cap, DVAR(parentRange), DVAR(otherRange));
     if (parentRange.contains(otherRange)) {
 
@@ -63,38 +63,45 @@ namespace mythos {
     return false; // is not contained
   }
 
-  optional<void> inherit(CapEntry& thisEntry, CapEntry& newEntry, Cap thisCap, Cap newCap)
+  optional<void> inherit(CapEntry& parentEntry, CapEntry& targetEntry, Cap parentCap, Cap targetCap)
   {
-    MLOG_DETAIL(mlog::cap, "inherit caps", DVAR(thisCap), DVAR(newCap),
-      DVAR(isParentOf(thisCap, newCap)), DVAR(isParentOf(newCap, thisCap)));
-    ASSERT(newEntry.cap().isAllocated());
-    ASSERT(implies(thisCap.isReference(), !isParentOf(thisCap, newCap) && !isParentOf(newCap, thisCap)));
-    ASSERT(implies(!thisCap.isReference(), isParentOf(thisCap, newCap)));
+    ASSERT(targetEntry.cap().isAllocated());
     // try to insert into the resource tree
-    // insertAfter checks if thisCap is stored in thisEntry after locking
+    // lazy-locking: insertAfter checks if parentCap is still stored in parentEntry after locking
     // and fails if it is not ...
-    auto result = thisEntry.insertAfter(thisCap, newEntry);
-    if (result) newEntry.commit(newCap); // release the entry as usable
-    else newEntry.reset(); // release exclusive usage and revert to an empty entry
+    auto result = parentEntry.insertAfter(parentCap, targetEntry);
+    if (result) {
+      targetEntry.commit(targetCap); // release the entry as usable
+      // now we can check whether the tree is still valid. Cannot be done before completing the operation!
+      MLOG_DETAIL(mlog::cap, "cap::inherit", DVAR(parentCap), DVAR(targetCap),
+        DVAR(isParentOf(parentEntry, parentCap, targetEntry, targetCap)),
+        DVAR(isParentOf(targetEntry, targetCap, parentEntry, parentCap)));
+      ASSERT(implies(parentCap.isReference(), !isParentOf(parentEntry, parentCap, targetEntry, targetCap) 
+                                         && !isParentOf(targetEntry, targetCap, parentEntry, parentCap)));
+      ASSERT(implies(!parentCap.isReference(), isParentOf(parentEntry, parentCap, targetEntry, targetCap)));
+    } else { 
+      targetEntry.reset(); // release exclusive usage and revert to an empty entry
+      MLOG_WARN(mlog::cap, "cap::inherit failed", DVAR(parentCap), DVAR(targetCap));
+    }
     RETURN(result);
   }
 
-  optional<void> derive(CapEntry& thisEntry, CapEntry& newEntry, Cap thisCap, CapRequest request)
+  optional<void> derive(CapEntry& parentEntry, CapEntry& targetEntry, Cap parentCap, CapRequest request)
   {
-    if (!thisCap.isUsable() || thisCap.isDerived()) THROW(Error::INVALID_CAPABILITY);
-    auto minted = thisCap.getPtr()->mint(thisCap, request, true);
+    if (!parentCap.isUsable() || parentCap.isDerived()) THROW(Error::INVALID_CAPABILITY);
+    auto minted = parentCap.getPtr()->mint(parentEntry, parentCap, request, true);
     if (!minted) RETHROW(minted);
-    if (!newEntry.acquire()) THROW(Error::LOST_RACE); // try to acquire exclusive usage
-    RETURN(inherit(thisEntry, newEntry, thisCap, (*minted).stripReference().asDerived()));
+    if (!targetEntry.acquire()) THROW(Error::LOST_RACE); // try to acquire exclusive usage
+    RETURN(inherit(parentEntry, targetEntry, parentCap, (*minted).stripReference().asDerived()));
   }
 
-  optional<void> reference(CapEntry& thisEntry, CapEntry& newEntry, Cap thisCap, CapRequest request)
+  optional<void> reference(CapEntry& parentEntry, CapEntry& targetEntry, Cap parentCap, CapRequest request)
   {
-    if (!thisCap.isUsable()) THROW(Error::INVALID_CAPABILITY);
-    auto minted = thisCap.getPtr()->mint(thisCap, request, false);
+    if (!parentCap.isUsable()) THROW(Error::INVALID_CAPABILITY);
+    auto minted = parentCap.getPtr()->mint(parentEntry, parentCap, request, false);
     if (!minted) RETHROW(minted);
-    if (!newEntry.acquire()) THROW(Error::LOST_RACE); // try to acquire exclusive usage
-    RETURN(inherit(thisEntry, newEntry, thisCap, (*minted).asReference()));
+    if (!targetEntry.acquire()) THROW(Error::LOST_RACE); // try to acquire exclusive usage
+    RETURN(inherit(parentEntry, targetEntry, parentCap, (*minted).asReference()));
   }
 
   } // namespace cap

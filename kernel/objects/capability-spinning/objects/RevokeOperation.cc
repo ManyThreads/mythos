@@ -184,7 +184,7 @@ namespace mythos {
         ASSERT(!nextEntry->isDeleted());
         hwthread_pause();
       }
-      if (cap::isParentOf(curCap, nextCap)) {
+      if (cap::isParentOf(*curEntry, curCap, *nextEntry, nextCap)) {
         // go to next child
         curEntry->unlock_prev();
         nextEntry->kill();

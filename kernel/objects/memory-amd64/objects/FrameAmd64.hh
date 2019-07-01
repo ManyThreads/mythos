@@ -53,12 +53,12 @@ public: // IKernelObject interface
     THROW(Error::TYPE_MISMATCH);
   }
 
-  optional<Cap> mint(Cap self, CapRequest request, bool derive) override {
+  optional<Cap> mint(CapEntry&, Cap self, CapRequest request, bool derive) override {
     if (!derive) return FrameData(self).referenceFrame(self, FrameReq(request));
     else THROW(Error::INVALID_REQUEST);
   }
 
-  Range<uintptr_t> addressRange(Cap self) override {
+  Range<uintptr_t> addressRange(CapEntry&, Cap self) override {
     return {FrameData(self).addr(start), FrameData(self).end(start)};
   }
 

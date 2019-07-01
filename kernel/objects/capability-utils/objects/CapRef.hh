@@ -74,7 +74,7 @@ namespace mythos {
     virtual void unbinding(void* subject, Cap obj) = 0;
 
   protected: // IKernelObject interface
-    Range<uintptr_t> addressRange(Cap self) override;
+    Range<uintptr_t> addressRange(CapEntry& entry, Cap self) override;
     optional<void> deleteCap(Cap self, IDeleter& del) override;
 
   protected:

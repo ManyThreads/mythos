@@ -64,7 +64,7 @@ public: // ICapMap interface
   void releaseEntryRef() override { monitor.releaseRef(); }
 
 public: // IKernelObject interface
-  optional<Cap> mint(Cap self, CapRequest request, bool derive) override;
+  optional<Cap> mint(CapEntry&, Cap self, CapRequest request, bool derive) override;
   optional<void> deleteCap(Cap self, IDeleter& del) override;
   void deleteObject(Tasklet* t, IResult<void>* r) override {
     monitor.doDelete(t, [=](Tasklet* t) { memory->free(t, r, this, CapMap::size(indexbits)); });

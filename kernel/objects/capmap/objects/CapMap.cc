@@ -75,7 +75,7 @@ namespace mythos {
     return obj;
   }
 
-  optional<Cap> CapMap::mint(Cap self, CapRequest request, bool)
+  optional<Cap> CapMap::mint(CapEntry&, Cap self, CapRequest request, bool)
   {
     // intersection between own and requested flags
     return self.withData(self.data() & CapData(request));

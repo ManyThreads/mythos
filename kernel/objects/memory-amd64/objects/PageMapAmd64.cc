@@ -60,7 +60,7 @@ namespace mythos {
     return phys2kernel<IPageMap>(ptr);
   }
 
-  Range<uintptr_t> PageMap::addressRange(Cap self)
+  Range<uintptr_t> PageMap::addressRange(CapEntry&, Cap self)
   {
     PageMapData data(self);
     if (!data.mapped) {
@@ -143,7 +143,7 @@ namespace mythos {
                             _cap_table(index), newCap, *tableEntry, table.cap());
   }
 
-  optional<Cap> PageMap::mint(Cap self, CapRequest request, bool)
+  optional<Cap> PageMap::mint(CapEntry&, Cap self, CapRequest request, bool)
   {
     return PageMapData(self).mint(self, PageMapReq(request));
   }

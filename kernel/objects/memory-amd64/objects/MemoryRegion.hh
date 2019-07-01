@@ -68,12 +68,12 @@ public: // IKernelObject interface
     _mem->free(t, r, &_memdesc[0], &_memdesc[2]);
   }
 
-  optional<Cap> mint(Cap self, CapRequest request, bool derive) override {
+  optional<Cap> mint(CapEntry&, Cap self, CapRequest request, bool derive) override {
     if (!derive) return FrameData(self).referenceRegion(self, FrameReq(request));
     else return FrameData(self).deriveRegion(self, frame, FrameReq(request), size);
   }
 
-  Range<uintptr_t> addressRange(Cap) override { return {frame.start, frame.start+size}; }
+  Range<uintptr_t> addressRange(CapEntry&, Cap) override { return {frame.start, frame.start+size}; }
 
   void invoke(Tasklet* t, Cap self, IInvocation* msg) override {
     Error err = Error::NOT_IMPLEMENTED;

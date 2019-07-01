@@ -49,13 +49,17 @@ namespace mythos {
      * is which contains its derived objects.  The range is used for
      * inheritance tests in the resource tree.
      * The range must be a subset of its parents range.
-     * Default implementation returns this.
+     * 
+     * Default implementation returns [this, this+1).
      *
+     * @param entry references the capability entry that points to 
+     *             this object. Used for computing the index in 
+     *             some special maps like page tables.
      * @param self the capability that was used to access this
      *             object. The contained meta-data can be used for
      *             computing the range.
      */
-    virtual Range<uintptr_t> addressRange(Cap self);
+    virtual Range<uintptr_t> addressRange(CapEntry& entry, Cap self);
 
     /** create a minted capability if the originial capability
      * provides enough rights for the requested change.
@@ -69,7 +73,7 @@ namespace mythos {
      * @param derive   a derive operation was requested, otherwise it's a reference operation.
      * @return the modified capability value, which then will be stored in a capability entry.
      */
-    virtual optional<Cap> mint(Cap self, CapRequest request, bool derive);
+    virtual optional<Cap> mint(CapEntry& entry,  Cap self, CapRequest request, bool derive);
 
     /** notifies the object about the revocation of a reference.  This
      * is called after the affected capability entry was removed from
@@ -125,11 +129,12 @@ namespace mythos {
     virtual void invoke(Tasklet* t, Cap self, IInvocation* msg);
   };
 
-  inline Range<uintptr_t> IKernelObject::addressRange(Cap) {
+
+  inline Range<uintptr_t> IKernelObject::addressRange(CapEntry&, Cap) {
     return Range<uintptr_t>::bySize(PhysPtr<void>::fromKernel(this).physint(), 1);
   }
 
-  inline optional<Cap> IKernelObject::mint(Cap self, CapRequest, bool) {
+  inline optional<Cap> IKernelObject::mint(CapEntry&, Cap self, CapRequest, bool) {
     return self;
   }
 

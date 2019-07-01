@@ -34,15 +34,15 @@ namespace mythos {
 
   namespace cap {
 
-    bool isParentOf(Cap parent, Cap other);
+    bool isParentOf(CapEntry& parentEntry, Cap parent, CapEntry& otherEntry, Cap other);
 
-    optional<void> inherit(CapEntry& thisEntry, CapEntry& newEntry, Cap thisCap, Cap newCap);
+    optional<void> inherit(CapEntry& parentEntry, CapEntry& targetEntry, Cap parentCap, Cap targetCap);
 
-    optional<void> derive(CapEntry& thisEntry, CapEntry& newEntry,
-        Cap thisCap, CapRequest request = 0);
+    optional<void> derive(CapEntry& parentEntry, CapEntry& targetEntry,
+        Cap parentCap, CapRequest request = 0);
 
-    optional<void> reference(CapEntry& thisEntry, CapEntry& newEntry,
-        Cap thisCap, CapRequest request = 0);
+    optional<void> reference(CapEntry& parentEntry, CapEntry& targetEntry,
+        Cap parentCap, CapRequest request = 0);
 
     template<class FUN>
     optional<void> setReference(const FUN fun, CapEntry& dst, Cap dstCap, CapEntry& src, Cap srcCap)
