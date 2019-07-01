@@ -200,7 +200,7 @@ void KernelMemory::free(Tasklet* t, IResult<void>* r, void* start, size_t length
       RETHROW(obj);
     }
     Cap cap(*obj);
-    auto res = cap::inherit(*memEntry, *dstEntry, memCap, cap);
+    auto res = cap::inherit(*memEntry, memCap, *dstEntry, cap, [](){});
     if (!res) {
       mem->free(*obj); // mem->release(obj) goes throug IKernelObject deletion mechanism
       mem->free(*region, size);

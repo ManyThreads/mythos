@@ -36,7 +36,10 @@ namespace mythos {
 
     bool isParentOf(CapEntry& parentEntry, Cap parent, CapEntry& otherEntry, Cap other);
 
-    optional<void> inherit(CapEntry& parentEntry, CapEntry& targetEntry, Cap parentCap, Cap targetCap);
+    template<typename COMMITFUN>
+    optional<void> inherit(CapEntry& parentEntry, Cap parentCap, 
+                           CapEntry& targetEntry, Cap targetCap,
+                           COMMITFUN const& commit);
 
     optional<void> derive(CapEntry& parentEntry, CapEntry& targetEntry,
         Cap parentCap, CapRequest request = 0);
@@ -44,18 +47,16 @@ namespace mythos {
     optional<void> reference(CapEntry& parentEntry, CapEntry& targetEntry,
         Cap parentCap, CapRequest request = 0);
 
-    template<class FUN>
-    optional<void> setReference(const FUN fun, CapEntry& dst, Cap dstCap, CapEntry& src, Cap srcCap)
+    template<class COMMITFUN>
+    optional<void> setReference(CapEntry& dst, Cap dstCap, CapEntry& src, Cap srcCap, const COMMITFUN& fun)
     {
       ASSERT(dstCap.isReference());
       if (!dst.acquire()) THROW(Error::LOST_RACE);
-      // was empty => insert new reference
-      fun();
-      RETURN(inherit(src, dst, srcCap, dstCap));
+      RETURN(inherit(src, srcCap, dst, dstCap, [=](){ fun(); }));
     }
 
-    template<class FUN>
-    bool resetReference(const FUN fun, CapEntry& dst)
+    template<class COMMITFUN>
+    bool resetReference(CapEntry& dst, const COMMITFUN& fun)
     {
       if (!dst.kill()) return false; // not killable (allocated but not usable)
       if (!dst.lock_prev()) return true; // was already unlinked, should be empty eventually
@@ -67,7 +68,29 @@ namespace mythos {
       return true;
     }
 
-    inline bool resetReference(CapEntry& dst) { return resetReference([]{}, dst); }
+    inline bool resetReference(CapEntry& dst) { return resetReference(dst, []{}); }
+
+    template<typename COMMITFUN>
+    optional<void> inherit(CapEntry& parentEntry, Cap parentCap, 
+                           CapEntry& targetEntry, Cap targetCap,
+                           COMMITFUN const& commit)
+    {
+      MLOG_DETAIL(mlog::cap, "cap::inherit", DVAR(parentCap), DVAR(targetCap));
+      auto result = parentEntry.insertAfter(parentCap, targetEntry, targetCap, 
+        [&](){
+          commit(); // exec the higher level commit action while everything is locked and successful
+        
+          //auto parentRange = parentCap.getPtr()->addressRange(parentEntry, parentCap);
+          //auto targetRange = targetCap.getPtr()->addressRange(targetEntry, targetCap);
+          //MLOG_DETAIL(mlog::cap, DVAR(parentRange), DVAR(targetRange));
+
+          // now we can check whether the tree is still valid. Cannot be done outside the locks!
+          ASSERT(implies(parentCap.isReference(), !isParentOf(parentEntry, parentCap, targetEntry, targetCap) 
+                                             && !isParentOf(targetEntry, targetCap, parentEntry, parentCap)));
+          ASSERT(implies(!parentCap.isReference(), isParentOf(parentEntry, parentCap, targetEntry, targetCap)));
+        });
+      RETURN(result);
+    }
 
   } // namespace cap
 } // namespace mythos

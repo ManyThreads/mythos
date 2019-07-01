@@ -63,36 +63,13 @@ namespace mythos {
     return false; // is not contained
   }
 
-  optional<void> inherit(CapEntry& parentEntry, CapEntry& targetEntry, Cap parentCap, Cap targetCap)
-  {
-    ASSERT(targetEntry.cap().isAllocated());
-    // try to insert into the resource tree
-    // lazy-locking: insertAfter checks if parentCap is still stored in parentEntry after locking
-    // and fails if it is not ...
-    auto result = parentEntry.insertAfter(parentCap, targetEntry);
-    if (result) {
-      targetEntry.commit(targetCap); // release the entry as usable
-      // now we can check whether the tree is still valid. Cannot be done before completing the operation!
-      MLOG_DETAIL(mlog::cap, "cap::inherit", DVAR(parentCap), DVAR(targetCap),
-        DVAR(isParentOf(parentEntry, parentCap, targetEntry, targetCap)),
-        DVAR(isParentOf(targetEntry, targetCap, parentEntry, parentCap)));
-      ASSERT(implies(parentCap.isReference(), !isParentOf(parentEntry, parentCap, targetEntry, targetCap) 
-                                         && !isParentOf(targetEntry, targetCap, parentEntry, parentCap)));
-      ASSERT(implies(!parentCap.isReference(), isParentOf(parentEntry, parentCap, targetEntry, targetCap)));
-    } else { 
-      targetEntry.reset(); // release exclusive usage and revert to an empty entry
-      MLOG_WARN(mlog::cap, "cap::inherit failed", DVAR(parentCap), DVAR(targetCap));
-    }
-    RETURN(result);
-  }
-
   optional<void> derive(CapEntry& parentEntry, CapEntry& targetEntry, Cap parentCap, CapRequest request)
   {
     if (!parentCap.isUsable() || parentCap.isDerived()) THROW(Error::INVALID_CAPABILITY);
     auto minted = parentCap.getPtr()->mint(parentEntry, parentCap, request, true);
     if (!minted) RETHROW(minted);
     if (!targetEntry.acquire()) THROW(Error::LOST_RACE); // try to acquire exclusive usage
-    RETURN(inherit(parentEntry, targetEntry, parentCap, (*minted).stripReference().asDerived()));
+    RETURN(inherit(parentEntry, parentCap, targetEntry, (*minted).stripReference().asDerived(), [](){}));
   }
 
   optional<void> reference(CapEntry& parentEntry, CapEntry& targetEntry, Cap parentCap, CapRequest request)
@@ -101,7 +78,7 @@ namespace mythos {
     auto minted = parentCap.getPtr()->mint(parentEntry, parentCap, request, false);
     if (!minted) RETHROW(minted);
     if (!targetEntry.acquire()) THROW(Error::LOST_RACE); // try to acquire exclusive usage
-    RETURN(inherit(parentEntry, targetEntry, parentCap, (*minted).asReference()));
+    RETURN(inherit(parentEntry, parentCap, targetEntry, (*minted).asReference(), [](){}));
   }
 
   } // namespace cap

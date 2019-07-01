@@ -54,7 +54,7 @@ namespace mythos {
     if (!ptr) RETHROW(ptr);
     auto obj = new(*ptr) CapMap(mem, indexbits, guardbits, guard);
     auto cap = Cap(obj).withData(CapMapData().writable(true));
-    auto res = cap::inherit(*memEntry, obj->getRoot(), memCap, cap);
+    auto res = cap::inherit(*memEntry, memCap, obj->getRoot(), cap, [](){});
     if (!res) {
       mem->free(*ptr, CapMap::size(indexbits));
       RETHROW(res);
@@ -70,7 +70,7 @@ namespace mythos {
     if (!obj) RETHROW(obj);
     auto& root = obj->getRoot();
     auto cap = root.cap();
-    auto res = cap::inherit(root, *dstEntry, cap, cap.asReference());
+    auto res = cap::inherit(root, cap, *dstEntry, cap.asReference(), [](){});
     if (!res) RETHROW(res); // the object was deleted concurrently
     return obj;
   }

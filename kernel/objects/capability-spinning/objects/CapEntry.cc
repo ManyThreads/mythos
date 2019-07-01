@@ -76,27 +76,6 @@ namespace mythos {
     }
   }
 
-  optional<void> CapEntry::insertAfter(const Cap& thisCap, CapEntry& target)
-  {
-    ASSERT(isKernelAddress(this));
-    ASSERT(target.cap().isAllocated());
-    // lock and check this
-    lock();
-    auto curCap = cap();
-    if (!curCap.isUsable() || curCap != thisCap) {
-      unlock();
-      THROW(Error::LOST_RACE);
-    }
-    auto nextEntry = Link(_next.load()).ptr();
-    nextEntry->setPrevPreserveFlags(&target);
-    target._next.store(Link(nextEntry));
-    // deleted or revoking can not be set in target._prev
-    // as we allocated target for being inserted
-    target._prev.store(Link(this));
-    this->_next.store(Link(&target)); // unlocks this entry
-    RETURN(Error::SUCCESS);
-  }
-
   optional<void> CapEntry::moveTo(CapEntry& other)
   {
     ASSERT(other.cap().isAllocated());

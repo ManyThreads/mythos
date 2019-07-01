@@ -138,9 +138,8 @@ namespace mythos {
 
     // inherit
     auto newCap = PageMapData::mapTable(this, table.cap(), entry.configurable, index);
-    cap::resetReference([=]{ pme->reset(); }, _cap_table(index));
-    return cap::setReference([=,&entry]{ pme->set(entry); },
-                            _cap_table(index), newCap, *tableEntry, table.cap());
+    cap::resetReference(_cap_table(index), [&]{ pme->reset(); });
+    return cap::setReference(_cap_table(index), newCap, *tableEntry, table.cap(), [=,&entry]{ pme->set(entry); });
   }
 
   optional<Cap> PageMap::mint(CapEntry&, Cap self, CapRequest request, bool)
@@ -180,9 +179,8 @@ namespace mythos {
     auto newCap = PageMapData::mapFrame(this, frame.cap(), frameInfo, index);
 
     // inherit
-    cap::resetReference([=]{ pme->reset(); }, _cap_table(index));
-    return cap::setReference([=,&entry]{ pme->set(entry); },
-                            _cap_table(index), newCap, *frameEntry, frame.cap());
+    cap::resetReference(_cap_table(index), [&]{ pme->reset(); });
+    return cap::setReference(_cap_table(index), newCap, *frameEntry, frame.cap(), [=,&entry]{ pme->set(entry); });
   }
 
   optional<void> PageMap::unmapEntry(size_t index)
@@ -190,7 +188,7 @@ namespace mythos {
     MLOG_INFO(mlog::cap, "unmapEntry", DVAR(level()), DVAR(index));
     ASSERT(index < num_caps());
     auto pme = &_pm_table(index);
-    cap::resetReference([=]{ pme->reset(); }, _cap_table(index)); // ignore lost races
+    cap::resetReference(_cap_table(index), [&]{ pme->reset(); }); // ignore lost races
     RETURN(Error::SUCCESS);
   }
 
@@ -418,7 +416,7 @@ namespace mythos {
       RETHROW(obj);
     }
     auto cap = Cap(*obj).withData(PageMapData());
-    auto res = cap::inherit(*memEntry, *dstEntry, memCap, cap);
+    auto res = cap::inherit(*memEntry, memCap, *dstEntry, cap, [](){});
     if (!res) {
       mem->free(*obj); // mem->release(obj) goes throug IKernelObject deletion mechanism
       mem->free(*table, FrameSize::MIN_FRAME_SIZE);
