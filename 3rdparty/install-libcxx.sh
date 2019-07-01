@@ -89,14 +89,14 @@ env CC=$REALGCC CFLAGS="-nostdinc" \
 ../configure $MUSLTARGET --prefix="$DSTDIR/usr" \
     --disable-shared \
     --enable-wrapper=all \
-    && make && make install || fail
+    && make -j`nproc` && make install || fail
 cd ../..
 
 ### build preliminary libcxx just for the header files
 #    -DCMAKE_CC_COMPILER="$DSTDIR/usr/bin/musl-gcc"
 cd libcxx
 rm -rf build && mkdir build && cd build
-cmake3 -DCMAKE_INSTALL_PREFIX="$DSTDIR/usr" \
+$CMAKE -DCMAKE_INSTALL_PREFIX="$DSTDIR/usr" \
     -DCMAKE_FIND_ROOT_PATH="$DSTDIR" \
     -DCMAKE_C_COMPILER="$DSTDIR/usr/bin/musl-gcc" \
     -DCMAKE_CXX_COMPILER="$DSTDIR/usr/bin/musl-gcc" \
@@ -105,13 +105,13 @@ cmake3 -DCMAKE_INSTALL_PREFIX="$DSTDIR/usr" \
     -DLIBCXX_SYSROOT="$DSTDIR" \
     -DLIBCXX_ENABLE_SHARED=OFF \
     -DLLVM_PATH="$BASEDIR/cxx-src/llvm" \
-    ../ && make -j && make install || fail
+    ../ && make -j`nproc` && make install || fail
 cd ../..
 
 ### install llvm's libunwind for amd64
 cd libunwind
 rm -rf build && mkdir build && cd build
-cmake3 -DCMAKE_INSTALL_PREFIX="$DSTDIR/usr" \
+$CMAKE -DCMAKE_INSTALL_PREFIX="$DSTDIR/usr" \
     -DCMAKE_C_COMPILER="$DSTDIR/usr/bin/musl-gcc" \
     -DCMAKE_CXX_COMPILER="$DSTDIR/usr/bin/musl-gcc" \
     -DCMAKE_CXX_FLAGS="-isystem $DSTDIR/usr/include -isystem $DSTDIR/usr/include/c++/v1" \
@@ -119,7 +119,7 @@ cmake3 -DCMAKE_INSTALL_PREFIX="$DSTDIR/usr" \
     -DLIBUNWIND_ENABLE_SHARED=OFF \
     -DCMAKE_BUILD_TYPE=Release \
     -DLLVM_PATH="$BASEDIR/cxx-src/llvm" \
-    ../ && make && make install || fail
+    ../ && make -j`nproc` && make install || fail
 cd ../..
 
 
@@ -129,7 +129,7 @@ cd ../..
 # on linux you may need -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++
 cd libcxxabi
 rm -rf build && mkdir build && cd build
-cmake3 -DCMAKE_INSTALL_PREFIX="$DSTDIR/usr" \
+$CMAKE -DCMAKE_INSTALL_PREFIX="$DSTDIR/usr" \
     -DCMAKE_C_COMPILER="$DSTDIR/usr/bin/musl-gcc" \
     -DCMAKE_CXX_COMPILER="$DSTDIR/usr/bin/musl-gcc" \
     -DCMAKE_CXX_FLAGS="-isystem $DSTDIR/usr/include -isystem $DSTDIR/usr/include/c++/v1" \
@@ -143,7 +143,7 @@ cmake3 -DCMAKE_INSTALL_PREFIX="$DSTDIR/usr" \
     -DLIBCXXABI_ENABLE_NEW_DELETE_DEFINITIONS=OFF \
     -DLIBCXXABI_SHARED_LINK_FLAGS="-L$DSTDIR/usr/lib" \
     -DLLVM_PATH="$BASEDIR/cxx-src/llvm" \
-    ../ && make -j && make install || fail
+    ../ && make -j`nproc` && make install || fail
 cd ../..
 
 
@@ -154,7 +154,7 @@ cd ../..
 #    -DLIBCXX_HAS_MUSL_LIBC=ON 
 cd libcxx
 rm -rf build && mkdir build && cd build
-cmake3 -DCMAKE_INSTALL_PREFIX="$DSTDIR/usr" \
+$CMAKE -DCMAKE_INSTALL_PREFIX="$DSTDIR/usr" \
     -DCMAKE_C_COMPILER="$DSTDIR/usr/bin/musl-gcc" \
     -DCMAKE_CXX_COMPILER="$DSTDIR/usr/bin/musl-gcc" \
     -DCMAKE_CXX_FLAGS="-isystem $DSTDIR/usr/include -isystem $DSTDIR/usr/include/c++/v1" \
@@ -166,7 +166,7 @@ cmake3 -DCMAKE_INSTALL_PREFIX="$DSTDIR/usr" \
     -DLIBCXX_CXX_ABI_LIBRARY_PATH="$DSTDIR/usr/lib" \
     -DLLVM_PATH="$BASEDIR/cxx-src/llvm" \
     -DLIBCXX_ENABLE_STATIC_ABI_LIBRARY=ON \
-    ../ && make -j && make install || fail
+    ../ && make -j`nproc` && make install || fail
 cd ../..
 
 } # function compile

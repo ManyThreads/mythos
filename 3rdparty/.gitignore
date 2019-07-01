@@ -1,5 +1,5 @@
 bochs
-bochs-2.6.9.tar.gz
+bochs-*.tar.gz
 libcxxrt
 python-libs
 cxx-src

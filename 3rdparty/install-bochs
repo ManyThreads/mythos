@@ -9,16 +9,8 @@ command -v curl >/dev/null 2>&1 || fail "require curl but it's not installed."
 command -v make >/dev/null 2>&1 || fail "require make but it's not installed"
 command -v g++ >/dev/null 2>&1 || fail "require g++ but it's not installed"
 
-# TODO will need libtool and gtk packages
-
-
 pushd `dirname $0` > /dev/null
 
-#sudo apt-get build-dep bochs
-#sudo apt-get install libgtk2.0-dev ncurses-dev
-#which svn || sudo apt-get install subversion
-
-#svn checkout svn://svn.code.sf.net/p/bochs/code/tags/REL_2_6_7_FINAL/bochs
 if test ! -e bochs-2.6.9.tar.gz ; then  
   curl -O https://kent.dl.sourceforge.net/project/bochs/bochs/2.6.9/bochs-2.6.9.tar.gz || fail
 fi
@@ -51,6 +43,6 @@ cd bochs
   --disable-plugins \
   --disable-docbook \
   --with-x --with-x11 --with-term LIBS=-lpthread
-make
+make -j`nproc`
 
 popd > /dev/null
