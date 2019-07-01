@@ -176,6 +176,7 @@ void test_tls()
     y = y*2;
     TEST_EQ(x, 2048);
     TEST_EQ(y, 4096);
+    return nullptr;
   };
 
   mythos::ExecutionContext ec1(capAlloc());

@@ -14,6 +14,9 @@ command -v make >/dev/null 2>&1 || fail "require make but it's not installed"
 command -v g++ >/dev/null 2>&1 || fail "require g++ but it's not installed"
 command -v git >/dev/null 2>&1 || fail "require git but it's not installed"
 
+export CMAKE=cmake
+command -v cmake3 >/dev/null 2>&1 && CMAKE=cmake3
+
 # need: libtool ???
 # TODO: check compiler-rt (instead of libgcc)
 
@@ -93,7 +96,7 @@ cd ../..
 #    -DCMAKE_CC_COMPILER="$DSTDIR/usr/bin/musl-gcc"
 cd libcxx
 rm -rf build && mkdir build && cd build
-cmake -DCMAKE_INSTALL_PREFIX="$DSTDIR/usr" \
+cmake3 -DCMAKE_INSTALL_PREFIX="$DSTDIR/usr" \
     -DCMAKE_FIND_ROOT_PATH="$DSTDIR" \
     -DCMAKE_C_COMPILER="$DSTDIR/usr/bin/musl-gcc" \
     -DCMAKE_CXX_COMPILER="$DSTDIR/usr/bin/musl-gcc" \
@@ -108,7 +111,7 @@ cd ../..
 ### install llvm's libunwind for amd64
 cd libunwind
 rm -rf build && mkdir build && cd build
-cmake -DCMAKE_INSTALL_PREFIX="$DSTDIR/usr" \
+cmake3 -DCMAKE_INSTALL_PREFIX="$DSTDIR/usr" \
     -DCMAKE_C_COMPILER="$DSTDIR/usr/bin/musl-gcc" \
     -DCMAKE_CXX_COMPILER="$DSTDIR/usr/bin/musl-gcc" \
     -DCMAKE_CXX_FLAGS="-isystem $DSTDIR/usr/include -isystem $DSTDIR/usr/include/c++/v1" \
@@ -126,7 +129,7 @@ cd ../..
 # on linux you may need -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++
 cd libcxxabi
 rm -rf build && mkdir build && cd build
-cmake -DCMAKE_INSTALL_PREFIX="$DSTDIR/usr" \
+cmake3 -DCMAKE_INSTALL_PREFIX="$DSTDIR/usr" \
     -DCMAKE_C_COMPILER="$DSTDIR/usr/bin/musl-gcc" \
     -DCMAKE_CXX_COMPILER="$DSTDIR/usr/bin/musl-gcc" \
     -DCMAKE_CXX_FLAGS="-isystem $DSTDIR/usr/include -isystem $DSTDIR/usr/include/c++/v1" \
@@ -151,7 +154,7 @@ cd ../..
 #    -DLIBCXX_HAS_MUSL_LIBC=ON 
 cd libcxx
 rm -rf build && mkdir build && cd build
-cmake -DCMAKE_INSTALL_PREFIX="$DSTDIR/usr" \
+cmake3 -DCMAKE_INSTALL_PREFIX="$DSTDIR/usr" \
     -DCMAKE_C_COMPILER="$DSTDIR/usr/bin/musl-gcc" \
     -DCMAKE_CXX_COMPILER="$DSTDIR/usr/bin/musl-gcc" \
     -DCMAKE_CXX_FLAGS="-isystem $DSTDIR/usr/include -isystem $DSTDIR/usr/include/c++/v1" \
