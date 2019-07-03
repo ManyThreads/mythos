@@ -63,7 +63,6 @@ namespace mythos {
   Range<uintptr_t> PageMap::MappedFrame::addressRange(CapEntry& /*entry*/, Cap self)
   {
     PageMapData data(self);
-    ASSERT(data.mapped);
     // this works because the range of frames is the actual physical frame
     // and the range of the page table includes the actual table frame.
     auto addr = map->_pm_table(data.index).getAddr();
@@ -73,7 +72,6 @@ namespace mythos {
   Range<uintptr_t> PageMap::addressRange(CapEntry&, Cap self)
   {
     PageMapData data(self);
-    ASSERT(!data.mapped);
     return Range<uintptr_t>::bySize(
         PhysPtr<void>::fromKernel(_memDesc[0].ptr).physint(),
         _memDesc[0].size);
@@ -88,7 +86,6 @@ namespace mythos {
 
   optional<void> PageMap::MappedFrame::deleteCap(Cap self, IDeleter&)
   {
-    ASSERT(PageMapData(self).mapped);
     MLOG_DETAIL(mlog::cap, "delete mapped Frame or PageMap", PageMapData(self).index);
     map->_pm_table(PageMapData(self).index).reset();
     RETURN(Error::SUCCESS);
@@ -96,7 +93,6 @@ namespace mythos {
 
   optional<void> PageMap::deleteCap(Cap self, IDeleter& del)
   {
-    ASSERT(!PageMapData(self).mapped);
     if (self.isOriginal()) {
       MLOG_DETAIL(mlog::cap, "delete PageMap", self);
       for (size_t i = 0; i < num_caps(); ++i) {
