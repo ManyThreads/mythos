@@ -61,7 +61,7 @@ namespace mythos {
 
       kmem_root_entry()->acquire();
       cap::inherit(memory_region(0)->getRoot(), memory_region(0)->getRoot().cap(), 
-                   *kmem_root_entry(), Cap(kmem_root()), [](){});
+                   *kmem_root_entry(), Cap(kmem_root()));
     }
     
   } // namespace boot

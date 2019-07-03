@@ -128,7 +128,7 @@ optional<void> InitLoader::csSet(CapPtr dst, CapEntry& root)
   auto& dstEntry = *_cspace->get(dst);
   auto res = dstEntry.acquire();
   if (!res) RETHROW(res);
-  RETURN(cap::inherit(root, root.cap(), dstEntry, root.cap().asReference(), [](){}));
+  RETURN(cap::inherit(root, root.cap(), dstEntry, root.cap().asReference()));
 }
 
 optional<void> InitLoader::csSet(CapPtr dst, IKernelObject& obj)
@@ -136,7 +136,7 @@ optional<void> InitLoader::csSet(CapPtr dst, IKernelObject& obj)
   auto& dstEntry = *_cspace->get(dst);
   auto res = dstEntry.acquire();
   if (!res) RETHROW(res);
-  RETURN(cap::inherit(*_memEntry, _memEntry->cap(), dstEntry, Cap(image2kernel(&obj)), [](){}));
+  RETURN(cap::inherit(*_memEntry, _memEntry->cap(), dstEntry, Cap(image2kernel(&obj))));
 }
 
 optional<void> InitLoader::initCSpace()

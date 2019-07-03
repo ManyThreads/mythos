@@ -41,6 +41,12 @@ namespace mythos {
                            CapEntry& targetEntry, Cap targetCap,
                            COMMITFUN const& commit);
 
+    inline optional<void> inherit(CapEntry& parentEntry, Cap parentCap,
+                           CapEntry& targetEntry, Cap targetCap)
+    {
+        return inherit(parentEntry, parentCap, targetEntry, targetCap, [](){});
+    }
+
     optional<void> derive(CapEntry& parentEntry, CapEntry& targetEntry,
         Cap parentCap, CapRequest request = 0);
 
@@ -68,7 +74,7 @@ namespace mythos {
       return true;
     }
 
-    inline bool resetReference(CapEntry& dst) { return resetReference(dst, []{}); }
+    inline bool resetReference(CapEntry& dst) { return resetReference(dst, [](){}); }
 
     template<typename COMMITFUN>
     optional<void> inherit(CapEntry& parentEntry, Cap parentCap, 

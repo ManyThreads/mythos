@@ -416,7 +416,7 @@ namespace mythos {
       RETHROW(obj);
     }
     auto cap = Cap(*obj).withData(PageMapData());
-    auto res = cap::inherit(*memEntry, memCap, *dstEntry, cap, [](){});
+    auto res = cap::inherit(*memEntry, memCap, *dstEntry, cap);
     if (!res) {
       mem->free(*obj); // mem->release(obj) goes throug IKernelObject deletion mechanism
       mem->free(*table, FrameSize::MIN_FRAME_SIZE);

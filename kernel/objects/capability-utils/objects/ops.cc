@@ -69,7 +69,7 @@ namespace mythos {
     auto minted = parentCap.getPtr()->mint(parentEntry, parentCap, request, true);
     if (!minted) RETHROW(minted);
     if (!targetEntry.acquire()) THROW(Error::LOST_RACE); // try to acquire exclusive usage
-    RETURN(inherit(parentEntry, parentCap, targetEntry, (*minted).stripReference().asDerived(), [](){}));
+    RETURN(inherit(parentEntry, parentCap, targetEntry, (*minted).stripReference().asDerived()));
   }
 
   optional<void> reference(CapEntry& parentEntry, CapEntry& targetEntry, Cap parentCap, CapRequest request)
@@ -78,7 +78,7 @@ namespace mythos {
     auto minted = parentCap.getPtr()->mint(parentEntry, parentCap, request, false);
     if (!minted) RETHROW(minted);
     if (!targetEntry.acquire()) THROW(Error::LOST_RACE); // try to acquire exclusive usage
-    RETURN(inherit(parentEntry, parentCap, targetEntry, (*minted).asReference(), [](){}));
+    RETURN(inherit(parentEntry, parentCap, targetEntry, (*minted).asReference()));
   }
 
   } // namespace cap

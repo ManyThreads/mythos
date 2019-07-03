@@ -107,7 +107,7 @@ namespace mythos {
       RETHROW(obj);
     }
     Cap cap(*obj);
-    auto res = cap::inherit(*memEntry, memCap, *dstEntry, cap, [](){});
+    auto res = cap::inherit(*memEntry, memCap, *dstEntry, cap);
     if (!res) {
       mem->free(*obj); // mem->release(obj) goes throug IKernelObject deletion mechanism
       RETHROW(res);

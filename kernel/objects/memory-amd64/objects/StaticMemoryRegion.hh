@@ -49,7 +49,7 @@ public:
   /** used to attach this region to the resource root */
   optional<void> init(size_t index, CapEntry& root) {
     frame.start = index*SIZE;
-    return cap::inherit(root, root.cap(), _ownRoot, Cap(this,FrameData()), [](){});
+    return cap::inherit(root, root.cap(), _ownRoot, Cap(this,FrameData()));
   }
 
   /** used to attach the root KernelMemory as child of a static memory region. */

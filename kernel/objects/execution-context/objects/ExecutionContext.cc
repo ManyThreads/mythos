@@ -642,7 +642,7 @@ namespace mythos {
         RETHROW(obj);
       }
       Cap cap(*obj); /// @todo should have EC specific rights
-      auto res = cap::inherit(*memEntry, memCap, *dstEntry, cap, [](){});
+      auto res = cap::inherit(*memEntry, memCap, *dstEntry, cap);
       if (!res) {
         mem->free(*obj); // mem->release(obj) goes through IKernelObject deletion mechanism
         RETHROW(res);
