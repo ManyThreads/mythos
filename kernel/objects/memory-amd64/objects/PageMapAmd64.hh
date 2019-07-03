@@ -187,6 +187,20 @@ public: // IKernelObject interface
   Error invokeRemoveMap(Tasklet* t, Cap self, IInvocation* msg);
 
 private:
+  class MappedFrame : public IKernelObject {
+  public:
+    MappedFrame(PageMap* map) : map(map) {}
+    virtual ~MappedFrame() {}
+
+    virtual Range<uintptr_t> addressRange(CapEntry& entry, Cap self);
+    virtual optional<void> deleteCap(Cap self, IDeleter& del);
+
+    PageMap* const map;
+  };
+
+  MappedFrame mappedFrameHelper = {this};
+
+private:
   size_t _level;
   MemoryDescriptor _memDesc[3];
 

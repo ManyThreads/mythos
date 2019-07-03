@@ -60,19 +60,23 @@ namespace mythos {
     return phys2kernel<IPageMap>(ptr);
   }
 
+  Range<uintptr_t> PageMap::MappedFrame::addressRange(CapEntry& /*entry*/, Cap self)
+  {
+    PageMapData data(self);
+    ASSERT(data.mapped);
+    // this works because the range of frames is the actual physical frame
+    // and the range of the page table includes the actual table frame.
+    auto addr = map->_pm_table(data.index).getAddr();
+    return {addr, addr+1};
+  }
+
   Range<uintptr_t> PageMap::addressRange(CapEntry&, Cap self)
   {
     PageMapData data(self);
-    if (!data.mapped) {
-      return Range<uintptr_t>::bySize(
-          PhysPtr<void>::fromKernel(_memDesc[0].ptr).physint(),
-          _memDesc[0].size);
-    } else {
-      // this works because the range of frames is the actual physical frame
-      // and the range of the page table includes the actual table frame.
-      auto addr = _pm_table(data.index).getAddr();
-      return {addr, addr+1};
-    }
+    ASSERT(!data.mapped);
+    return Range<uintptr_t>::bySize(
+        PhysPtr<void>::fromKernel(_memDesc[0].ptr).physint(),
+        _memDesc[0].size);
   }
 
   void PageMap::print() const
@@ -82,19 +86,23 @@ namespace mythos {
     for (size_t i = num_caps(); i < TABLE_SIZE; ++i) MLOG_INFO(mlog::cap, i, _pm_table(i));
   }
 
+  optional<void> PageMap::MappedFrame::deleteCap(Cap self, IDeleter&)
+  {
+    ASSERT(PageMapData(self).mapped);
+    MLOG_DETAIL(mlog::cap, "delete mapped Frame or PageMap", PageMapData(self).index);
+    map->_pm_table(PageMapData(self).index).reset();
+    RETURN(Error::SUCCESS);
+  }
+
   optional<void> PageMap::deleteCap(Cap self, IDeleter& del)
   {
-    if (PageMapData(self).mapped) {
-      MLOG_DETAIL(mlog::cap, "delete mapped Frame or PageMap", PageMapData(self).index);
-      _pm_table(PageMapData(self).index).reset();
-    } else {
-      if (self.isOriginal()) {
-        MLOG_DETAIL(mlog::cap, "delete PageMap", self);
-        for (size_t i = 0; i < num_caps(); ++i) {
-          auto res = del.deleteEntry(_cap_table(i));
-          ASSERT_MSG(res, "Mapped entries must be deletable.");
-          del.deleteObject(del_handle);
-        }
+    ASSERT(!PageMapData(self).mapped);
+    if (self.isOriginal()) {
+      MLOG_DETAIL(mlog::cap, "delete PageMap", self);
+      for (size_t i = 0; i < num_caps(); ++i) {
+        auto res = del.deleteEntry(_cap_table(i));
+        ASSERT_MSG(res, "Mapped entries must be deletable.");
+        del.deleteObject(del_handle);
       }
     }
     RETURN(Error::SUCCESS);
@@ -137,7 +145,7 @@ namespace mythos {
       .configurable(info.configurable & req.configurable);
 
     // inherit
-    auto newCap = PageMapData::mapTable(this, table.cap(), entry.configurable, index);
+    auto newCap = PageMapData::mapTable(&mappedFrameHelper, table.cap(), entry.configurable, index);
     cap::resetReference(_cap_table(index), [&]{ pme->reset(); });
     return cap::setReference(_cap_table(index), newCap, *tableEntry, table.cap(), [=,&entry]{ pme->set(entry); });
   }
@@ -176,7 +184,7 @@ namespace mythos {
       .withAddr(frameaddr)
       .configurable(frameInfo.writable)
       .pmPtr(pme->pmPtr);
-    auto newCap = PageMapData::mapFrame(this, frame.cap(), frameInfo, index);
+    auto newCap = PageMapData::mapFrame(&mappedFrameHelper, frame.cap(), frameInfo, index);
 
     // inherit
     cap::resetReference(_cap_table(index), [&]{ pme->reset(); });
