@@ -87,7 +87,7 @@ namespace mythos {
      * container that contains the revoked capability (self). This
      * mechanism is used to update, for example, Page Maps.  Such
      * containers shall encode the position of the entry inside the
-     * capability's meta-data.
+     * capability's meta-data or use the CapEntry reference.
      *
      * If the the object's original capability (the root of the object
      * in the resource tree) was revoked, it is guaranteed that there
@@ -96,10 +96,13 @@ namespace mythos {
      * add itself to the passed deletion list and recursively clear
      * all of its contained capability entries.
      *
+     * @param entry references the capability entry that points to 
+     *             this object. Used for computing the index in 
+     *             some special maps like page tables.
      * @param self  the value of the capability that was revoked.
      * @param del   a list of kernel objects that are ready for deletion.
      */
-    virtual optional<void> deleteCap(Cap self, IDeleter& del) = 0;
+    virtual optional<void> deleteCap(CapEntry& entry, Cap self, IDeleter& del) = 0;
 
     /** initiates the asynchronous final deletion of this kernel
      * object.  The object's monitor delays the deletion until all

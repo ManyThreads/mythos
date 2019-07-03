@@ -59,7 +59,7 @@ public: // IKernelObject interface
     THROW(Error::TYPE_MISMATCH);
   }
 
-  optional<void> deleteCap(Cap self, IDeleter& del) override {
+  optional<void> deleteCap(CapEntry&, Cap self, IDeleter& del) override {
     if (self.isOriginal()) { del.deleteObject(_deleteHandle); }
     RETURN(Error::SUCCESS);
   }

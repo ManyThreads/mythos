@@ -47,7 +47,7 @@ namespace mythos {
     THROW(Error::TYPE_MISMATCH);
   }
 
-  optional<void> ExampleObj::deleteCap(Cap self, IDeleter& del)
+  optional<void> ExampleObj::deleteCap(CapEntry&, Cap self, IDeleter& del)
   {
     mlogex.info("deleteCap", DVAR(this), DVAR(self), DVAR(self.isOriginal()));
     if (self.isOriginal()) {

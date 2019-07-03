@@ -84,14 +84,14 @@ namespace mythos {
     for (size_t i = num_caps(); i < TABLE_SIZE; ++i) MLOG_INFO(mlog::cap, i, _pm_table(i));
   }
 
-  optional<void> PageMap::MappedFrame::deleteCap(Cap self, IDeleter&)
+  optional<void> PageMap::MappedFrame::deleteCap(CapEntry&, Cap self, IDeleter&)
   {
     MLOG_DETAIL(mlog::cap, "delete mapped Frame or PageMap", PageMapData(self).index);
     map->_pm_table(PageMapData(self).index).reset();
     RETURN(Error::SUCCESS);
   }
 
-  optional<void> PageMap::deleteCap(Cap self, IDeleter& del)
+  optional<void> PageMap::deleteCap(CapEntry&, Cap self, IDeleter& del)
   {
     if (self.isOriginal()) {
       MLOG_DETAIL(mlog::cap, "delete PageMap", self);

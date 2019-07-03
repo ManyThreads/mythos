@@ -75,7 +75,7 @@ namespace mythos {
 
   protected: // IKernelObject interface
     Range<uintptr_t> addressRange(CapEntry& entry, Cap self) override;
-    optional<void> deleteCap(Cap self, IDeleter& del) override;
+    optional<void> deleteCap(CapEntry&, Cap self, IDeleter& del) override;
 
   protected:
     CapEntry entry;

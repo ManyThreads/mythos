@@ -174,7 +174,7 @@ public: // IKernelObject interface
     THROW(Error::TYPE_MISMATCH);
   }
 
-  optional<void> deleteCap(Cap self, IDeleter& del) override;
+  optional<void> deleteCap(CapEntry&, Cap self, IDeleter& del) override;
   void deleteObject(Tasklet* t, IResult<void>* r) override;
   optional<Cap> mint(CapEntry&, Cap self, CapRequest request, bool derive) override;
 
@@ -190,10 +190,10 @@ private:
   class MappedFrame : public IKernelObject {
   public:
     MappedFrame(PageMap* map) : map(map) {}
-    virtual ~MappedFrame() {}
+    ~MappedFrame() override {}
 
-    virtual Range<uintptr_t> addressRange(CapEntry& entry, Cap self);
-    virtual optional<void> deleteCap(Cap self, IDeleter& del);
+    Range<uintptr_t> addressRange(CapEntry& entry, Cap self) override;
+    optional<void> deleteCap(CapEntry&, Cap self, IDeleter& del) override;
 
     PageMap* const map;
   };

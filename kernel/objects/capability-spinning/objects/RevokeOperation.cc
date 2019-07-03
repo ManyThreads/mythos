@@ -127,7 +127,7 @@ namespace mythos {
           // attempted to delete guarded object
           THROW(Error::CYCLIC_DEPENDENCY);
         }
-        auto delRes = leafCap.getPtr()->deleteCap(leafCap, *this);
+        auto delRes = leafCap.getPtr()->deleteCap(*leaf, leafCap, *this);
         if (delRes) {
           leaf->unlink();
           leaf->reset();

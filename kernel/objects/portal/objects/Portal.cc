@@ -141,7 +141,7 @@ namespace mythos {
     }
   }
 
-  optional<void> Portal::deleteCap(Cap self, IDeleter& del)
+  optional<void> Portal::deleteCap(CapEntry&, Cap self, IDeleter& del)
   {
     MLOG_DETAIL(mlog::portal, "delete cap", self);
     if (self.isOriginal()) {

@@ -63,10 +63,10 @@ namespace mythos {
     return obj.getPtr()->addressRange(entry, obj);
   }
 
-  optional<void> CapRefBase::deleteCap(Cap self, IDeleter& /*del*/)
+  optional<void> CapRefBase::deleteCap(CapEntry& /*entry*/, Cap self, IDeleter& /*del*/)
   {
     // assumption: no need to inform the original object about the revoked reference
-    // orig.getPtr()->deleteCap(orig, del);
+    // orig.getPtr()->deleteCap(entry, orig, del);
     this->unbinding(phys2kernel<void>(self.data()), Cap(orig.load()));
     this->orig.store(Cap().value());
     RETURN(Error::SUCCESS);

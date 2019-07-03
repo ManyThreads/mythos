@@ -62,7 +62,7 @@ public: // IKernelObject interface
     return {FrameData(self).addr(start), FrameData(self).end(start)};
   }
 
-  optional<void> deleteCap(Cap, IDeleter&) override { RETURN(Error::SUCCESS); };
+  optional<void> deleteCap(CapEntry&, Cap, IDeleter&) override { RETURN(Error::SUCCESS); };
 
   void invoke(Tasklet* t, Cap self, IInvocation* msg) override {
     Error err = Error::NOT_IMPLEMENTED;

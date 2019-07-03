@@ -119,7 +119,7 @@ namespace mythos {
       if (id == typeId<ISignalable>()) return static_cast<ISignalable const*>(this);
       THROW(Error::TYPE_MISMATCH);
     }
-    optional<void> deleteCap(Cap self, IDeleter& del) override;
+    optional<void> deleteCap(CapEntry&, Cap self, IDeleter& del) override;
     void deleteObject(Tasklet* t, IResult<void>* r) override;
     void invoke(Tasklet* t, Cap self, IInvocation* msg) override;
 

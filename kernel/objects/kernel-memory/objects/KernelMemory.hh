@@ -80,7 +80,7 @@ namespace mythos {
       return self;
     }
 
-    optional<void> deleteCap(Cap self, IDeleter& del) override {
+    optional<void> deleteCap(CapEntry&, Cap self, IDeleter& del) override {
       if (self.isOriginal()) del.deleteObject(del_handle);
       RETURN(Error::SUCCESS);
     }

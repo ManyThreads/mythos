@@ -84,7 +84,7 @@ namespace mythos {
     return self.withData(self.data() & CapData(request));
   }
 
-  optional<void> CapMap::deleteCap(Cap self, IDeleter& del)
+  optional<void> CapMap::deleteCap(CapEntry&, Cap self, IDeleter& del)
   {
     if (self.isOriginal()) {
       // delete all entries, leaves them in a locked state (allocated)

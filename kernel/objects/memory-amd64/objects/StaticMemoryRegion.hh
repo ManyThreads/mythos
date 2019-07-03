@@ -67,7 +67,7 @@ public: // IKernelObject interface
     THROW(Error::TYPE_MISMATCH);
   }
 
-  optional<void> deleteCap(Cap, IDeleter&) override { RETURN(Error::SUCCESS); }
+  optional<void> deleteCap(CapEntry&, Cap, IDeleter&) override { RETURN(Error::SUCCESS); }
 
   optional<Cap> mint(CapEntry&, Cap self, CapRequest request, bool derive) override {
     if (!derive) return FrameData(self).referenceRegion(self, FrameReq(request));
