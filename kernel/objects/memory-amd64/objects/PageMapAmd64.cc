@@ -64,10 +64,9 @@ namespace mythos {
   {
     PageMapData data(self);
     auto idx = &entry - &map->_cap_table(0);
-    ASSERT(data.index == idx);
     // this works because the range of frames is the actual physical frame
     // and the range of the page table includes the actual table frame.
-    auto addr = map->_pm_table(data.index).getAddr();
+    auto addr = map->_pm_table(idx).getAddr();
     return {addr, addr+1};
   }
 
@@ -86,12 +85,11 @@ namespace mythos {
     for (size_t i = num_caps(); i < TABLE_SIZE; ++i) MLOG_INFO(mlog::cap, i, _pm_table(i));
   }
 
-  optional<void> PageMap::MappedFrame::deleteCap(CapEntry& entry, Cap self, IDeleter&)
+  optional<void> PageMap::MappedFrame::deleteCap(CapEntry& entry, Cap /*self*/, IDeleter&)
   {
-    MLOG_DETAIL(mlog::cap, "delete mapped Frame or PageMap", PageMapData(self).index);
     auto idx = &entry - &map->_cap_table(0);
-    ASSERT(PageMapData(self).index == idx);
-    map->_pm_table(PageMapData(self).index).reset();
+    MLOG_DETAIL(mlog::cap, "delete mapped Frame or PageMap", idx);
+    map->_pm_table(idx).reset();
     RETURN(Error::SUCCESS);
   }
 
@@ -145,7 +143,7 @@ namespace mythos {
       .configurable(info.configurable & req.configurable);
 
     // inherit
-    auto newCap = PageMapData::mapTable(&mappedFrameHelper, table.cap(), entry.configurable, index);
+    auto newCap = PageMapData::mapTable(&mappedFrameHelper, table.cap(), entry.configurable);
     cap::resetReference(_cap_table(index), [&]{ pme->reset(); });
     return cap::setReference(_cap_table(index), newCap, *tableEntry, table.cap(), [=,&entry]{ pme->set(entry); });
   }
@@ -184,7 +182,7 @@ namespace mythos {
       .withAddr(frameaddr)
       .configurable(frameInfo.writable)
       .pmPtr(pme->pmPtr);
-    auto newCap = PageMapData::mapFrame(&mappedFrameHelper, frame.cap(), frameInfo, index);
+    auto newCap = PageMapData::mapFrame(&mappedFrameHelper, frame.cap(), frameInfo);
 
     // inherit
     cap::resetReference(_cap_table(index), [&]{ pme->reset(); });

@@ -156,7 +156,6 @@ namespace mythos {
   typedef protocol::PageMap::PageMapReq PageMapReq;
   /** For mapped and non-mapped PageMap: can be modified, for mapped Frame: was writable */
   BoolField<value_t, base_t, 1> writable;
-  UIntField<value_t, base_t, 2, 9> index; // entry in the table (if mapped)
   PageMapData() : value(0) { writable=true; }
   PageMapData(Cap cap) : value(cap.data()) {}
 
@@ -166,13 +165,13 @@ namespace mythos {
   }
 
   template<class FI>
-  static Cap mapFrame(IKernelObject* map, Cap frame, FI const& frameInfo, size_t index) {
-    auto res = PageMapData(0).writable(frameInfo.writable).index(index);
+  static Cap mapFrame(IKernelObject* map, Cap frame, FI const& frameInfo) {
+    auto res = PageMapData(0).writable(frameInfo.writable);
     return frame.asReference().withPtr(map).withData(res);
   }
 
-  static Cap mapTable(IKernelObject* map, Cap table, bool conf, size_t index) {
-    auto res = PageMapData(0).writable(conf).index(index);
+  static Cap mapTable(IKernelObject* map, Cap table, bool conf) {
+    auto res = PageMapData(0).writable(conf);
     return table.asReference().withPtr(map).withData(res);
   }
   BITFIELD_END

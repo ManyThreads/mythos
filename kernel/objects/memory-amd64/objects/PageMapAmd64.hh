@@ -193,7 +193,8 @@ private:
     ~MappedFrame() override {}
 
     Range<uintptr_t> addressRange(CapEntry& entry, Cap self) override;
-    optional<void> deleteCap(CapEntry&, Cap self, IDeleter& del) override;
+      mythos::optional < void >deleteCap (CapEntry & entry, Cap self,
+					  IDeleter &);
 
     PageMap* const map;
   };
