@@ -154,7 +154,7 @@ namespace mythos {
 
   BITFIELD_DEF(CapData, PageMapData)
   typedef protocol::PageMap::PageMapReq PageMapReq;
-  /** For mapped and non-mapped PageMap: can be modified, for mapped Frame: was writable */
+  /** For mapped and non-mapped PageMap: can be modified. */
   BoolField<value_t, base_t, 1> writable;
   PageMapData() : value(0) { writable=true; }
   PageMapData(Cap cap) : value(cap.data()) {}

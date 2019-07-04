@@ -191,15 +191,22 @@ private:
   public:
     MappedFrame(PageMap* map) : map(map) {}
     ~MappedFrame() override {}
-
     Range<uintptr_t> addressRange(CapEntry& entry, Cap self) override;
-      mythos::optional < void >deleteCap (CapEntry & entry, Cap self,
-					  IDeleter &);
+    mythos::optional<void> deleteCap(CapEntry& entry, Cap self, IDeleter&) override;
+    PageMap* const map;
+  };
 
+  class MappedPageMap : public IKernelObject {
+  public:
+    MappedPageMap(PageMap* map) : map(map) {}
+    ~MappedPageMap() override {}
+    Range<uintptr_t> addressRange(CapEntry& entry, Cap self) override;
+    mythos::optional<void> deleteCap(CapEntry& entry, Cap self, IDeleter&) override;
     PageMap* const map;
   };
 
   MappedFrame mappedFrameHelper = {this};
+  MappedPageMap mappedPageMapHelper = {this};
 
 private:
   size_t _level;
