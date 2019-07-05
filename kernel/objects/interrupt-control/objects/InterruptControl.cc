@@ -120,6 +120,8 @@ void InterruptControl::handleInterrupt(uint64_t interrupt) {
         TypedCap<ISignalable> signalable(destinations[interrupt].cap());
         if (signalable) signalable.obj()->signal(signalable.cap().data());
     } else {
+        MLOG_ERROR(mlog::irq, "Interrupt destination not set, masking it for your convenience.", DVAR(interrupt));
+        maskIRQ(interrupt);
         mythos::lapic.endOfInterrupt();
     }
 }
