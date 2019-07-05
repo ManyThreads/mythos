@@ -36,21 +36,24 @@ namespace mythos {
     RED_TABLE_ENTRY rte_irq;
     rte_irq.trigger_mode = 0;
     rte_irq.intpol = 0;
+    rte_irq.dest = 0;
+    rte_irq.int_mask = 0;
 
     RED_TABLE_ENTRY rte_pci; // interrupts 16..19
     rte_pci.trigger_mode = 1; // level triggered
     rte_pci.intpol = 1; // low active
+    rte_pci.dest = 0;
+    rte_pci.int_mask = 0;
 
     for (size_t i = 0; i < 16; i++) {
-      rte_irq.dest = 0x21 + i;
-      write(IOApic::IOREDTBL_BASE+2*i, (uint32_t) rte_irq.lower);
-      write(IOApic::IOREDTBL_BASE+2*i+1, (uint32_t) rte_irq.upper);
+      rte_irq.intvec = 0x21 + i;
+      rte_irq.int_mask = i == 2 ? 1 : 0; // disable interrupt #2
+      writeTableEntry(i, rte_irq);
     }
 
     for (size_t i = 16; i < ver.max_redirection_table + 1; i++) {
-      rte_irq.dest = 0x21 + i;
-      write(IOApic::IOREDTBL_BASE+2*i, (uint32_t) rte_pci.lower);
-      write(IOApic::IOREDTBL_BASE+2*i+1, (uint32_t) rte_pci.upper);
+      rte_pci.intvec = 0x21 + i;
+      writeTableEntry(i, rte_pci);
     }
   }
 
