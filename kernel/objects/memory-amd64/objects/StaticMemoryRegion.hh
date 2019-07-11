@@ -27,9 +27,9 @@
 
 #include "objects/IFrame.hh"
 #include "objects/IKernelObject.hh"
-#include "objects/FrameAmd64.hh"
-#include "objects/CapEntry.hh"
+#include "objects/FrameDataAmd64.hh"
 #include "objects/ops.hh"
+#include "mythos/protocol/KernelObject.hh"
 
 namespace mythos {
 
@@ -42,14 +42,14 @@ class StaticMemoryRegion final
 {
 public:
   typedef protocol::Frame::FrameReq FrameReq;
-  static constexpr size_t SIZE = FrameSize::MAX_REGION_SIZE;
+  constexpr static size_t size = {FrameSize::REGION_MAX_SIZE};
   StaticMemoryRegion() : _ownRoot(Cap::asAllocated()) {}
   StaticMemoryRegion(const StaticMemoryRegion&) = delete;
 
   /** used to attach this region to the resource root */
-  optional<void> init(size_t index, CapEntry& root) {
-    frame.start = index*SIZE;
-    return cap::inherit(root, root.cap(), _ownRoot, Cap(this,FrameData()));
+  optional<void> init(uintptr_t base, CapEntry& root) {
+    this->base = PhysPtr<void>(base);
+    return cap::inherit(root, root.cap(), _ownRoot, Cap(this,FrameData().writable(true).kernel(false)));
   }
 
   /** used to attach the root KernelMemory as child of a static memory region. */
@@ -58,7 +58,7 @@ public:
 public: // IFrame interface
   Info getFrameInfo(Cap self) const override {
     FrameData c(self);
-    return {PhysPtr<void>(frame.start), SIZE, c.writable};
+    return Info(c.getStart(base.physint()), self.isOriginal() ? size : c.getSize(), c.kernel, c.writable);
   }
 
 public: // IKernelObject interface
@@ -70,11 +70,13 @@ public: // IKernelObject interface
   optional<void> deleteCap(CapEntry&, Cap, IDeleter&) override { RETURN(Error::SUCCESS); }
 
   optional<Cap> mint(CapEntry&, Cap self, CapRequest request, bool derive) override {
-    if (!derive) return FrameData(self).referenceRegion(self, FrameReq(request));
-    else return FrameData(self).deriveRegion(self, frame, FrameReq(request), SIZE);
+    return FrameData::subRegion(self, base.physint(), size, FrameReq(request), derive);
   }
 
-  Range<uintptr_t> addressRange(CapEntry&, Cap) override { return {frame.start, frame.start+SIZE}; }
+  Range<uintptr_t> addressRange(CapEntry&, Cap self) override { 
+    FrameData c(self);
+    return Range<uintptr_t>::bySize(c.getStart(base.physint()), self.isOriginal() ? size : c.getSize());
+  }
 
   void invoke(Tasklet* t, Cap self, IInvocation* msg) override {
     Error err = Error::NOT_IMPLEMENTED;
@@ -89,14 +91,15 @@ public: // IKernelObject interface
   Error frameInfo(Tasklet*, Cap self, IInvocation* msg){
     auto data = msg->getMessage()->write<protocol::Frame::Info>();
     FrameData c(self);
-    data->addr = frame.start;
-    data->size = SIZE;
+    data->addr = c.getStart(base.physint());
+    data->size = self.isOriginal() ? size : c.getSize();
+    data->kernel = c.kernel;
     data->writable = c.writable;
     return Error::SUCCESS;
   }
 
 private:
-  Frame frame;
+  PhysPtr<void> base;
   CapEntry _ownRoot;
 };
 

@@ -25,22 +25,15 @@
  */
 #include "objects/MemoryRegion.hh"
 #include "util/alignments.hh"
+#include "objects/mlog.hh"
 
 namespace mythos {
 
-  MemoryRegion::MemoryRegion(IAsyncFree* mem, PhysPtr<void> start, size_t size)
-    : size(size), _mem(mem)
-  {
-    ASSERT(isKernelAddress(this));
-    frame.start = start.physint();
-    _memdesc[0] = MemoryDescriptor(start.log(), size);
-    _memdesc[1] = MemoryDescriptor(this, sizeof(MemoryRegion));
-  }
-
   optional<MemoryRegion*>
   MemoryRegionFactory::factory(CapEntry* dstEntry, CapEntry* memEntry, Cap memCap, IAllocator* mem,
-			      size_t size, size_t alignment)
+                               size_t size, size_t alignment)
   {
+    MLOG_DETAIL(mlog::cap, "Frame alloc", DVARhex(size), DVARhex(alignment));
     if (!Align4k::is_aligned(alignment) || !AlignmentObject(alignment).is_aligned(size))
       THROW(Error::UNALIGNED);
     auto region = mem->alloc(size, alignment);
@@ -54,7 +47,8 @@ namespace mythos {
       dstEntry->reset();
       RETHROW(obj);
     }
-    auto res = cap::inherit(*memEntry, memCap, *dstEntry, Cap(*obj, FrameData()));
+    auto capData = FrameData().offset(0).sizeBits(0).kernel(true).writable(true);
+    auto res = cap::inherit(*memEntry, memCap, *dstEntry, Cap(*obj, capData));
     if (!res) {
       mem->free(*obj); // mem->release(obj) goes throug IKernelObject deletion mechanism
       mem->free(*region, size);

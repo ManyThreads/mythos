@@ -41,10 +41,16 @@ namespace mythos {
 
       BITFIELD_DEF(CapRequest, FrameReq)
       BoolField<value_t,base_t,0> writable;
-      UIntField<value_t,base_t,1,2> size;
-      UIntField<value_t,base_t,3,29> offset;
-      enum Sizes { PAGE_4KB = 0, PAGE_2MB, PAGE_1GB, PAGE_512GB };
+      BoolField<value_t,base_t,1> kernel;
+      UIntField<value_t,base_t,2,5> sizeBits;
+      UIntField<value_t,base_t,7,25> offset;
+      enum Sizes { PAGE_4KB = 4096, PAGE_2MB=4096*512, PAGE_1GB=4096*512*512 };
+
       FrameReq() : value(0) {}
+      constexpr static size_t log2(size_t n) {
+        return ( (n<2) ? 0 : 1+log2(n/2));
+      }
+      FrameReq size(size_t size) { return this->sizeBits(log2(size/4096)); }
       BITFIELD_END
 
       struct Info : public InvocationBase {
@@ -53,8 +59,9 @@ namespace mythos {
 
         uint64_t addr;
         uint64_t size;
+        bool kernel;
         bool writable;
-        bool executable;
+        bool executable; // TODO used?
       };
 
       struct Create : public KernelMemory::CreateBase {

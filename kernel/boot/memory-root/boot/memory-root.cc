@@ -55,7 +55,7 @@ namespace mythos {
       MLOG_INFO(mlog::boot, "initialise memory regions");
       cap_root()->init();
       for (size_t i = 0; i < STATIC_MEMORY_REGIONS; ++i) {
-        auto res = memory_region(i)->init(i, cap_root()->getRoot());
+        auto res = memory_region(i)->init(FrameSize::REGION_MAX_SIZE*i, cap_root()->getRoot());
         ASSERT(res);
       }
 

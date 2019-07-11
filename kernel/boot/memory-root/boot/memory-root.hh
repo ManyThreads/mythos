@@ -34,8 +34,9 @@ namespace mythos {
   class CapEntry;
 
   namespace boot {
-    /// use 128 memory regions to cover the whole 48 physical address space
-    constexpr size_t STATIC_MEMORY_REGIONS = 1<<7;
+    // use 2048 static memory regions to cover the whole 48 bits physical address space with 25+12 bits per region
+    // this requires 80KiB of memory with 40 bytes per region
+    constexpr size_t STATIC_MEMORY_REGIONS = 1<<(48-25-12);
 
     MemoryRoot* cap_root();
     StaticMemoryRegion* memory_region(size_t index);

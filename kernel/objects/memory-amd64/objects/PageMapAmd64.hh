@@ -191,7 +191,7 @@ private:
   public:
     MappedFrame(PageMap* map) : map(map) {}
     ~MappedFrame() override {}
-    Range<uintptr_t> addressRange(CapEntry& entry, Cap self) override;
+    Range<uintptr_t> addressRange(CapEntry& entry, Cap) override;
     mythos::optional<void> deleteCap(CapEntry& entry, Cap self, IDeleter&) override;
     PageMap* const map;
   };
@@ -200,7 +200,7 @@ private:
   public:
     MappedPageMap(PageMap* map) : map(map) {}
     ~MappedPageMap() override {}
-    Range<uintptr_t> addressRange(CapEntry& entry, Cap self) override;
+    Range<uintptr_t> addressRange(CapEntry& entry, Cap) override;
     mythos::optional<void> deleteCap(CapEntry& entry, Cap self, IDeleter&) override;
     PageMap* const map;
   };

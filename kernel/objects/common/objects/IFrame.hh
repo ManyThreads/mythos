@@ -34,8 +34,10 @@ namespace mythos {
   {
   public:
     struct Info {
+      Info(uintptr_t start, size_t size, bool kernel, bool writable) : start(PhysPtr<void>(start)), size(size), kernel(kernel), writable(writable) {}
       PhysPtr<void> start;
       size_t size;
+      bool kernel;
       bool writable;
     };
 

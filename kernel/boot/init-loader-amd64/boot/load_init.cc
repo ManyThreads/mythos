@@ -269,7 +269,7 @@ optional<void> InitLoader::createMsgFrame()
   auto memCap = memEntry->cap();
 
   typedef protocol::Frame::FrameReq FrameReq;
-  auto request = FrameReq().offset((*frameNum)*512).size(FrameReq::PAGE_4KB).writable(1);
+  auto request = FrameReq().offset((*frameNum)*512).size(4096).writable(1).kernel(1); // TODO why is the offset *512 ???
   auto frameEntry = _cspace->get(MSG_FRAME);
   auto res = cap::derive(*memEntry, *frameEntry, memCap, request);
   if (!res) RETHROW(res);
