@@ -26,7 +26,7 @@ ret=1
 prefix=${SCRIPTDIR}
 #BINDIR="${prefix}/bin"
 SBINDIR="${prefix}/ihk/install/sbin"
-#ETCDIR=/home/pgypser/ihk+mckernel/etc
+ETCDIR="$prefix"
 KMODDIR="${prefix}/ihk/install/kmod"
 MCK_BUILDID=c505d9c
 ENABLE_LINUX_WORK_IRQ_FOR_IKC="ON"
@@ -73,7 +73,7 @@ idle_halt=""
 allow_oversubscribe=""
 time_sharing="time_sharing"
 
-while getopts stk:c:m:o:f:r:q:i:d:e:hOT: OPT
+while getopts stk:c:m:o:f:p:r:q:i:d:e:hOT: OPT
 do
 	case ${OPT} in
 	p)	kernelpath=${OPTARG}
@@ -122,8 +122,9 @@ done
 # Start ihkmond
 pid=`pidof ihkmond`
 if [ "${pid}" != "" ]; then
-    ${SUDO} kill -9 ${pid} > /dev/null 2> /dev/null
+    ${SUDO} kill -9 ${pid} #> /dev/null 2> /dev/null
 fi
+
 if [ "${redirect_kmsg}" != "0" -o "${mon_interval}" != "-1" ]; then
     ${SBINDIR}/ihkmond -f ${facility} -k ${redirect_kmsg} -i ${mon_interval}
 fi
@@ -249,7 +250,7 @@ if [[ "${irqbalance_used}" == "yes" && ! -e "/run/sysconfig/irqbalance_mck_affin
 #     smp_affinity = (mck_cores ^ -1);
 # }
 	ncpus=`lscpu | grep -E '^CPU\(s\):' | awk '{print $2}'`
-	smp_affinity_mask=`echo $cpus | ncpus=$ncpus perl -e 'while(<>){@tokens = split /,/;foreach $token (@tokens) {@nums = split /-/,$token; for($num = $nums[0]; $num <= $nums[$#nums]; $num++) {$ndx=int($num/32); $mask[$ndx] |= (1<<($num % 32))}}} $nint32s = int(($ENV{'ncpus'}+31)/32); for($j = $nint32s - 1; $j >= 0; $j--) { if($j != $nint32s - 1){print ",";} $nblks = ($j != $nint32s - 1) ? 8 : ($ENV{'ncpus'} % 32 != 0) ? int((($ENV{'ncpus'} + 3) % 32) / 4) : 8; for($i = $nblks - 1;$i >= 0;$i--){ printf("%01x",($mask[$j] >> ($i*4)) & 0xf);}}'`
+	smp_affinity_mask=`echo $cpus | ncpus=$ncpus perl -e 'while(<>){@tokens = split /,/;foreach $token (@tokens) {@nums = split /-/,$token; for($num = $nums[0]; $num <= $nums[$#nums]; $num++) {$ndx=int($num/32); $mask[$ndx] |= (1<<($num % 32))}}} $nint32s = int(($ENV{'ncpus'}+31)/32); for($j = $nint32s - 1; $j >= 0; $j--) { if($j != $nint32s - 1){print ",";} $nblks = ($j != $nint32s - 1) ? 8 : ($ENV{'ncpus'} % 32 != 0) ? int((($ENV{'ncpus'} + 3) % 32) / 4) : 8; for($i = $nblks - 1;$i >= 0;$i--){ printf("%01x",($mask[$j] >> ($i*4)) & 0xf);}}' 2>/dev/null`
 	# echo cpus=$cpus ncpus=$ncpus smp_affinity_mask=$smp_affinity_mask
 
 	if ! ncpus=$ncpus smp_affinity_mask=$smp_affinity_mask perl -e '@dirs = grep { -d } glob "/proc/irq/*"; foreach $dir (@dirs) { $hit = 0; $affinity_str = `'${SUDO}' cat $dir/smp_affinity`; chomp $affinity_str; @int32strs = split /,/, $affinity_str; @int32strs_mask=split /,/, $ENV{'smp_affinity_mask'}; for($i=0;$i <= $#int32strs_mask; $i++) { $int32strs_inv[$i] = sprintf("%08x",hex($int32strs_mask[$i])^0xffffffff); if($i == 0) { $len = int((($ENV{'ncpus'}%32)+3)/4); if($len != 0) { $int32strs_inv[$i] = substr($int32strs_inv[$i], -$len, $len); } } } $inv = join(",", @int32strs_inv); $nint32s = int(($ENV{'ncpus'}+31)/32); for($j = $nint32s - 1; $j >= 0; $j--) { if(hex($int32strs[$nint32s - 1 - $j]) & hex($int32strs_mask[$nint32s - 1 - $j])) { $hit = 1; }} if($hit == 1) { system("echo $inv | '${SUDO}' tee $dir/smp_affinity >/dev/null 2>&1")}}'; then
@@ -412,14 +413,19 @@ if ! ${SUDO} ${SBINDIR}/ihkosctl 0 assign mem ${mem}; then
 fi
 
 # Load kernel image
-if ! [ -f kernelpath ]; then
+if ! [ -f "$kernelpath" ]; then
     echo "error: kernel image not found: ${kernelpath}"
 	error_exit "os_created"
 fi
-if ! ${SUDO} ${SBINDIR}/ihkosctl 0 load ${KERNDIR}/mckernel.img; then
-	echo "error: loading kernel image: ${KERNDIR}/mckernel.img" >&2
+if ! ${SUDO} ${SBINDIR}/ihkosctl 0 load ${kernelpath}; then
+	echo "error: loading kernel image: ${kernelpath}" >&2
 	error_exit "os_created"
 fi
+
+#if ! ${SUDO} ${SBINDIR}/ihkosctl 0 load ${KERNDIR}/mckernel.img; then
+	#echo "error: loading kernel image: ${KERNDIR}/mckernel.img" >&2
+	#error_exit "os_created"
+#fi
 
 # Set kernel arguments
 if ! ${SUDO} ${SBINDIR}/ihkosctl 0 kargs "hidos $turbo $safe_kernel_map $idle_halt dump_level=${DUMP_LEVEL} $extra_kopts $allow_oversubscribe $time_sharing"; then
@@ -432,15 +438,20 @@ if ! ${SUDO} ${SBINDIR}/ihkosctl 0 boot; then
 	echo "error: booting" >&2
 	error_exit "os_created"
 fi
+	echo "booting" >&2
 
 # Set device file ownership
 if ! ${SUDO} chown ${chown_option} /dev/mcd* /dev/mcos*; then
 	echo "warning: failed to chown device files" >&2
 fi
 
+#echo "sleep" >&2
+#sleep 2
+
+echo "goint to start irqbalance" >&2
 # Start irqbalance with CPUs and IRQ for McKernel banned
 if [ "${irqbalance_used}" == "yes" ]; then
-	banirq=`cat /proc/interrupts| perl -e 'while(<>) { if(/^\s*(\d+).*IHK\-SMP\s*$/) {print $1;}}'`
+	banirq=`cat /proc/interrupts| perl -e 'while(<>) { if(/^\s*(\d+).*IHK\-SMP\s*$/) {print $1;}}' 2>/dev/null`
 
 	sed -e "s/%mask%/$smp_affinity_mask/g" -e "s/%banirq%/$banirq/g" \
 		"$ETCDIR/irqbalance_mck.in" | ${SUDO} tee /run/sysconfig/irqbalance_mck >/dev/null
