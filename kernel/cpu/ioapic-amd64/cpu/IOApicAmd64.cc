@@ -46,13 +46,13 @@ namespace mythos {
     rte_pci.int_mask = 0;
 
     for (size_t i = 0; i < 16; i++) {
-      rte_irq.intvec = 0x21 + i;
+      rte_irq.intvec = BASE_IRQ + i;
       rte_irq.int_mask = i == 2 ? 1 : 0; // disable interrupt #2
       writeTableEntry(i, rte_irq);
     }
 
     for (size_t i = 16; i < ver.max_redirection_table + 1; i++) {
-      rte_pci.intvec = 0x21 + i;
+      rte_pci.intvec = BASE_IRQ + i;
       writeTableEntry(i, rte_pci);
     }
   }
@@ -85,8 +85,8 @@ namespace mythos {
    * In other cases the used mapping has to be remembered or all redirection entries have to be searched through.
    */
   void IOApic::maskIRQ(uint64_t irq) {
-    ASSERT(irq > 31 && irq < 256);
-    auto table_entry = irq - IOApic::BASE_IRQ;
+    ASSERT(irq >= BASE_IRQ && irq < 256);
+    auto table_entry = irq - BASE_IRQ;
     IOApic::RED_TABLE_ENTRY rte = readTableEntry(table_entry);
     rte.int_mask = 1;
     writeTableEntry(table_entry, rte);
@@ -94,8 +94,8 @@ namespace mythos {
 
   /// Same as maskIRQ
   void IOApic::unmaskIRQ(uint64_t irq) {
-    ASSERT(irq > 31 && irq < 256);
-    auto table_entry = irq - IOApic::BASE_IRQ;
+    ASSERT(irq >= BASE_IRQ && irq < 256);
+    auto table_entry = irq - BASE_IRQ;
     IOApic::RED_TABLE_ENTRY rte = readTableEntry(table_entry);
     rte.int_mask = 0;
     writeTableEntry(table_entry, rte);
