@@ -38,28 +38,17 @@ ENTRY(_start_bsp)
  */
 PHDRS
 {
-    init PT_LOAD;
     kern PT_LOAD;
     data PT_LOAD;
 }
 
 SECTIONS
 {
-    /* LOAD_ADDR is begin of the init code and data */
-    /* load the boot code at VMA=LMA LOAD_ADDR */
-    .init LOAD_ADDR : AT(LOAD_ADDR)
-    {
-        KEEP(*(.init))
-    } : init /* put into init segment */
-    PROVIDE (LOAD_END = .);
-
-    /* the begin of the upper half code and data in physical memory */
-    PROVIDE (KERN_BEGIN = .);
-
     /* All following sections will be placed into the upper half
     kernel address range. Thus, the Virtual Memory Address VMA will be
     large. But the Load Memory Address LMA has to be in physical addresses still. */
-    .text (KERN_BEGIN + VIRT_ADDR) : AT (KERN_BEGIN) {
+    . = VIRT_ADDR
+    .text {
         *(.text.hot .text.hot.*)
         *(".text" ".text$" .text .text.* .gnu.linkonce.t.*)
     } : kern
@@ -67,8 +56,6 @@ SECTIONS
     .rodata : { *(.rodata .rodata.* .gnu.linkonce.r.*) }
     .eh_frame : { *(.eh_frame) }
     .fixup : { FIXUP_START = .; *(.fixup); FIXUP_END = .; }
-    . = ALIGN(2M); /* page aligned */
-    PROVIDE (KERN_ROEND = . - VIRT_ADDR);
 
     .init_array : {
       CTORS_START = .;
@@ -77,26 +64,31 @@ SECTIONS
       KEEP(*(SORT(.ctors.*)))
       KEEP(*(.ctors))
       CTORS_END = .;
-    } : data
+    }
+
+    . = ALIGN(2M); /* page aligned */
+    /*PROVIDE (KERN_ROEND = . - VIRT_ADDR);*/
 
     .data : {
       *(.data .data.* .gnu.linkonce.d.*)
       . = ALIGN(64); /* cache line aligned */
-      CLM_ADDR = ABSOLUTE(.);
+      CLM_ADDR = .;
       *(SORT_BY_ALIGNMENT(.kernel_clm.hot))
       *(SORT_BY_ALIGNMENT(.kernel_clm))
       . = ALIGN(64); /* cache line aligned */
-      CLM_BLOCKEND = ABSOLUTE(.);
+      CLM_BLOCKEND = .;
     } : data
 
     .bss : {
       . += MYTHOS_MAX_THREADS*(CLM_BLOCKEND - CLM_ADDR);
-      CLM_END = ABSOLUTE(.);
+      CLM_END = .;
       *(.bss .bss.* .gnu.linkonce.b.*)
     }
 
+    . = ALIGN(4096); /* page aligned */
+	PROVIDE (VIRT_END = .);
     . = ALIGN(2M); /* page aligned */
-    PROVIDE (KERN_END = . - VIRT_ADDR); /* the physical end of the upper half stuff */
+	PROVIDE (KERN_END = . - VIRT_ADDR); /* the physical end of the upper half stuff */
 
     /DISCARD/ :
     {

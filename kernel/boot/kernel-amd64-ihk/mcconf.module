@@ -1,12 +1,12 @@
 # -*- mode:toml; -*-
-[module.kernel-amd64-pc]
-    incfiles = [ "boot/mlog.hh", "boot/boot.ld" ]
+[module.kernel-amd64-ihk]
+    incfiles = [ "boot/mlog.hh", "boot/boot.ld", "boot/memory-layout.h", "boot/DeployKernelSpace.hh", "boot/memory-layout-common.h", "boot/init-kernelspace-common.hh" ]
     kernelfiles = [ "boot/start.S", "boot/mlog.cc" ]
     requires = [ "tag/platform/pc", "symbol/entry_ap", "symbol/entry_bsp" ]
     provides = [ "boot32.elf", "boot64.elf", "symbol/_mboot_table", "symbol/_mboot_magic" ]
 
     makefile_head = '''
-TARGETS += boot32.elf boot64.elf
+TARGETS += boot64.elf
 EXTRATARGETS += kernel2.cc kernel2.o
 DEP += kernel2.d
 '''
@@ -43,9 +43,10 @@ boot64s.elf: boot/boot.o $(KERNELFILES_OBJ)
 	objdump -dS boot64s.elf | c++filt > boots.disasm
 	strip boot64s.elf
 
-boot32.elf: boot64.elf
-	objcopy --strip-debug -I elf64-x86-64 -O elf32-i386 boot64.elf boot32.elf
+run:
+   sudo ../3rdparty/ihkreboot.sh -c 1 -k 1 -p $(shell pwd)/boot64.elf
+
+stop:
+   ../3rdparty/ihkstop+release.sh 
 '''
 
-[module.kernelspace-amd64-pc]
-    incfiles = [ "boot/memory-layout.h", "boot/DeployKernelSpace.hh" ]
