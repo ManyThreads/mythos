@@ -43,7 +43,7 @@ namespace mythos {
 
     static constexpr size_t REGION_MAX_SIZE = FRAME_MIN_SIZE * (1ull << FRAME_MAX_BITS); // 25bits for offset = 128GiB
     // use 2048 static memory regions to cover the whole 48 bits physical address space with 25+12 bits per region
-    // this requires 80KiB of memory with 40 bytes per region, but we are working on making it smaller :)
+    // this requires 32KiB of kernel memory with 16 bytes per region
     static constexpr size_t DEVICE_REGIONS = (1ull<<48)/REGION_MAX_SIZE;
 
     constexpr static size_t logBase(size_t n, size_t base) {

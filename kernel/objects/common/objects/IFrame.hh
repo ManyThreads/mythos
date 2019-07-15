@@ -31,6 +31,7 @@
 namespace mythos {
 
   class IFrame
+    : public IKernelObject
   {
   public:
     struct Info {

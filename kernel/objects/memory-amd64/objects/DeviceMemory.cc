@@ -109,7 +109,7 @@ mythos::Error mythos::DeviceMemory::Region::frameInfo(Tasklet*, Cap self, IInvoc
   auto data = msg->getMessage()->write<protocol::Frame::Info>();
   FrameData c(self);
   data->addr = c.getStart(base);
-  data->size = self.isOriginal() ? size : c.getSize();
+  data->size = self.isOriginal() ? FrameSize::REGION_MAX_SIZE : c.getSize();
   data->device = c.device;
   data->writable = c.writable;
   return Error::SUCCESS;

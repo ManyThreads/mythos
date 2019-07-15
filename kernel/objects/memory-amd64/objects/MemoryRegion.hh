@@ -40,7 +40,7 @@ namespace mythos {
  * but can have to adhere to the power-of-two frame sizes.
  */
 class MemoryRegion final
-  : public IKernelObject, public IFrame
+  : public IFrame
 {
 public:
   typedef protocol::Frame::FrameReq FrameReq;

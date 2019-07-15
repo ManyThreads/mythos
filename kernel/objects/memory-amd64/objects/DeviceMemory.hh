@@ -64,7 +64,7 @@ namespace mythos {
   public:
     /** helper memory region that describes a range of physical memory. */
     class Region final
-      : public IKernelObject, public IFrame
+      : public IFrame
     {
     public:
       typedef protocol::Frame::FrameReq FrameReq;
@@ -76,7 +76,7 @@ namespace mythos {
     public: // IFrame interface
       Info getFrameInfo(Cap self) const override {
         FrameData c(self);
-        return Info(c.getStart(base), self.isOriginal() ? size : c.getSize(), c.device, c.writable);
+        return Info(c.getStart(base), self.isOriginal() ? FrameSize::REGION_MAX_SIZE : c.getSize(), c.device, c.writable);
       }
 
     public: // IKernelObject interface
@@ -88,19 +88,18 @@ namespace mythos {
       optional<void> deleteCap(CapEntry&, Cap, IDeleter&) override { RETURN(Error::SUCCESS); }
 
       optional<Cap> mint(CapEntry&, Cap self, CapRequest request, bool derive) override {
-        return FrameData::subRegion(self, base, size, FrameReq(request), derive);
+        return FrameData::subRegion(self, base, FrameSize::REGION_MAX_SIZE, FrameReq(request), derive);
       }
 
       Range<uintptr_t> addressRange(CapEntry&, Cap self) override { 
         FrameData c(self);
-        return Range<uintptr_t>::bySize(c.getStart(base), self.isOriginal() ? size : c.getSize());
+        return Range<uintptr_t>::bySize(c.getStart(base), self.isOriginal() ? FrameSize::REGION_MAX_SIZE : c.getSize());
       }
 
       void invoke(Tasklet* t, Cap self, IInvocation* msg) override;
       Error frameInfo(Tasklet*, Cap self, IInvocation* msg);
     public:
       uintptr_t base;
-      constexpr static size_t size = {FrameSize::REGION_MAX_SIZE};
     };
 
   protected:
