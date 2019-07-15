@@ -1,6 +1,6 @@
 # -*- mode:toml; -*-
 [module.kernel-main]
-    incfiles = [ "boot/boot.ld" ]
+    incfiles = [ ]
     kernelfiles = [ "boot/kernel.cc" ]
     requires = [ "tag/mode/kernel" ]
     provides = [ "symbol/entry_bsp", "symbol/entry_ap", "symbol/sleeping_failed",
