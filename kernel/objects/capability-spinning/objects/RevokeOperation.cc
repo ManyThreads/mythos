@@ -35,26 +35,20 @@ namespace mythos {
     if (entry.isDeleted()) {
       RETURN(Error::SUCCESS);
     }
-    optional<void> result;
-    do {
+    while(true) {
       ASSERT(!entry.isDeleted());
-      result = entry.acquire();
-      if (!result) {
-        if (entry.kill()) {
-          result = _delete(&entry, entry.cap());
-          if (!result) { break; } // we cannot recover from this
-          result = optional<void>(Error::RETRY); // retry to acquire after delete
-        } else {
-          // not acquirable nor killable
-          // just wait a little
-          hwthread_pause();
-        }
-      } else {
-        // acquired, now let everybody now it is deleted
-        entry.setDeleted();
+      if (entry.tryAcquire()) {
+        entry.setDeleted(); // let everybody know that this is deleted
+        RETURN(Error::SUCCESS);
       }
-    } while (!result);
-    return result;
+      // try to kill, then retry acquire
+      if (entry.kill()) {
+        auto result = _delete(&entry, entry.cap());
+        if (!result) RETHROW(result); // we cannot recover from this
+      } else {
+        hwthread_pause(); // not acquirable nor killable: just wait a little
+      }
+    }
   }
 
 

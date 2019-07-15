@@ -73,6 +73,7 @@ namespace mythos {
     void setDeleted() { _prev.fetch_or(DELETED_FLAG); }
     bool isDeleted() const { return _prev.load() & DELETED_FLAG; }
 
+    bool tryAcquire();
     optional<void> acquire();
     void commit(const Cap& cap);
     void reset();

@@ -41,15 +41,17 @@ namespace mythos {
     _cap.store(c.value());
   }
 
-  optional<void> CapEntry::acquire()
+  bool CapEntry::tryAcquire()
   {
     auto expected = Cap::asEmpty().value();
     const auto desired = Cap::asAllocated().value();
-    if (_cap.compare_exchange_strong(expected, desired)) {
-     RETURN(Error::SUCCESS);
-    } else {
-      THROW(Error::CAP_NONEMPTY);
-    }
+    return _cap.compare_exchange_strong(expected, desired);
+  }
+
+  optional<void> CapEntry::acquire()
+  {
+    if (tryAcquire()) RETURN(Error::SUCCESS);
+    else THROW(Error::CAP_NONEMPTY);
   }
 
   void CapEntry::commit(const Cap& cap)
