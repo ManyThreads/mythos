@@ -49,12 +49,12 @@ namespace boot {
   constexpr uint64_t PML2_PAGESIZE  = 1ull<<21;
   constexpr uint64_t PAGETABLE_SIZE = 4096;
 
-  ALIGN_4K extern uint64_t devices_pml1[];
-  ALIGN_4K extern uint64_t devices_pml2[];
-  ALIGN_4K extern uint64_t image_pml2[];
-  ALIGN_4K extern uint64_t pml2_tables[];
-  ALIGN_4K extern uint64_t pml3_table[];
-  ALIGN_4K extern uint64_t pml4_table[] SYMBOL("BOOT_PML4");
+  extern uint64_t* devices_pml1;
+  extern uint64_t* devices_pml2;
+  extern uint64_t* image_pml2;
+  extern uint64_t* pml2_tables;
+  extern uint64_t* pml3_table;
+  extern uint64_t* pml4_table SYMBOL("BOOT_PML4");
 
   inline uint64_t table_to_phys_addr(uint64_t* t, uint64_t subtable) {
     return reinterpret_cast<uint64_t>(t) + subtable*PAGETABLE_SIZE - VIRT_ADDR;
