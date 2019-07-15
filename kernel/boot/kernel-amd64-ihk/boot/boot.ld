@@ -24,7 +24,7 @@
  */
 #include "boot/memory-layout.h"
 
-ENTRY(_start_bsp)
+ENTRY(_start_ihk_mythos_)
 
 /** ELF programm header for the loader.
  *
@@ -47,8 +47,8 @@ SECTIONS
     /* All following sections will be placed into the upper half
     kernel address range. Thus, the Virtual Memory Address VMA will be
     large. But the Load Memory Address LMA has to be in physical addresses still. */
-    . = VIRT_ADDR
-    .text {
+    . = VIRT_ADDR;
+    .text : {
         *(.text.hot .text.hot.*)
         *(".text" ".text$" .text .text.* .gnu.linkonce.t.*)
     } : kern

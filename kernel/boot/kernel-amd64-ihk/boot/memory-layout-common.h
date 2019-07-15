@@ -49,6 +49,7 @@
  * becomes much less efficient.
  */
 #define VIRT_ADDR           0xFFFFFFFFFE801000
+#define LOAD_ADDR           0xFFFFFFFFFE801000 /* should not be used. needed by kmem-common */
 
 /** position and size of the kernels direct mapped area,
  * which will contain all kernel objects

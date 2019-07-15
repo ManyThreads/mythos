@@ -1,9 +1,9 @@
 # -*- mode:toml; -*-
 [module.kernel-amd64-ihk]
-    incfiles = [ "boot/mlog.hh", "boot/boot.ld", "boot/memory-layout.h", "boot/DeployKernelSpace.hh", "boot/memory-layout-common.h", "boot/init-kernelspace-common.hh" ]
-    kernelfiles = [ "boot/start.S", "boot/mlog.cc" ]
+    incfiles = [ "boot/mlog.hh", "boot/boot.ld", "boot/memory-layout.h", "boot/DeployKernelSpace.hh", "boot/memory-layout-common.h", "boot/init-kernelspace-common.hh", "boot/pagetables.hh", "boot/bootparam.h" ]
+    kernelfiles = [ "boot/mlog.cc", "boot/ihk-entry.cc" ]
     requires = [ "tag/platform/pc", "symbol/entry_ap", "symbol/entry_bsp" ]
-    provides = [ "boot32.elf", "boot64.elf", "symbol/_mboot_table", "symbol/_mboot_magic" ]
+    provides = [ "boot64.elf", "symbol/_mboot_table", "symbol/_mboot_magic" ]
 
     makefile_head = '''
 TARGETS += boot64.elf
@@ -18,6 +18,7 @@ kernel2_obj = $(addsuffix .o, $(basename $(kernel2_other)))
 kernel2.cc:
 	echo "" > kernel2.cc
 	for F in $(filter %.cc, $(KERNELFILES)) ; do echo "#include \"$$F\"" >> kernel2.cc ; done
+
 
 kernel2.o: kernel2.cc
 	$(KERNEL_CXX) $(KERNEL_CXXFLAGS) $(KERNEL_CPPFLAGS) $(DEPFLAGS) -c -o $@ $<
@@ -44,9 +45,9 @@ boot64s.elf: boot/boot.o $(KERNELFILES_OBJ)
 	strip boot64s.elf
 
 run:
-   sudo ../3rdparty/ihkreboot.sh -c 1 -k 1 -p $(shell pwd)/boot64.elf
+	sudo ../3rdparty/ihkreboot.sh -c 1 -k 1 -p $(shell pwd)/boot64.elf
 
 stop:
-   ../3rdparty/ihkstop+release.sh 
+	../3rdparty/ihkstop+release.sh 
 '''
 

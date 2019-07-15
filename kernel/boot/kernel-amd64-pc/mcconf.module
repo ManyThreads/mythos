@@ -1,6 +1,6 @@
 # -*- mode:toml; -*-
 [module.kernel-amd64-pc]
-    incfiles = [ "boot/mlog.hh", "boot/boot.ld" ]
+    incfiles = [ "boot/mlog.hh", "boot/boot.ld", "boot/memory-layout.h" ]
     kernelfiles = [ "boot/start.S", "boot/mlog.cc" ]
     requires = [ "tag/platform/pc", "symbol/entry_ap", "symbol/entry_bsp" ]
     provides = [ "boot32.elf", "boot64.elf", "symbol/_mboot_table", "symbol/_mboot_magic" ]
