@@ -46,7 +46,7 @@ namespace mythos {
 
     PortalFuture<void> createDevice(PortalLock pr, KObject root,
                               size_t addr, size_t size, bool writable) {
-      return pr.invoke<protocol::MemoryRoot::Create>(root.cap(), _cap, addr, size, writable);
+      return pr.invoke<protocol::DeviceMemory::Create>(root.cap(), _cap, addr, size, writable);
     }
 
     struct Info {

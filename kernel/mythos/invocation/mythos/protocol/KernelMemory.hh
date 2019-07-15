@@ -31,7 +31,7 @@ namespace mythos {
 namespace protocol {
 
   struct KernelMemory {
-    constexpr static uint8_t proto = UNTYPED_MEMORY;
+    constexpr static uint8_t proto = KERNEL_MEMORY;
 
     enum Methods : uint8_t {
       PROPERTIES, // ??

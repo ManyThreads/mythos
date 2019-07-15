@@ -35,8 +35,8 @@ namespace mythos {
 
     enum CoreProtocols : uint8_t {
       KERNEL_OBJECT = 1,
-      MEMORY_ROOT,
-      UNTYPED_MEMORY,
+      DEVICE_MEMORY,
+      KERNEL_MEMORY,
       FRAME,
       PAGEMAP,
       CAPMAP,

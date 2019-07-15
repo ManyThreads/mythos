@@ -57,7 +57,7 @@ mythos::Portal portal(mythos::init::PORTAL, msg_ptr);
 mythos::CapMap myCS(mythos::init::CSPACE);
 mythos::PageMap myAS(mythos::init::PML4);
 mythos::KernelMemory kmem(mythos::init::KM);
-mythos::KObject memory_root(mythos::init::DEVICE_MEM);
+mythos::KObject device_memory(mythos::init::DEVICE_MEM);
 mythos::SimpleCapAllocDel capAlloc(portal, myCS, mythos::init::APP_CAP_START,
                                   mythos::init::SIZE-mythos::init::APP_CAP_START);
 
@@ -141,7 +141,7 @@ void test_memory_root()
 
   MLOG_INFO(mlog::app, "test_memory_root: allocate device memory");
   mythos::Frame f(capAlloc());
-  auto res1 = f.createDevice(pl, memory_root, paddr, 2*1024*1024, true).wait();
+  auto res1 = f.createDevice(pl, device_memory, paddr, 2*1024*1024, true).wait();
   TEST(res1);
   MLOG_INFO(mlog::app, "alloc frame", DVAR(res1.state()));
 

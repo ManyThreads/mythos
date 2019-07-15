@@ -69,9 +69,9 @@ namespace mythos {
 
   namespace protocol {
 
-    struct MemoryRoot
+    struct DeviceMemory
     {
-      constexpr static uint8_t proto = MEMORY_ROOT;
+      constexpr static uint8_t proto = DEVICE_MEMORY;
 
       enum Methods : uint8_t {
         CREATE

@@ -46,8 +46,8 @@ void mythos::DeviceMemory::invoke(Tasklet* t, Cap self, IInvocation* msg)
 {
   Error err = Error::NOT_IMPLEMENTED;
   switch (msg->getProtocol()) {
-  case protocol::MemoryRoot::proto:
-    err = protocol::MemoryRoot::dispatchRequest(this, msg->getMethod(), t, self, msg);
+  case protocol::DeviceMemory::proto:
+    err = protocol::DeviceMemory::dispatchRequest(this, msg->getMethod(), t, self, msg);
     break;
   }
   if (err != Error::INHIBIT) msg->replyResponse(err);
@@ -56,7 +56,7 @@ void mythos::DeviceMemory::invoke(Tasklet* t, Cap self, IInvocation* msg)
 mythos::Error mythos::DeviceMemory::invokeCreate(Tasklet*, Cap self, IInvocation* msg)
 {
   auto ib = msg->getMessage();
-  auto data = ib->read<protocol::MemoryRoot::Create>();
+  auto data = ib->read<protocol::DeviceMemory::Create>();
   MLOG_DETAIL(mlog::km, "create device frame", DVAR(data.dstSpace()), DVAR(data.dstPtr), 
               DVARhex(data.addr), DVARhex(data.size), DVAR(data.writable));
 
