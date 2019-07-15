@@ -32,6 +32,7 @@
 #include "objects/ops.hh"
 #include "objects/FrameDataAmd64.hh"
 #include "mythos/protocol/Frame.hh"
+#include "objects/mlog.hh"
 
 namespace mythos {
 
@@ -72,9 +73,42 @@ namespace mythos {
         if (err != Error::INHIBIT) msg->replyResponse(err);
     }
 
-    Error createInvocation(Tasklet*, Cap self, IInvocation* msg){
-      // TODO
-      return Error::SUCCESS;
+    Error invokeCreate(Tasklet*, Cap self, IInvocation* msg){
+      auto ib = msg->getMessage();
+      auto data = ib->read<protocol::MemoryRoot::Create>();
+      MLOG_DETAIL(mlog::km, "create device frame", DVAR(data.dstSpace()), DVAR(data.dstPtr), 
+                  DVARhex(data.addr), DVARhex(data.size), DVAR(data.writable));
+
+      // check position and alignment
+      if (data.addr/FrameSize::REGION_MAX_SIZE >= FrameSize::STATIC_MEMORY_REGIONS) return Error::INSUFFICIENT_RESOURCES;
+      if (data.addr % 4096 != 0 || data.size % 4096 != 0) return Error::UNALIGNED;
+      // TODO disallow access to the 4GiB kernel memory area
+      auto sizeBits = FrameSize::frameSize2Bits(data.size);
+      if (data.size != FrameSize::frameBits2Size(sizeBits)) return Error::UNALIGNED;
+      auto obj = &_memory_region[data.addr/FrameSize::REGION_MAX_SIZE];
+      auto base = obj->base;
+      ASSERT(base == (data.addr/FrameSize::REGION_MAX_SIZE)*FrameSize::REGION_MAX_SIZE);
+
+      optional<CapEntry*> dstEntry;
+      if (data.dstSpace() == null_cap) { // direct address
+        dstEntry = msg->lookupEntry(data.dstPtr, 32, true); // lookup for write access
+        if (!dstEntry) return dstEntry.state();
+      } else { // indirect address
+        TypedCap<ICapMap> dstSpace(msg->lookupEntry(data.dstSpace()));
+        if (!dstSpace) return dstSpace.state();
+        auto dstEntryRef = dstSpace.lookup(data.dstPtr, data.dstDepth, true); // lookup for write
+        if (!dstEntryRef) return dstEntryRef.state();
+        dstEntry = dstEntryRef->entry; // TODO should be move, is reference counting correctly done?
+      }
+
+      MLOG_DETAIL(mlog::km, "create device frame in", DVAR(*dstEntry));
+      if (!dstEntry->acquire()) return Error::LOST_RACE;
+
+      // insert derived capability into the tree as child of the memory root object
+      auto capData = FrameData().start(base, data.addr).sizeBits(sizeBits).kernel(false).writable(data.writable);
+      auto res = cap::inherit(*msg->getCapEntry(), self, **dstEntry, Cap(obj, capData).asDerived());
+
+      return res.state();
     }
 
   public:
@@ -131,7 +165,7 @@ namespace mythos {
         return Error::SUCCESS;
       }
 
-    private:
+    public:
       uintptr_t base;
       constexpr static size_t size = {FrameSize::REGION_MAX_SIZE};
     };

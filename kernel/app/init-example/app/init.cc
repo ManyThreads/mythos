@@ -57,6 +57,7 @@ mythos::Portal portal(mythos::init::PORTAL, msg_ptr);
 mythos::CapMap myCS(mythos::init::CSPACE);
 mythos::PageMap myAS(mythos::init::PML4);
 mythos::KernelMemory kmem(mythos::init::KM);
+mythos::KObject memory_root(mythos::init::STATIC_MEM);
 mythos::SimpleCapAllocDel capAlloc(portal, myCS, mythos::init::APP_CAP_START,
                                   mythos::init::SIZE-mythos::init::APP_CAP_START);
 
@@ -110,14 +111,14 @@ void test_Portal()
   MLOG_INFO(mlog::app, "test_Portal: allocate frame");
   mythos::Frame f(capAlloc());
   auto res2 = f.create(pl, kmem, 2*1024*1024, 2*1024*1024).wait();
-  MLOG_INFO(mlog::app, "alloc frame", DVAR(res2.state()));
   TEST(res2);
+  MLOG_INFO(mlog::app, "alloc frame", DVAR(res2.state()));
   // map the frame into our address space
   MLOG_INFO(mlog::app, "test_Portal: map frame");
   auto res3 = myAS.mmap(pl, f, vaddr, 2*1024*1024, 0x1).wait();
+  TEST(res3);
   MLOG_INFO(mlog::app, "mmap frame", DVAR(res3.state()),
             DVARhex(res3->vaddr), DVAR(res3->level));
-  TEST(res3);
   // bind the portal in order to receive responses
   MLOG_INFO(mlog::app, "test_Portal: configure portal");
   auto res4 = p2.bind(pl, f, 0, mythos::init::EC).wait();
@@ -128,6 +129,46 @@ void test_Portal()
   MLOG_INFO(mlog::app, "test_Portal: delete portal");
   TEST(capAlloc.free(p2, pl));
   MLOG_ERROR(mlog::app, "test_Portal end");
+}
+
+void test_memory_root()
+{
+  uintptr_t paddr = 0xB8000; // text mode CGA screen
+  uintptr_t vaddr = 22*1024*1024; // choose address different from invokation buffer
+
+  MLOG_ERROR(mlog::app, "test_memory_root begin");
+  mythos::PortalLock pl(portal); // future access will fail if the portal is in use already
+
+  MLOG_INFO(mlog::app, "test_memory_root: allocate device memory");
+  mythos::Frame f(capAlloc());
+  auto res1 = f.createDevice(pl, memory_root, paddr, 2*1024*1024, true).wait();
+  TEST(res1);
+  MLOG_INFO(mlog::app, "alloc frame", DVAR(res1.state()));
+
+  MLOG_INFO(mlog::app, "test_memory_root: allocate level 1 page map (4KiB pages)");
+  mythos::PageMap p1(capAlloc());
+  auto res2 = p1.create(pl, kmem, 1);
+  TEST(res2);
+
+  MLOG_INFO(mlog::app, "test_memory_root: map level 1 page map on level 2", DVARhex(vaddr));
+  auto res3 = myAS.installMap(pl, p1, vaddr, 2,
+                              mythos::protocol::PageMap::MapFlags().writable(true).configurable(true)).wait();
+  TEST(res3);
+
+  MLOG_INFO(mlog::app, "test_memory_root: map frame");
+  auto res4 = myAS.mmap(pl, f, vaddr, 4096, mythos::protocol::PageMap::MapFlags().writable(true)).wait();
+  MLOG_INFO(mlog::app, "mmap frame", DVAR(res4.state()),
+            DVARhex(res4->vaddr), DVAR(res4->level));
+  TEST(res4);
+
+  auto screen = reinterpret_cast<char*>(vaddr);
+  screen[0] = '#';
+
+  MLOG_INFO(mlog::app, "test_memory_root: delete page map");
+  TEST(capAlloc.free(p1, pl));
+  MLOG_INFO(mlog::app, "test_memory_root: delete device frame");
+  TEST(capAlloc.free(f, pl));
+  MLOG_ERROR(mlog::app, "test_memory_root end");
 }
 
 void test_float()
@@ -341,6 +382,7 @@ int main()
   //test_float();
   //test_Example();
   test_Portal();
+  test_memory_root();
   //test_heap(); // heap must be initialized for tls test
   //test_tls();
   //test_exceptions();

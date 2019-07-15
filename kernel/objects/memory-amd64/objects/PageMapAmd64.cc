@@ -112,8 +112,9 @@ namespace mythos {
       for (size_t i = 0; i < num_caps(); ++i) {
         auto res = del.deleteEntry(_cap_table(i));
         ASSERT_MSG(res, "Mapped entries must be deletable.");
-        del.deleteObject(del_handle);
+        if (!res) return res;
       }
+      del.deleteObject(del_handle);
     }
     RETURN(Error::SUCCESS);
   }

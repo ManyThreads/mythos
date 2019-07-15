@@ -34,7 +34,6 @@
 #include "objects/ops.hh"
 #include "objects/CapMap.hh"
 #include "objects/KernelMemory.hh"
-#include "objects/StaticMemoryRegion.hh"
 #include "objects/MemoryRegion.hh"
 #include "objects/PageMapAmd64.hh"
 #include "objects/ExecutionContext.hh"
@@ -174,10 +173,9 @@ optional<void> InitLoader::initCSpace()
   if (res) res = csSet(UNTYPED_MEMORY_FACTORY, factory::untypedMemory);
   if (!res) RETHROW(res);
 
-  MLOG_INFO(mlog::boot, "... create memory regions in caps", STATIC_MEM_START, "till", STATIC_MEM_START+STATIC_MEMORY_REGIONS-1);
-  static_assert(STATIC_MEMORY_REGIONS <= STATIC_MEM_START-SCHEDULERS_START, "Initial cspace to small.");
-  for (size_t i = 0; i < STATIC_MEMORY_REGIONS; ++i) {
-    auto res = csSet(CapPtr(STATIC_MEM_START+i), memory_region(i)->getRoot());
+  MLOG_INFO(mlog::boot, "... create memory regions root in cap", STATIC_MEM);
+  {
+    auto res = csSet(CapPtr(STATIC_MEM), boot::cap_root_entry());
     if (!res) RETHROW(res);
   }
 

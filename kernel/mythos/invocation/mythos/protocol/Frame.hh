@@ -70,7 +70,7 @@ namespace mythos {
       template<class IMPL, class... ARGS>
       static Error dispatchRequest(IMPL* obj, uint8_t m, ARGS const&...args) {
         switch(Methods(m)) {
-          case CREATE: return obj->createInvocation(args...);
+          case CREATE: return obj->invokeCreate(args...);
           default: return Error::NOT_IMPLEMENTED;
         }
       }

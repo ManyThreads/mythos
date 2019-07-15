@@ -138,10 +138,9 @@ namespace mythos {
   BoolField<value_t, base_t, 8> configurable; // MyThOS page table: can modify the mapped table, MYTHOS page: has write access rights
   UIntField<value_t, base_t, 52, 10> pmPtr; // MyThOS: table's partial IPageMap* in first 3 entries
   BoolField<value_t, base_t, 63> executeDisabled;
+  std::atomic<uint64_t> atomic; // atomic variant for compare-exchange
   PageTableEntry() : value(0) {}
   PageTableEntry(PageTableEntry const& v) : value(v.value) {}
-  /// @todo add atomic variant for compare_exchange
-  std::atomic<uint64_t> atomic;
   static_assert(sizeof(std::atomic<uint64_t>) == sizeof(uint64_t), "insufficient atomic op");
   void reset() { atomic = PageTableEntry().pmPtr(pmPtr); }
   void set(PageTableEntry v) { atomic = v.value; }
