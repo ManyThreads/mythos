@@ -161,8 +161,14 @@ void test_memory_root()
             DVARhex(res4->vaddr), DVAR(res4->level));
   TEST(res4);
 
-  auto screen = reinterpret_cast<char*>(vaddr);
-  screen[0] = '#';
+  struct CGAChar {
+      CGAChar(uint8_t ch=0, uint8_t fg=15, uint8_t bg=0, uint8_t blink=0) : ch(ch&0xFF), fg(fg&0x0F),bg(bg&0x07),blink(blink&0x01) {} 
+      uint16_t ch:8, fg:4, bg:3, blink:1;
+    };
+  auto screen = reinterpret_cast<CGAChar*>(vaddr);
+
+  auto msg = "Device Memory is working :)";
+  for (size_t i=0; i<strlen(msg); i++) screen[i] = CGAChar(msg[i], 12, 3, 1);
 
   MLOG_INFO(mlog::app, "test_memory_root: delete page map");
   TEST(capAlloc.free(p1, pl));
@@ -379,16 +385,16 @@ int main()
   mythos::syscall_debug(str, sizeof(str)-1);
   MLOG_ERROR(mlog::app, "application is starting :)", DVARhex(msg_ptr), DVARhex(initstack_top));
 
-  //test_float();
-  //test_Example();
+  test_float();
+  test_Example();
   test_Portal();
   test_memory_root();
-  //test_heap(); // heap must be initialized for tls test
-  //test_tls();
-  //test_exceptions();
-  //test_InterruptControl();
-  //test_HostChannel(portal, 24*1024*1024, 2*1024*1024);
-  //test_ExecutionContext();
+  test_heap(); // heap must be initialized for tls test
+  test_tls();
+  test_exceptions();
+  test_InterruptControl();
+  test_HostChannel(portal, 24*1024*1024, 2*1024*1024);
+  test_ExecutionContext();
 
   char const end[] = "bye, cruel world!";
   mythos::syscall_debug(end, sizeof(end)-1);
