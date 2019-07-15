@@ -52,7 +52,7 @@ public:
 public: // IFrame interface
   Info getFrameInfo(Cap self) const override {
     FrameData c(self);
-    return Info(c.getStart(base.physint()), self.isOriginal() ? size : c.getSize(), c.kernel, c.writable);
+    return Info(c.getStart(base.physint()), self.isOriginal() ? size : c.getSize(), c.device, c.writable);
   }
 
 public: // IKernelObject interface
@@ -96,7 +96,7 @@ public: // IKernelObject interface
     FrameData c(self);
     data->addr = c.getStart(base.physint());
     data->size = self.isOriginal() ? size : c.getSize();
-    data->kernel = c.kernel;
+    data->device = c.device;
     data->writable = c.writable;
     return Error::SUCCESS;
   }

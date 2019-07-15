@@ -173,9 +173,9 @@ optional<void> InitLoader::initCSpace()
   if (res) res = csSet(UNTYPED_MEMORY_FACTORY, factory::untypedMemory);
   if (!res) RETHROW(res);
 
-  MLOG_INFO(mlog::boot, "... create memory regions root in cap", STATIC_MEM);
+  MLOG_INFO(mlog::boot, "... create memory regions root in cap", DEVICE_MEM);
   {
-    auto res = csSet(CapPtr(STATIC_MEM), boot::cap_root_entry());
+    auto res = csSet(CapPtr(DEVICE_MEM), boot::device_memory_root_entry());
     if (!res) RETHROW(res);
   }
 
@@ -267,7 +267,7 @@ optional<void> InitLoader::createMsgFrame()
   auto memCap = memEntry->cap();
 
   typedef protocol::Frame::FrameReq FrameReq;
-  auto request = FrameReq().offset((*frameNum)*512).size(4096).writable(1).kernel(1); // TODO why is the offset *512 ???
+  auto request = FrameReq().offset((*frameNum)*512).size(4096).writable(true).device(false); // TODO why is the offset *512 ???
   auto frameEntry = _cspace->get(MSG_FRAME);
   auto res = cap::derive(*memEntry, *frameEntry, memCap, request);
   if (!res) RETHROW(res);

@@ -30,9 +30,47 @@
 #include "util/error-trace.hh"
 
 namespace mythos {
+
+  struct FrameSize
+  {
+    static constexpr size_t PAGE_MIN_SIZE = 1ull << 12; // 4096 bytes
+    static constexpr size_t PAGE_SIZE_SHIFT = 9; // 9 bits per page map level
+    static constexpr size_t PAGE_SIZE_FACTOR = 1ull << PAGE_SIZE_SHIFT; // 9 bits per page map level
+    static constexpr size_t FRAME_MIN_SIZE = PAGE_MIN_SIZE; // 4096 bytes
+    static constexpr size_t FRAME_SIZE_SHIFT = 1; // 1 bit increment per mythos frame, ie. all powers of two
+    static constexpr size_t FRAME_SIZE_FACTOR = 1ull << FRAME_SIZE_SHIFT; // double the size
+    static constexpr size_t FRAME_MAX_BITS = 25; // at lest 32-12=20 bits, at most what still fits into the capability data
+
+    static constexpr size_t REGION_MAX_SIZE = FRAME_MIN_SIZE * (1ull << FRAME_MAX_BITS); // 25bits for offset = 128GiB
+    // use 2048 static memory regions to cover the whole 48 bits physical address space with 25+12 bits per region
+    // this requires 80KiB of memory with 40 bytes per region, but we are working on making it smaller :)
+    static constexpr size_t DEVICE_REGIONS = (1ull<<48)/REGION_MAX_SIZE;
+
+    constexpr static size_t logBase(size_t n, size_t base) {
+      return ( (n<base) ? 0 : 1+logBase(n/base, base));
+    }
+
+    constexpr static size_t frameBits2Size(size_t bits) {
+      return FRAME_MIN_SIZE << (bits*FRAME_SIZE_SHIFT);
+    }
+
+    constexpr static size_t frameSize2Bits(size_t size) {
+      return logBase(size/FRAME_MIN_SIZE, FRAME_SIZE_FACTOR);
+    }
+
+    constexpr static size_t pageLevel2Size(size_t level) {
+      return PAGE_MIN_SIZE << (level*PAGE_SIZE_SHIFT);
+    }
+
+    constexpr static size_t pageSize2Level(size_t size) {
+      return logBase(size/PAGE_MIN_SIZE, PAGE_SIZE_FACTOR);
+    }
+  };
+
   namespace protocol {
 
-    struct MemoryRoot {
+    struct MemoryRoot
+    {
       constexpr static uint8_t proto = MEMORY_ROOT;
 
       enum Methods : uint8_t {
@@ -76,7 +114,8 @@ namespace mythos {
       }
     };
 
-    struct Frame {
+    struct Frame
+    {
       constexpr static uint8_t proto = FRAME;
 
       enum Methods : uint8_t {
@@ -85,7 +124,7 @@ namespace mythos {
 
       BITFIELD_DEF(CapRequest, FrameReq)
       BoolField<value_t,base_t,0> writable;
-      BoolField<value_t,base_t,1> kernel;
+      BoolField<value_t,base_t,1> device;
       UIntField<value_t,base_t,2,5> sizeBits;
       UIntField<value_t,base_t,7,25> offset;
       enum Sizes { PAGE_4KB = 4096, PAGE_2MB=4096*512, PAGE_1GB=4096*512*512 };
@@ -103,7 +142,7 @@ namespace mythos {
 
         uint64_t addr;
         uint64_t size;
-        bool kernel;
+        bool device;
         bool writable;
       };
 

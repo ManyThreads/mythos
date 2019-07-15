@@ -47,7 +47,7 @@ namespace mythos {
       dstEntry->reset();
       RETHROW(obj);
     }
-    auto capData = FrameData().offset(0).sizeBits(0).kernel(true).writable(true);
+    auto capData = FrameData().offset(0).sizeBits(0).device(false).writable(true);
     auto res = cap::inherit(*memEntry, memCap, *dstEntry, Cap(*obj, capData));
     if (!res) {
       mem->free(*obj); // mem->release(obj) goes throug IKernelObject deletion mechanism

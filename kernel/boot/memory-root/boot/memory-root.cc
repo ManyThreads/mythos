@@ -29,26 +29,26 @@
 #include "objects/CapEntry.hh"
 #include "objects/ops.hh"
 #include "objects/KernelMemory.hh"
-#include "objects/MemoryRoot.hh"
+#include "objects/DeviceMemory.hh"
 #include "boot/mlog.hh"
 
 namespace mythos {
   namespace boot {
     // be careful with pointers to these objects because they are image addresses
-    MemoryRoot _cap_root;
+    DeviceMemory _device_memory_root;
     KernelMemory _kmem_root(nullptr, Range<uintptr_t>::bySize(KERNELMEM_ADDR, KERNELMEM_SIZE));
     CapEntry _kmem_root_entry;
 
-    MemoryRoot* cap_root() { return image2kernel(&_cap_root); }
-    CapEntry& cap_root_entry() { return cap_root()->getRoot(); }
+    DeviceMemory* device_memory_root() { return image2kernel(&_device_memory_root); }
+    CapEntry& device_memory_root_entry () { return device_memory_root()->get_cap_entry(); }
     KernelMemory* kmem_root() { return image2kernel(&_kmem_root); }
     CapEntry* kmem_root_entry() { return image2kernel(&_kmem_root_entry); }
 
     void initMemoryRegions() {
       MLOG_INFO(mlog::boot, "initialise memory regions");
-      cap_root()->init();
+      device_memory_root()->init();
       kmem_root_entry()->acquire();
-      cap::inherit(cap_root_entry(), cap_root_entry().cap(), 
+      cap::inherit(device_memory_root_entry(), device_memory_root_entry().cap(), 
                    *kmem_root_entry(), Cap(kmem_root()));
     }
   } // namespace boot

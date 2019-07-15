@@ -6,10 +6,11 @@ incfiles = [
     "objects/MemoryRegion.hh",
     "objects/PageMapAmd64.hh",
     "objects/PML4InvalidationBroadcastAmd64.hh",
-    "objects/MemoryRoot.hh"
+    "objects/DeviceMemory.hh"
  ]
 kernelfiles = [
     "objects/MemoryRegion.cc",
     "objects/PageMapAmd64.cc",
-    "objects/PML4InvalidationBroadcastAmd64.cc"
+    "objects/PML4InvalidationBroadcastAmd64.cc",
+    "objects/DeviceMemory.cc"
 ]

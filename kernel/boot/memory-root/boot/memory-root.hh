@@ -28,15 +28,14 @@
 #include <cstddef>
 
 namespace mythos {
-  class MemoryRoot;
+  class DeviceMemory;
   class KernelMemory;
-  class StaticMemoryRegion;
   class CapEntry;
 
   namespace boot {
 
-    MemoryRoot* cap_root();
-    CapEntry& cap_root_entry();
+    DeviceMemory* device_memory_root();
+    CapEntry& device_memory_root_entry();
     KernelMemory* kmem_root();
     CapEntry* kmem_root_entry();
 

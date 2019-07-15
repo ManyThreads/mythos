@@ -38,7 +38,7 @@ namespace mythos {
     TypedCap<IFrame> frame(fe);
     if (!frame) RETHROW(frame);
     auto info = frame.getFrameInfo();
-    if (!info.start.kernelmem() || !info.writable) THROW(Error::INVALID_CAPABILITY);
+    if (info.device || !info.writable) THROW(Error::INVALID_CAPABILITY);
     if (offset+sizeof(InvocationBuf) >= info.size) THROW(Error::INSUFFICIENT_RESOURCES);
     ibNew = reinterpret_cast<InvocationBuf*>(info.start.logint()+offset);
     RETURN(_ib.set(this, *fe, frame.cap()));
