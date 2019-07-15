@@ -323,7 +323,7 @@ namespace mythos {
     auto res = visitPages(&_pm_table(0), level(), op);
     *failaddr = op.vaddr();
     *faillevel = op.current_level;
-    RETHROW(res.state());
+    RETURN(res.state());
   }
 
   Error PageMap::invokeMmap(Tasklet*, Cap self, IInvocation* msg)

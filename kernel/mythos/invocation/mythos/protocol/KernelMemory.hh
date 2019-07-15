@@ -49,7 +49,7 @@ namespace protocol {
         this->dstSpace(null_cap);
         this->dstDepth = 0;
       }
-      
+
       CapPtr factory() const { return this->capPtrs[0]; }
       CapPtr dstSpace() const { return this->capPtrs[1]; }
       void factory(CapPtr c) { this->capPtrs[0] = c; }

@@ -26,8 +26,12 @@
 #pragma once
 
 #include "util/assert.hh"
+#include "objects/IFrame.hh"
+#include "objects/IKernelObject.hh"
 #include "objects/CapEntry.hh"
 #include "objects/ops.hh"
+#include "objects/FrameDataAmd64.hh"
+#include "mythos/protocol/Frame.hh"
 
 namespace mythos {
 
@@ -36,22 +40,105 @@ namespace mythos {
     : public IKernelObject
   {
   public:
-    void init() { rootEntry.initRoot(Cap(this)); }
+    MemoryRoot() {
+      for (size_t i = 0; i < FrameSize::STATIC_MEMORY_REGIONS; ++i) {
+        _memory_region[i].setBase(FrameSize::REGION_MAX_SIZE * i);
+      }
+    }
+
+    void init() {
+      ASSERT(isKernelAddress(this));
+      rootEntry.initRoot(Cap(this)); 
+    }
 
     /** used to attach the static memory regions as children. */
-    CapEntry& getRoot() { return rootEntry; } 
+    CapEntry& getRoot() { 
+      ASSERT(isKernelAddress(this));
+      return rootEntry; 
+    }
 
   public: // IKernelObject interface
     Range<uintptr_t> addressRange(CapEntry&, Cap) override  { return {0, ~uintptr_t(0)}; }
     optional<void const*> vcast(TypeId) const override { THROW(Error::TYPE_MISMATCH); }
-    optional<void> deleteCap(CapEntry&, Cap, IDeleter&) override { PANIC(false); }
-    void invoke(Tasklet*, Cap, IInvocation* msg) override {
-      OOPS_MSG(false, "Invocation to root object.");
-      msg->replyResponse(Error::INVALID_REQUEST);
+    optional<void> deleteCap(CapEntry&, Cap, IDeleter&) override { RETURN(Error::SUCCESS); }
+
+    void invoke(Tasklet* t, Cap self, IInvocation* msg) override {
+        Error err = Error::NOT_IMPLEMENTED;
+        switch (msg->getProtocol()) {
+        case protocol::MemoryRoot::proto:
+          err = protocol::MemoryRoot::dispatchRequest(this, msg->getMethod(), t, self, msg);
+          break;
+        }
+        if (err != Error::INHIBIT) msg->replyResponse(err);
     }
+
+    Error createInvocation(Tasklet*, Cap self, IInvocation* msg){
+      // TODO
+      return Error::SUCCESS;
+    }
+
+  public:
+    /** helper memory region that describes a range of physical memory. */
+    class StaticMemoryRegion final
+      : public IKernelObject, public IFrame
+    {
+    public:
+      typedef protocol::Frame::FrameReq FrameReq;
+      StaticMemoryRegion() {}
+      StaticMemoryRegion(const StaticMemoryRegion&) = delete;
+      void setBase(uintptr_t base) { this->base = base; }
+
+    public: // IFrame interface
+      Info getFrameInfo(Cap self) const override {
+        FrameData c(self);
+        return Info(c.getStart(base), self.isOriginal() ? size : c.getSize(), c.kernel, c.writable);
+      }
+
+    public: // IKernelObject interface
+      optional<void const*> vcast(TypeId id) const override {
+        if (typeId<IFrame>() == id) return static_cast<const IFrame*>(this);
+        THROW(Error::TYPE_MISMATCH);
+      }
+
+      optional<void> deleteCap(CapEntry&, Cap, IDeleter&) override { RETURN(Error::SUCCESS); }
+
+      optional<Cap> mint(CapEntry&, Cap self, CapRequest request, bool derive) override {
+        return FrameData::subRegion(self, base, size, FrameReq(request), derive);
+      }
+
+      Range<uintptr_t> addressRange(CapEntry&, Cap self) override { 
+        FrameData c(self);
+        return Range<uintptr_t>::bySize(c.getStart(base), self.isOriginal() ? size : c.getSize());
+      }
+
+      void invoke(Tasklet* t, Cap self, IInvocation* msg) override {
+        Error err = Error::NOT_IMPLEMENTED;
+        switch (msg->getProtocol()) {
+        case protocol::Frame::proto:
+          err = protocol::Frame::dispatchRequest(this, msg->getMethod(), t, self, msg);
+          break;
+        }
+        if (err != Error::INHIBIT) msg->replyResponse(err);
+      }
+
+      Error frameInfo(Tasklet*, Cap self, IInvocation* msg){
+        auto data = msg->getMessage()->write<protocol::Frame::Info>();
+        FrameData c(self);
+        data->addr = c.getStart(base);
+        data->size = self.isOriginal() ? size : c.getSize();
+        data->kernel = c.kernel;
+        data->writable = c.writable;
+        return Error::SUCCESS;
+      }
+
+    private:
+      uintptr_t base;
+      constexpr static size_t size = {FrameSize::REGION_MAX_SIZE};
+    };
 
   protected:
     CapEntry rootEntry;
+    StaticMemoryRegion _memory_region[FrameSize::STATIC_MEMORY_REGIONS];
   };
 
 } // namespace mythos

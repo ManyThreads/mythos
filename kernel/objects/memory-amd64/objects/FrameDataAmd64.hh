@@ -44,7 +44,11 @@ namespace mythos {
     static constexpr size_t FRAME_SIZE_SHIFT = 1; // 1 bit increment per mythos frame, ie. all powers of two
     static constexpr size_t FRAME_SIZE_FACTOR = 1ull << FRAME_SIZE_SHIFT; // double the size
     static constexpr size_t FRAME_MAX_BITS = 25; // at lest 32-12=20 bits, at most what still fits into the capability data
+
     static constexpr size_t REGION_MAX_SIZE = FRAME_MIN_SIZE * (1ull << FRAME_MAX_BITS); // 25bits for offset = 128GiB
+    // use 2048 static memory regions to cover the whole 48 bits physical address space with 25+12 bits per region
+    // this requires 80KiB of memory with 40 bytes per region, but we are working on making it smaller :)
+    static constexpr size_t STATIC_MEMORY_REGIONS = (1ull<<48)/REGION_MAX_SIZE;
 
     constexpr static size_t logBase(size_t n, size_t base) {
       return ( (n<base) ? 0 : 1+logBase(n/base, base));

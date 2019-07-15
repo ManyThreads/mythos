@@ -29,7 +29,6 @@
 #include "objects/CapEntry.hh"
 #include "objects/ops.hh"
 #include "objects/KernelMemory.hh"
-#include "objects/StaticMemoryRegion.hh"
 #include "objects/MemoryRoot.hh"
 #include "boot/mlog.hh"
 
@@ -37,32 +36,20 @@ namespace mythos {
   namespace boot {
     // be careful with pointers to these objects because they are image addresses
     MemoryRoot _cap_root;
-    StaticMemoryRegion _memory_region[STATIC_MEMORY_REGIONS];
     KernelMemory _kmem_root(nullptr, Range<uintptr_t>::bySize(KERNELMEM_ADDR, KERNELMEM_SIZE));
     CapEntry _kmem_root_entry;
 
     MemoryRoot* cap_root() { return image2kernel(&_cap_root); }
-
-    StaticMemoryRegion* memory_region(size_t index) {
-      ASSERT(index < STATIC_MEMORY_REGIONS);
-      return image2kernel(&_memory_region[index]);
-    }
-
-    CapEntry* kmem_root_entry() { return image2kernel(&_kmem_root_entry); }
+    CapEntry& cap_root_entry() { return cap_root()->getRoot(); }
     KernelMemory* kmem_root() { return image2kernel(&_kmem_root); }
+    CapEntry* kmem_root_entry() { return image2kernel(&_kmem_root_entry); }
 
     void initMemoryRegions() {
       MLOG_INFO(mlog::boot, "initialise memory regions");
       cap_root()->init();
-      for (size_t i = 0; i < STATIC_MEMORY_REGIONS; ++i) {
-        auto res = memory_region(i)->init(FrameSize::REGION_MAX_SIZE*i, cap_root()->getRoot());
-        ASSERT(res);
-      }
-
       kmem_root_entry()->acquire();
-      cap::inherit(memory_region(0)->getRoot(), memory_region(0)->getRoot().cap(), 
+      cap::inherit(cap_root_entry(), cap_root_entry().cap(), 
                    *kmem_root_entry(), Cap(kmem_root()));
     }
-    
   } // namespace boot
 } // namespace mythos

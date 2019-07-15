@@ -32,6 +32,50 @@
 namespace mythos {
   namespace protocol {
 
+    struct MemoryRoot {
+      constexpr static uint8_t proto = MEMORY_ROOT;
+
+      enum Methods : uint8_t {
+        CREATE
+      };
+
+      struct Create : public InvocationBase {
+        constexpr static uint16_t label = (proto<<8) + CREATE;
+
+        Create(CapPtr dst, size_t addr, size_t size, bool writable)
+          : InvocationBase(label, getLength(this), 2)
+          , dstDepth(0), addr(addr), size(size), writable(writable)
+        {
+          this->dstPtr = dst;
+          this->factory(null_cap);
+          this->dstSpace(null_cap);
+        }
+
+        CapPtr factory() const { return this->capPtrs[0]; }
+        CapPtr dstSpace() const { return this->capPtrs[1]; }
+        void factory(CapPtr c) { this->capPtrs[0] = c; }
+        void dstSpace(CapPtr c) { this->capPtrs[1] = c; }
+
+        void setIndirectDest(CapPtr dstCSpace, CapPtrDepth dstDepth) {
+          this->dstSpace(dstCSpace);
+          this->dstDepth = dstDepth;
+        }
+
+        CapPtrDepth dstDepth;
+        uint64_t addr;
+        uint64_t size;
+        bool writable;
+      };
+
+      template<class IMPL, class... ARGS>
+      static Error dispatchRequest(IMPL* obj, uint8_t m, ARGS const&...args) {
+        switch(Methods(m)) {
+          case CREATE: return obj->createInvocation(args...);
+          default: return Error::NOT_IMPLEMENTED;
+        }
+      }
+    };
+
     struct Frame {
       constexpr static uint8_t proto = FRAME;
 
@@ -61,7 +105,6 @@ namespace mythos {
         uint64_t size;
         bool kernel;
         bool writable;
-        bool executable; // TODO used?
       };
 
       struct Create : public KernelMemory::CreateBase {

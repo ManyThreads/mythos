@@ -6,8 +6,7 @@ incfiles = [
     "objects/MemoryRegion.hh",
     "objects/PageMapAmd64.hh",
     "objects/PML4InvalidationBroadcastAmd64.hh",
-    "objects/MemoryRoot.hh",
-    "objects/StaticMemoryRegion.hh"
+    "objects/MemoryRoot.hh"
  ]
 kernelfiles = [
     "objects/MemoryRegion.cc",
