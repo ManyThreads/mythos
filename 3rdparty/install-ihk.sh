@@ -6,6 +6,7 @@ BUILDDIR="${IHKDIR}/build"
 INSTALLDIR="${IHKDIR}/install"
 
 cp "${SCRIPTDIR}/ihk-templates/ihkmond.c" "${IHKDIR}/linux/user/"
+cp "${SCRIPTDIR}/ihk-templates/mikc.c" "${IHKDIR}/linux/core/"
 
 rm -rf $INSTALLDIR $BUILDDIR
 
