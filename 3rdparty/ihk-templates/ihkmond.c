@@ -236,9 +236,10 @@ static int fwrite_kmsg(int dev_index, void* handle, int os_index, FILE **fps, in
 	nread = ioctl(devfd, IHK_DEVICE_READ_KMSG_BUF, (unsigned long)&desc);
 	CHKANDJUMP(nread < 0 || nread > IHK_KMSG_SIZE, nread, "ioctl failed\n");
 	if (nread == 0) {
-		dprintf("nread is zero\n");
+		/*dprintf("nread is zero\n");*/
 		goto out;
 	}
+		dprintf("nread is %i\n", nread);
 	close(devfd);
 	devfd = -1;
 
@@ -270,6 +271,7 @@ static int fwrite_kmsg(int dev_index, void* handle, int os_index, FILE **fps, in
 
 	ret = fwrite(buf, 1, nread, fps[*prod]); 
 	sizes[*prod] += nread;
+	fflush(fps[*prod]);
 	/*dprintf("fwrite returned %d\n", ret);*/
  out:
 	if (devfd >= 0) {
@@ -415,7 +417,7 @@ static void* redirect_kmsg(void* _arg) {
 	its.it_value.tv_sec = 1;
 	its.it_value.tv_nsec = 0;
 
-	its.it_interval.tv_sec = 2; // Every 2 seconds interval
+	its.it_interval.tv_sec = 1; // Every 2 seconds interval
 	its.it_interval.tv_nsec = 0;
 
 	timerfd_settime(timerfd, 0, &its, NULL);
