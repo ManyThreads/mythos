@@ -93,7 +93,7 @@ namespace mythos {
     uint8_t   apic_id;
     uint8_t   reserved__;
     void*  apic_address;
-    uint32_t global_system_interrupt_base;
+    uint32_t global_system_interrupt_base; // Global system interrupt where INTI lines start
   };
 
   //spec 5.2.12.5
@@ -113,7 +113,7 @@ namespace mythos {
     : public ACPI
   {
   public:
-    uint32_t local_apic_address;
+    PhysPtr32<void> local_apic_address;
     uint32_t flags;
 
     APICEntry* begin() { return (APICEntry*)(this + 1);	}
@@ -122,7 +122,7 @@ namespace mythos {
   };
 
   // Root System Description Table, spec 5.2.7
-  class RSDT
+  class PACKED RSDT
     : public ACPI 
   {
   public:
@@ -141,46 +141,45 @@ namespace mythos {
   };
 
   // Xtended System Description Table, spec 5.2.8
-  class XSDT
+  class PACKED XSDT
     : public ACPI
   {
   public:
+    PhysPtr<ACPI> sdtPointers[1];
+
     /* return the number of contained 64-bit pointers to other system
      * description tables (i.e. MADT) */
     size_t getNumSDTPtrs() { return ( length - sizeof( ACPI ) ) / 8; }
 
     /* return the nth SDT pointer (starting with 0, it's C ;-)*/
-    ACPI* getSDTPtr(size_t num) {
-      ACPI** ptr64 = (ACPI**) (this+1) + (num << 1);
-      if ( ptr64[1] == 0 ) return ptr64[0];
-      return 0;
-    }
+    ACPI* getSDTPtr(size_t num) { return sdtPointers[num].log(); }
   };
 
   // Root System Description Pointer Structure
-  class RSDP
+  class PACKED RSDP
   {
   public:
+    // ACPI RSDP version 1.0
     char signature[8];
     uint8_t checksum;
     char oemid[6];
     char revision;
     PhysPtr32<RSDT> rsdt_address;
+    // ACPI RSDP version 2.0
     uint32_t length;
-    XSDT* xsdt_address;
+    PhysPtr<XSDT> xsdt_address; // spec v5.0: If the pointer to the XSDT is valid, the OS MUST use the XSDT instead of the RSDT.
     uint8_t extChecksum;
     uint8_t reserved[3];
-    char rsdtaddr[8];
 
     static RSDP* find(PhysPtr<char> start, size_t len) { return find(start.log(), len); }
-    
+
     static RSDP* find(void* start, size_t len) {
       unsigned int* search = (unsigned int*) start;
       unsigned int* end = search + len/4;
       for (; search < end; search+=4 ) {
-	if (search[0] != 0x20445352  ) continue; // "RSD "
-	if (search[1] != 0x20525450 ) continue; // "PTR "
-	if (((RSDP*)search)->check_sum()) return (RSDP*)search;
+        if (search[0] != 0x20445352  ) continue; // "RSD "
+        if (search[1] != 0x20525450 ) continue; // "PTR "
+        if (((RSDP*)search)->check_sum()) return (RSDP*)search;
       }
       return 0;
     }
@@ -194,7 +193,7 @@ namespace mythos {
     bool is_ACPI_1_0() const { return revision == 0; }
 
     RSDT* getRSDTPtr() { return rsdt_address.log(); }
-    XSDT* getXSDTPtr() { return xsdt_address; }
+    XSDT* getXSDTPtr() { return xsdt_address.log(); }
   };
 
 } // namespace mythos

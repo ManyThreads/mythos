@@ -31,6 +31,10 @@
 
 namespace mythos {
 
+  /** simple firmware interface.
+   *
+   * See https://www.kernel.org/doc/ols/2009/ols2009-pages-55-60.pdf
+   */
   namespace SFI {
 
     enum Constants {
@@ -58,7 +62,7 @@ namespace mythos {
     struct Cpus
       : public Base
     {
-      uint32_t apicID[1];
+      uint32_t apicID[1]; // 32bit local APIC IDs to address all hardware threads of the system
 
       bool isCorrectType() const {
         return

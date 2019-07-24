@@ -109,7 +109,7 @@ namespace mythos {
 
     struct EntryLocalInterrupt : public BaseEntry {
       uint8_t interrupt_type; // interruptTypes
-      uint16_t flags; // same as entry_io_interrupt flags ,but only for local APIC
+      uint16_t flags; // same as entry_io_interrupt flags, but only for local APIC
       uint8_t source_bus_id;
       uint8_t source_bus_irq;
       uint8_t destination_local_apic_id;
@@ -120,7 +120,7 @@ namespace mythos {
       uint8_t bus_id;
       uint8_t address_type; // look at enum addressTypes for specific type
       uint64_t base_address;
-      uint64_t address_lenght; // number of addresses which ar visible to the bus
+      uint64_t address_length; // number of addresses which are visible to the bus
     };
 
     struct EntryBusHierarchyDescriptor : public ExtendedEntry {
