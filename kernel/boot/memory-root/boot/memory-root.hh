@@ -28,19 +28,16 @@
 #include <cstddef>
 
 namespace mythos {
-  class MemoryRoot;
+  class DeviceMemory;
   class KernelMemory;
-  class StaticMemoryRegion;
   class CapEntry;
 
   namespace boot {
-    /// use 128 memory regions to cover the whole 48 physical address space
-    constexpr size_t STATIC_MEMORY_REGIONS = 1<<7;
 
-    MemoryRoot* cap_root();
-    StaticMemoryRegion* memory_region(size_t index);
-    CapEntry* kmem_root_entry();
+    DeviceMemory* device_memory_root();
+    CapEntry& device_memory_root_entry();
     KernelMemory* kmem_root();
+    CapEntry* kmem_root_entry();
 
     void initMemoryRegions();
   } // namespace boot

@@ -31,7 +31,7 @@
 
 namespace mythos {
 
-optional<void> InterruptControl::deleteCap(Cap self, IDeleter& del) {
+optional<void> InterruptControl::deleteCap(CapEntry&, Cap self, IDeleter& del) {
     if (self.isOriginal()) {
         del.deleteObject(del_handle);
     }

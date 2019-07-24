@@ -54,7 +54,7 @@ namespace mythos {
     if (!ptr) RETHROW(ptr);
     auto obj = new(*ptr) CapMap(mem, indexbits, guardbits, guard);
     auto cap = Cap(obj).withData(CapMapData().writable(true));
-    auto res = cap::inherit(*memEntry, obj->getRoot(), memCap, cap);
+    auto res = cap::inherit(*memEntry, memCap, obj->getRoot(), cap);
     if (!res) {
       mem->free(*ptr, CapMap::size(indexbits));
       RETHROW(res);
@@ -70,18 +70,21 @@ namespace mythos {
     if (!obj) RETHROW(obj);
     auto& root = obj->getRoot();
     auto cap = root.cap();
-    auto res = cap::inherit(root, *dstEntry, cap, cap.asReference());
+    // Just a reference is stored in the target capability entry.
+    // The CapMap contains its original capability internally
+    // in order to resolve cyclic dependencies during deletion. 
+    auto res = cap::inherit(root, cap, *dstEntry, cap.asReference());
     if (!res) RETHROW(res); // the object was deleted concurrently
     return obj;
   }
 
-  optional<Cap> CapMap::mint(Cap self, CapRequest request, bool)
+  optional<Cap> CapMap::mint(CapEntry&, Cap self, CapRequest request, bool)
   {
     // intersection between own and requested flags
     return self.withData(self.data() & CapData(request));
   }
 
-  optional<void> CapMap::deleteCap(Cap self, IDeleter& del)
+  optional<void> CapMap::deleteCap(CapEntry&, Cap self, IDeleter& del)
   {
     if (self.isOriginal()) {
       // delete all entries, leaves them in a locked state (allocated)

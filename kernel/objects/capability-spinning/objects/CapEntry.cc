@@ -41,15 +41,17 @@ namespace mythos {
     _cap.store(c.value());
   }
 
-  optional<void> CapEntry::acquire()
+  bool CapEntry::tryAcquire()
   {
     auto expected = Cap::asEmpty().value();
     const auto desired = Cap::asAllocated().value();
-    if (_cap.compare_exchange_strong(expected, desired)) {
-     RETURN(Error::SUCCESS);
-    } else {
-      THROW(Error::CAP_NONEMPTY);
-    }
+    return _cap.compare_exchange_strong(expected, desired);
+  }
+
+  optional<void> CapEntry::acquire()
+  {
+    if (tryAcquire()) RETURN(Error::SUCCESS);
+    else THROW(Error::CAP_NONEMPTY);
   }
 
   void CapEntry::commit(const Cap& cap)
@@ -74,27 +76,6 @@ namespace mythos {
     while (!_prev.compare_exchange_weak(expected, desired)) {
       desired = Link(ptr).withFlags(Link(expected));
     }
-  }
-
-  optional<void> CapEntry::insertAfter(const Cap& thisCap, CapEntry& target)
-  {
-    ASSERT(isKernelAddress(this));
-    ASSERT(target.cap().isAllocated());
-    // lock and check this
-    lock();
-    auto curCap = cap();
-    if (!curCap.isUsable() || curCap != thisCap) {
-      unlock();
-      THROW(Error::LOST_RACE);
-    }
-    auto nextEntry = Link(_next.load()).ptr();
-    nextEntry->setPrevPreserveFlags(&target);
-    target._next.store(Link(nextEntry));
-    // deleted or revoking can not be set in target._prev
-    // as we allocated target for being inserted
-    target._prev.store(Link(this));
-    this->_next.store(Link(&target)); // unlocks this entry
-    RETURN(Error::SUCCESS);
   }
 
   optional<void> CapEntry::moveTo(CapEntry& other)

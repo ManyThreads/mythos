@@ -49,7 +49,7 @@ public:
   ExampleObj(const ExampleObj&) = delete;
 
   optional<void const*> vcast(TypeId id) const override;
-  optional<void> deleteCap(Cap self, IDeleter& del) override;
+  optional<void> deleteCap(CapEntry&, Cap self, IDeleter& del) override;
   void deleteObject(Tasklet* t, IResult<void>* r) override;
   void invoke(Tasklet* t, Cap self, IInvocation* msg) override;
 

@@ -38,34 +38,35 @@ namespace mythos {
   {
     this->reset();
     RETURN(cap::setReference(
+        this->entry,
+        srcCap.asReference(this, kernel2phys(subject)),
+        src, srcCap,
         [=](){
           this->orig.store(srcCap.asReference().value());
           this->binding(subject, srcCap.asReference());
-        },
-        this->entry,
-        srcCap.asReference(this, kernel2phys(subject)),
-        src, srcCap));
+        }));
   }
 
   void CapRefBase::reset()
   {
     // assumption: no need to inform the original object about the revoked reference
-    cap::resetReference([=](){
+    cap::resetReference(this->entry,
+      [=](){
         this->unbinding(phys2kernel<void>(this->entry.cap().data()), Cap(this->orig.load()));
-        this->orig.store(Cap().value()); },
-      this->entry);
+        this->orig.store(Cap().value());           
+      });
   }
 
-  Range<uintptr_t> CapRefBase::addressRange(Cap) {
+  Range<uintptr_t> CapRefBase::addressRange(CapEntry& entry, Cap) {
     Cap obj = Cap(this->orig.load());
     ASSERT(obj.isUsable());
-    return obj.getPtr()->addressRange(obj);
+    return obj.getPtr()->addressRange(entry, obj);
   }
 
-  optional<void> CapRefBase::deleteCap(Cap self, IDeleter& /*del*/)
+  optional<void> CapRefBase::deleteCap(CapEntry& /*entry*/, Cap self, IDeleter& /*del*/)
   {
     // assumption: no need to inform the original object about the revoked reference
-    // orig.getPtr()->deleteCap(orig, del);
+    // orig.getPtr()->deleteCap(entry, orig, del);
     this->unbinding(phys2kernel<void>(self.data()), Cap(orig.load()));
     this->orig.store(Cap().value());
     RETURN(Error::SUCCESS);

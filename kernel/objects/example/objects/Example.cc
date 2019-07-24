@@ -47,7 +47,7 @@ namespace mythos {
     THROW(Error::TYPE_MISMATCH);
   }
 
-  optional<void> ExampleObj::deleteCap(Cap self, IDeleter& del)
+  optional<void> ExampleObj::deleteCap(CapEntry&, Cap self, IDeleter& del)
   {
     mlogex.info("deleteCap", DVAR(this), DVAR(self), DVAR(self.isOriginal()));
     if (self.isOriginal()) {
@@ -107,7 +107,7 @@ namespace mythos {
       RETHROW(obj);
     }
     Cap cap(*obj);
-    auto res = cap::inherit(*memEntry, *dstEntry, memCap, cap);
+    auto res = cap::inherit(*memEntry, memCap, *dstEntry, cap);
     if (!res) {
       mem->free(*obj); // mem->release(obj) goes throug IKernelObject deletion mechanism
       RETHROW(res);

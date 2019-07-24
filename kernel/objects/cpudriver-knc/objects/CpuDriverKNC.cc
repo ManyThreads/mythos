@@ -64,7 +64,7 @@ namespace mythos {
     TypedCap<IFrame> frame(msg->lookupEntry(data->capPtrs[0]));
     if (!frame) return frame;
     auto info = frame.getFrameInfo();
-    if (!info.start.kernelmem() || !info.writable) return Error::INVALID_CAPABILITY;
+    if (info.device || !info.writable) return Error::INVALID_CAPABILITY;
 
     MLOG_INFO(mlog::boot, "invoke setInitMem", DVAR(data->capPtrs[0]),
               DVARhex(info.start.physint()), DVAR(info.size));

@@ -31,11 +31,14 @@
 namespace mythos {
 
   class IFrame
+    : public IKernelObject
   {
   public:
     struct Info {
+      Info(uintptr_t start, size_t size, bool device, bool writable) : start(PhysPtr<void>(start)), size(size), device(device), writable(writable) {}
       PhysPtr<void> start;
       size_t size;
+      bool device;
       bool writable;
     };
 

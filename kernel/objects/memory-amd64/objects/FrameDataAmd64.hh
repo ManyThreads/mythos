@@ -35,73 +35,69 @@
 
 namespace mythos {
 
-  struct FrameSize {
-    typedef uint8_t index_t;
-    static constexpr size_t MIN_FRAME_SIZE = 1ull << 12;
-    static constexpr size_t FRAME_SIZE_SHIFT = 9;
-    static constexpr size_t FRAME_SIZE_FACTOR = 1ull << FRAME_SIZE_SHIFT;
-    static constexpr size_t MAX_FRAME_CLASS = 3;
-    static constexpr size_t MAX_REGION_SIZE = MIN_FRAME_SIZE * (1ull << 29); // 29bits for offset
-
-    constexpr static size_t sizeFromIndex(size_t index) {
-      return MIN_FRAME_SIZE << (index*FRAME_SIZE_SHIFT);
-    }
-
-    static index_t maxIndexFromSize(size_t size)
-    {
-      // if (size < MIN_FRAME_SIZE) return -1;
-      // else size /= MIN_FRAME_SIZE;
-      size /= MIN_FRAME_SIZE;
-      /// @todo use __builtin_clz Returns the number of leading 0-bits in X, starting at the most significant bit position
-      uint8_t result = 0;
-      while (size && result < 3) {
-        size >>= FRAME_SIZE_SHIFT;
-        result++;
-      };
-      return result;
-    }
-  };
-
+  /** capability data for leightweight frames.
+   *
+   * The capability's object pointer points to a memory region.
+   * The capability data stores just a offset relative to the region's base address.
+   * Frames can have any power of two size beginning at 4KiB.
+   *
+   * @todo currently also used for mapped frames but not actually needed
+   * because all the necessary information is stored in the page table entry.
+   * See the addressRange() methods in PageMapAmd64.
+   * Hence, the pointer to the page map object can be stored in the capability data
+   * instead of the few free bits in the page table entries. Accessing the respective
+   * capability entry given the page table entry's address is simple pointer rounding,
+   * because the page tables are 4KiB aligned.
+   */
   BITFIELD_DEF(CapData, FrameData)
   typedef protocol::Frame::FrameReq FrameReq;
-  BoolField<value_t, base_t, 0> writable;
-  UIntField<value_t, base_t, 1, 2> sizeIndex;
-  UIntField<value_t, base_t, 3, 29> offset;
-  FrameData() : value(0) { writable = true; }
+  BoolField<value_t, base_t, 0> writable; // can write to this memory
+  BoolField<value_t, base_t, 1> device;   // device memory: cannot be accessed by the kernel
+  UIntField<value_t, base_t, 2, 5> sizeBits;
+  UIntField<value_t, base_t, 7, 25> offset; // start in its memory region
+
+  FrameData() : value(0) {} /** @todo why writable by default here? */
   FrameData(Cap cap) : value(cap.data()) {}
-  size_t size() const { return FrameSize::sizeFromIndex(sizeIndex); }
-  void setSize(size_t size) { sizeIndex = FrameSize::maxIndexFromSize(size); }
-  uintptr_t addr(uintptr_t base) const { return base + offset*FrameSize::MIN_FRAME_SIZE; }
-  uintptr_t end(uintptr_t base) const { return addr(base)+size(); }
-  void setAddr(uintptr_t base, uintptr_t addr)
-  { offset = (addr-base)/FrameSize::MIN_FRAME_SIZE; }
-  bool isAligned() const { return (addr(0)/size())*size() == addr(0); }
 
-  Cap referenceRegion(Cap self, FrameReq r) const {
-    FrameData res = this->writable(writable && r.writable);
-    return self.asReference().withData(res);
+  size_t getSize() const { return FrameSize::frameBits2Size(sizeBits); }
+  FrameData size(size_t size) const {
+    auto bits = FrameSize::frameSize2Bits(size);
+    ASSERT(size == FrameSize::frameBits2Size(bits));
+    return this->sizeBits(bits);
+  }
+  //void setSize(size_t size) { sizeIndex = FrameSize::frameSize2Bits(size); }
+  uintptr_t getStart(uintptr_t base) const { return base + offset*FrameSize::FRAME_MIN_SIZE; }
+  uintptr_t getEnd(uintptr_t base) const { return getStart(base)+getSize(); }
+  FrameData start(uintptr_t base, uintptr_t addr) {
+    ASSERT(base <= addr && addr < base+FrameSize::REGION_MAX_SIZE);
+    return this->offset((addr-base)/FrameSize::FRAME_MIN_SIZE); 
   }
 
-  optional<Cap> deriveRegion(Cap self, IKernelObject& frame, FrameReq r, size_t maxSize) const {
-    FrameData res = this->writable(writable && r.writable)
-      .offset(r.offset).sizeIndex(r.size);
-    if (res.end(0)>maxSize || !res.isAligned()) THROW(Error::UNALIGNED);
-    return self.asDerived().withPtr(&frame).withData(res);
+  /** make a capability that restricts the frame to a subrange with possibly reduced access rights.
+   * The operation fails if the requested subrange is not inside the current range as described by the capability.
+   * It also fails if a privilege escalation is requested.
+   */
+  static optional<Cap> subRegion(Cap self, uintptr_t base, size_t size, FrameReq r, bool derive) {
+    auto old = FrameData(self);
+    auto oldRange = Range<uintptr_t>::bySize(old.getStart(base), self.isOriginal() ? size : old.getSize());
+    auto newRange = Range<uintptr_t>::bySize(old.getStart(base) + FrameSize::FRAME_MIN_SIZE*r.offset, FrameSize::frameBits2Size(r.sizeBits));
+    if (!oldRange.contains(newRange)) THROW(Error::INSUFFICIENT_RESOURCES);
+    if (r.writable && !old.writable) THROW(Error::INSUFFICIENT_RESOURCES);
+    if (!r.device && old.device) THROW(Error::INSUFFICIENT_RESOURCES);
+    auto res = FrameData().writable(r.writable).device(r.device).start(base, newRange.getStart()).size(newRange.getSize());
+    if (derive) return self.asDerived().withData(res);
+    else return self.asReference().withData(res);
   }
 
-  optional<Cap> referenceFrame(Cap self, FrameReq r) const {
-    FrameData res = writable(writable && r.writable)
-      .offset(r.offset).sizeIndex(r.size);
-    if (res.addr(0)<addr(0) || res.end(0)>end(0) || !res.isAligned()) THROW(Error::INVALID_REQUEST);
-    return self.asReference().withData(res);
-  }
   BITFIELD_END
 
-  // entries that reference page tables ignore bits 8--11 and 52--62 (not reserved by intel!).
-  // we use bits 52--62 for a partial pointer to the table's PageMap object.
-  // we use bit 8 for mapped tables to say that recursive operations can modify the referenced table
-  // we use bit 8 for mapped frames to say that the frame capability was writable
-
+  /** x86-64 page table entries.
+   * 
+   * Entries that reference page tables ignore bits 8--11 and 52--62 (not reserved by intel!).
+   * We use bits 52--62 for a partial pointer to the table's PageMap object.
+   * We use bit 8 for mapped tables to tell that recursive operations can modify the referenced table.
+   * We use bit 8 for mapped frames to tell that the frame capability was writable.
+   */
   BITFIELD_DEF(uint64_t, PageTableEntry)
   enum Config { MAXPHYADDR = 40 };
   BoolField<value_t, base_t, 0> present;
@@ -118,10 +114,9 @@ namespace mythos {
   BoolField<value_t, base_t, 8> configurable; // MyThOS page table: can modify the mapped table, MYTHOS page: has write access rights
   UIntField<value_t, base_t, 52, 10> pmPtr; // MyThOS: table's partial IPageMap* in first 3 entries
   BoolField<value_t, base_t, 63> executeDisabled;
+  std::atomic<uint64_t> atomic; // atomic variant for compare-exchange
   PageTableEntry() : value(0) {}
   PageTableEntry(PageTableEntry const& v) : value(v.value) {}
-  /// @todo add atomic variant for compare_exchange
-  std::atomic<uint64_t> atomic;
   static_assert(sizeof(std::atomic<uint64_t>) == sizeof(uint64_t), "insufficient atomic op");
   void reset() { atomic = PageTableEntry().pmPtr(pmPtr); }
   void set(PageTableEntry v) { atomic = v.value; }
@@ -154,27 +149,14 @@ namespace mythos {
 
   BITFIELD_DEF(CapData, PageMapData)
   typedef protocol::PageMap::PageMapReq PageMapReq;
-  BoolField<value_t, base_t, 0> mapped; // is reference cap mapped into the page table
-  /** For mapped and non-mapped PageMap: can be modified, for mapped Frame: was writable */
+  /** For mapped and non-mapped PageMap: can be modified. */
   BoolField<value_t, base_t, 1> writable;
-  UIntField<value_t, base_t, 2, 9> index; // entry in the table (if mapped)
-  PageMapData() : value(0) { writable=true; }
+  PageMapData() : value(0) { writable=true; } /** @todo why writable by default here? */ 
   PageMapData(Cap cap) : value(cap.data()) {}
 
   Cap mint(Cap self, PageMapReq r) const {
     PageMapData res = this->writable(writable && r.configurable);
     return self.asReference().withData(res);
-  }
-
-  template<class FI>
-  static Cap mapFrame(IKernelObject* map, Cap frame, FI const& frameInfo, size_t index) {
-    auto res = PageMapData(0).mapped(true).writable(frameInfo.writable).index(index);
-    return frame.asReference().withPtr(map).withData(res);
-  }
-
-  static Cap mapTable(IKernelObject* map, Cap table, bool conf, size_t index) {
-    auto res = PageMapData(0).mapped(true).writable(conf).index(index);
-    return table.asReference().withPtr(map).withData(res);
   }
   BITFIELD_END
 

@@ -31,7 +31,7 @@ namespace mythos {
 namespace protocol {
 
   struct KernelMemory {
-    constexpr static uint8_t proto = UNTYPED_MEMORY;
+    constexpr static uint8_t proto = KERNEL_MEMORY;
 
     enum Methods : uint8_t {
       PROPERTIES, // ??
@@ -49,7 +49,7 @@ namespace protocol {
         this->dstSpace(null_cap);
         this->dstDepth = 0;
       }
-      
+
       CapPtr factory() const { return this->capPtrs[0]; }
       CapPtr dstSpace() const { return this->capPtrs[1]; }
       void factory(CapPtr c) { this->capPtrs[0] = c; }
