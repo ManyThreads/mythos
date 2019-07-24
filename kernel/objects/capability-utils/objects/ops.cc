@@ -44,11 +44,11 @@ namespace mythos {
     if (!parentRange.contains(otherRange)) return false; // is not within parent's range
     if (!otherRange.contains(parentRange)) return !parent.isReference(); // subrange is child unless parent is reference
 
-    // both cover exactly the same range
+    ASSERT(parentRange == otherRange);
     if (parent.isReference()) return false; // references can only have siblings, this also covers parent.isDerivedReverence()
     if (parent.isDerived()) return other.isDerivedReference(); // derived can have only derived references as child
 
-    // parent is an original
+    ASSERT(parent.isOriginal());
     ASSERT_MSG(!other.isDerivedReference(), "there must be a derived cap inbetween");
     return true; // everything with equal range to an orignial is a child
   }
