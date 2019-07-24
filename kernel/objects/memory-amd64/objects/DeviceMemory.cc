@@ -80,7 +80,9 @@ mythos::Error mythos::DeviceMemory::invokeCreate(Tasklet*, Cap self, IInvocation
     if (!dstSpace) return dstSpace.state();
     auto dstEntryRef = dstSpace.lookup(data.dstPtr, data.dstDepth, true); // lookup for write
     if (!dstEntryRef) return dstEntryRef.state();
-    dstEntry = dstEntryRef->entry; // TODO should be move, is reference counting correctly done?
+    dstEntry = dstEntryRef->entry;
+    // we drop the reference count here, this should be okay because we are in synchronous code. 
+    // The CapMap containing the entry can not be deallocated until the end of this function.
   }
 
   MLOG_DETAIL(mlog::km, "create device frame in", DVAR(*dstEntry));

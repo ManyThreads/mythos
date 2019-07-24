@@ -267,7 +267,8 @@ optional<void> InitLoader::createMsgFrame()
   auto memCap = memEntry->cap();
 
   typedef protocol::Frame::FrameReq FrameReq;
-  auto request = FrameReq().offset((*frameNum)*512).size(4096).writable(true).device(false); // TODO why is the offset *512 ???
+  // we insert 2MiB pages, which have the size of 512*4KiB
+  auto request = FrameReq().offset((*frameNum)*512).size(4096).writable(true).device(false);
   auto frameEntry = _cspace->get(MSG_FRAME);
   auto res = cap::derive(*memEntry, *frameEntry, memCap, request);
   if (!res) RETHROW(res);

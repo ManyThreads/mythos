@@ -35,7 +35,20 @@
 
 namespace mythos {
 
-  /** capability data for lightweight frames and for mapped frames. */
+  /** capability data for leightweight frames.
+   *
+   * The capability's object pointer points to a memory region.
+   * The capability data stores just a offset relative to the region's base address.
+   * Frames can have any power of two size beginning at 4KiB.
+   *
+   * @todo currently also used for mapped frames but not actually needed
+   * because all the necessary information is stored in the page table entry.
+   * See the addressRange() methods in PageMapAmd64.
+   * Hence, the pointer to the page map object can be stored in the capability data
+   * instead of the few free bits in the page table entries. Accessing the respective
+   * capability entry given the page table entry's address is simple pointer rounding,
+   * because the page tables are 4KiB aligned.
+   */
   BITFIELD_DEF(CapData, FrameData)
   typedef protocol::Frame::FrameReq FrameReq;
   BoolField<value_t, base_t, 0> writable; // can write to this memory
@@ -59,7 +72,6 @@ namespace mythos {
     ASSERT(base <= addr && addr < base+FrameSize::REGION_MAX_SIZE);
     return this->offset((addr-base)/FrameSize::FRAME_MIN_SIZE); 
   }
-  //bool isAligned() const { return (getStart(0)/getSize())*getSize() == getStart(0); }
 
   /** make a capability that restricts the frame to a subrange with possibly reduced access rights.
    * The operation fails if the requested subrange is not inside the current range as described by the capability.
