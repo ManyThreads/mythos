@@ -41,26 +41,16 @@ namespace mythos {
     auto parentRange = parent.getPtr()->addressRange(parentEntry, parent);
     auto otherRange = other.getPtr()->addressRange(otherEntry, other);
     //MLOG_DETAIL(mlog::cap, DVAR(parentRange), DVAR(otherRange));
-    if (parentRange.contains(otherRange)) {
+    if (!parentRange.contains(otherRange)) return false; // is not within parent's range
+    if (!otherRange.contains(parentRange)) return !parent.isReference(); // subrange is child unless parent is reference
 
-      if (!otherRange.contains(parentRange)) {
-        // parent range is real superset
-        // so it's a child if parent is not a reference
-        return !parent.isReference();
-      }
+    // both cover exactly the same range
+    if (parent.isReference()) return false; // references can only have siblings, this also covers parent.isDerivedReverence()
+    if (parent.isDerived()) return other.isDerivedReference(); // derived can have only derived references as child
 
-      // check the flags
-      if (parent.isOriginal()) {
-        ASSERT_MSG(!other.isDerivedReference(), "there must be a derived cap inbetween");
-        return other.isReference() || other.isDerived();
-      } else if (parent.isDerived() && !parent.isReference()) {
-        return other.isDerivedReference();
-      } else {
-        ASSERT(parent.isReference());
-        return false; // References can only have siblings
-      }
-    }
-    return false; // is not contained
+    // parent is an original
+    ASSERT_MSG(!other.isDerivedReference(), "there must be a derived cap inbetween");
+    return true; // everything with equal range to an orignial is a child
   }
 
   optional<void> derive(CapEntry& parentEntry, CapEntry& targetEntry, Cap parentCap, CapRequest request)

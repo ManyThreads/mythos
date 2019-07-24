@@ -85,7 +85,7 @@ namespace mythos {
       auto result = parentEntry.insertAfter(parentCap, targetEntry, targetCap, 
         [&](){
           commit(); // exec the higher level commit action while everything is locked and successful
-        
+
           //auto parentRange = parentCap.getPtr()->addressRange(parentEntry, parentCap);
           //auto targetRange = targetCap.getPtr()->addressRange(targetEntry, targetCap);
           //MLOG_DETAIL(mlog::cap, DVAR(parentRange), DVAR(targetRange));
