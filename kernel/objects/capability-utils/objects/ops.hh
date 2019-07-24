@@ -34,6 +34,13 @@ namespace mythos {
 
   namespace cap {
 
+    /** checks whether the second capability is a child of the first. Used for the reconstructon
+     * of the resource inheritance tree from the linked capability list.
+     *
+     * Children cover the same or a subrange of original and derived capabilities. 
+     * References cannot have children.
+     * Derived references can have only derived references as child.
+     */
     bool isParentOf(CapEntry& parentEntry, Cap parent, CapEntry& otherEntry, Cap other);
 
     template<typename COMMITFUN>
@@ -85,7 +92,7 @@ namespace mythos {
       auto result = parentEntry.insertAfter(parentCap, targetEntry, targetCap, 
         [&](){
           commit(); // exec the higher level commit action while everything is locked and successful
-        
+
           //auto parentRange = parentCap.getPtr()->addressRange(parentEntry, parentCap);
           //auto targetRange = targetCap.getPtr()->addressRange(targetEntry, targetCap);
           //MLOG_DETAIL(mlog::cap, DVAR(parentRange), DVAR(targetRange));
