@@ -56,10 +56,6 @@ namespace boot {
   extern uint64_t* pml3_table;
   extern uint64_t* pml4_table SYMBOL("BOOT_PML4");
 
-  inline uint64_t table_to_phys_addr(uint64_t* t, uint64_t subtable) {
-    return reinterpret_cast<uint64_t>(t) + subtable*PAGETABLE_SIZE - VIRT_ADDR;
-  }
-
   constexpr uint64_t PML1_BASE = PRESENT + WRITE + ACCESSED + DIRTY + GLOBAL;
   constexpr uint64_t PML2_BASE = PRESENT + WRITE + ACCESSED + DIRTY + ISPAGE + GLOBAL;
   constexpr uint64_t PML3_BASE = PRESENT + WRITE + USER + ACCESSED;

@@ -49,6 +49,9 @@ unsigned long virt_to_phys(void *v)
 	}
 }
 
+inline uint64_t table_to_phys_addr(uint64_t* t, uint64_t subtable) {
+    return virt_to_phys(t + subtable * 512);
+  }
 extern char VIRT_END[] SYMBOL("VIRT_END");
 
 char* last_page = 0;
@@ -77,7 +80,7 @@ struct ihk_kmsg_buf {
 
 struct ihk_kmsg_buf *kmsg_buf;
 
-static void memcpy_ringbuf(char* buf, int len) {
+static void memcpy_ringbuf(char const * buf, int len) {
 	int i;
 	for(i = 0; i < len; i++) {
 		*(kmsg_buf->str + kmsg_buf->tail) = *(buf + i);
@@ -96,7 +99,7 @@ size_t strlen(const char *p)
 	return p - head;
 }
 
-void kputs(char *buf)
+void kputs(char const *buf)
 {
 	int len = strlen(buf);
 	unsigned long flags_outer, flags_inner;
@@ -120,6 +123,52 @@ void kputs(char *buf)
 	kmsg_buf->lock = 0;
 }
 
+void putHex(uint64_t ul){
+	if(ul > 0){
+		char str[20];
+		uint8_t i = 19;
+		str[i--] = 0;
+		str[i--] = ' ';
+		
+		for(; ul > 0; ul = ul >> 4){
+			char c = ul % 16;
+			if(c < 10){
+				str[i--] = c + '0';
+			}else{
+				str[i--] = c - 10 + 'a';
+			}
+		}
+
+		str[i--] = 'x';
+		str[i--] = '0';
+
+		kputs(&str[i+1]);
+	}else{	
+		kputs("0x0 ");
+	}
+}
+
+void dumpTable(uint64_t* table){
+	kputs("\ndumpTable:");
+	putHex((uint64_t)table);
+	table = (uint64_t*)((((uint64_t)table) >> 12) << 12);	
+	if(table){
+		kputs("\n");
+		for(int i = 0; i < 512; i++){
+			if(table[i]){
+				putHex(i);
+				kputs(" ");
+				putHex(table[i]);
+				kputs("\n");
+			}else{
+				//summarize invalid entries
+			}
+		}
+	}else{
+		kputs("nullptr :(\n");
+	}
+}
+
 void _start_ihk_mythos_(unsigned long param_addr, unsigned long phys_address, 
 	unsigned long _ap_trampoline) SYMBOL("_start_ihk_mythos_");
 
@@ -134,9 +183,17 @@ void _start_ihk_mythos_(unsigned long param_addr, unsigned long phys_address,
 	bootstrap_mem_end = boot_param->bootstrap_mem_end;
 	boot_param_size = boot_param->param_size;
 
-	kmsg_buf = (struct ihk_kmsg_buf*)boot_param->msg_buffer;
+	kmsg_buf = (struct ihk_kmsg_buf*)phys_to_virt(boot_param->msg_buffer);
 
+	putHex((uint64_t)&_start_ihk_mythos_);
 	kputs("Hello from the other side!\n");	
+	putHex(boot_param->msg_buffer);
+
+	void* rq = alloc_pages(1); 
+	void* wq = alloc_pages(1); 
+
+	boot_param->mikc_queue_recv = virt_to_phys(wq);
+	boot_param->mikc_queue_send = virt_to_phys(rq);
 
 	kputs("get ready\n");	
 	//boot_param->status = 1;
@@ -144,10 +201,10 @@ void _start_ihk_mythos_(unsigned long param_addr, unsigned long phys_address,
 	
 	/* get ready */
 	boot_param->status = 2;
+	asm volatile("" ::: "memory");
 	
 	kputs("change stack pointer\n");	
 
-	asm volatile("" ::: "memory");
 	asm volatile("movq %0, %%rsp" : : "r" (stack + sizeof(stack)));
 
 	kputs("create page tables\n");	
@@ -192,38 +249,61 @@ void _start_ihk_mythos_(unsigned long param_addr, unsigned long phys_address,
 	pml3_table[2] = PML3_BASE + table_to_phys_addr(pml2_tables,2);
 	pml3_table[3] = PML3_BASE + table_to_phys_addr(pml2_tables,3);
 	pml3_table[4] = PML3_BASE + table_to_phys_addr(devices_pml2,0);
-	for(unsigned i = 5; i < 1022; i++){
+	for(unsigned i = 5; i < 512; i++){
 		pml3_table[i] = INVALID; 
 	}
-	pml3_table[1022] = PML3_BASE + table_to_phys_addr(image_pml2,0);
-	pml3_table[1023] = PML3_BASE + table_to_phys_addr(image_pml2,1);
+	// second table
+	//for(unsigned i = 512; i < 1022; i++){
+		//pml3_table[i] = INVALID; 
+	//}
+	//pml3_table[1022] = PML3_BASE + table_to_phys_addr(image_pml2,0);
+	//pml3_table[1023] = PML3_BASE + table_to_phys_addr(image_pml2,1);
 	
 
 	/* pml4_table */
-	pml4_table[0] = PML4_BASE + table_to_phys_addr(pml3_table,0);
-	for(unsigned i = 1; i < 256; i++){
+	uint64_t* cr3;
+	asm volatile ("mov %%cr3, %0":"=r" (cr3));
+	putHex((uint64_t)cr3);
+	pml4_table[0] = cr3[0]; 
+	pml4_table[1] = cr3[1]; 
+	//pml4_table[0] = PML4_BASE + table_to_phys_addr(pml3_table,0);
+	for(unsigned i = 2; i < 256; i++){
 		pml4_table[i] = INVALID; 
 	}
-	pml4_table[256] = PML4_BASE + table_to_phys_addr(pml3_table,0);
-	for(unsigned i = 257; i < 511; i++){
+	pml4_table[256] = cr3[256];
+	pml4_table[257] = cr3[257];
+	pml4_table[258] = PML4_BASE + table_to_phys_addr(pml3_table,0);
+	for(unsigned i = 259; i < 511; i++){
 		pml4_table[i] = INVALID; 
 	}
-	pml4_table[511] = PML4_BASE + table_to_phys_addr(pml3_table,1);
+	pml4_table[511] = cr3[511];//PML4_BASE + table_to_phys_addr(pml3_table,1);
+
+	//second table (user land)
 	for(unsigned i = 512; i < 768; i++){
 		pml4_table[i] = INVALID; 
 	}
-	pml4_table[768] = PML4_BASE + table_to_phys_addr(pml3_table,0);
-	for(unsigned i = 769; i < 1023; i++){
+
+	pml4_table[512+256] = cr3[256];
+	pml4_table[512+257] = cr3[257];
+	pml4_table[512+258] = PML4_BASE + table_to_phys_addr(pml3_table,0);
+	for(unsigned i = 771; i < 1023; i++){
 		pml4_table[i] = INVALID; 
 	}
-	pml4_table[1023] = PML4_BASE + table_to_phys_addr(pml3_table,1);
+	pml4_table[1023] = cr3[511];// PML4_BASE + table_to_phys_addr(pml3_table,1);
+
+	dumpTable(cr3);
+	dumpTable(pml4_table);
 
 
-	void* rq = alloc_pages(1); 
-	void* wq = alloc_pages(1); 
+	dumpTable((uint64_t*)cr3[511]);
+	dumpTable((uint64_t*)pml4_table[511]);
 
-	boot_param->mikc_queue_recv = virt_to_phys(wq);
-	boot_param->mikc_queue_send = virt_to_phys(rq);
+	dumpTable((uint64_t*)((uint64_t*)(cr3[511] & 0xFFFFFFFFFFFFFF00))[511]);
+	dumpTable((uint64_t*)((uint64_t*)(pml4_table[511] & 0xFFFFFFFFFFFFFF00))[511]);
+
+	asm volatile("movq %0, %%cr3" : : "r" (table_to_phys_addr(pml4_table,0)));
+	//asm volatile("movq %0, %%cr3" : : "r" (cr3));
+
 	
 
 	kputs("while loop\n");	
