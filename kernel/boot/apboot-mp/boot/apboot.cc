@@ -35,9 +35,26 @@
 #include "util/ACPIApicTopology.hh"
 #include "boot/DeployHWThread.hh"
 #include "util/PhysPtr.hh"
+#include "boot/mlog.hh"
+#include "boot/bootparam.h"
 
 namespace mythos {
   namespace boot {
+
+extern struct smp_boot_param *boot_param;
+
+int ihk_get_nr_cores(void)
+{
+	return boot_param->nr_cpus;
+}
+
+ihk_smp_boot_param_cpu* get_param_cpu(int i){
+	return reinterpret_cast<ihk_smp_boot_param_cpu*>(reinterpret_cast<uintptr_t>(boot_param) + sizeof(*boot_param) + i * sizeof(ihk_smp_boot_param_cpu));
+}
+
+int ihk_get_apicid(int i) {
+	return boot_param->ihk_ikc_irq_apicids[get_param_cpu(i)->linux_cpu_id];
+}
 
 /** basic cpu configuration, indexed by the logical thread ID. */
 DeployHWThread ap_config[MYTHOS_MAX_THREADS];
@@ -54,28 +71,31 @@ NORETURN extern void start_ap64(size_t reason) SYMBOL("_start_ap64");
 
 NORETURN void apboot() {
   // read acpi topology, then initialise HWThread objects
-  MPApicTopology topo;
-  cpu::hwThreadCount = topo.numThreads();
+  //MPApicTopology topo;
+  cpu::hwThreadCount = ihk_get_nr_cores();
   ASSERT(cpu::getNumThreads() < MYTHOS_MAX_THREADS);
+	MLOG_INFO(mlog::boot, DVAR(cpu::getNumThreads()), DVAR(ihk_get_nr_cores()));
   for (cpu::ThreadID id=0; id<cpu::getNumThreads(); id++) {
-    ASSERT(topo.threadID(id)<MYTHOS_MAX_APICID);
-    ap_config[id].prepare(id, cpu::ApicID(topo.threadID(id)));
-    ap_apic2config[topo.threadID(id)] = &ap_config[id];
+	MLOG_INFO(mlog::boot, DVAR(id), DVAR(get_param_cpu(id)->numa_id), DVAR(get_param_cpu(id)->hw_id),DVAR(get_param_cpu(id)->linux_cpu_id),DVAR(get_param_cpu(id)->ikc_cpu));
+    ASSERT(ihk_get_apicid(id)<MYTHOS_MAX_APICID);
+    ap_config[id].prepare(id, cpu::ApicID(ihk_get_apicid(id)));
+    ap_apic2config[ihk_get_apicid(id)] = &ap_config[id];
   }
 
-  mapIOApic((uint32_t)topo.ioapic_address());
-  ioapic.init(IOAPIC_ADDR);
+  //mapIOApic((uint32_t)topo.ioapic_address());
+  //ioapic.init(IOAPIC_ADDR);
 
   // broadcast Startup IPI
-  DeployHWThread::prepareBSP(0x40000);
-  mythos::cpu::disablePIC();
-  mythos::x86::enableApic(); // just to be sure it is enabled
-  mythos::lapic.init();
-  mythos::lapic.broadcastInitIPIEdge();
-  mythos::lapic.broadcastStartupIPI(0x40000);
+  //DeployHWThread::prepareBSP(0x40000);
+  //mythos::cpu::disablePIC();
+  //mythos::x86::enableApic(); // just to be sure it is enabled
+  //mythos::lapic.init();
+  //mythos::lapic.broadcastInitIPIEdge();
+  //mythos::lapic.broadcastStartupIPI(0x40000);
 
-  // switch to BSP's stack here
-  start_ap64(0); // will never return from here!
+  //// switch to BSP's stack here
+  //start_ap64(0); // will never return from here!
+  while(1);
 }
 
   } // namespace boot
