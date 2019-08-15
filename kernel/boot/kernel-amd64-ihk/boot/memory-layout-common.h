@@ -54,7 +54,7 @@
 /** position and size of the kernels direct mapped area,
  * which will contain all kernel objects
  */
-#define KERNELMEM_ADDR      0xffff800000000000
+#define KERNELMEM_ADDR      0xffff810000001000
 #define KERNELMEM_SIZE      0x0000000100000000 /* 4GB = 32bit */
 
 #define DEVICES_ADDR        0xffff800100000000
