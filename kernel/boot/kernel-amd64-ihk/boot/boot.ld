@@ -88,7 +88,7 @@ SECTIONS
     . = ALIGN(4096); /* page aligned */
 	PROVIDE (VIRT_END = .);
     . = ALIGN(2M); /* page aligned */
-	PROVIDE (KERN_END = . - VIRT_ADDR); /* the physical end of the upper half stuff */
+	PROVIDE (KERN_END = . - VIRT_ADDR); /* the SIZE (not physical end of the upper half stuff) */
 
     /DISCARD/ :
     {
