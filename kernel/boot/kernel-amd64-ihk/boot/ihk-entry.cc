@@ -2,8 +2,40 @@
 #include "boot/bootparam.h"
 #include "boot/pagetables.hh"
 
+#include <cstdint>
+#include "util/compiler.hh"
+#include "cpu/GdtAmd64.hh"
+#include "cpu/IdtAmd64.hh"
+#include "cpu/IrqHandler.hh"
+#include "cpu/kernel_entry.hh"
+#include "cpu/CoreLocal.hh"
+#include "cpu/hwthreadid.hh"
+#include "cpu/ctrlregs.hh"
+#include "cpu/LAPIC.hh"
+#include "cpu/idle.hh"
+#include "cpu/hwthread_pause.hh"
+#include "cpu/fpu.hh"
+#include "boot/memory-layout.h"
+#include "boot/DeployKernelSpace.hh"
+#include "boot/DeployHWThread.hh"
+#include "boot/cxx-globals.hh"
+#include "boot/mlog.hh"
+#include "boot/apboot.hh"
+#include "boot/kmem.hh"
+#include "async/Place.hh"
+#include "boot/load_init.hh"
+#include "objects/KernelMemory.hh"
+#include "objects/StaticMemoryRegion.hh"
+#include "objects/ISchedulable.hh"
+#include "objects/SchedulingContext.hh"
+#include "objects/InterruptControl.hh"
+#include "boot/memory-root.hh"
+
+extern void entry_bsp();
+
 namespace mythos{
 	namespace boot{
+
 uint64_t* devices_pml1;
 uint64_t* devices_pml2;
 uint64_t* image_pml2;
@@ -44,8 +76,10 @@ unsigned long virt_to_phys(void *v)
 	else if (va >= MAP_FIXED_START) {
 		return va - MAP_FIXED_START;
 	}
-	else {
+	else if (va >= MAP_ST_START){
 		return va - MAP_ST_START;
+	}else{
+		return va;
 	}
 }
 
@@ -63,10 +97,11 @@ void* alloc_pages(int nr_pages){
 	}
 	void* ret = last_page;
 	last_page += nr_pages * 4096;
+
 	return ret;
 }
 
-#define IHK_KMSG_SIZE            8192
+#define IHK_KMSG_SIZE            (8192 << 5)
 #define DEBUG_KMSG_MARGIN (kmsg_buf->head == kmsg_buf->tail ? kmsg_buf->len : (((unsigned int)kmsg_buf->head - (unsigned int)kmsg_buf->tail) % (unsigned int)kmsg_buf->len))
 
 struct ihk_kmsg_buf {
@@ -80,7 +115,7 @@ struct ihk_kmsg_buf {
 
 struct ihk_kmsg_buf *kmsg_buf;
 
-static void memcpy_ringbuf(char const * buf, int len) {
+void memcpy_ringbuf(char const * buf, int len) {
 	int i;
 	for(i = 0; i < len; i++) {
 		*(kmsg_buf->str + kmsg_buf->tail) = *(buf + i);
@@ -101,8 +136,7 @@ size_t strlen(const char *p)
 
 void kputs(char const *buf)
 {
-	int len = strlen(buf);
-	unsigned long flags_outer, flags_inner;
+	size_t len = strlen(buf);
 	int overflow;
 
 	if (kmsg_buf == NULL) {
@@ -123,29 +157,50 @@ void kputs(char const *buf)
 	kmsg_buf->lock = 0;
 }
 
-void putHex(uint64_t ul){
-	if(ul > 0){
-		char str[20];
-		uint8_t i = 19;
-		str[i--] = 0;
-		str[i--] = ' ';
+//void putHex(uint64_t ul){
+	//kputs("ph");
+	//if(ul > 0){
+		//char str[20];
+		//uint8_t i = 19;
+		//str[i--] = 0;
+		//str[i--] = ' ';
 		
-		for(; ul > 0; ul = ul >> 4){
-			char c = ul % 16;
-			if(c < 10){
-				str[i--] = c + '0';
-			}else{
-				str[i--] = c - 10 + 'a';
-			}
+		//for(; ul > 0; ul = ul >> 4){
+			//char c = ul % 16;
+			//if(c < 10){
+				//str[i--] = c + '0';
+			//}else{
+				//str[i--] = c - 10 + 'a';
+			//}
+		//}
+
+		//str[i--] = 'x';
+		//str[i--] = '0';
+
+		//kputs(&str[i+1]);
+	//}else{	
+		//kputs("0x0 ");
+	//}
+//}
+
+void putHex(uint64_t ul){
+	char str[] = "0x0123456789abcdef ";
+	
+	for(char i = 16; i > 0; i--){
+		char c = ul % 16;
+		ul = ul >> 4;
+		if(c < 10){
+			str[i+1] = c + '0';
+		}else{
+			str[i+1] = c - 10 + 'a';
 		}
-
-		str[i--] = 'x';
-		str[i--] = '0';
-
-		kputs(&str[i+1]);
-	}else{	
-		kputs("0x0 ");
 	}
+	kputs(str);
+}
+
+template<typename T>
+void putHex(T* ul){
+	putHex(reinterpret_cast<uint64_t>(ul));
 }
 
 void dumpTable(uint64_t* table){
@@ -185,9 +240,11 @@ void _start_ihk_mythos_(unsigned long param_addr, unsigned long phys_address,
 
 	kmsg_buf = (struct ihk_kmsg_buf*)phys_to_virt(boot_param->msg_buffer);
 
-	putHex((uint64_t)&_start_ihk_mythos_);
+	putHex(_ap_trampoline);
 	kputs("Hello from the other side!\n");	
-	putHex(boot_param->msg_buffer);
+	putHex(phys_address);
+	putHex(boot_param->bootstrap_mem_end);
+	putHex(boot_param->bootstrap_mem_end - phys_address);
 
 	void* rq = alloc_pages(1); 
 	void* wq = alloc_pages(1); 
@@ -211,10 +268,29 @@ void _start_ihk_mythos_(unsigned long param_addr, unsigned long phys_address,
 
 	devices_pml1 = static_cast<uint64_t*>(alloc_pages(3));
 	devices_pml2 = static_cast<uint64_t*>(alloc_pages(1));
-	image_pml2 = static_cast<uint64_t*>(alloc_pages(1));
+	image_pml2 = static_cast<uint64_t*>(alloc_pages(2));
 	pml2_tables = static_cast<uint64_t*>(alloc_pages(4));
 	pml3_table = static_cast<uint64_t*>(alloc_pages(2));
 	pml4_table = static_cast<uint64_t*>(alloc_pages(2));
+
+	kputs("\n devices_pml1: ");	
+	putHex(devices_pml1);
+	putHex(virt_to_phys(devices_pml1));
+	kputs("\n devices_pml2: ");	
+	putHex(devices_pml2);
+	putHex(virt_to_phys(devices_pml2));
+	kputs("\n image_pml2: ");	
+	putHex(image_pml2);
+	putHex(virt_to_phys(image_pml2));
+	kputs("\n pml2_tables: ");	
+	putHex(pml2_tables);
+	putHex(virt_to_phys(pml2_tables));
+	kputs("\n pml3_table: ");	
+	putHex(pml3_table);
+	putHex(virt_to_phys(pml3_table));
+	kputs("\n pml4_table: ");	
+	putHex(pml4_table);
+	putHex(virt_to_phys(pml4_table));
 
 	/* devices_pml1 */
 	for(unsigned i = 0; i < 3*512; i++){
@@ -240,7 +316,11 @@ void _start_ihk_mythos_(unsigned long param_addr, unsigned long phys_address,
 
 	/* pml2_tables */
 	for(unsigned i = 0; i < 2048; i++){
-		pml2_tables[i] = PML2_BASE + i*PML2_PAGESIZE; 
+		if(phys_address + i * PML2_PAGESIZE < boot_param->bootstrap_mem_end){
+			pml2_tables[i] = PML2_BASE + phys_address + i*PML2_PAGESIZE; 
+		}else{
+			pml2_tables[i] = INVALID; 
+		}
 	}
 
 	/* pml3_table */
@@ -253,17 +333,17 @@ void _start_ihk_mythos_(unsigned long param_addr, unsigned long phys_address,
 		pml3_table[i] = INVALID; 
 	}
 	// second table
-	//for(unsigned i = 512; i < 1022; i++){
-		//pml3_table[i] = INVALID; 
-	//}
-	//pml3_table[1022] = PML3_BASE + table_to_phys_addr(image_pml2,0);
-	//pml3_table[1023] = PML3_BASE + table_to_phys_addr(image_pml2,1);
+	for(unsigned i = 512; i < 1022; i++){
+		pml3_table[i] = INVALID; 
+	}
+	pml3_table[1022] = PML3_BASE + table_to_phys_addr(image_pml2,0);
+	pml3_table[1023] = PML3_BASE + table_to_phys_addr(image_pml2,1);
 	
 
 	/* pml4_table */
 	uint64_t* cr3;
 	asm volatile ("mov %%cr3, %0":"=r" (cr3));
-	putHex((uint64_t)cr3);
+	//putHex((uint64_t)cr3);
 	pml4_table[0] = cr3[0]; 
 	pml4_table[1] = cr3[1]; 
 	//pml4_table[0] = PML4_BASE + table_to_phys_addr(pml3_table,0);
@@ -276,7 +356,7 @@ void _start_ihk_mythos_(unsigned long param_addr, unsigned long phys_address,
 	for(unsigned i = 259; i < 511; i++){
 		pml4_table[i] = INVALID; 
 	}
-	pml4_table[511] = cr3[511];//PML4_BASE + table_to_phys_addr(pml3_table,1);
+	pml4_table[511] = /*cr3[511];*/PML4_BASE + table_to_phys_addr(pml3_table,1);
 
 	//second table (user land)
 	for(unsigned i = 512; i < 768; i++){
@@ -289,7 +369,7 @@ void _start_ihk_mythos_(unsigned long param_addr, unsigned long phys_address,
 	for(unsigned i = 771; i < 1023; i++){
 		pml4_table[i] = INVALID; 
 	}
-	pml4_table[1023] = cr3[511];// PML4_BASE + table_to_phys_addr(pml3_table,1);
+	pml4_table[1023] = /*cr3[511];*/ PML4_BASE + table_to_phys_addr(pml3_table,1);
 
 	dumpTable(cr3);
 	dumpTable(pml4_table);
@@ -304,7 +384,8 @@ void _start_ihk_mythos_(unsigned long param_addr, unsigned long phys_address,
 	asm volatile("movq %0, %%cr3" : : "r" (table_to_phys_addr(pml4_table,0)));
 	//asm volatile("movq %0, %%cr3" : : "r" (cr3));
 
-	
+	/* entry_bsp */	
+	entry_bsp();
 
 	kputs("while loop\n");	
 	//while (1){
@@ -316,5 +397,6 @@ void _start_ihk_mythos_(unsigned long param_addr, unsigned long phys_address,
 	while(1);
 	/* never return */
 }
+
 } // boot
 } // mythos
