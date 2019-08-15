@@ -29,15 +29,56 @@
 #include "boot/memory-layout.h"
 #include <new>
 
+extern void mythos::boot::memcpy_ringbuf(char const * buf, int len);
+
+struct ihk_kmsg_buf {
+	int lock; /* Be careful, it's inter-kernel lock */
+	int tail;
+	int len;
+	int head;
+	char padding[4096 - sizeof(int) * 4]; /* Alignmment needed for some systems */
+	char str[IHK_KMSG_SIZE];
+};
+
+extern struct ihk_kmsg_buf *kmsg_buf;
+
+#define IHK_KMSG_SIZE            (8192 << 5)
+#define DEBUG_KMSG_MARGIN (kmsg_buf->head == kmsg_buf->tail ? kmsg_buf->len : (((unsigned int)kmsg_buf->head - (unsigned int)kmsg_buf->tail) % (unsigned int)kmsg_buf->len))
+
 namespace mythos {
   namespace boot {
 
-    alignas(MLogSinkSerial) char mlogsink[sizeof(MLogSinkSerial)];
+class MySink : public mlog::ISink{
+	public:
+    void write(char const* buf, size_t len){
+		if (kmsg_buf == NULL) {
+			return;
+		}
+
+		while(__sync_val_compare_and_swap(&kmsg_buf->lock, 0, 1) != 0){
+		   asm volatile("pause" ::: "memory");
+		}
+
+		bool overflow = DEBUG_KMSG_MARGIN < len;
+
+		memcpy_ringbuf(buf, len);
+		memcpy_ringbuf("\n", 1);
+		
+		if (overflow) {
+			kmsg_buf->head = (kmsg_buf->tail + 1) % kmsg_buf->len;
+		}
+		kmsg_buf->lock = 0;
+	}
+
+	void flush(){};
+};
+
+	alignas(MySink) char mlogsink[sizeof(MySink)];
 
     void initMLog()
     {
       // need constructor for vtable before global constructors were called
-      auto s = new(mlogsink) MLogSinkSerial(*(unsigned short*)(0x400+KERNELMEM_ADDR));
+      auto s = new(mlogsink) MySink();
       mlog::sink = s; // now logging is working
       mlog::boot.setName("boot"); // because constructor is still not called
     }
