@@ -51,10 +51,17 @@ boot64s.elf: boot/boot.o $(KERNELFILES_OBJ)
 	objdump -dS boot64s.elf | c++filt > boots.disasm
 	strip boot64s.elf
 
-run:
-	sudo ../3rdparty/ihkreboot.sh -c 1 -k 1 -p $(shell pwd)/boot64.elf
-
 stop:
 	../3rdparty/ihkstop+release.sh 
+	sleep 5
+
+boot: stop all
+	sudo rm -rf /tmp/ihkmond
+	sudo ../3rdparty/ihkreboot.sh -k 1 -p $(shell pwd)/boot64.elf
+	sleep 5
+
+run: boot
+	cat /tmp/ihkmond/mcos0/kmsg0
+
 '''
 
