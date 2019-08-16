@@ -363,6 +363,8 @@ void _start_ihk_mythos_(unsigned long param_addr, unsigned long phys_address,
 		pml4_table[i] = INVALID; 
 	}
 
+	pml4_table[512+0] = cr3[0]; 
+	pml4_table[512+1] = cr3[1]; 
 	pml4_table[512+256] = cr3[256];
 	pml4_table[512+257] = cr3[257];
 	pml4_table[512+258] = PML4_BASE + table_to_phys_addr(pml3_table,0);

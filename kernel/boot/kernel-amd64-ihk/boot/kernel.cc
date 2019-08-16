@@ -120,8 +120,10 @@ void runUser() {
  */
 void entry_ap(size_t apicID, size_t reason)
 {
+  MLOG_DETAIL(mlog::boot, "entry_ap");
   //asm volatile("xchg %bx,%bx");
   mythos::boot::apboot_thread(apicID);
+  while(1);
   MLOG_DETAIL(mlog::boot, "started hardware thread", DVAR(reason));
   mythos::cpu::FpuState::initCpu();
   MLOG_DETAIL(mlog::boot, DVARhex(mythos::x86::getXCR0()));

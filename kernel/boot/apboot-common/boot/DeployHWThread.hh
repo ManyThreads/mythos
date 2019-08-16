@@ -82,6 +82,7 @@ struct DeployHWThread
   }
 
   void prepare(cpu::ThreadID threadID, cpu::ApicID apicID) {
+  MLOG_DETAIL(mlog::boot, "DHWT prepare", DVAR(threadID), DVAR(apicID));
     PANIC_MSG(threadID<MYTHOS_MAX_THREADS, "unexpectedly large threadID");
     PANIC_MSG(apicID<MYTHOS_MAX_APICID, "unexpectedly large apicID");
     this->threadID = threadID;
@@ -107,14 +108,27 @@ struct DeployHWThread
   }
 
   void initThread() {
+  MLOG_DETAIL(mlog::boot, "initThread");
     loadKernelSpace();
+  MLOG_DETAIL(mlog::boot, "initThread gdt load");
+  while(1);
+  /* ATTENTION: the following line kills the system!!!!!!!!!!!!! */
     gdt.load();
+  MLOG_DETAIL(mlog::boot, "initThread gdt kernel load");
+  while(1);
     gdt.tss_kernel_load();
     // no logging before loading the GDT for the core-local memory
+  MLOG_DETAIL(mlog::boot, "initThread idt load");
+  while(1);
     idt.load();
+  MLOG_DETAIL(mlog::boot, "initThread cpu::initSyscallEntry");
+  while(1);
     cpu::initSyscallEntry();
+  MLOG_DETAIL(mlog::boot, "initThread idle::init_thread");
+  while(1);
     idle::init_thread();
 
+  while(1);
     if (UNLIKELY(this->firstboot)) {
       mythos::lapic.init();
       Plugin::initPluginsOnThread(threadID);

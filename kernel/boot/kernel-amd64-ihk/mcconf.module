@@ -1,7 +1,7 @@
 # -*- mode:toml; -*-
 [module.kernel-amd64-ihk]
     incfiles = [ "boot/mlog.hh", "boot/boot.ld", "boot/memory-layout.h", "boot/DeployKernelSpace.hh", "boot/memory-layout-common.h", "boot/init-kernelspace-common.hh", "boot/pagetables.hh", "boot/bootparam.h", "boot/kmem.hh" ]
-    kernelfiles = [ "boot/mlog.cc", "boot/ihk-entry.cc", "boot/init-kernelspace-common.cc", "boot/kernel.cc", "boot/kmem.cc" ]
+    kernelfiles = [ "boot/mlog.cc", "boot/ihk-entry.cc", "boot/init-kernelspace-common.cc", "boot/kernel.cc", "boot/kmem.cc", "boot/start.S" ]
     requires = [ "tag/platform/pc" ]
     provides = [ "boot64.elf", "symbol/sleeping_failed", "symbol/irq_entry_kernel" ] #kernel-main: sleeping, irq_entry_kernel
 

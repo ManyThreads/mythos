@@ -27,6 +27,7 @@
 #include "boot/DeployKernelSpace.hh"
 #include "boot/pagetables.hh"
 #include "boot/memory-layout.h"
+#include "boot/mlog.hh"
 
 extern char KERN_ROEND;
 extern char KERN_END;
@@ -61,6 +62,7 @@ void initKernelSpaceCommon()
 
 void loadKernelSpace()
 {
+  MLOG_DETAIL(mlog::boot, "loadKernelSpace", DVAR(pml4_table));
   asm volatile("mov %0,%%cr3": : "r" (table_to_phys_addr(pml4_table,1)));
 }
 
