@@ -29,7 +29,7 @@
 #include "boot/memory-layout.h"
 #include <new>
 
-extern void mythos::boot::memcpy_ringbuf(char const * buf, int len);
+extern void mythos::boot::memcpy_ringbuf(char const * buf, size_t len);
 
 struct ihk_kmsg_buf {
 	int lock; /* Be careful, it's inter-kernel lock */

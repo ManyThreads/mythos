@@ -11,3 +11,4 @@
 [submodule "3rdparty/ihk"]
 	path = 3rdparty/ihk
 	url = https://github.com/RIKEN-SysSoft/ihk.git
+	ignore = dirty

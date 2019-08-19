@@ -115,8 +115,8 @@ struct ihk_kmsg_buf {
 
 struct ihk_kmsg_buf *kmsg_buf;
 
-void memcpy_ringbuf(char const * buf, int len) {
-	int i;
+void memcpy_ringbuf(char const * buf, size_t len) {
+	size_t i;
 	for(i = 0; i < len; i++) {
 		*(kmsg_buf->str + kmsg_buf->tail) = *(buf + i);
 		kmsg_buf->tail = (kmsg_buf->tail + 1) % kmsg_buf->len;
@@ -190,9 +190,9 @@ void putHex(uint64_t ul){
 		char c = ul % 16;
 		ul = ul >> 4;
 		if(c < 10){
-			str[i+1] = c + '0';
+			str[i+1] = char(c + '0');
 		}else{
-			str[i+1] = c - 10 + 'a';
+			str[i+1] = char(c - 10 + 'a');
 		}
 	}
 	kputs(str);
