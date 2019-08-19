@@ -150,6 +150,23 @@ _start_bsp:
         ljmp    $0x10, $_start_bsp64    // switch CS to 64bit mode
 
 .code64
+.align 8
+.global start_bsp64_pregdt
+.type start_bsp64_pregdt, @function
+start_bsp64_pregdt:
+        // load our own segment descriptor table, see above in this file
+        // the segments 0x10 and 0x18 match the final GDT of the kernel
+        lgdt    _boot_gdt
+        // switch code segment to 0x10 instead of leftovers from the loader
+        // Variant 1: create a stack frame like from a far call and return
+        // assumes that we have a working stack !!!!
+        //mov $(BOOT_STACK+BOOT_STACK_SIZE), %rsp // set up boot kernel stack
+        //push    $0x10 // KERNEL_CS
+        //push    $_start_bsp64
+        //retfq
+        // Variant 2: just make a far jump with a new CS
+        jmp $0x10, $_start_bsp64
+
 _start_bsp64:
         mov     $0x18, %cx      // kernel data selector
         mov     %cx, %ss
@@ -162,7 +179,7 @@ _start_bsp64:
         // go to the stage 3 boot code, and never come back
         mov $(BOOT_STACK+BOOT_STACK_SIZE), %rsp    // set up boot kernel stack
         xor %rbp, %rbp
-        pushq   $0 // fake return address
+        pushq   $0 // fake return address as first stack frame
         jmp entry_bsp
 
 // ---------------
@@ -211,9 +228,23 @@ _start_ap64_low:
 
 .section .text
 .code64
-.align  8
-.global _start_ap64
-.type _start_ap64, @function
+
+.align 8
+.global start_ap64_pregdt
+.type start_ap64_pregdt, @function
+start_ap64_pregdt:
+        // load our own segment descriptor table, see above in this file
+        lgdt    _boot_gdt
+        // switch code segment to 0x10 instead of leftovers from the loader
+        // Variant 1: create a stack frame like from a far call and return
+        // assumes that we have a working stack !!!!
+        //mov $(BOOT_STACK+BOOT_STACK_SIZE), %rsp // set up boot kernel stack
+        //push    $0x10 // KERNEL_CS
+        //push    $_start_ap64
+        //retfq
+        // Variant 2: just make a far jump with a new CS
+        jmp $0x10, $_start_ap64
+
 _start_ap64:
         //xchg %bx,%bx // bochs magic breakpoint
         mov $0x18, %ecx // kernel data selector
@@ -238,5 +269,5 @@ _start_ap64:
 
         // go to the stage 3 boot code, and never come back
         xor %rbp, %rbp
-        pushq   $0 // fake return address
+        pushq   $0 // fake return address as first stack frame
         jmp entry_ap
