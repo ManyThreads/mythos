@@ -31,17 +31,17 @@
 #include "cpu/IOApic.hh"
 #include "cpu/ctrlregs.hh"
 #include "boot/memory-layout.h"
-#include "util/MPApicTopology.hh"
-#include "util/ACPIApicTopology.hh"
 #include "boot/DeployHWThread.hh"
 #include "util/PhysPtr.hh"
 #include "boot/mlog.hh"
 #include "boot/bootparam.h"
+#include "cpu/hwthreadid.hh"
 
 namespace mythos {
   namespace boot {
 
 extern struct smp_boot_param *boot_param;
+extern unsigned long ap_trampoline;
 
 int ihk_get_nr_cores(void)
 {
@@ -77,12 +77,40 @@ NORETURN void apboot() {
   cpu::hwThreadCount = ihk_get_nr_cores();
   ASSERT(cpu::getNumThreads() < MYTHOS_MAX_THREADS);
 	MLOG_INFO(mlog::boot, DVAR(cpu::getNumThreads()), DVAR(ihk_get_nr_cores()));
+ 
   for (cpu::ThreadID id=0; id<cpu::getNumThreads(); id++) {
-	MLOG_INFO(mlog::boot, DVAR(id), DVAR(get_param_cpu(id)->numa_id), DVAR(get_param_cpu(id)->hw_id),DVAR(get_param_cpu(id)->linux_cpu_id),DVAR(get_param_cpu(id)->ikc_cpu));
-    ASSERT(ihk_get_apicid(id)<MYTHOS_MAX_APICID);
-    ap_config[id].prepare(id, cpu::ApicID(ihk_get_apicid(id)));
-    ap_apic2config[ihk_get_apicid(id)] = &ap_config[id];
+    MLOG_INFO(mlog::boot, DVAR(id),
+        DVAR(get_param_cpu(id)->numa_id),
+        DVAR(get_param_cpu(id)->hw_id),
+        DVAR(get_param_cpu(id)->linux_cpu_id),
+        DVAR(get_param_cpu(id)->ikc_cpu));
+    auto apicID = ihk_get_apicid(id);
+    ASSERT(apicID < MYTHOS_MAX_APICID);
+    ap_config[id].prepare(id, cpu::ApicID(apicID));
+    ap_apic2config[apicID] = &ap_config[id];
   }
+
+  auto bsp_apic_id = x86::initialApicID();
+	MLOG_DETAIL(mlog::boot, DVAR(bsp_apic_id));
+
+  MLOG_DETAIL(mlog::boot, "Init Trampoline ", DVARhex(ap_trampoline));
+  // TODO: calling prepareBSP leads to linker errors
+  //DeployHWThread::prepareBSP(ap_trampoline);
+  mythos::cpu::disablePIC();
+  mythos::x86::enableApic(); // just to be sure it is enabled
+
+  for (cpu::ThreadID id=0; id<cpu::getNumThreads(); id++) {
+    auto apicID = cpu::ApicID(ihk_get_apicid(id));
+    if (apicID != bsp_apic_id) {
+      MLOG_INFO(mlog::boot, "Send Init IPI", DVAR(apicID));
+      //mythos::lapic.sendInitIPIEdge(apicID);
+      MLOG_INFO(mlog::boot, "Send SIPI", DVAR(apicID));
+      //mythos::lapic.sendStartupIPI(apicID, ap_trampoline);
+    } else {
+      MLOG_DETAIL(mlog::boot, "Skipped BSP in startup", DVAR(bsp_apic_id));
+    }
+  }
+  while (1);
 
   //mapIOApic((uint32_t)topo.ioapic_address());
   //ioapic.init(IOAPIC_ADDR);

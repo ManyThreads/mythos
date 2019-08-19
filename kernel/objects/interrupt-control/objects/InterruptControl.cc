@@ -27,7 +27,6 @@
 #include "objects/InterruptControl.hh"
 #include "mythos/protocol/InterruptControl.hh"
 #include "objects/mlog.hh"
-#include "cpu/IOApic.hh"
 
 namespace mythos {
 
@@ -126,12 +125,14 @@ void InterruptControl::handleInterrupt(uint64_t interrupt) {
 
 void InterruptControl::maskIRQ(uint64_t interrupt) {
     ASSERT(isValid(interrupt));
-    ioapic.maskIRQ(interrupt);
+    MLOG_WARN(mlog::irq, "No IOApic present, can not mask", DVAR(interrupt));
+    //ioapic.maskIRQ(interrupt);
 }
 
 void InterruptControl::unmaskIRQ(uint64_t interrupt) {
     ASSERT(isValid(interrupt));
-    ioapic.unmaskIRQ(interrupt);
+    MLOG_WARN(mlog::irq, "No IOApic present, can not unmask", DVAR(interrupt));
+    //ioapic.unmaskIRQ(interrupt);
 }
 
 } // namespace mythos
