@@ -1,5 +1,4 @@
 #include "util/compiler.hh"
-#include "boot/bootparam.h"
 #include "boot/pagetables.hh"
 
 #include <cstdint>
@@ -31,6 +30,8 @@
 #include "objects/InterruptControl.hh"
 #include "boot/memory-root.hh"
 
+#include "boot/ihk-entry.hh"
+
 extern void entry_bsp();
 
 namespace mythos{
@@ -54,10 +55,6 @@ unsigned long ap_trampoline = 0;
 unsigned int ihk_ikc_irq = 0;
 unsigned int ihk_ikc_irq_apicid = 0;
 
-#define MAP_KERNEL_START   0xFFFFFFFFFE800000UL
-#define LINUX_PAGE_OFFSET  0xffff880000000000UL
-#define MAP_FIXED_START    0xffff860000000000UL
-#define MAP_ST_START       0xffff800000000000UL
 
 void* phys_to_virt(unsigned long ptr){
    return (void*)(ptr + MAP_ST_START);
@@ -100,18 +97,6 @@ void* alloc_pages(int nr_pages){
 
 	return ret;
 }
-
-#define IHK_KMSG_SIZE            (8192 << 5)
-#define DEBUG_KMSG_MARGIN (kmsg_buf->head == kmsg_buf->tail ? kmsg_buf->len : (((unsigned int)kmsg_buf->head - (unsigned int)kmsg_buf->tail) % (unsigned int)kmsg_buf->len))
-
-struct ihk_kmsg_buf {
-	int lock; /* Be careful, it's inter-kernel lock */
-	int tail;
-	int len;
-	int head;
-	char padding[4096 - sizeof(int) * 4]; /* Alignmment needed for some systems */
-	char str[IHK_KMSG_SIZE];
-};
 
 struct ihk_kmsg_buf *kmsg_buf;
 

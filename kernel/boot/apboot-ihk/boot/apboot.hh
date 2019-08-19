@@ -23,29 +23,16 @@
  *
  * Copyright 2014 Randolf Rotta, Maik Krüger, and contributors, BTU Cottbus-Senftenberg
  */
+#pragma once
 
-#include "boot/mlog.hh"
-#include "boot/IhkSink.hh"
-#include "boot/memory-layout.h"
-#include <new>
+#include "util/compiler.hh"
+#include <cstddef>
 
 namespace mythos {
   namespace boot {
 
+    NORETURN void apboot();
+    void apboot_thread(size_t apicID);
 
-	alignas(IhkSink) char mlogsink[sizeof(IhkSink)];
-
-    void initMLog()
-    {
-      // need constructor for vtable before global constructors were called
-      auto s = new(mlogsink) IhkSink();
-      mlog::sink = s; // now logging is working
-      mlog::boot.setName("boot"); // because constructor is still not called
-    }
   } // namespace boot
 } // namespace mythos
-
-
-namespace mlog {
-  Logger<MLOG_BOOT> boot("boot");
-} // namespace mlog
