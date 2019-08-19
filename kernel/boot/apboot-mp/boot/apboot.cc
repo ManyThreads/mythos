@@ -93,9 +93,9 @@ NORETURN void apboot() {
   auto bsp_apic_id = x86::initialApicID();
 	MLOG_DETAIL(mlog::boot, DVAR(bsp_apic_id));
 
+  DeployHWThread::prepareBSP();
   MLOG_DETAIL(mlog::boot, "Init Trampoline ", DVARhex(ap_trampoline));
-  // TODO: calling prepareBSP leads to linker errors
-  //DeployHWThread::prepareBSP(ap_trampoline);
+  // TODO: init the trampoline
   mythos::cpu::disablePIC();
   mythos::x86::enableApic(); // just to be sure it is enabled
 

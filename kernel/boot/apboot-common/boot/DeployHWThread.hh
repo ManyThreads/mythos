@@ -73,16 +73,17 @@ struct DeployHWThread
    */
   static uintptr_t stacks[MYTHOS_MAX_APICID] SYMBOL("ap_startup_stacks");
 
-  static void prepareBSP(size_t startIP) {
+  static void prepareBSP()
+  {
     idt.init();
-    initAPTrampoline(startIP);
     idle::init_global();
     DeleteBroadcast::init();
     Plugin::initPluginsGlobal();
   }
 
-  void prepare(cpu::ThreadID threadID, cpu::ApicID apicID) {
-  MLOG_DETAIL(mlog::boot, "DHWT prepare", DVAR(threadID), DVAR(apicID));
+  void prepare(cpu::ThreadID threadID, cpu::ApicID apicID)
+  {
+    MLOG_DETAIL(mlog::boot, "DHWT prepare", DVAR(threadID), DVAR(apicID));
     PANIC_MSG(threadID<MYTHOS_MAX_THREADS, "unexpectedly large threadID");
     PANIC_MSG(apicID<MYTHOS_MAX_APICID, "unexpectedly large apicID");
     this->threadID = threadID;
