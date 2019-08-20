@@ -53,14 +53,15 @@ boot64s.elf: boot/boot.o $(KERNELFILES_OBJ)
 
 stop:
 	../3rdparty/ihkstop+release.sh 
-	sleep 5
 
-boot: stop all
+boot: all
 	sudo rm -rf /tmp/ihkmond
 	sudo ../3rdparty/ihkreboot.sh -k 1 -p $(shell pwd)/boot64.elf
+
+wait:
 	sleep 5
 
-run: boot
+run: boot wait stop
 	cat /tmp/ihkmond/mcos0/kmsg0
 
 '''

@@ -32,7 +32,7 @@
 extern char KERN_ROEND;
 extern char KERN_END;
 
-extern uint64_t _mboot_table;
+//extern uint64_t _mboot_table;
 
 namespace mythos {
   namespace boot {
@@ -62,8 +62,10 @@ void initKernelSpaceCommon()
 
 void loadKernelSpace()
 {
-  MLOG_DETAIL(mlog::boot, "loadKernelSpace", DVAR(pml4_table));
-  asm volatile("mov %0,%%cr3": : "r" (table_to_phys_addr(pml4_table,1)));
+  //MLOG_DETAIL(mlog::boot, "loadKernelSpace");//, DVAR(pml4_table));
+	//MLOG_DETAIL(mlog::boot,DVAR(pml4_table));
+//todo: load table 1
+  //asm volatile("mov %0,%%cr3": : "r" (table_to_phys_addr(pml4_table,0)));
 }
 
 void mapLapic(uintptr_t phys)
