@@ -75,12 +75,11 @@ namespace mythos {
     
     void load() {
 	  load_gdt(*this);
-	  //todo:...
-      //asm volatile("mov %0,%%ss" : : "rm" (uint16_t(0x18))); // SS
-      //asm volatile("mov %0,%%ds" : : "rm" (uint16_t(0x28))); // DS
-      //asm volatile("mov %0,%%es" : : "rm" (uint16_t(0x28))); // ES
-      //asm volatile("mov %0,%%fs" : : "rm" (uint16_t(0x38))); // FS
-      //asm volatile("mov %0,%%gs" : : "rm" (uint16_t(0x40))); // GS
+	  asm volatile("mov %0,%%ss" : : "rm" (uint16_t(0x18))); // SS
+	  asm volatile("mov %0,%%ds" : : "rm" (uint16_t(0x28))); // DS
+	  asm volatile("mov %0,%%es" : : "rm" (uint16_t(0x28))); // ES
+	  asm volatile("mov %0,%%fs" : : "rm" (uint16_t(0x38))); // FS
+	  asm volatile("mov %0,%%gs" : : "rm" (uint16_t(0x40))); // GS
     }
 
   };
