@@ -26,6 +26,7 @@
 #pragma once
 
 #include "boot/memory-layout.h"
+#include "cpu/hwthreadid.hh"
 #include "cpu/LAPICdef.hh"
 
 namespace mythos {
@@ -55,7 +56,9 @@ namespace mythos {
     uint32_t getCurrentCount() { return read(REG_TIMER_CCR).value; }
 
     bool broadcastInitIPIEdge();
+    bool sendInitIPIEdge(cpu::ApicID apicid);
     bool broadcastStartupIPI(size_t startIP);
+    bool sendStartupIPI(cpu::ApicID apicid, size_t startIP);
     bool sendNMI(size_t destination);
     bool sendIRQ(size_t destination, uint8_t vector);
     void endOfInterrupt() { write(REG_EOI, 0); }

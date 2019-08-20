@@ -139,6 +139,22 @@ bool LAPIC::broadcastInitIPIEdge() {
     return true;
 }
 
+bool LAPIC::sendInitIPIEdge(cpu::ApicID apicid) { // WIP
+    write(REG_ESR, 0); // Be paranoid about clearing APIC errors.
+    read(REG_ESR);
+    writeIPI(apicid, edgeIPI(ICR_DESTSHORT_NO, MODE_INIT, 0));
+    /**
+     * This delay must happen between `broadcastInitIPIEdge` and
+     * `broadcastStartupIPI` in order for all hardware threads to
+     * start on the real hardware (KNC).
+     *
+     * @todo How long should this delay be for a given architecture.
+     * @todo Move the delay out of this low level function.
+     */
+    hwthread_wait(10000);
+    return true;
+}
+
 bool LAPIC::broadcastStartupIPI(size_t startIP) {
     ASSERT((startIP & 0x0FFF) == 0 && ((startIP >> 12) >> 8) == 0);
     write(REG_ESR, 0); // Be paranoid about clearing APIC errors.
@@ -149,6 +165,18 @@ bool LAPIC::broadcastStartupIPI(size_t startIP) {
     MLOG_DETAIL(mlog::boot, "SIPI broadcast result", DVARhex(esr));
     return true;
 }
+
+bool LAPIC::sendStartupIPI(cpu::ApicID apicid, size_t startIP) { // WIP
+    ASSERT((startIP & 0x0FFF) == 0 && ((startIP >> 12) >> 8) == 0);
+    write(REG_ESR, 0); // Be paranoid about clearing APIC errors.
+    read(REG_ESR);
+    writeIPI(apicid, edgeIPI(ICR_DESTSHORT_NO, MODE_SIPI, uint8_t(startIP >> 12)));
+    write(REG_ESR, 0); // Be paranoid about clearing APIC errors.
+    uint32_t esr = read(REG_ESR).value & 0xEF;
+    MLOG_DETAIL(mlog::boot, "SIPI send result", DVAR(apicid), DVARhex(esr));
+    return true;
+}
+
 
 bool LAPIC::sendNMI(size_t destination) {
     write(REG_ESR, 0); // Be paranoid about clearing APIC errors.
@@ -163,7 +191,7 @@ bool LAPIC::sendIRQ(size_t destination, uint8_t vector)
     MLOG_INFO(mlog::boot, "send IRQ:", DVAR(destination), DVAR(vector));
     //write(REG_ESR, 0); // Be paranoid about clearing APIC errors.
     //read(REG_ESR);
-    writeIPI(destination, edgeIPI(ICR_DESTSHORT_NO, MODE_FIXED, vector));
+  writeIPI(destination, edgeIPI(ICR_DESTSHORT_NO, MODE_FIXED, vector));
     //write(REG_ESR, 0); // Be paranoid about clearing APIC errors.
     return true;
 }

@@ -150,6 +150,20 @@ _start_bsp:
         ljmp    $0x10, $_start_bsp64    // switch CS to 64bit mode
 
 .code64
+.align 8
+.global start_bsp64_pregdt
+.type start_bsp64_pregdt, @function
+start_bsp64_pregdt:
+        mov $(BOOT_STACK+BOOT_STACK_SIZE), %rsp    // set up boot kernel stack
+        // load our own segment descriptor table, see above in this file
+        // the segments 0x10 and 0x18 match the final GDT of the kernel
+        lgdt    _boot_gdt
+        // switch code segment to 0x10 instead of leftovers from the loader
+        // create a stack frame like from a far call and return
+        push    $0x10 // KERNEL_CS
+        push    $_start_bsp64
+        retfq
+
 _start_bsp64:
         mov     $0x18, %cx      // kernel data selector
         mov     %cx, %ss
@@ -160,9 +174,8 @@ _start_bsp64:
         cld // for gcc code
 
         // go to the stage 3 boot code, and never come back
-        mov $(BOOT_STACK+BOOT_STACK_SIZE), %rsp    // set up boot kernel stack
         xor %rbp, %rbp
-        pushq   $0 // fake return address
+        pushq   $0 // fake return address as first stack frame
         jmp entry_bsp
 
 // ---------------
@@ -211,9 +224,31 @@ _start_ap64_low:
 
 .section .text
 .code64
-.align  8
-.global _start_ap64
-.type _start_ap64, @function
+
+.align 8
+.global start_ap64_pregdt
+.type start_ap64_pregdt, @function
+start_ap64_pregdt:
+        // get initial LAPIC ID from bits(cpuid(1).ebx,31,24)
+        mov $1, %rax
+        mov $0, %rcx
+        cpuid
+        shr $24, %rbx
+        and $0xFF, %rbx
+
+        // load stack address
+        movq ap_startup_stacks(,%rbx,8), %rsp
+
+        // load our own segment descriptor table, see above in this file
+        lgdt    _boot_gdt
+        // switch code segment to 0x10 instead of leftovers from the loader
+        // create a stack frame like from a far call and return
+        push    $0x10 // KERNEL_CS
+        push    $_start_ap64
+        retfq
+
+.global _start_ap64 // needed?
+.type _start_ap64, @function // needed?
 _start_ap64:
         //xchg %bx,%bx // bochs magic breakpoint
         mov $0x18, %ecx // kernel data selector
@@ -224,19 +259,9 @@ _start_ap64:
         mov %ecx, %gs
         cld // for gcc code
 
-        // get initial LAPIC ID from bits(cpuid(1).ebx,31,24)
-        mov $1, %rax
-        mov $0, %rcx
-        cpuid
-        shr $24, %rbx
-        and $0xFF, %rbx
-
-        // load stack address
-        movq ap_startup_stacks(,%rbx,8), %rsp
-        movq %rdi, %rsi // reason as 2nd argument (rsi)
-        movq %rbx, %rdi // hwt address as first argument (rdi) for main_ap
-
         // go to the stage 3 boot code, and never come back
         xor %rbp, %rbp
-        pushq   $0 // fake return address
+        movq %rdi, %rsi // reason as 2nd argument (rsi)
+        movq %rbx, %rdi // hwt address as first argument (rdi) for main_ap
+        pushq   $0 // fake return address as first stack frame
         jmp entry_ap

@@ -1,0 +1,5 @@
+# -*- mode:toml; -*-
+[module.apboot-ihk]
+    incfiles = [ "boot/apboot.hh" ]
+    kernelfiles = [ "boot/apboot.cc" ]
+    requires = [ "tag/boot/ihk" ]
