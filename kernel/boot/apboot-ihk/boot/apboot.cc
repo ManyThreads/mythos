@@ -98,6 +98,14 @@ NORETURN void apboot() {
 
   DeployHWThread::prepareBSP();
   MLOG_DETAIL(mlog::boot, "Init Trampoline ", DVARhex(ap_trampoline));
+  mapTrampoline(ap_trampoline);
+  auto tr = reinterpret_cast<trampoline_t*>(IHK_TRAMPOLINE_ADDR);
+  MLOG_DETAIL(mlog::boot, "initial values",
+    DVARhex(tr->header_pgtbl),
+    DVARhex(tr->header_load),
+    DVARhex(tr->stack_ptr),
+    DVARhex(tr->notify_addr));
+
   // TODO: init the trampoline
   mythos::cpu::disablePIC();
   mythos::x86::enableApic(); // just to be sure it is enabled
@@ -113,9 +121,6 @@ NORETURN void apboot() {
       MLOG_DETAIL(mlog::boot, "Skipped BSP in startup", DVAR(bsp_apic_id));
     }
   }
-
-  //mapIOApic((uint32_t)topo.ioapic_address());
-  //ioapic.init(IOAPIC_ADDR);
 
   // broadcast Startup IPI
   //DeployHWThread::prepareBSP(0x40000);

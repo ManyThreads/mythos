@@ -67,14 +67,17 @@ void loadKernelSpace()
 
 void mapLapic(uintptr_t phys)
 {
-  //static_assert(LAPIC_ADDR == 0xffff800100001000, "failed assumption about kernel layout");
   devices_pml1[1] = CD + PRESENT + WRITE + ACCESSED + DIRTY + GLOBAL + phys;
 }
 
 void mapIOApic(uintptr_t phys) {
-  //static_assert(IOAPIC_ADDR == 0xffff800100002000, "failed assumption about kernel layout");
   MLOG_ERROR(mlog::boot, "map ioapic", DVARhex(phys));
   devices_pml1[2] = CD + PRESENT + WRITE + ACCESSED + DIRTY + GLOBAL + phys;
+}
+
+void mapTrampoline(uintptr_t phys) {
+  MLOG_ERROR(mlog::boot, "map trampoline", DVARhex(phys));
+  devices_pml1[3] = PRESENT + WRITE + ACCESSED + DIRTY + GLOBAL + phys;
 }
 
 uintptr_t initKernelStack(size_t idx, uintptr_t paddr)
