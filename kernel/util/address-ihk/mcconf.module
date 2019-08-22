@@ -1,0 +1,6 @@
+# -*- mode:toml; -*-
+
+[module.address-ihk]
+    incfiles = [ "util/alignments.hh", "util/PhysPtr.hh",
+    "util/Range.hh", "util/RangeSet.hh"]
+    requires = [ "tag/mode/kernel", "tag/boot/ihk" ]
