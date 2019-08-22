@@ -64,6 +64,9 @@ namespace mythos {
     void endOfInterrupt() { write(REG_EOI, 0); }
 
   protected:
+
+    void initMSR();
+
     static Register edgeIPI(IrcDestinationShorthand dest, IcrDeliveryMode mode, uint8_t vec) {
       return Register().destination_shorthand(dest).level_triggered(0).level(1)
         .logical_destination(0).delivery_mode(mode).vector(vec)

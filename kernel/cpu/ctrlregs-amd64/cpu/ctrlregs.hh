@@ -67,6 +67,8 @@ namespace mythos {
     inline uint32_t apicIdCoreIdSize() { return 1<<bits(cpuid(0x80000008).ecx,15,12); }
 
     inline bool hasLeaveB() { return maxLeave()>=11 && cpuid(11,0).ebx!=0; }
+
+    inline bool x2ApicSupported() { return bits(cpuid(1).ecx, 21); }
     inline uint32_t x2ApicID() { return cpuid(11, 0).edx; }
     inline uint32_t x2ApicThreadsPerCore() { return 1<<bits(cpuid(11,0).eax,4,0); } 
     inline uint32_t x2ApicThreadsPerPkg() { return 1<<bits(cpuid(11,1).eax,4,0); }

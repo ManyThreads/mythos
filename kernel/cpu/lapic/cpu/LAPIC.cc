@@ -32,9 +32,25 @@
 namespace mythos {
 LAPIC lapic;
 
+void LAPIC::initMSR()
+{
+    using namespace mythos::x86;
+    if (x2ApicSupported()) {
+        MLOG_DETAIL(mlog::boot, "detected x2Apic support");
+        if (isX2ApicEnabled()) {
+            MLOG_INFO(mlog::boot, "x2Apic is enabled, reset LAPIC by disabling");
+            disableApic(); // disables both xAPIC and x2APIC
+            enableApic(); // reenables xAPIC
+            ASSERT(!isX2ApicEnabled());
+        }
+    }
+}
+
 void LAPIC::init() {
     MLOG_DETAIL(mlog::boot, "initializing local xAPIC");
     Register value;
+
+    initMSR();
 
     // init the Destination Format Register and the Logical
     // Destination Register Intel recommends to set DFR, LDR and TPR
