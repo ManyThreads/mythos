@@ -90,8 +90,8 @@ struct DeployHWThread
     this->threadID = threadID;
     this->apicID = apicID;
     gdt.init();
-    auto stackphys = uintptr_t(stackspace)+threadID*CORE_STACK_SIZE - VIRT_ADDR;
-    stacks[apicID] = initKernelStack(threadID, stackphys);
+    auto stackphys = PhysPtr<void>::fromImage(stackspace).plusbytes(threadID*CORE_STACK_SIZE);
+    stacks[apicID] = initKernelStack(threadID, stackphys.physint());
     tss_kernel.sp[0] = stacks[apicID];
     tss_kernel.ist[1] = uintptr_t(nmistackspace)+threadID*NMI_STACK_SIZE+NMI_STACK_SIZE;
     gdt.tss_kernel.set(&tss_kernel);
@@ -104,7 +104,7 @@ struct DeployHWThread
     getScheduler(threadID).init(async::getPlace(threadID));
     cpu::initSyscallStack(threadID, stacks[apicID]);
     MLOG_DETAIL(mlog::boot, "  hw thread", DVAR(threadID), DVAR(apicID),
-                DVARhex(stacks[apicID]), DVARhex(stackphys), DVARhex(tss_kernel.ist[1]),
+                DVARhex(stacks[apicID]), DVARhex(stackphys.physint()), DVARhex(tss_kernel.ist[1]),
                 DVARhex(KernelCLM::getOffset(threadID)));
     firstboot = true;
   }
@@ -113,16 +113,18 @@ struct DeployHWThread
     /* ATTENTION ATTENTION */
 	/* no logging before loading the GDT for the core-local memory */
 	/* FROM HERE */
+	//while(1);
     loadKernelSpace();
-	while(1);
-    gdt.load();
+	//while(1);
+    gdt.load2();
+	//while(1);
     gdt.tss_kernel_load();
 	/* TO HERE */
-//while(1);
+    MLOG_DETAIL(mlog::boot, "idt.load");
+	//while(1);
     idt.load();
     cpu::initSyscallEntry();
 	idle::init_thread();
-	while(1);
     if (UNLIKELY(this->firstboot)) {
       mythos::lapic.init();
       Plugin::initPluginsOnThread(threadID);

@@ -39,5 +39,10 @@ extern void memcpy_ringbuf(char const * buf, size_t len);
 extern void kputs(char const *buf);
 extern void putHex(uint64_t ul);
 
+unsigned long virt_to_phys(void *v);
+void* phys_to_virt(unsigned long ptr);
 }
+
+//inline constexpr uint64_t indicesToVirt(unsigned pml4, unsigned pml3, unsigned pml2, unsigned pml1)
+
 }

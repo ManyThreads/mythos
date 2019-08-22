@@ -57,12 +57,12 @@
 #define KERNELMEM_ADDR      0xffff810000001000
 #define KERNELMEM_SIZE      0x0000000100000000 /* 4GB = 32bit */
 
-#define DEVICES_ADDR        0xffff800100000000
+#define DEVICES_ADDR        0xffff810100000000
 /** LAPIC_START fixed mapping of the hardware thread's local APIC */
-#define LAPIC_ADDR          0xffff800100001000
+#define LAPIC_ADDR          0xffff810100001000
 /** IOAPIC_START fixed mapping of the global ioapics */
-#define IOAPIC_ADDR			0xffff800100002000
-#define KERNELSTACKS_ADDR   0xffff800100200000
+#define IOAPIC_ADDR			0xffff810100002000
+#define KERNELSTACKS_ADDR   0xffff810100200000
 
 #define BOOT_STACK_SIZE     2*4096
 #define CORE_STACK_SIZE     2*4096

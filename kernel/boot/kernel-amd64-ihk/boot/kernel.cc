@@ -64,7 +64,7 @@ extern char CLM_END;
 
 uint64_t mythos::tscdelay_MHz=2000;
 
-//NORETURN void entry_bsp() SYMBOL("entry_bsp");
+NORETURN void entry_bsp() SYMBOL("entry_bsp");
 NORETURN void entry_ap(size_t apicID, size_t reason) SYMBOL("entry_ap");
 
 /** entry point for the bootstrap processor (BSP, a hardware thread) when booting the processor.
@@ -123,8 +123,8 @@ void entry_ap(size_t apicID, size_t reason)
   MLOG_DETAIL(mlog::boot, "entry_ap");
   //asm volatile("xchg %bx,%bx");
   mythos::boot::apboot_thread(apicID);
-  while(1);
   MLOG_DETAIL(mlog::boot, "started hardware thread", DVAR(reason));
+  while(1);
   mythos::cpu::FpuState::initCpu();
   MLOG_DETAIL(mlog::boot, DVARhex(mythos::x86::getXCR0()));
   mythos::idle::wokeup(apicID, reason); // may not return

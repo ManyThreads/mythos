@@ -79,10 +79,10 @@
 
 .align  4
 /** multiboot header: just magic, flags and checksum without the optional fields */
-_mboot_header:
+/*_mboot_header:
         .long MULTIBOOT_HEADER_MAGIC
         .long MULTIBOOT_HEADER_FLAGS
-        .long -(MULTIBOOT_HEADER_MAGIC+MULTIBOOT_HEADER_FLAGS)
+        .long -(MULTIBOOT_HEADER_MAGIC+MULTIBOOT_HEADER_FLAGS)*/
 
 /** Global Descriptor Table (GDT) during boot.
  * see 3.4.5.1 Code- and Data-Segment Descriptor Types in Intel 253668-048US.
@@ -107,18 +107,18 @@ _boot_gdt:
         .word   _boot_gdt_end - _boot_gdt_start - 1     // limit: length of the GDT
         .quad   _boot_gdt_start                 // base
 
-.align 8
+/*.align 8
 .global _mboot_table
 _mboot_table:   .quad   0
 .global _mboot_magic
-_mboot_magic:   .quad   0
+_mboot_magic:   .quad   0*/
 
 /* just for testing */
-.global _host_info_ptr
-_host_info_ptr:   .quad   0
+//.global _host_info_ptr
+//_host_info_ptr:   .quad   0
 
 /* start code for the bootstrap processor BSP, i.e. the first core */
-.code32
+/*.code32
 .align  8
 .global _start_bsp
 .type _start_bsp, @function
@@ -148,12 +148,12 @@ _start_bsp:
         // load our own segment descriptor table
         lgdt    _boot_gdt
         ljmp    $0x10, $_start_bsp64    // switch CS to 64bit mode
-
+*/
 .code64
 .align 8
-.global start_bsp64_pregdt
-.type start_bsp64_pregdt, @function
-start_bsp64_pregdt:
+.global _start_bsp64_pregdt
+.type _start_bsp64_pregdt, @function
+_start_bsp64_pregdt:
         mov $(BOOT_STACK+BOOT_STACK_SIZE), %rsp    // set up boot kernel stack
         // load our own segment descriptor table, see above in this file
         // the segments 0x10 and 0x18 match the final GDT of the kernel
@@ -180,7 +180,7 @@ _start_bsp64:
 
 // ---------------
 
-.code16
+/*.code16
 .align  16
 .global _setup_ap
 _setup_ap:
@@ -221,14 +221,14 @@ _setup_ap_end:
 _start_ap64_low:
         movq $0, %rdi
         jmp _start_ap64
-
+*/
 .section .text
 .code64
 
 .align 8
-.global start_ap64_pregdt
-.type start_ap64_pregdt, @function
-start_ap64_pregdt:
+.global _start_ap64_pregdt
+.type _start_ap64_pregdt, @function
+_start_ap64_pregdt:
         // get initial LAPIC ID from bits(cpuid(1).ebx,31,24)
         mov $1, %rax
         mov $0, %rcx
@@ -240,12 +240,12 @@ start_ap64_pregdt:
         movq ap_startup_stacks(,%rbx,8), %rsp
 
         // load our own segment descriptor table, see above in this file
-        lgdt    _boot_gdt
+        //lgdt    _boot_gdt
         // switch code segment to 0x10 instead of leftovers from the loader
         // create a stack frame like from a far call and return
-        push    $0x10 // KERNEL_CS
-        push    $_start_ap64
-        retfq
+        //push    $0x10 // KERNEL_CS
+        //push    $_start_ap64
+        //retfq
 
 .global _start_ap64 // needed?
 .type _start_ap64, @function // needed?

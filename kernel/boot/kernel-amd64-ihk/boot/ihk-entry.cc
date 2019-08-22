@@ -55,6 +55,7 @@ unsigned long ap_trampoline = 0;
 unsigned int ihk_ikc_irq = 0;
 unsigned int ihk_ikc_irq_apicid = 0;
 
+NORETURN extern void start_bsp64_pregdt() SYMBOL("_start_bsp64_pregdt");
 
 void* phys_to_virt(unsigned long ptr){
    return (void*)(ptr + MAP_ST_START);
@@ -287,7 +288,7 @@ void _start_ihk_mythos_(unsigned long param_addr, unsigned long phys_address,
 	devices_pml2[1] = PRESENT + WRITE + USER + ACCESSED + table_to_phys_addr(devices_pml1,1); // kernel stacks
 	devices_pml2[2] = PRESENT + WRITE + USER + ACCESSED + table_to_phys_addr(devices_pml1,2); // kernel stacks
 	for(unsigned i = 3; i < 512; i++){
-		devices_pml1[i] = INVALID;
+		devices_pml2[i] = INVALID;
 	}
 
 	/* image_pml2 */
@@ -372,7 +373,8 @@ void _start_ihk_mythos_(unsigned long param_addr, unsigned long phys_address,
 	//asm volatile("movq %0, %%cr3" : : "r" (cr3));
 
 	/* entry_bsp */	
-	entry_bsp();
+	//entry_bsp();
+	start_bsp64_pregdt();
 
 	kputs("while loop\n");	
 	//while (1){

@@ -49,6 +49,7 @@ void LAPIC::init() {
     value.destination = 1; // will not be used anyway
     write(REG_LDR, value);
 
+    MLOG_DETAIL(mlog::boot, "APIC 1", DVAR(getId()));
     // init the local interrupt sources
     // all of them should be in invalid state anyway
     value.value = 0;
@@ -60,6 +61,7 @@ void LAPIC::init() {
     write(REG_LVT_LINT1, value);
     write(REG_LVT_ERROR, value);
 
+    MLOG_DETAIL(mlog::boot, "APIC 2");
     // enable all interrupts by task priority 0
     // see 10.8.6 Task Priority in IA-32e Mode
     // Loading the TPR with a task-priority class of 0 enables all external interrupts.
@@ -70,9 +72,10 @@ void LAPIC::init() {
     value.task_prio = 0;
     write(REG_TASK_PRIO, value);
 
+    MLOG_DETAIL(mlog::boot, "APIC 3", DVAR(mythos::x86::getMSR(mythos::x86::IA32_APIC_BASE_MSR)));
     // After a crash, interrupts from previous run can still have ISR bit set.
     // Thus clear these with EndOfInterrupt.
-    size_t queued = 0;
+	size_t queued = 0;
     for (size_t loops = 0; loops < 1000000; loops++) {
         for (size_t i = 0; i < 0x8; i++) queued |= read(REG_IRR + i * 0x10).value;
         if (!queued) break;
@@ -82,8 +85,11 @@ void LAPIC::init() {
                 if (value.value & (1 << j)) endOfInterrupt();
             }
         }
+		if(loops%1000 == 0){MLOG_DETAIL(mlog::boot, "loop", DVAR(queued), DVAR(value.value));}
+		queued = 0;
     }
 
+    MLOG_DETAIL(mlog::boot, "APIC 4");
     // init the Spurious Interrupt Vector Register for handling local interrupt sources
     // after the reset SPURINT == 0xFF, setting bit 8 enables the APIC, for example 0x100
     // the lowest 4 bits should be 0, the vector should be above 32 (processor internal interrupts)

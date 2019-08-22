@@ -62,20 +62,17 @@ void initKernelSpaceCommon()
 
 void loadKernelSpace()
 {
-  //MLOG_DETAIL(mlog::boot, "loadKernelSpace");//, DVAR(pml4_table));
-	//MLOG_DETAIL(mlog::boot,DVAR(pml4_table));
-//todo: load table 1
-  //asm volatile("mov %0,%%cr3": : "r" (table_to_phys_addr(pml4_table,0)));
+  asm volatile("mov %0,%%cr3": : "r" (table_to_phys_addr(pml4_table,0)));
 }
 
 void mapLapic(uintptr_t phys)
 {
-  static_assert(LAPIC_ADDR == 0xffff800100001000, "failed assumption about kernel layout");
+  //static_assert(LAPIC_ADDR == 0xffff800100001000, "failed assumption about kernel layout");
   devices_pml1[1] = CD + PRESENT + WRITE + ACCESSED + DIRTY + GLOBAL + phys;
 }
 
 void mapIOApic(uintptr_t phys) {
-  static_assert(IOAPIC_ADDR == 0xffff800100002000, "failed assumption about kernel layout");
+  //static_assert(IOAPIC_ADDR == 0xffff800100002000, "failed assumption about kernel layout");
   MLOG_ERROR(mlog::boot, "map ioapic", DVARhex(phys));
   devices_pml1[2] = CD + PRESENT + WRITE + ACCESSED + DIRTY + GLOBAL + phys;
 }

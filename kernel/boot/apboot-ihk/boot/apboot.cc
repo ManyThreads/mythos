@@ -63,11 +63,16 @@ DeployHWThread ap_config[MYTHOS_MAX_THREADS];
  * apicID, which was gathered via the cpuid instruction.
  */
 DeployHWThread* ap_apic2config[MYTHOS_MAX_APICID];
+
 void apboot_thread(size_t apicID) { 
   MLOG_DETAIL(mlog::boot, "ap_boot_thread");
+  //while(1);
 	ap_apic2config[apicID]->initThread(); }
 
 NORETURN extern void start_ap64(size_t reason) SYMBOL("_start_ap64");
+NORETURN extern void start_ap64_pregdt(size_t reason) SYMBOL("_start_ap64_pregdt");
+
+NORETURN extern void entry_ap(size_t apicID, size_t reason) SYMBOL("entry_ap");
 
 NORETURN void apboot() {
   // read acpi topology, then initialise HWThread objects
@@ -108,7 +113,6 @@ NORETURN void apboot() {
       MLOG_DETAIL(mlog::boot, "Skipped BSP in startup", DVAR(bsp_apic_id));
     }
   }
-  while (1);
 
   //mapIOApic((uint32_t)topo.ioapic_address());
   //ioapic.init(IOAPIC_ADDR);
@@ -122,7 +126,9 @@ NORETURN void apboot() {
   //mythos::lapic.broadcastStartupIPI(0x40000);
 
   //// switch to BSP's stack here
-  start_ap64(0); // will never return from here!
+  //entry_ap(0,0);
+  start_ap64_pregdt(0); // will never return from here!
+  //start_ap64(0); // will never return from here!
   while(1);
 }
 
