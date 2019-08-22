@@ -41,6 +41,7 @@
 namespace mythos {
   namespace boot {
 
+
 int ihk_get_nr_cores(void)
 {
 	return boot_param->nr_cpus;
@@ -64,15 +65,17 @@ DeployHWThread ap_config[MYTHOS_MAX_THREADS];
  */
 DeployHWThread* ap_apic2config[MYTHOS_MAX_APICID];
 
-void apboot_thread(size_t apicID) { 
-  MLOG_DETAIL(mlog::boot, "ap_boot_thread");
-  //while(1);
-	ap_apic2config[apicID]->initThread(); }
-
 NORETURN extern void start_ap64(size_t reason) SYMBOL("_start_ap64");
 NORETURN extern void start_ap64_pregdt(size_t reason) SYMBOL("_start_ap64_pregdt");
-
+NORETURN extern void start_ap64_trampoline() SYMBOL("_start_ap64_trampoline");
 NORETURN extern void entry_ap(size_t apicID, size_t reason) SYMBOL("entry_ap");
+
+void apboot_thread(size_t apicID)
+{ 
+  MLOG_DETAIL(mlog::boot, "ap_boot_thread");
+  //while(1);
+	ap_apic2config[apicID]->initThread();
+}
 
 NORETURN void apboot() {
   // read acpi topology, then initialise HWThread objects
@@ -99,24 +102,30 @@ NORETURN void apboot() {
   DeployHWThread::prepareBSP();
   MLOG_DETAIL(mlog::boot, "Init Trampoline ", DVARhex(ap_trampoline));
   mapTrampoline(ap_trampoline);
+
   auto tr = reinterpret_cast<trampoline_t*>(IHK_TRAMPOLINE_ADDR);
   MLOG_DETAIL(mlog::boot, "initial values",
+    DVARhex(tr->jump_intr),
     DVARhex(tr->header_pgtbl),
     DVARhex(tr->header_load),
     DVARhex(tr->stack_ptr),
     DVARhex(tr->notify_addr));
+  ASSERT_MSG(tr->jump_intr == 0x26ebull, "expected 'jmp 0x28' at begin of trampoline header");
+  // test: we leave everything as it is, but jump to _start_ap64_trampoline
+  tr->header_load = reinterpret_cast<uint64_t>(&start_ap64_trampoline);
 
-  // TODO: init the trampoline
   mythos::cpu::disablePIC();
   mythos::x86::enableApic(); // just to be sure it is enabled
+  mythos::lapic.init(); // maybe do the enabling check here?
 
   for (cpu::ThreadID id=0; id<cpu::getNumThreads(); id++) {
     auto apicID = cpu::ApicID(ihk_get_apicid(id));
     if (apicID != bsp_apic_id) {
       MLOG_INFO(mlog::boot, "Send Init IPI", DVAR(apicID));
-      //mythos::lapic.sendInitIPIEdge(apicID);
+      //mythos::lapic.sendInitIPIEdge(apicID); // <- crashes here (suprise)
       MLOG_INFO(mlog::boot, "Send SIPI", DVAR(apicID));
       //mythos::lapic.sendStartupIPI(apicID, ap_trampoline);
+      break; // one is enough for today
     } else {
       MLOG_DETAIL(mlog::boot, "Skipped BSP in startup", DVAR(bsp_apic_id));
     }

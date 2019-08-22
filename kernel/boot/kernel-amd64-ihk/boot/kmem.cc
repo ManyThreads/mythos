@@ -45,7 +45,7 @@ void initKernelMemory(KernelMemory& km)
   KernelMemoryRange<30> usable_mem;
 
   for(int n = 0; n < boot_param->nr_memory_chunks; n++){
-	MLOG_INFO(mlog::boot, DVAR(chunk[n].start), DVAR(chunk[n].end), DVAR(chunk[n].numa_id));
+    MLOG_INFO(mlog::boot, DVARhex(chunk[n].start), DVARhex(chunk[n].end), DVAR(chunk[n].numa_id));
      usable_mem.addStartLength(PhysPtr<void>(chunk[n].start), chunk[n].end-chunk[n].start);	
   }
 

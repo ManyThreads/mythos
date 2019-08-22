@@ -71,12 +71,12 @@ void mapLapic(uintptr_t phys)
 }
 
 void mapIOApic(uintptr_t phys) {
-  MLOG_ERROR(mlog::boot, "map ioapic", DVARhex(phys));
+  MLOG_INFO(mlog::boot, "map ioapic", DVARhex(phys));
   devices_pml1[2] = CD + PRESENT + WRITE + ACCESSED + DIRTY + GLOBAL + phys;
 }
 
 void mapTrampoline(uintptr_t phys) {
-  MLOG_ERROR(mlog::boot, "map trampoline", DVARhex(phys));
+  MLOG_INFO(mlog::boot, "map trampoline", DVARhex(phys));
   devices_pml1[3] = PRESENT + WRITE + ACCESSED + DIRTY + GLOBAL + phys;
 }
 

@@ -226,6 +226,18 @@ _start_ap64_low:
 .code64
 
 .align 8
+
+.global _start_ap64_trampoline
+.type _start_ap64_trampoline, @function
+_start_ap64_trampoline:
+        // we just ignore the args from the trampoline
+        // fake wakeup reason (0 is initial startup)
+        mov $0, %rdi
+        // TODO: change into kernel address space?
+        //mov $BOOT_PML4-VIRT_ADDR, %rdx // <-- is this wrong? load actual pml4
+        //mov %rdx, %cr3 // load phys pointer of the PML4 table
+        // ... or let the trampoline load it?
+
 .global _start_ap64_pregdt
 .type _start_ap64_pregdt, @function
 _start_ap64_pregdt:
