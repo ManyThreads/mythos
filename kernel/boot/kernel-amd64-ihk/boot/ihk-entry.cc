@@ -226,11 +226,19 @@ void _start_ihk_mythos_(unsigned long param_addr, unsigned long phys_address,
 
 	kmsg_buf = (struct ihk_kmsg_buf*)phys_to_virt(boot_param->msg_buffer);
 
-	putHex(_ap_trampoline);
 	kputs("Hello from the other side!\n");	
 	putHex(phys_address);
 	putHex(boot_param->bootstrap_mem_end);
 	putHex(boot_param->bootstrap_mem_end - phys_address);
+
+	kputs("Trampoline data...");
+	putHex(_ap_trampoline);
+  auto trampo = reinterpret_cast<trampoline_t*>(ap_trampoline);
+  putHex(trampo->jump_intr);
+  putHex(trampo->header_pgtbl);
+  putHex(trampo->header_load);
+  putHex(trampo->stack_ptr);
+  putHex(trampo->notify_addr);
 
 	void* rq = alloc_pages(1); 
 	void* wq = alloc_pages(1); 

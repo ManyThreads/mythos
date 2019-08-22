@@ -84,7 +84,7 @@ struct DeployHWThread
 
   void prepare(cpu::ThreadID threadID, cpu::ApicID apicID)
   {
-  MLOG_DETAIL(mlog::boot, "DHWT prepare", DVAR(threadID), DVAR(apicID), DVAR(this));
+    MLOG_DETAIL(mlog::boot, "DHWT prepare", DVAR(threadID), DVAR(apicID), DVAR(this));
     PANIC_MSG(threadID<MYTHOS_MAX_THREADS, "unexpectedly large threadID");
     PANIC_MSG(apicID<MYTHOS_MAX_APICID, "unexpectedly large apicID");
     this->threadID = threadID;

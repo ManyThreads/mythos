@@ -1,5 +1,8 @@
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
+#include "util/compiler.hh"
 #include "boot/bootparam.h"
 
 namespace mythos{
@@ -35,14 +38,23 @@ struct ihk_kmsg_buf {
 
 extern struct ihk_kmsg_buf *kmsg_buf;
 
-extern void memcpy_ringbuf(char const * buf, size_t len);
-extern void kputs(char const *buf);
-extern void putHex(uint64_t ul);
+void memcpy_ringbuf(char const * buf, size_t len);
+void kputs(char const *buf);
+void putHex(uint64_t ul);
 
 unsigned long virt_to_phys(void *v);
 void* phys_to_virt(unsigned long ptr);
-}
 
-//inline constexpr uint64_t indicesToVirt(unsigned pml4, unsigned pml3, unsigned pml2, unsigned pml1)
+/*
+ * variable section in the IHK trampoline
+ */
+struct PACKED trampoline_t {
+  uint64_t jump_intr; // .org 8
+  uint64_t header_pgtbl;
+  uint64_t header_load;
+  uint64_t stack_ptr;
+  uint64_t notify_addr;
+};
 
-}
+} // namespace boot
+} // namespace mythos
