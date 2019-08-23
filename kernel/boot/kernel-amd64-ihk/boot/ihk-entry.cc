@@ -143,32 +143,6 @@ void kputs(char const *buf)
 	kmsg_buf->lock = 0;
 }
 
-//void putHex(uint64_t ul){
-	//kputs("ph");
-	//if(ul > 0){
-		//char str[20];
-		//uint8_t i = 19;
-		//str[i--] = 0;
-		//str[i--] = ' ';
-		
-		//for(; ul > 0; ul = ul >> 4){
-			//char c = ul % 16;
-			//if(c < 10){
-				//str[i--] = c + '0';
-			//}else{
-				//str[i--] = c - 10 + 'a';
-			//}
-		//}
-
-		//str[i--] = 'x';
-		//str[i--] = '0';
-
-		//kputs(&str[i+1]);
-	//}else{	
-		//kputs("0x0 ");
-	//}
-//}
-
 void putHex(uint64_t ul){
 	char str[] = "0x0123456789abcdef ";
 	

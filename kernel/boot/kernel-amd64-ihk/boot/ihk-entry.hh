@@ -8,6 +8,14 @@
 namespace mythos{
 	namespace boot{
 
+extern uint64_t* devices_pml1;
+extern uint64_t* devices_pml2;
+extern uint64_t* image_pml2;
+extern uint64_t* pml2_tables;
+extern uint64_t* pml3_table;
+extern uint64_t* pml4_table SYMBOL("BOOT_PML4");
+
+
 extern unsigned long boot_param_pa;
 extern struct smp_boot_param *boot_param;
 extern int boot_param_size;
