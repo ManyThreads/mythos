@@ -128,7 +128,8 @@ NORETURN void apboot() {
       tr->header_load = reinterpret_cast<uint64_t>(&start_ap64_loop);
       tr->stack_ptr = DeployHWThread::stacks[apicID];
       // fails before longjmp, maybe init is not correct?
-      auto patch = reinterpret_cast<uint64_t*>(IHK_TRAMPOLINE_ADDR+0x62);
+      auto patch = reinterpret_cast<uint64_t*>(IHK_TRAMPOLINE_ADDR+0x62); // <- this works
+      //auto patch = reinterpret_cast<uint64_t*>(IHK_TRAMPOLINE_ADDR+0x70);
       *patch = 0xFCEB90F3ull;
       asm volatile("wbinvd"::: "memory");
 
@@ -144,14 +145,6 @@ NORETURN void apboot() {
       MLOG_DETAIL(mlog::boot, "Skipped BSP in startup", DVAR(bsp_apic_id));
     }
   }
-
-  // broadcast Startup IPI
-  //DeployHWThread::prepareBSP(0x40000);
-  //mythos::cpu::disablePIC();
-  //mythos::x86::enableApic(); // just to be sure it is enabled
-  //mythos::lapic.init();
-  //mythos::lapic.broadcastInitIPIEdge();
-  //mythos::lapic.broadcastStartupIPI(0x40000);
 
   //// switch to BSP's stack here
   //entry_ap(0,0);

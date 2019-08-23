@@ -145,6 +145,18 @@ void LAPIC::disableTimer() {
     write(REG_LVT_TIMER, read(REG_LVT_TIMER).timer_mode(ONESHOT).masked(1).vector(0));
 }
 
+LAPIC::Register LAPIC::edgeIPI(IrcDestinationShorthand dest, IcrDeliveryMode mode, uint8_t vec) {
+      return Register().destination_shorthand(dest).level_triggered(0).level(1)
+        .logical_destination(0).delivery_mode(mode).vector(vec)
+        .delivery_pending(0); //workaround for qemu
+    }
+
+
+void LAPIC::waitForIPI()
+{
+    while (read(REG_ICR_LOW).delivery_pending) hwthread_pause();
+}
+
 bool LAPIC::broadcastInitIPIEdge() {
     write(REG_ESR, 0); // Be paranoid about clearing APIC errors.
     read(REG_ESR);
@@ -164,16 +176,21 @@ bool LAPIC::broadcastInitIPIEdge() {
 bool LAPIC::sendInitIPIEdge(cpu::ApicID apicid) { // WIP
     write(REG_ESR, 0); // Be paranoid about clearing APIC errors.
     read(REG_ESR);
-    writeIPI(apicid, edgeIPI(ICR_DESTSHORT_NO, MODE_INIT, 0));
-    /**
-     * This delay must happen between `broadcastInitIPIEdge` and
-     * `broadcastStartupIPI` in order for all hardware threads to
-     * start on the real hardware (KNC).
-     *
-     * @todo How long should this delay be for a given architecture.
-     * @todo Move the delay out of this low level function.
-     */
-    hwthread_wait(10000);
+    const auto assertINIT = Register()
+      .destination_shorthand(ICR_DESTSHORT_NO)
+      .level_triggered(1).level(1)
+      .logical_destination(0)
+      .delivery_mode(MODE_INIT).vector(0)
+      .delivery_pending(0);
+    writeIPI(apicid, assertINIT);
+    waitForIPI();
+
+    hwthread_wait(20000); // 20 millesecond
+
+    const auto deassertINIT = assertINIT.level(0);
+    writeIPI(apicid, deassertINIT);
+    waitForIPI();
+
     return true;
 }
 
@@ -213,7 +230,7 @@ bool LAPIC::sendIRQ(size_t destination, uint8_t vector)
     MLOG_INFO(mlog::boot, "send IRQ:", DVAR(destination), DVAR(vector));
     //write(REG_ESR, 0); // Be paranoid about clearing APIC errors.
     //read(REG_ESR);
-  writeIPI(destination, edgeIPI(ICR_DESTSHORT_NO, MODE_FIXED, vector));
+    writeIPI(destination, edgeIPI(ICR_DESTSHORT_NO, MODE_FIXED, vector));
     //write(REG_ESR, 0); // Be paranoid about clearing APIC errors.
     return true;
 }
@@ -222,7 +239,7 @@ void LAPIC::writeIPI(size_t destination, Register icrlow) {
     ASSERT(destination < 256);
     MLOG_DETAIL(mlog::boot, "write ICR", DVAR(destination), DVARhex(icrlow.value));
 
-    while (read(REG_ICR_LOW).delivery_pending) hwthread_pause();
+    waitForIPI();
 
     write(REG_ICR_HIGH, Register().destination(destination));
     write(REG_ICR_LOW, icrlow);
