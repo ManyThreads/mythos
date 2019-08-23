@@ -68,6 +68,7 @@ DeployHWThread* ap_apic2config[MYTHOS_MAX_APICID];
 NORETURN extern void start_ap64(size_t reason) SYMBOL("_start_ap64");
 NORETURN extern void start_ap64_pregdt(size_t reason) SYMBOL("_start_ap64_pregdt");
 NORETURN extern void start_ap64_trampoline() SYMBOL("_start_ap64_trampoline");
+NORETURN extern void start_ap64_loop() SYMBOL("_start_ap64_loop");
 NORETURN extern void entry_ap(size_t apicID, size_t reason) SYMBOL("entry_ap");
 
 void apboot_thread(size_t apicID)
@@ -111,20 +112,27 @@ NORETURN void apboot() {
     DVARhex(tr->stack_ptr),
     DVARhex(tr->notify_addr));
   ASSERT_MSG(tr->jump_intr == 0x26ebull, "expected 'jmp 0x28' at begin of trampoline header");
-  // test: we leave everything as it is, but jump to _start_ap64_trampoline
-  tr->header_load = reinterpret_cast<uint64_t>(&start_ap64_trampoline);
+  // test: we leave everything as it is, but jump to _start_ap64_loop
+  // just loop -> F390EBFC
+  tr->jump_intr = 0xFCEB90F3ull;
+  asm volatile("wbinvd"::: "memory");
+      
+  //tr->header_load = reinterpret_cast<uint64_t>(&start_ap64_loop);
 
-  mythos::cpu::disablePIC();
-  mythos::x86::enableApic(); // just to be sure it is enabled
+  mythos::cpu::disablePIC(); // <- maybe don't do this, should only concern IOAPIC
+  //mythos::x86::enableApic(); // just to be sure it is enabled
   mythos::lapic.init(); // maybe do the enabling check here?
 
   for (cpu::ThreadID id=0; id<cpu::getNumThreads(); id++) {
     auto apicID = cpu::ApicID(ihk_get_apicid(id));
     if (apicID != bsp_apic_id) {
+      asm volatile("cli"::: "memory");
       MLOG_INFO(mlog::boot, "Send Init IPI", DVAR(apicID));
-      //mythos::lapic.sendInitIPIEdge(apicID); // <- crashes here (suprise)
+      mythos::lapic.sendInitIPIEdge(apicID);
       MLOG_INFO(mlog::boot, "Send SIPI", DVAR(apicID));
-      //mythos::lapic.sendStartupIPI(apicID, ap_trampoline);
+      mythos::lapic.sendStartupIPI(apicID, ap_trampoline);
+      asm volatile("sti"::: "memory");
+      while(1) hwthread_pause();
       break; // one is enough for today
     } else {
       MLOG_DETAIL(mlog::boot, "Skipped BSP in startup", DVAR(bsp_apic_id));
