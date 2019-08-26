@@ -102,9 +102,9 @@ NORETURN void runUser();
 
 void runUser() {
   mythos::async::getLocalPlace().processTasks();
-  MLOG_DETAIL(mlog::boot, "trying to execute app");
+  //MLOG_DETAIL(mlog::boot, "trying to execute app");
   mythos::boot::getLocalScheduler().tryRunUser();
-  MLOG_DETAIL(mlog::boot, "going to sleep now");
+  //MLOG_DETAIL(mlog::boot, "going to sleep now");
   mythos::idle::sleep(); // resets the kernel stack!
 }
 
@@ -124,9 +124,9 @@ void entry_ap(size_t apicID, size_t reason)
   //asm volatile("xchg %bx,%bx");
   mythos::boot::apboot_thread(apicID);
   MLOG_DETAIL(mlog::boot, "started hardware thread", DVAR(reason));
-  while(1);
   mythos::cpu::FpuState::initCpu();
   MLOG_DETAIL(mlog::boot, DVARhex(mythos::x86::getXCR0()));
+    MLOG_DETAIL(mlog::boot, "EFER", DVARhex(mythos::x86::getMSR(mythos::x86::MSR_EFER)), DVAR(mythos::x86::getCR0())); 
   mythos::idle::wokeup(apicID, reason); // may not return
   runUser();
 }

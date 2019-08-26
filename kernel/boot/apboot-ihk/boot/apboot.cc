@@ -139,7 +139,7 @@ NORETURN void apboot() {
       MLOG_INFO(mlog::boot, "Send SIPI", DVAR(apicID));
       mythos::lapic.sendStartupIPI(apicID, ap_trampoline);
       //asm volatile("sti"::: "memory");
-      while(1) hwthread_pause();
+      //while(1) hwthread_pause();
       break; // one is enough for today
     } else {
       MLOG_DETAIL(mlog::boot, "Skipped BSP in startup", DVAR(bsp_apic_id));

@@ -56,6 +56,7 @@ namespace mythos {
 
     explicit Cap(IKernelObject* ptr, CapData data = 0, CapFlags flags = NOFLAG) NOEXCEPT
     {
+      MLOG_INFO(mlog::boot, "Cap", DVARhex(ptr));
       f._ptr = _packPtr(ptr) & 0x1FFFFFFF;
       f.trans = (flags >> 2) & 1;
       f.ref = (flags >> 1) & 1;
@@ -64,7 +65,7 @@ namespace mythos {
     }
 
     IKernelObject* getPtr() const
-    { return f._ptr ? phys2kernel<IKernelObject>(uint32_t(f._ptr << FLAG_BITS)) : nullptr; }
+    { return f._ptr ? offset2kernel<IKernelObject>(uint32_t(f._ptr << FLAG_BITS)) : nullptr; }
 
     bool isOriginal() const { return !isDerived() && !isReference(); }
     bool isDerived() const { return f.der; }
@@ -112,9 +113,9 @@ namespace mythos {
 
     static uint32_t _packPtr(IKernelObject* ptr)
     {
-      ASSERT_MSG(!ptr || (kernel2phys(ptr) & FLAG_MASK) == 0,
+      ASSERT_MSG(!ptr || (kernel2offset(ptr) & FLAG_MASK) == 0,
           "kernel object without propper alignment");
-      return (ptr ? kernel2phys(ptr) >> FLAG_BITS : 0);
+      return (ptr ? kernel2offset(ptr) >> FLAG_BITS : 0);
     }
   };
 
