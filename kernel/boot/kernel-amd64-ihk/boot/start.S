@@ -233,6 +233,12 @@ _start_ap64_low:
 
 .align 8
 
+.global _start_ap64_loop
+.type _start_ap64_loop, @function
+_start_ap64_loop:
+       pause
+       jmp _start_ap64_loop;
+
 .global _start_ap64_trampoline
 .type _start_ap64_trampoline, @function
 _start_ap64_trampoline:
