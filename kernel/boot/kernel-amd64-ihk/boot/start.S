@@ -173,6 +173,12 @@ _start_bsp64:
         mov     %cx, %gs
         cld // for gcc code
 
+        mov     $(EFER_MSR), %ecx       // select the EFER MSR
+        rdmsr                           // read EFER
+        and     $(EFER_MASK), %eax
+        or      $(EFER_ENABLE), %eax
+        wrmsr                           // write EFER
+
         // go to the stage 3 boot code, and never come back
         xor %rbp, %rbp
         pushq   $0 // fake return address as first stack frame
