@@ -56,7 +56,6 @@ namespace mythos {
 
     explicit Cap(IKernelObject* ptr, CapData data = 0, CapFlags flags = NOFLAG) NOEXCEPT
     {
-      MLOG_INFO(mlog::boot, "Cap", DVARhex(ptr));
       f._ptr = _packPtr(ptr) & 0x1FFFFFFF;
       f.trans = (flags >> 2) & 1;
       f.ref = (flags >> 1) & 1;
