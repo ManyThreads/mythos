@@ -271,76 +271,76 @@ int main()
   mythos::syscall_debug(str, sizeof(str)-1);
   MLOG_ERROR(mlog::app, "application is starting :)", DVARhex(msg_ptr), DVARhex(initstack_top));
 
-  test_float();
-  test_Example();
-  test_Portal();
-  test_heap(); // heap must be initialized for tls test
-  test_tls();
-  test_exceptions();
-  test_InterruptControl();
+  //test_float();
+  //test_Example();
+  //test_Portal();
+  //test_heap(); // heap must be initialized for tls test
+  //test_tls();
+  //test_exceptions();
+  //test_InterruptControl();
 
-  std::vector<int> foo;
-  for (int i=0; i<100; i++) foo.push_back(i);
+  //std::vector<int> foo;
+  //for (int i=0; i<100; i++) foo.push_back(i);
 
-  {
-    mythos::PortalLock pl(portal); // future access will fail if the portal is in use already
-    // allocate a 2MiB frame
-    mythos::Frame hostChannelFrame(capAlloc());
-    auto res1 = hostChannelFrame.create(pl, kmem, 2*1024*1024, 2*1024*1024).wait();
-    MLOG_INFO(mlog::app, "alloc hostChannel frame", DVAR(res1.state()));
-    TEST(res1);
+  //{
+    //mythos::PortalLock pl(portal); // future access will fail if the portal is in use already
+    //// allocate a 2MiB frame
+    //mythos::Frame hostChannelFrame(capAlloc());
+    //auto res1 = hostChannelFrame.create(pl, kmem, 2*1024*1024, 2*1024*1024).wait();
+    //MLOG_INFO(mlog::app, "alloc hostChannel frame", DVAR(res1.state()));
+    //TEST(res1);
 
-    // map the frame into our address space
-    uintptr_t vaddr = 24*1024*1024;
-    auto res2 = myAS.mmap(pl, hostChannelFrame, vaddr, 2*1024*1024, 0x1).wait();
-    MLOG_INFO(mlog::app, "mmap hostChannel frame", DVAR(res2.state()),
-              DVARhex(res2.get().vaddr), DVAR(res2.get().level));
-    TEST(res2);
+    //// map the frame into our address space
+    //uintptr_t vaddr = 24*1024*1024;
+    //auto res2 = myAS.mmap(pl, hostChannelFrame, vaddr, 2*1024*1024, 0x1).wait();
+    //MLOG_INFO(mlog::app, "mmap hostChannel frame", DVAR(res2.state()),
+              //DVARhex(res2.get().vaddr), DVAR(res2.get().level));
+    //TEST(res2);
 
-    // initialise the memory
-    HostChannel* hostChannel = reinterpret_cast<HostChannel*>(vaddr);
-    hostChannel->init();
-    host2app.setChannel(&hostChannel->ctrlFromHost);
-    app2host.setChannel(&hostChannel->ctrlToHost);
+    //// initialise the memory
+    //HostChannel* hostChannel = reinterpret_cast<HostChannel*>(vaddr);
+    //hostChannel->init();
+    //host2app.setChannel(&hostChannel->ctrlFromHost);
+    //app2host.setChannel(&hostChannel->ctrlToHost);
 
-    // register the frame in the host info table
-    // auto res3 = mythos::PortalFuture<void>(pl.invoke<mythos::protocol::CpuDriverKNC::SetInitMem>(mythos::init::CPUDRIVER, hostChannelFrame.cap())).wait();
-    // MLOG_INFO(mlog::app, "register at host info table", DVAR(res3.state()));
-    //ASSERT(res3.state() == mythos::Error::SUCCESS);
-  }
+    //// register the frame in the host info table
+    //// auto res3 = mythos::PortalFuture<void>(pl.invoke<mythos::protocol::CpuDriverKNC::SetInitMem>(mythos::init::CPUDRIVER, hostChannelFrame.cap())).wait();
+    //// MLOG_INFO(mlog::app, "register at host info table", DVAR(res3.state()));
+    ////ASSERT(res3.state() == mythos::Error::SUCCESS);
+  //}
 
-  mythos::ExecutionContext ec1(capAlloc());
-  mythos::ExecutionContext ec2(capAlloc());
-  {
-    MLOG_INFO(mlog::app, "test_EC: create ec1");
-    mythos::PortalLock pl(portal); // future access will fail if the portal is in use already
+  //mythos::ExecutionContext ec1(capAlloc());
+  //mythos::ExecutionContext ec2(capAlloc());
+  //{
+    //MLOG_INFO(mlog::app, "test_EC: create ec1");
+    //mythos::PortalLock pl(portal); // future access will fail if the portal is in use already
 
-    auto tls1 = mythos::setupNewTLS();
-    ASSERT(tls1 != nullptr);
-    auto res1 = ec1.create(kmem).as(myAS).cs(myCS).sched(mythos::init::SCHEDULERS_START)
-    .prepareStack(thread1stack_top).startFun(&thread_main, nullptr)
-    .suspended(false).fs(tls1)
-    .invokeVia(pl).wait();
-    TEST(res1);
+    //auto tls1 = mythos::setupNewTLS();
+    //ASSERT(tls1 != nullptr);
+    //auto res1 = ec1.create(kmem).as(myAS).cs(myCS).sched(mythos::init::SCHEDULERS_START)
+    //.prepareStack(thread1stack_top).startFun(&thread_main, nullptr)
+    //.suspended(false).fs(tls1)
+    //.invokeVia(pl).wait();
+    //TEST(res1);
 
-    MLOG_INFO(mlog::app, "test_EC: create ec2");
-    auto tls2 = mythos::setupNewTLS();
-    ASSERT(tls2 != nullptr);
-    auto res2 = ec2.create(kmem).as(myAS).cs(myCS).sched(mythos::init::SCHEDULERS_START+1)
-    .prepareStack(thread2stack_top).startFun(&thread_main, nullptr)
-    .suspended(false).fs(tls2)
-    .invokeVia(pl).wait();
-    TEST(res2);
+    //MLOG_INFO(mlog::app, "test_EC: create ec2");
+    //auto tls2 = mythos::setupNewTLS();
+    //ASSERT(tls2 != nullptr);
+    //auto res2 = ec2.create(kmem).as(myAS).cs(myCS).sched(mythos::init::SCHEDULERS_START+1)
+    //.prepareStack(thread2stack_top).startFun(&thread_main, nullptr)
+    //.suspended(false).fs(tls2)
+    //.invokeVia(pl).wait();
+    //TEST(res2);
 
-}
+//}
 
-  for (volatile int i=0; i<100000; i++) {
-    for (volatile int j=0; j<1000; j++) {}
-  }
+  //for (volatile int i=0; i<100000; i++) {
+    //for (volatile int j=0; j<1000; j++) {}
+  //}
 
-  MLOG_INFO(mlog::app, "sending notifications");
-  mythos::syscall_signal(ec1.cap());
-  mythos::syscall_signal(ec2.cap());
+  //MLOG_INFO(mlog::app, "sending notifications");
+  //mythos::syscall_signal(ec1.cap());
+  //mythos::syscall_signal(ec2.cap());
 
   mythos::syscall_debug(end, sizeof(end)-1);
 

@@ -157,7 +157,7 @@ namespace mythos {
     if (frame) frameInfo = frame.getFrameInfo(); 
    
     MLOG_INFO(mlog::cap, "mapFrame", DVAR(level()), DVAR(frame.cap()), DVAR(index), DVAR(offset),
-                  DVARhex(frameInfo.start.physint()), DVARhex(frameInfo.size));
+                  DVARhex(frameInfo.start.physint()), DVARhex(frameInfo.size), DVARhex(pageSize()));
     ASSERT(index < num_caps());
     // check sizes and alignment
     uintptr_t frameaddr = frameInfo.start.physint() + offset;

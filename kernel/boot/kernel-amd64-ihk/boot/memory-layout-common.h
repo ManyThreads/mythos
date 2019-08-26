@@ -48,13 +48,13 @@
  * constants for absolute addressing. Otherwise the kernel code
  * becomes much less efficient.
  */
-#define VIRT_ADDR           0xFFFFFFFFFE801000
-#define LOAD_ADDR           0xFFFFFFFFFE801000 /* should not be used. needed by kmem-common */
+#define VIRT_ADDR           0xFFFFFFFFFE800000
+#define LOAD_ADDR           0xFFFFFFFFFE800000 /* should not be used. needed by kmem-common */
 
 /** position and size of the kernels direct mapped area,
  * which will contain all kernel objects
  */
-#define KERNELMEM_ADDR      0xffff810000001000
+#define KERNELMEM_ADDR      0xffff810000000000
 #define KERNELMEM_SIZE      0x0000000100000000 /* 4GB = 32bit */
 
 #define DEVICES_ADDR        0xffff810100000000

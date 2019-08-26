@@ -311,7 +311,7 @@ void _start_ihk_mythos_(unsigned long param_addr, unsigned long phys_address,
 	/* pml2_tables */
 	for(unsigned i = 0; i < 2048; i++){
 		if(phys_address + i * PML2_PAGESIZE < boot_param->bootstrap_mem_end){
-			pml2_tables[i] = PML2_BASE + phys_address + i*PML2_PAGESIZE; 
+			pml2_tables[i] = PML2_BASE + x86_kernel_phys_base + i*PML2_PAGESIZE; 
 		}else{
 			pml2_tables[i] = INVALID; 
 		}

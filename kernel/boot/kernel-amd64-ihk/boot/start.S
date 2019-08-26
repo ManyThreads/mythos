@@ -255,9 +255,9 @@ _start_ap64_pregdt:
         //lgdt    _boot_gdt
         // switch code segment to 0x10 instead of leftovers from the loader
         // create a stack frame like from a far call and return
-        //push    $0x10 // KERNEL_CS
-        //push    $_start_ap64
-        //retfq
+        push    $0x10 // KERNEL_CS
+        push    $_start_ap64
+        retfq
 
 .global _start_ap64 // needed?
 .type _start_ap64, @function // needed?

@@ -33,6 +33,8 @@
 
 #include "boot/ihk-entry.hh"
 
+//#include "objects/mlog.hh"
+
 namespace mythos {
 
   extern char KERN_END SYMBOL("KERN_END");
@@ -64,7 +66,7 @@ namespace mythos {
 
     static PhysPtr fromKernel(T* vp) {
       ASSERT(isKernelAddress(vp));
-      return PhysPtr(reinterpret_cast<uintptr_t>(vp) - KERNELMEM_ADDR);
+      return PhysPtr(reinterpret_cast<uintptr_t>(vp) - KERNELMEM_ADDR + mythos::boot::x86_kernel_phys_base);
     }
 
     static PhysPtr fromPhys(T* ptr) {
@@ -94,10 +96,12 @@ namespace mythos {
 
     uintptr_t logint() const {
       ASSERT(kernelmem());
-      return ptr + KERNELMEM_ADDR;
+      return ptr - mythos::boot::x86_kernel_phys_base + KERNELMEM_ADDR;
     }
 
-    bool kernelmem() const { return ptr < KERNELMEM_SIZE; }
+    bool kernelmem() const { 
+		//MLOG_INFO(mlog::km, "kernelmem", DVARhex(ptr), DVARhex(mythos::boot::x86_kernel_phys_base));
+		return (ptr - mythos::boot::x86_kernel_phys_base) < KERNELMEM_SIZE; }
 
     bool canonical() const
     {
