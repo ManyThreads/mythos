@@ -64,6 +64,7 @@
 #define IOAPIC_ADDR			0xffff810100002000
 /** TRAMPOLINE_ADDR fixed mapping of the IHK trampoline */
 #define IHK_TRAMPOLINE_ADDR	0xffff810100003000
+#define LOW_MEM_ADDR      	0xffff810100004000
 #define KERNELSTACKS_ADDR   0xffff810100200000
 
 #define BOOT_STACK_SIZE     2*4096

@@ -78,6 +78,8 @@ void mapIOApic(uintptr_t phys) {
 void mapTrampoline(uintptr_t phys) {
   MLOG_INFO(mlog::boot, "map trampoline", DVARhex(phys));
   devices_pml1[3] = PRESENT + WRITE + ACCESSED + DIRTY + GLOBAL + phys;
+  MLOG_INFO(mlog::boot, "map low mem", DVARhex(0));
+  devices_pml1[4] = PRESENT + WRITE + ACCESSED + DIRTY + GLOBAL + 0;
 }
 
 uintptr_t initKernelStack(size_t idx, uintptr_t paddr)

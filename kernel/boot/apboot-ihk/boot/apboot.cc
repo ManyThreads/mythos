@@ -38,6 +38,9 @@
 #include "cpu/hwthreadid.hh"
 #include "boot/ihk-entry.hh"
 
+extern char _dbg_trampoline;
+extern char _dbg_trampoline_end;
+
 namespace mythos {
   namespace boot {
 
@@ -71,6 +74,29 @@ NORETURN extern void start_ap64_trampoline() SYMBOL("_start_ap64_trampoline");
 NORETURN extern void start_ap64_loop() SYMBOL("_start_ap64_loop");
 NORETURN extern void entry_ap(size_t apicID, size_t reason) SYMBOL("entry_ap");
 
+struct PACKED dbg_t {
+  uint64_t jump16;
+  uint64_t pml4;
+  uint32_t jump32;
+  uint16_t cs32;
+  uint16_t gdt32_size;
+  uint32_t gdt32_ptr;
+};
+void printDbg()
+{
+  auto tr = reinterpret_cast<dbg_t*>(IHK_TRAMPOLINE_ADDR);
+  MLOG_DETAIL(mlog::boot,
+    DVARhex(IHK_TRAMPOLINE_ADDR),
+    DVARhex(tr),
+    DVARhex(tr->jump16),
+    DVARhex(tr->pml4),
+    DVARhex(tr->jump32),
+    DVARhex(tr->cs32),
+    DVARhex(tr->gdt32_size),
+    DVARhex(tr->gdt32_ptr));
+}
+
+
 void apboot_thread(size_t apicID)
 { 
   MLOG_DETAIL(mlog::boot, "ap_boot_thread");
@@ -78,7 +104,7 @@ void apboot_thread(size_t apicID)
 	ap_apic2config[apicID]->initThread();
 }
 
-NORETURN void apboot() {
+      NORETURN void apboot() {
   // read acpi topology, then initialise HWThread objects
   //MPApicTopology topo;
   cpu::hwThreadCount = ihk_get_nr_cores();
@@ -112,6 +138,13 @@ NORETURN void apboot() {
     DVARhex(tr->stack_ptr),
     DVARhex(tr->notify_addr));
   ASSERT_MSG(tr->jump_intr == 0x26ebull, "expected 'jmp 0x28' at begin of trampoline header");
+
+  // TODO: proper device mem pointer
+  auto  trampoline_phys_high = reinterpret_cast<uint16_t volatile*>(LOW_MEM_ADDR + 0x469ul);
+  auto  trampoline_phys_low = reinterpret_cast<uint16_t volatile*>(LOW_MEM_ADDR + 0x467ul);
+  ASSERT(*trampoline_phys_high == uint16_t(ap_trampoline >> 4));
+  ASSERT(*trampoline_phys_low == uint16_t(ap_trampoline & 0xf));
+
   // test: we leave everything as it is, but jump to _start_ap64_loop
   // just loop -> F390EBFC
   //tr->jump_intr = 0xFCEB90F3ull;
@@ -124,27 +157,44 @@ NORETURN void apboot() {
     auto apicID = cpu::ApicID(ihk_get_apicid(id));
     if (apicID != bsp_apic_id) {
 
-      //tr->header_pgtbl = *pml4_table;
-      tr->header_load = reinterpret_cast<uint64_t>(&start_ap64_loop);
-      tr->stack_ptr = DeployHWThread::stacks[apicID];
-      // fails before longjmp, maybe init is not correct?
-      auto patch = reinterpret_cast<uint64_t*>(IHK_TRAMPOLINE_ADDR+0x62); // <- this works
-      //auto patch = reinterpret_cast<uint64_t*>(IHK_TRAMPOLINE_ADDR+0x70);
-      *patch = 0xFCEB90F3ull;
+      // TODO: proper device mem pointer
+      memcpy(
+          reinterpret_cast<void*>(IHK_TRAMPOLINE_ADDR),
+          &_dbg_trampoline,
+          size_t(&_dbg_trampoline_end-&_dbg_trampoline));
+      /*
+      auto tr_bytes = reinterpret_cast<char*>(IHK_TRAMPOLINE_ADDR);
+      for (int i = 0x3c; i < 0x4b; ++i) {
+        tr_bytes[i] = '\x90'; 
+      }
+      */
       asm volatile("wbinvd"::: "memory");
+      printDbg();
 
-      //asm volatile("cli"::: "memory");
+      auto before = *reinterpret_cast<volatile uint32_t*>(IHK_TRAMPOLINE_ADDR);
+      asm volatile ("" ::: "memory");
+      MLOG_ERROR(mlog::boot, "before send", DVARhex(before));
       MLOG_INFO(mlog::boot, "Send Init IPI", DVAR(apicID));
       mythos::lapic.sendInitIPIEdge(apicID);
       MLOG_INFO(mlog::boot, "Send SIPI", DVAR(apicID));
       mythos::lapic.sendStartupIPI(apicID, ap_trampoline);
-      //asm volatile("sti"::: "memory");
-      while(1) hwthread_pause();
+      MLOG_ERROR(mlog::boot, "loop for change ...");
+      while(1) {
+        asm volatile ("" ::: "memory");
+        uint32_t after = *reinterpret_cast<volatile uint32_t*>(IHK_TRAMPOLINE_ADDR);
+        asm volatile ("" ::: "memory");
+        if (after != before) {
+          MLOG_ERROR(mlog::boot, DVARhex(after));
+          printDbg();
+          before = after;
+        }
+      }
       break; // one is enough for today
     } else {
       MLOG_DETAIL(mlog::boot, "Skipped BSP in startup", DVAR(bsp_apic_id));
     }
   }
+  while(1) hwthread_pause();
 
   //// switch to BSP's stack here
   //entry_ap(0,0);
