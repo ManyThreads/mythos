@@ -49,7 +49,7 @@ namespace mythos {
       memcpy(&_pm_table(TABLE_SIZE/2), &boot::pml4_table[TABLE_SIZE/2],
              TABLE_SIZE/2*sizeof(PageTableEntry));
     }
-    uint32_t pmPtr = kernel2phys(static_cast<IPageMap*>(this)); // 29 bits, 8 byte aligned
+    uint32_t pmPtr = kernel2offset(static_cast<IPageMap*>(this)); // 29 bits, 8 byte aligned
     _pm_table(0).pmPtr = (pmPtr>>3) & 0x3FF; // lowest 10bit
     _pm_table(1).pmPtr = (pmPtr>>13) & 0x3FF; // middle 10bit
     _pm_table(2).pmPtr = (pmPtr>>23) & 0x3FF; // highest 10bit
@@ -57,7 +57,7 @@ namespace mythos {
 
   IPageMap* PageMap::table2PageMap(PageTableEntry const* table) {
     uintptr_t ptr = (table[0].pmPtr<<3) | (table[1].pmPtr<<13) | (table[2].pmPtr<<23);
-    return phys2kernel<IPageMap>(ptr);
+    return offset2kernel<IPageMap>(ptr);
   }
 
   Range<uintptr_t> PageMap::addressRange(Cap self)

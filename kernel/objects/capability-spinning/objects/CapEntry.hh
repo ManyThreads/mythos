@@ -122,10 +122,10 @@ namespace mythos {
     protected:
       static uintlink_t _pack(CapEntry* entry, uintlink_t flags)
       {
-        ASSERT((kernel2phys(entry) & 7) == 0);
-        return (entry ? kernel2phys(entry) : 0) | flags;
+        ASSERT((kernel2offset(entry) & 7) == 0);
+        return (entry ? kernel2offset(entry) : 0) | flags;
       }
-      CapEntry* _toPtr() const { return _val ? phys2kernel<CapEntry>(_val & uintlink_t(~7)) : nullptr; }
+      CapEntry* _toPtr() const { return _val ? offset2kernel<CapEntry>(_val & uintlink_t(~7)) : nullptr; }
       const uintlink_t _val;
     };
 

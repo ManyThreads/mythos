@@ -39,6 +39,7 @@ namespace mythos {
 
   ExecutionContext::ExecutionContext(IAsyncFree* memory)
     : memory(memory)
+	, flags(0)
   {
     setFlags(IS_TRAPPED + NO_AS + NO_SCHED
         + DONT_PREEMPT + NOT_LOADED + NOT_RUNNING);

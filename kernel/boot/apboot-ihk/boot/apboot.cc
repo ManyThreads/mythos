@@ -187,6 +187,7 @@ void apboot_thread(size_t apicID)
           MLOG_ERROR(mlog::boot, DVARhex(after));
           printDbg();
           before = after;
+          if (after == 3) break;
         }
       }
       break; // one is enough for today
@@ -194,7 +195,6 @@ void apboot_thread(size_t apicID)
       MLOG_DETAIL(mlog::boot, "Skipped BSP in startup", DVAR(bsp_apic_id));
     }
   }
-  while(1) hwthread_pause();
 
   //// switch to BSP's stack here
   //entry_ap(0,0);

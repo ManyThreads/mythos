@@ -350,7 +350,6 @@ dbg_loop:
   and     $(CR0_MASK), %edx
   or      $(CR0_ENABLE), %edx
   mov %edx, %cr0
-*/
 /*
         // load gdt via relative address
         lgdtl %cs:__gdt_desc - _setup_ap

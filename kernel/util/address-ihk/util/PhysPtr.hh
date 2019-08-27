@@ -175,12 +175,24 @@ namespace mythos {
   template<class T>
   uint32_t kernel2phys(T* vp) {
     ASSERT(isKernelAddress(vp));
+    return uint32_t(reinterpret_cast<uintptr_t>(vp) - KERNELMEM_ADDR + mythos::boot::x86_kernel_phys_base);
+  }
+
+  template<class T>
+  uint32_t kernel2offset(T* vp) {
+    ASSERT(isKernelAddress(vp));
     return uint32_t(reinterpret_cast<uintptr_t>(vp) - KERNELMEM_ADDR);
   }
 
   template<class T>
+  T* offset2kernel(uint32_t o) {
+    ASSERT(o < KERNELMEM_SIZE);
+    return reinterpret_cast<T*>(o + KERNELMEM_ADDR);
+  }
+
+  template<class T>
   T* phys2kernel(uintptr_t phys) {
-    return reinterpret_cast<T*>(phys + KERNELMEM_ADDR);
+    return reinterpret_cast<T*>(phys - mythos::boot::x86_kernel_phys_base + KERNELMEM_ADDR);
   }
 
   template<class T>

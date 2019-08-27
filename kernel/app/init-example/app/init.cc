@@ -256,6 +256,7 @@ mythos::PCIeRingConsumer<HostChannel::CtrlChannel> host2app;
 
 
 void test_exceptions() {
+  MLOG_INFO(mlog::app, "Test Exceptions");
     try{
         MLOG_INFO(mlog::app, "throwing 42");
         throw 42;
@@ -272,11 +273,11 @@ int main()
   MLOG_ERROR(mlog::app, "application is starting :)", DVARhex(msg_ptr), DVARhex(initstack_top));
 
   //test_float();
-  //test_Example();
-  //test_Portal();
-  //test_heap(); // heap must be initialized for tls test
-  //test_tls();
-  //test_exceptions();
+  test_Example();
+  test_Portal();
+  test_heap(); // heap must be initialized for tls test
+  test_tls();
+  test_exceptions();
   //test_InterruptControl();
 
   //std::vector<int> foo;
