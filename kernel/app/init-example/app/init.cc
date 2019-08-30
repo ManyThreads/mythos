@@ -189,6 +189,7 @@ void test_tls()
   TEST(res1);
   TEST(ec1.setFSGS(pl,(uint64_t) tls, 0).wait());
   mythos::syscall_signal(ec1.cap());
+  MLOG_INFO(mlog::app, "End test tls");
 }
 
 void test_InterruptControl() {
@@ -276,7 +277,7 @@ int main()
   test_Example();
   test_Portal();
   test_heap(); // heap must be initialized for tls test
-  test_tls();
+  //test_tls();
   test_exceptions();
   //test_InterruptControl();
 

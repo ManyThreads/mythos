@@ -43,6 +43,7 @@ uint64_t* image_pml2;
 uint64_t* pml2_tables;
 uint64_t* pml3_table;
 uint64_t* pml4_table SYMBOL("BOOT_PML4");
+uint64_t* pml4_ihk;
 
 static unsigned char stack[8192] __attribute__((aligned(4096)));
 
@@ -311,6 +312,7 @@ void _start_ihk_mythos_(unsigned long param_addr, unsigned long phys_address,
 	/* pml4_table */
 	uint64_t* cr3;
 	asm volatile ("mov %%cr3, %0":"=r" (cr3));
+	pml4_ihk = cr3;
 	//putHex((uint64_t)cr3);
 	pml4_table[0] = cr3[0]; 
 	pml4_table[1] = cr3[1]; 

@@ -76,7 +76,9 @@ NORETURN extern void entry_ap(size_t apicID, size_t reason) SYMBOL("entry_ap");
 
 struct PACKED dbg_t {
   uint64_t jump16;
+  uint64_t table32;
   uint64_t pml4;
+  uint64_t startap;
   uint32_t jump32;
   uint16_t cs32;
   uint16_t gdt32_size;
@@ -89,7 +91,9 @@ void printDbg()
     DVARhex(IHK_TRAMPOLINE_ADDR),
     DVARhex(tr),
     DVARhex(tr->jump16),
+    DVARhex(tr->table32),
     DVARhex(tr->pml4),
+    DVARhex(tr->startap),
     DVARhex(tr->jump32),
     DVARhex(tr->cs32),
     DVARhex(tr->gdt32_size),
@@ -139,6 +143,8 @@ void apboot_thread(size_t apicID)
     DVARhex(tr->notify_addr));
   ASSERT_MSG(tr->jump_intr == 0x26ebull, "expected 'jmp 0x28' at begin of trampoline header");
 
+  trampoline_t old_tr = *tr;
+
   // TODO: proper device mem pointer
   auto  trampoline_phys_high = reinterpret_cast<uint16_t volatile*>(LOW_MEM_ADDR + 0x469ul);
   auto  trampoline_phys_low = reinterpret_cast<uint16_t volatile*>(LOW_MEM_ADDR + 0x467ul);
@@ -168,34 +174,41 @@ void apboot_thread(size_t apicID)
         tr_bytes[i] = '\x90'; 
       }
       */
+	  
+      auto t = reinterpret_cast<dbg_t*>(IHK_TRAMPOLINE_ADDR);
+      t->table32 = old_tr.header_pgtbl;
+      t->pml4 = virt_to_phys(pml4_table);
+	  t->startap = reinterpret_cast<uint64_t>(&start_ap64_pregdt);
+
       asm volatile("wbinvd"::: "memory");
       printDbg();
 
       auto before = *reinterpret_cast<volatile uint32_t*>(IHK_TRAMPOLINE_ADDR);
       asm volatile ("" ::: "memory");
-      MLOG_ERROR(mlog::boot, "before send", DVARhex(before));
-      MLOG_INFO(mlog::boot, "Send Init IPI", DVAR(apicID));
+      //MLOG_ERROR(mlog::boot, "before send", DVARhex(before));
+      //MLOG_INFO(mlog::boot, "Send Init IPI", DVAR(apicID));
       mythos::lapic.sendInitIPIEdge(apicID);
-      MLOG_INFO(mlog::boot, "Send SIPI", DVAR(apicID));
+      //MLOG_INFO(mlog::boot, "Send SIPI", DVAR(apicID));
       mythos::lapic.sendStartupIPI(apicID, ap_trampoline);
-      MLOG_ERROR(mlog::boot, "loop for change ...");
+      //MLOG_ERROR(mlog::boot, "loop for change ...");
       while(1) {
         asm volatile ("" ::: "memory");
         uint32_t after = *reinterpret_cast<volatile uint32_t*>(IHK_TRAMPOLINE_ADDR);
         asm volatile ("" ::: "memory");
         if (after != before) {
-          MLOG_ERROR(mlog::boot, DVARhex(after));
+          //MLOG_ERROR(mlog::boot, DVARhex(after));
           printDbg();
           before = after;
-          if (after == 3) break;
+          if (after == 7) break;
         }
       }
-      break; // one is enough for today
+      //break; // one is enough for today
     } else {
       MLOG_DETAIL(mlog::boot, "Skipped BSP in startup", DVAR(bsp_apic_id));
     }
   }
 
+  //while(1);
   //// switch to BSP's stack here
   //entry_ap(0,0);
   start_ap64_pregdt(0); // will never return from here!

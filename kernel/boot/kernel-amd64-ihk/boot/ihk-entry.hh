@@ -25,6 +25,7 @@ extern unsigned long x86_kernel_phys_base;
 extern unsigned long ap_trampoline;
 extern unsigned int ihk_ikc_irq;
 extern unsigned int ihk_ikc_irq_apicid;
+extern uint64_t* pml4_ihk;
 
 #define MAP_KERNEL_START   0xFFFFFFFFFE800000UL
 #define LINUX_PAGE_OFFSET  0xffff880000000000UL

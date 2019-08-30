@@ -57,15 +57,12 @@ void LAPIC::init() {
     // before enabling an APIC.  See e.g. "AP-388 82489DX User's
     // Manual" (Intel document number 292116).
     value = read(REG_DFR);
-    MLOG_DETAIL(mlog::boot, "APIC DFR", DVARhex(value.value));
     value.model = 0xF; // flat mode
     write(REG_DFR, value);
     value = read(REG_LDR);
-    MLOG_DETAIL(mlog::boot, "APIC LDR", DVARhex(value.value));
     value.destination = 1; // will not be used anyway
     write(REG_LDR, value);
 
-    MLOG_DETAIL(mlog::boot, "APIC 1", DVAR(getId()));
     // init the local interrupt sources
     // all of them should be in invalid state anyway
     value.value = 0;
@@ -77,7 +74,6 @@ void LAPIC::init() {
     write(REG_LVT_LINT1, value);
     write(REG_LVT_ERROR, value);
 
-    MLOG_DETAIL(mlog::boot, "APIC 2");
     // enable all interrupts by task priority 0
     // see 10.8.6 Task Priority in IA-32e Mode
     // Loading the TPR with a task-priority class of 0 enables all external interrupts.
@@ -88,7 +84,6 @@ void LAPIC::init() {
     value.task_prio = 0;
     write(REG_TASK_PRIO, value);
 
-    MLOG_DETAIL(mlog::boot, "APIC 3", DVAR(mythos::x86::getMSR(mythos::x86::IA32_APIC_BASE_MSR)));
     // After a crash, interrupts from previous run can still have ISR bit set.
     // Thus clear these with EndOfInterrupt.
 	size_t queued = 0;
@@ -105,22 +100,17 @@ void LAPIC::init() {
 		queued = 0;
     }
 
-    MLOG_DETAIL(mlog::boot, "APIC 4");
     // init the Spurious Interrupt Vector Register for handling local interrupt sources
     // after the reset SPURINT == 0xFF, setting bit 8 enables the APIC, for example 0x100
     // the lowest 4 bits should be 0, the vector should be above 32 (processor internal interrupts)
     // but the acutal value does not matter, because it is configured for each separately...
     value = read(REG_SVR);
-    MLOG_DETAIL(mlog::boot, "SVR before init", reinterpret_cast<void*>(value.value));
     value.vector = 0xFF;  // this interrupt should never be triggered anyway
     value.apic_enable = 1;
     value.focus_processor_checking = 0;
     value.eio_suppression = 0;
-    MLOG_DETAIL(mlog::boot, "SVR writing", reinterpret_cast<void*>(value.value));
     write(REG_SVR, value);
-    MLOG_DETAIL(mlog::boot, "SVR after init", reinterpret_cast<void*>(read(REG_SVR).value));
 
-    MLOG_DETAIL(mlog::boot, "lapic", DVAR(x86::initialApicID()), DVAR(getId()));
     ASSERT(getId() == x86::initialApicID());
 
     // init Error register

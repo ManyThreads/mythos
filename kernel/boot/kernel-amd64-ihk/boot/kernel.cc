@@ -120,7 +120,7 @@ void runUser() {
  */
 void entry_ap(size_t apicID, size_t reason)
 {
-  MLOG_DETAIL(mlog::boot, "entry_ap");
+  MLOG_ERROR(mlog::boot, "entry_ap", DVAR(apicID));
   //asm volatile("xchg %bx,%bx");
   mythos::boot::apboot_thread(apicID);
   MLOG_DETAIL(mlog::boot, "started hardware thread", DVAR(reason));
@@ -167,8 +167,8 @@ void mythos::cpu::irq_entry_user(mythos::cpu::ThreadState* ctx)
 void mythos::cpu::irq_entry_kernel(mythos::cpu::KernelIRQFrame* ctx)
 {
   mythos::idle::wokeupFromInterrupt(); // can also be caused by preemption points!
-  MLOG_DETAIL(mlog::boot, "kernel interrupt", DVARhex(ctx->irq), DVARhex(ctx->error),
-      DVARhex(ctx->rip), DVARhex(ctx->rsp));
+  //MLOG_DETAIL(mlog::boot, "kernel interrupt", DVARhex(ctx->irq), DVARhex(ctx->error),
+      //DVARhex(ctx->rip), DVARhex(ctx->rsp));
   bool wasbug = handle_bugirqs(ctx); // initiate irq processing: first kernel bugs
   bool nested = mythos::async::getLocalPlace().enterKernel();
   if (!wasbug) {

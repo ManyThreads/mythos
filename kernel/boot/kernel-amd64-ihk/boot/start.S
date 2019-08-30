@@ -245,14 +245,24 @@ jmp _dbg_trampoline_code
 _dbg_table:
   .quad 0x0
 
+_dbg_pml4:
+  .quad 0x0
+
+_dbg_startap:
+  .quad 0x0
+
 dbg_ljmp32: // overwritten in (II)
  .long dbg_32prot - base
-  .word 0x10
+  .word 0x20
 
 boot_gdtptr:
   .short  boot_gdt32_end - boot_gdt32
    // overwritten in (I)
   .long boot_gdt32 - base
+
+dbg_ljmp64:
+   .long dbg_64 - base
+   .word 0x10, 0 
 
 _dbg_trampoline_code:
   cli
@@ -268,14 +278,19 @@ _dbg_trampoline_code:
   shll  $4, %ebx
 
   // update gdt address (I)
-  mov $(boot_gdt32 - base), %eax
-  addl %ebx, %eax
-  mov %eax, boot_gdtptr + 2 - base
+  //mov $(boot_gdt32 - base), %eax
+  //addl %ebx, %eax
+  //mov %eax, boot_gdtptr + 2 - base
+  addl %ebx, boot_gdtptr + 2 - base
 
   // update longjump into 32bit (II)
-  mov $(dbg_32prot - base), %eax
-  addl %ebx, %eax
-  mov %eax, dbg_ljmp32 - base
+  //mov $(dbg_32prot - base), %eax
+  //addl %ebx, %eax
+  //mov %eax, dbg_ljmp32 - base
+  addl %ebx, dbg_ljmp32 - base
+
+  // update longjump into 64bit
+  addl %ebx,  dbg_ljmp64 - base
 
   mfence
   movl $1, _dbg_trampoline-base
@@ -308,9 +323,9 @@ boot_idtptr:
 boot_gdt32:
   .quad 0
   .quad 0
-  .quad 0x00cf9b000000ffff
+  .quad 0x00af9b000000ffff
   .quad 0x00cf93000000ffff
-  .quad   0x00af9b000000ffff
+  .quad 0x00cf9b000000ffff
   .quad 0x0000890000000067
 boot_gdt32_end:
 
@@ -326,6 +341,15 @@ dbg_32prot:
   movl $3, (%ebx)
   mfence
 
+  // setup paging
+  mov %cr4, %edx
+  and     $(CR4_MASK), %edx
+  or      $(CR4_ENABLE), %edx
+  mov %edx, %cr4
+
+  movl (_dbg_table - base)(%ebx), %eax // !!!!  use variable
+  movl %eax, %cr3 // load phys pointer of the PML4 table
+
   // setup EFER
   mov $(EFER_MSR), %ecx
   xor %eax, %eax
@@ -334,22 +358,42 @@ dbg_32prot:
   or      $(EFER_ENABLE), %eax
   wrmsr
 
-dbg_loop:
-  hlt
-  jmp dbg_loop
-
-  // setup paging
-  mov %cr4, %edx
-  and     $(CR4_MASK), %edx
-  or      $(CR4_ENABLE), %edx
-  mov %edx, %cr4
-  //mov $BOOT_PML4-VIRT_ADDR, %edx // !!!!  use variable
-  //mov %edx, %cr3 // load phys pointer of the PML4 table
+  mfence
+  movl $4, (%ebx)
+  mfence
 
   mov %cr0, %edx
   and     $(CR0_MASK), %edx
   or      $(CR0_ENABLE), %edx
   mov %edx, %cr0
+
+  // load gdt via relative address
+  //lgdtl %cs:__gdt_desc - _setup_ap
+
+  ljmp *(dbg_ljmp64 - base)(%ebx)
+
+.balign 8
+.code64
+dbg_64:
+
+  mfence
+  movl $5, (%ebx)
+  mfence
+
+  mov (_dbg_pml4 - base)(%rbx), %rax // !!!!  use variable
+  mov %rax, %cr3 // load phys pointer of the PML4 table
+
+  mfence
+  movl $6, (%ebx)
+  mfence
+
+  movq	(_dbg_startap - base)(%rbx),%r8
+  jmp *%r8
+
+dbg_loop:
+  hlt
+  jmp dbg_loop
+
 /*
         // load gdt via relative address
         lgdtl %cs:__gdt_desc - _setup_ap
@@ -383,6 +427,11 @@ _dbg_trampoline_end:
 .global _start_ap64_pregdt
 .type _start_ap64_pregdt, @function
 _start_ap64_pregdt:
+
+  mfence
+  movl $7, (%ebx)
+  mfence
+
         // get initial LAPIC ID from bits(cpuid(1).ebx,31,24)
         mov $1, %rax
         mov $0, %rcx
