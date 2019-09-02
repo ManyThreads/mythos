@@ -28,7 +28,6 @@
 #include "util/assert.hh"
 #include "cpu/PIC.hh"
 #include "cpu/LAPIC.hh"
-#include "cpu/IOApic.hh"
 #include "cpu/ctrlregs.hh"
 #include "boot/memory-layout.h"
 #include "util/MPApicTopology.hh"
@@ -63,8 +62,7 @@ NORETURN void apboot() {
     ap_apic2config[topo.threadID(id)] = &ap_config[id];
   }
 
-  mapIOApic((uint32_t)topo.ioapic_address());
-  ioapic.init(IOAPIC_ADDR);
+  apic_addr = physPtr(topo.ioapic_address());
 
   // broadcast Startup IPI
   DeployHWThread::prepareBSP(0x40000);

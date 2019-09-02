@@ -76,6 +76,4 @@ private:
     uint32_t volatile *base_address = {nullptr};
 };
 
-extern IOApic ioapic;
-
 } // namespace mythos

@@ -31,6 +31,12 @@
 
 namespace mythos {
 
+IOApic ioapic;
+PhysAddr<void> apic_addr;
+
+  mapIOApic((uint32_t)topo.ioapic_address());
+  ioapic.init(IOAPIC_ADDR);
+
 optional<void> InterruptControl::deleteCap(CapEntry&, Cap self, IDeleter& del) {
     if (self.isOriginal()) {
         del.deleteObject(del_handle);
