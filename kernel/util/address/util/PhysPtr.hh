@@ -178,6 +178,18 @@ namespace mythos {
   }
 
   template<class T>
+  uint32_t kernel2offset(T* vp) {
+    ASSERT(isKernelAddress(vp));
+    return uint32_t(reinterpret_cast<uintptr_t>(vp) - KERNELMEM_ADDR);
+  }
+
+  template<class T>
+  T* offset2kernel(uint32_t o) {
+    ASSERT(o < KERNELMEM_SIZE);
+    return reinterpret_cast<T*>(o + KERNELMEM_ADDR);
+  }
+
+  template<class T>
   T* image2kernel(T* vp) {
     ASSERT(isImageAddress(vp));
     return reinterpret_cast<T*>(reinterpret_cast<uintptr_t>(vp) - VIRT_ADDR + KERNELMEM_ADDR);

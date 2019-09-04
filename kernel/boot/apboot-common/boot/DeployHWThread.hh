@@ -113,15 +113,10 @@ struct DeployHWThread
     /* ATTENTION ATTENTION */
 	/* no logging before loading the GDT for the core-local memory */
 	/* FROM HERE */
-	//while(1);
     loadKernelSpace();
-	//while(1);
-    gdt.load2();
-	//while(1);
+    gdt.load();
     gdt.tss_kernel_load();
 	/* TO HERE */
-    MLOG_DETAIL(mlog::boot, "idt.load");
-	//while(1);
     idt.load();
     cpu::initSyscallEntry();
 	idle::init_thread();

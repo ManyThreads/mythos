@@ -103,8 +103,6 @@ void printDbg()
 
 void apboot_thread(size_t apicID)
 { 
-  MLOG_DETAIL(mlog::boot, "ap_boot_thread");
-  //while(1);
 	ap_apic2config[apicID]->initThread();
 }
 
@@ -208,11 +206,7 @@ void apboot_thread(size_t apicID)
     }
   }
 
-  //while(1);
-  //// switch to BSP's stack here
-  //entry_ap(0,0);
   start_ap64_pregdt(0); // will never return from here!
-  //start_ap64(0); // will never return from here!
   while(1);
 }
 

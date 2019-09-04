@@ -184,52 +184,6 @@ _start_bsp64:
         pushq   $0 // fake return address as first stack frame
         jmp entry_bsp
 
-// ---------------
-
-/*.code16
-.align  16
-.global _setup_ap
-_setup_ap:
-        cli
-        // init paging and load stage 1 page table
-        mov $(EFER_MSR), %ecx // select the EFER MSR
-        rdmsr
-        and     $(EFER_MASK), %eax
-        or      $(EFER_ENABLE), %eax
-        wrmsr
-        mov %cr4, %edx
-        and     $(CR4_MASK), %edx
-        or      $(CR4_ENABLE), %edx
-        mov %edx, %cr4
-        mov $BOOT_PML4-VIRT_ADDR, %edx
-        mov %edx, %cr3 // load phys pointer of the PML4 table
-        mov %cr0, %edx
-        and     $(CR0_MASK), %edx
-        or      $(CR0_ENABLE), %edx
-        mov %edx, %cr0
-
-        // load gdt via relative address
-        lgdtl %cs:__gdt_desc - _setup_ap
-
-        // jump to next stage
-        // this switches from 16 to 64 bit mode and actives the paging
-        ljmpl $0x10, $_start_ap64_low
-
-        // need a local gdt descriptor, because lgdtl can only handle 16bit relative addresses
-__gdt_desc:
-        .word _boot_gdt_end - _boot_gdt_start - 1
-        .quad _boot_gdt_start
-.
-        mov     $(EFER_MSR), %ecx       // select the EFER MSR
-        rdmsr         global _setup_ap_end
-_setup_ap_end:
-
-.code64
-.align  8
-_start_ap64_low:
-        movq $0, %rdi
-        jmp _start_ap64
-*/
 .section .text
 
 .code16
@@ -367,9 +321,6 @@ dbg_32prot:
   or      $(CR0_ENABLE), %edx
   mov %edx, %cr0
 
-  // load gdt via relative address
-  //lgdtl %cs:__gdt_desc - _setup_ap
-
   ljmp *(dbg_ljmp64 - base)(%ebx)
 
 .balign 8
@@ -394,28 +345,6 @@ dbg_loop:
   hlt
   jmp dbg_loop
 
-/*
-        // load gdt via relative address
-        lgdtl %cs:__gdt_desc - _setup_ap
-
-        // jump to next stage
-        // this switches from 16 to 64 bit mode and actives the paging
-        ljmpl $0x10, $_start_ap64_low
-
-        // need a local gdt descriptor, because lgdtl can only handle 16bit relative addresses
-
-.align  8
-_dbg_gdt_start:
-        .quad   0x0000000000000000      // null descriptor
-        .quad   0x0000000000000000      // 0x08 unused
-        .quad   0x00a09b000000ffff      // 0x10 kernel code
-        .quad   0x00a093000000ffff      // 0x18 kernel data
-_dbg_gdt_end:
-        .word   0                       // padding to align ...
-_dbg_gdt:
-        .word   _boot_gdt_end - _boot_gdt_start - 1     // limit: length of the GDT
-        .quad   _boot_gdt_start                 // base
-*/
 
 .global _dbg_trampoline_end
 _dbg_trampoline_end:

@@ -206,14 +206,14 @@ void _start_ihk_mythos_(unsigned long param_addr, unsigned long phys_address,
 	putHex(boot_param->bootstrap_mem_end);
 	putHex(boot_param->bootstrap_mem_end - phys_address);
 
-	kputs("Trampoline data...");
-	putHex(_ap_trampoline);
-  auto trampo = reinterpret_cast<trampoline_t*>(ap_trampoline);
-  putHex(trampo->jump_intr);
-  putHex(trampo->header_pgtbl);
-  putHex(trampo->header_load);
-  putHex(trampo->stack_ptr);
-  putHex(trampo->notify_addr);
+	//kputs("Trampoline data...");
+	//putHex(_ap_trampoline);
+  //auto trampo = reinterpret_cast<trampoline_t*>(ap_trampoline);
+  //putHex(trampo->jump_intr);
+  //putHex(trampo->header_pgtbl);
+  //putHex(trampo->header_load);
+  //putHex(trampo->stack_ptr);
+  //putHex(trampo->notify_addr);
 
 	void* rq = alloc_pages(1); 
 	void* wq = alloc_pages(1); 
@@ -221,10 +221,6 @@ void _start_ihk_mythos_(unsigned long param_addr, unsigned long phys_address,
 	boot_param->mikc_queue_recv = virt_to_phys(wq);
 	boot_param->mikc_queue_send = virt_to_phys(rq);
 
-	kputs("get ready\n");	
-	//boot_param->status = 1;
-	//asm volatile("" ::: "memory");
-	
 	/* get ready */
 	boot_param->status = 2;
 	asm volatile("" ::: "memory");
@@ -326,7 +322,7 @@ void _start_ihk_mythos_(unsigned long param_addr, unsigned long phys_address,
 	for(unsigned i = 259; i < 511; i++){
 		pml4_table[i] = INVALID; 
 	}
-	pml4_table[511] = /*cr3[511];*/PML4_BASE + table_to_phys_addr(pml3_table,1);
+	pml4_table[511] = PML4_BASE + table_to_phys_addr(pml3_table,1);
 
 	//second table (user land)
 	for(unsigned i = 512; i < 768; i++){
@@ -341,7 +337,7 @@ void _start_ihk_mythos_(unsigned long param_addr, unsigned long phys_address,
 	for(unsigned i = 771; i < 1023; i++){
 		pml4_table[i] = INVALID; 
 	}
-	pml4_table[1023] = /*cr3[511];*/ PML4_BASE + table_to_phys_addr(pml3_table,1);
+	pml4_table[1023] = PML4_BASE + table_to_phys_addr(pml3_table,1);
 
 	dumpTable(cr3);
 	dumpTable(pml4_table);
@@ -354,19 +350,9 @@ void _start_ihk_mythos_(unsigned long param_addr, unsigned long phys_address,
 	dumpTable((uint64_t*)((uint64_t*)(pml4_table[511] & 0xFFFFFFFFFFFFFF00))[511]);
 
 	asm volatile("movq %0, %%cr3" : : "r" (table_to_phys_addr(pml4_table,0)));
-	//asm volatile("movq %0, %%cr3" : : "r" (cr3));
 
-	/* entry_bsp */	
-	//entry_bsp();
 	start_bsp64_pregdt();
 
-	kputs("while loop\n");	
-	//while (1){
-		//kputs("l");
-		//int i,j;
-		//for(i=0;i<255;i++)
-		   //for(j=0;j<255;j++);
-	//};
 	while(1);
 	/* never return */
 }

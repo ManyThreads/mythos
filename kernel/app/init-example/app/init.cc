@@ -277,7 +277,7 @@ int main()
   test_Example();
   test_Portal();
   test_heap(); // heap must be initialized for tls test
-  //test_tls();
+  test_tls();
   test_exceptions();
   //test_InterruptControl();
 
