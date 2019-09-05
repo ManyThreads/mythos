@@ -56,7 +56,7 @@ namespace mythos {
   }
 
   IPageMap* PageMap::table2PageMap(PageTableEntry const* table) {
-    uintptr_t ptr = (table[0].pmPtr<<3) | (table[1].pmPtr<<13) | (table[2].pmPtr<<23);
+    auto ptr = uint32_t((table[0].pmPtr<<3) | (table[1].pmPtr<<13) | (table[2].pmPtr<<23));
     return offset2kernel<IPageMap>(ptr);
   }
 
