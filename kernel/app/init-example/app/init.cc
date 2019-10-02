@@ -46,6 +46,8 @@
 #include <vector>
 #include <array>
 
+#include <pthread.h>
+
 mythos::InvocationBuf* msg_ptr asm("msg_ptr");
 int main() asm("main");
 
@@ -266,6 +268,21 @@ void test_exceptions() {
     }
 }
 
+void* threadMain(void* arg){
+  MLOG_INFO(mlog::app, "Thread says hello", DVAR(pthread_self()));
+	return NULL;
+}
+
+void test_pthreads(){
+  MLOG_INFO(mlog::app, "Test Pthreads");
+	pthread_t p;
+ 
+	pthread_create(&p, NULL, &threadMain, NULL);
+	pthread_join(p, NULL);
+
+  MLOG_INFO(mlog::app, "End Test Pthreads");
+}
+
 int main()
 {
   char const str[] = "hello world!";
@@ -280,6 +297,7 @@ int main()
   test_tls();
   test_exceptions();
   //test_InterruptControl();
+  test_pthreads();
 
   //std::vector<int> foo;
   //for (int i=0; i<100; i++) foo.push_back(i);

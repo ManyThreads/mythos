@@ -30,10 +30,12 @@
 
 //#define use_pthreads_stubs
 
+#ifdef use_pthreads_stubs
 extern "C" int pthread_create(pthread_t *res, const pthread_attr_t *attrp, void *(*entry)(void *), void *arg){
 	MLOG_DETAIL(mlog::app, __PRETTY_FUNCTION__);
 	return 0;
 }
+#endif
 
 extern "C" int pthread_detach(pthread_t){
 	MLOG_DETAIL(mlog::app, __PRETTY_FUNCTION__);

@@ -61,6 +61,24 @@ extern "C" long mythos_musl_syscall(long num, long a1, long a2, long a3,
     return -1;
 }
 
+extern "C" void * mmap(void *start, size_t len, int prot, int flags, int fd, off_t off){
+    MLOG_DETAIL(mlog::app, "mmap");
+	errno = ENOMEM;
+	return MAP_FAILED;
+}
+
+extern "C" int munmap(void *start, size_t len){
+    MLOG_DETAIL(mlog::app, "munmap");
+	return 0;
+}
+
+extern "C" int mprotect(void *addr, size_t len, int prot){
+    MLOG_DETAIL(mlog::app, "mprotect");
+	size_t start, end;
+	start = (size_t)addr & -PAGE_SIZE;
+	end = (size_t)((char *)addr + len + PAGE_SIZE-1) & -PAGE_SIZE;
+	return 0;
+}
 
 struct dl_phdr_info
 {
