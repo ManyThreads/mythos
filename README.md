@@ -74,9 +74,11 @@ In order to run MyThOS on an Intel XeonPhi Knights Corner processor, a recent ve
 * Disable SELinux: `vim /etc/selinux/config` and change the file to SELINUX=disabled
 * Reboot the machine: `sudo reboot`
 * Install required packages: `sudo yum install cmake kernel-devel binutils-devel systemd-devel numactl-devel`
-* Grant read permission to the System.map file of your kernel version: `sudo chmod a+r /boot/System.map-`uname -r` `
+* Grant read permission to the System.map file of your kernel version: ``sudo chmod a+r /boot/System.map-`uname -r` ``
 * Run `3rdparty/install-ihk.sh`
-* Now you can run `make` in the root folder. This will assemble the source code into the subfolders `kernel-amd64`, kernel-ihk, `kernel-knc` and `host-knc`.
+* Now you can run `make` in the root folder. This will assemble the source code into the subfolders `kernel-amd64`, `kernel-ihk`, `kernel-knc` and `host-knc`.
+* `cd kernel-ihk`
+* `make run`
 
 # Acknowledgements
 

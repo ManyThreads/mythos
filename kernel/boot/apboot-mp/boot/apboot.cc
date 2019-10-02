@@ -66,8 +66,10 @@ NORETURN void apboot() {
   mapIOApic((uint32_t)topo.ioapic_address());
   ioapic.init(IOAPIC_ADDR);
 
+  DeployHWThread::prepareBSP();
+
   // broadcast Startup IPI
-  DeployHWThread::prepareBSP(0x40000);
+  initAPTrampoline(0x40000);
   mythos::cpu::disablePIC();
   mythos::x86::enableApic(); // just to be sure it is enabled
   mythos::lapic.init();
