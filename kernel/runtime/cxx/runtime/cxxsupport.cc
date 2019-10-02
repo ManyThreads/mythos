@@ -30,6 +30,9 @@
 #include <endian.h>
 #include <pthread.h>
 #include <atomic>
+#include <sys/types.h>
+#include <errno.h>
+#include <sys/mman.h>
 
 #include "mythos/syscall.hh"
 #include "runtime/mlog.hh"
@@ -74,9 +77,9 @@ extern "C" int munmap(void *start, size_t len){
 
 extern "C" int mprotect(void *addr, size_t len, int prot){
     MLOG_DETAIL(mlog::app, "mprotect");
-	size_t start, end;
-	start = (size_t)addr & -PAGE_SIZE;
-	end = (size_t)((char *)addr + len + PAGE_SIZE-1) & -PAGE_SIZE;
+	//size_t start, end;
+	//start = (size_t)addr & -PAGE_SIZE;
+	//end = (size_t)((char *)addr + len + PAGE_SIZE-1) & -PAGE_SIZE;
 	return 0;
 }
 
