@@ -277,7 +277,8 @@ void test_pthreads(){
   MLOG_INFO(mlog::app, "Test Pthreads");
 	pthread_t p;
  
-	pthread_create(&p, NULL, &threadMain, NULL);
+	auto tmp = pthread_create(&p, NULL, &threadMain, NULL);
+  MLOG_INFO(mlog::app, "pthread_create returned", DVAR(tmp));
 	pthread_join(p, NULL);
 
   MLOG_INFO(mlog::app, "End Test Pthreads");
