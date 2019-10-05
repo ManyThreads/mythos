@@ -26,6 +26,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <stdlib.h>
 #include <cstdarg>
 #include <endian.h>
 #include <pthread.h>
@@ -66,6 +67,10 @@ extern "C" long mythos_musl_syscall(long num, long a1, long a2, long a3,
 
 extern "C" void * mmap(void *start, size_t len, int prot, int flags, int fd, off_t off){
     MLOG_DETAIL(mlog::app, "mmap");
+	if(fd == -1){
+		return malloc(len);
+	}
+
 	errno = ENOMEM;
 	return MAP_FAILED;
 }
