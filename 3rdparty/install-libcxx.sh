@@ -86,7 +86,7 @@ env CC=$REALGCC CFLAGS="-nostdinc" \
 ../configure $MUSLTARGET --prefix="$DSTDIR/usr" \
     --disable-shared \
     --enable-wrapper=all \
-    && make && make install || fail
+    && make -j `nproc` && make install || fail
 cd ../..
 
 ### build preliminary libcxx just for the header files
@@ -102,7 +102,7 @@ cmake -DCMAKE_INSTALL_PREFIX="$DSTDIR/usr" \
     -DLIBCXX_SYSROOT="$DSTDIR" \
     -DLIBCXX_ENABLE_SHARED=OFF \
     -DLLVM_PATH="$BASEDIR/cxx-src/llvm" \
-    ../ && make -j && make install || fail
+    ../ && make -j `nproc` && make install || fail
 cd ../..
 
 ### install llvm's libunwind for amd64
@@ -116,7 +116,7 @@ cmake -DCMAKE_INSTALL_PREFIX="$DSTDIR/usr" \
     -DLIBUNWIND_ENABLE_SHARED=OFF \
     -DCMAKE_BUILD_TYPE=Release \
     -DLLVM_PATH="$BASEDIR/cxx-src/llvm" \
-    ../ && make && make install || fail
+    ../ && make -j `nproc` && make install || fail
 cd ../..
 
 
@@ -140,7 +140,7 @@ cmake -DCMAKE_INSTALL_PREFIX="$DSTDIR/usr" \
     -DLIBCXXABI_ENABLE_NEW_DELETE_DEFINITIONS=OFF \
     -DLIBCXXABI_SHARED_LINK_FLAGS="-L$DSTDIR/usr/lib" \
     -DLLVM_PATH="$BASEDIR/cxx-src/llvm" \
-    ../ && make -j && make install || fail
+    ../ && make -j `nproc` && make install || fail
 cd ../..
 
 
@@ -163,7 +163,7 @@ cmake -DCMAKE_INSTALL_PREFIX="$DSTDIR/usr" \
     -DLIBCXX_CXX_ABI_LIBRARY_PATH="$DSTDIR/usr/lib" \
     -DLLVM_PATH="$BASEDIR/cxx-src/llvm" \
     -DLIBCXX_ENABLE_STATIC_ABI_LIBRARY=ON \
-    ../ && make -j && make install || fail
+    ../ && make -j `nproc` && make install || fail
 cd ../..
 
 } # function compile
