@@ -34,11 +34,28 @@
 #include <sys/types.h>
 #include <errno.h>
 #include <sys/mman.h>
+#include <sys/time.h>
 
 #include "mythos/syscall.hh"
 #include "runtime/mlog.hh"
 #include "util/elf64.hh"
+#include "runtime/ExecutionContext.hh"
+#include "runtime/Portal.hh"
+#include "runtime/ExecutionContext.hh"
+#include "runtime/CapMap.hh"
+#include "runtime/Example.hh"
+#include "runtime/PageMap.hh"
+#include "runtime/KernelMemory.hh"
+#include "runtime/SimpleCapAlloc.hh"
+#include "runtime/tls.hh"
+#include "runtime/futex.h"
 
+extern mythos::InvocationBuf* msg_ptr asm("msg_ptr");
+extern mythos::Portal portal;
+extern mythos::CapMap myCS;
+extern mythos::PageMap myAS;
+extern mythos::KernelMemory kmem;
+extern mythos::SimpleCapAllocDel capAlloc;
 
 extern "C" [[noreturn]] void __assert_fail (const char *expr, const char *file, int line, const char *func)
 {
@@ -50,17 +67,56 @@ extern "C" [[noreturn]] void __assert_fail (const char *expr, const char *file, 
 extern "C" long mythos_musl_syscall(long num, long a1, long a2, long a3,
 	             long a4, long a5, long a6)
 {
+    MLOG_DETAIL(mlog::app, "mythos_musl_syscall", DVAR(num), 
+            DVAR(a1), DVAR(a2), DVAR(a3),
+            DVAR(a4), DVAR(a5), DVAR(a6));
     // see http://blog.rchapman.org/posts/Linux_System_Call_Table_for_x86_64/
     switch (num) {
     case 60: // exit(exit_code)
+        MLOG_DETAIL(mlog::app, "syscall exit");
         asm volatile ("syscall" : : "D"(0), "S"(a1) : "memory");
         return 0;
+    case 202: // sys_futex
+        MLOG_DETAIL(mlog::app, "syscall futex");
+        {
+            //struct timespec64 ts;
+            //ktime_t t, *tp = NULL;
+            uint32_t val2 = 0;
+            //int cmd = a2 & FUTEX_CMD_MASK;
+
+            /*if (utime && (cmd == FUTEX_WAIT || cmd == FUTEX_LOCK_PI ||
+                  cmd == FUTEX_WAIT_BITSET ||
+                  cmd == FUTEX_WAIT_REQUEUE_PI)) {
+                if (unlikely(should_fail_futex(!(a3 & FUTEX_PRIVATE_FLAG))))
+                    return -EFAULT;
+                if (get_timespec64(&ts, utime))
+                   return -EFAULT;
+                if (!timespec64_valid(&ts))
+                    return -EINVAL;
+
+                t = timespec64_to_ktime(ts);
+                if (cmd == FUTEX_WAIT)
+                    t = ktime_add_safe(ktime_get(), t);
+                tp = &t;
+            }*/
+            /*
+             * requeue parameter in 'utime' if cmd == FUTEX_*_REQUEUE_*.
+             * number of waiters to wake in 'utime' if cmd == FUTEX_WAKE_OP.
+             */
+            /*if (cmd == FUTEX_REQUEUE || cmd == FUTEX_CMP_REQUEUE ||
+                cmd == FUTEX_CMP_REQUEUE_PI || cmd == FUTEX_WAKE_OP)
+                val2 = (u32) (unsigned long) utime;*/
+
+            return do_futex(reinterpret_cast<uint32_t*>(a1) /*uaddr*/, a2 /*op*/, a3 /*val*/,   nullptr/* timeout*/, nullptr /*uaddr2*/, val2/*val2*/, a6/*val3*/);
+        }
     case 231: // exit_group for all pthreads 
+        MLOG_DETAIL(mlog::app, "syscall exit_group");
         return -1;
     default:
-        MLOG_ERROR(mlog::app, "mythos_musl_syscall", DVAR(num), 
+        /*MLOG_ERROR(mlog::app, "mythos_musl_syscall", DVAR(num), 
             DVAR(a1), DVAR(a2), DVAR(a3),
-            DVAR(a4), DVAR(a5), DVAR(a6));
+            DVAR(a4), DVAR(a5), DVAR(a6));*/
+        MLOG_ERROR(mlog::app, "Error: mythos_musl_syscall NYI", DVAR(num));
     }
     return -1;
 }
@@ -86,6 +142,46 @@ extern "C" int mprotect(void *addr, size_t len, int prot){
 	//start = (size_t)addr & -PAGE_SIZE;
 	//end = (size_t)((char *)addr + len + PAGE_SIZE-1) & -PAGE_SIZE;
 	return 0;
+}
+
+void* testStart(void* bla){
+    MLOG_DETAIL(mlog::app, "testStart");
+    return bla;
+}
+
+struct StartStruct{
+    int (*func)(void*);
+    void* arg;
+};
+
+void* startFun(void* arg){
+    auto start = reinterpret_cast<StartStruct*>(arg);
+    int (*func)(void*) = start->func;
+    void* args = start->arg;
+    delete start;
+    func(args);
+    return 0;
+}
+
+int clone(int (*func)(void *), void *stack, int flags, void *arg, ...){
+    MLOG_DETAIL(mlog::app, "clone");
+  
+    mythos::PortalLock pl(portal); // future access will fail if the portal is in use already
+
+    auto start = new StartStruct;
+    start->func = func;
+    start->arg = arg; 
+    mythos::ExecutionContext ec1(capAlloc());
+    auto tls = mythos::setupNewTLS();
+    ASSERT(tls != nullptr);
+    auto res1 = ec1.create(kmem).as(myAS).cs(myCS).sched(mythos::init::SCHEDULERS_START + 1)
+    .prepareStack(stack).startFun(&startFun, start)
+    .suspended(false).fs(tls)
+    .invokeVia(pl).wait();
+
+    //return -ENOSYS;
+    MLOG_DETAIL(mlog::app, DVAR(ec1.cap()));
+    return ec1.cap();
 }
 
 struct dl_phdr_info

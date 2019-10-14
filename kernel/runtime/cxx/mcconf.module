@@ -1,7 +1,8 @@
 # -*- mode:toml; -*-
 [module.cxxabi-app]
-    appfiles = [ "runtime/cxxsupport.cc", "runtime/string.cc", "runtime/cxxdelete.cc", "runtime/pthread.cc" ]
-    provides = [ "vector", "queue", "functional", "pthread.h", "endian.h", "errno.h", "sys/mman.h", "sys/types.h", "stdlib.h" ]
+	incfiles = [ "runtime/futex.h" ]
+    appfiles = [ "runtime/cxxsupport.cc", "runtime/string.cc", "runtime/cxxdelete.cc", "runtime/pthread.cc", "runtime/futex.cc" ]
+    provides = [ "vector", "queue", "functional", "pthread.h", "endian.h", "errno.h", "sys/mman.h", "sys/types.h", "stdlib.h", "sys/time.h", "stdatomic.h" ]
     makefile_head = '''
 APP_CPPFLAGS += -nostdinc -nostdinc++ -isystem ${vars.cxx_path}/include/c++/v1 -isystem ${vars.cxx_path}/include 
 APP_LDFLAGS += -Wl,--eh-frame-hdr --sysroot=${vars.cxx_path}/../

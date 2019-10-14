@@ -42,15 +42,19 @@ extern "C" int pthread_detach(pthread_t){
 	return 0;
 }
 
+#ifdef use_pthreads_stubs
 extern "C" _Noreturn void pthread_exit(void *){
 	MLOG_DETAIL(mlog::app, __PRETTY_FUNCTION__);
 	while(1);
 }
+#endif
 
+#ifdef use_pthreads_stubs
 extern "C" int pthread_join(pthread_t, void **){
 	MLOG_DETAIL(mlog::app, __PRETTY_FUNCTION__);
 	return 0;
 }
+#endif
 
 #ifdef use_pthreads_stubs
 extern "C" pthread_t pthread_self(void){
@@ -64,20 +68,24 @@ extern "C" int pthread_equal(pthread_t, pthread_t){
 	return 0;
 }
 
-
+#ifdef use_pthreads_stubs
 extern "C" int pthread_setcancelstate(int, int *){
 	MLOG_DETAIL(mlog::app, __PRETTY_FUNCTION__);
 	return 0;
 }
+#endif
 
 extern "C" int pthread_setcanceltype(int, int *){
 	MLOG_DETAIL(mlog::app, __PRETTY_FUNCTION__);
 	return 0;
 }
 
+#ifdef use_pthreads_stubs
 extern "C" void pthread_testcancel(void){
 	MLOG_DETAIL(mlog::app, __PRETTY_FUNCTION__);
+	//while(1);
 }
+#endif
 
 extern "C" int pthread_cancel(pthread_t){
 	MLOG_DETAIL(mlog::app, __PRETTY_FUNCTION__);
