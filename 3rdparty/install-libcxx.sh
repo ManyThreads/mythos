@@ -68,6 +68,12 @@ fi
 rm -rf libunwind
 tar -xJf libunwind-7.0.0.src.tar.xz && mv libunwind-7.0.0.src libunwind || fail
 
+#openmp
+if test ! -e openmp-7.0.0.src.tar.xz ; then  
+  curl -O http://releases.llvm.org/7.0.0/openmp-7.0.0.src.tar.xz || fail
+fi
+rm -rf openmp
+tar -xJf openmp-7.0.0.src.tar.xz && mv openmp-7.0.0.src openmp || fail
 
 function compile {
 
@@ -166,9 +172,26 @@ cmake -DCMAKE_INSTALL_PREFIX="$DSTDIR/usr" \
     ../ && make -j `nproc` && make install || fail
 cd ../..
 
+
+# install openmp
+cd openmp
+rm -rf build && mkdir build && cd build
+cmake -DCMAKE_INSTALL_PREFIX="$DSTDIR/usr" \
+    -DCMAKE_C_COMPILER="$DSTDIR/usr/bin/musl-gcc" \
+    -DCMAKE_CXX_COMPILER="$DSTDIR/usr/bin/musl-gcc" \
+    -DCMAKE_CXX_FLAGS="-isystem $DSTDIR/usr/include -isystem $DSTDIR/usr/include/c++/v1" \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DLIBCXX_SYSROOT="$DSTDIR" \
+    -DLIBCXX_ENABLE_SHARED=OFF \
+    -DLIBCXX_CXX_ABI=libcxxabi \
+    -DLIBCXX_CXX_ABI_INCLUDE_PATHS="$BASEDIR/cxx-src/libcxxabi/include" \
+    -DLIBCXX_CXX_ABI_LIBRARY_PATH="$DSTDIR/usr/lib" \
+    -DLLVM_PATH="$BASEDIR/cxx-src/llvm" \
+    -DLIBCXX_ENABLE_STATIC_ABI_LIBRARY=ON \
+    ../ && make -j `nproc` && make install || fail
+cd ../..
+
 } # function compile
-
-
 
 export DSTDIR="$BASEDIR/cxx-amd64"
 export MUSLTARGET=""
