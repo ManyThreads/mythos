@@ -79,34 +79,7 @@ extern "C" long mythos_musl_syscall(long num, long a1, long a2, long a3,
     case 202: // sys_futex
         MLOG_DETAIL(mlog::app, "syscall futex");
         {
-            //struct timespec64 ts;
-            //ktime_t t, *tp = NULL;
             uint32_t val2 = 0;
-            //int cmd = a2 & FUTEX_CMD_MASK;
-
-            /*if (utime && (cmd == FUTEX_WAIT || cmd == FUTEX_LOCK_PI ||
-                  cmd == FUTEX_WAIT_BITSET ||
-                  cmd == FUTEX_WAIT_REQUEUE_PI)) {
-                if (unlikely(should_fail_futex(!(a3 & FUTEX_PRIVATE_FLAG))))
-                    return -EFAULT;
-                if (get_timespec64(&ts, utime))
-                   return -EFAULT;
-                if (!timespec64_valid(&ts))
-                    return -EINVAL;
-
-                t = timespec64_to_ktime(ts);
-                if (cmd == FUTEX_WAIT)
-                    t = ktime_add_safe(ktime_get(), t);
-                tp = &t;
-            }*/
-            /*
-             * requeue parameter in 'utime' if cmd == FUTEX_*_REQUEUE_*.
-             * number of waiters to wake in 'utime' if cmd == FUTEX_WAKE_OP.
-             */
-            /*if (cmd == FUTEX_REQUEUE || cmd == FUTEX_CMP_REQUEUE ||
-                cmd == FUTEX_CMP_REQUEUE_PI || cmd == FUTEX_WAKE_OP)
-                val2 = (u32) (unsigned long) utime;*/
-
             return do_futex(reinterpret_cast<uint32_t*>(a1) /*uaddr*/, a2 /*op*/, a3 /*val*/,   nullptr/* timeout*/, nullptr /*uaddr2*/, val2/*val2*/, a6/*val3*/);
         }
     case 231: // exit_group for all pthreads 

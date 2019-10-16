@@ -6,6 +6,7 @@
 
     makefile_head = '''
 TARGETS += app/init.elf
+APP_CXXFLAGS += -fopenmp
 '''
 
     makefile_body = '''

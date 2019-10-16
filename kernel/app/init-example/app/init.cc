@@ -47,6 +47,7 @@
 #include <array>
 
 #include <pthread.h>
+#include <omp.h>
 
 mythos::InvocationBuf* msg_ptr asm("msg_ptr");
 int main() asm("main");
@@ -274,7 +275,7 @@ void* threadMain(void* arg){
 }
 
 void test_pthreads(){
-  MLOG_INFO(mlog::app, "Test Pthreads")
+  MLOG_INFO(mlog::app, "Test Pthreads");
 	pthread_t p;
  
 	auto tmp = pthread_create(&p, NULL, &threadMain, NULL);
@@ -282,6 +283,29 @@ void test_pthreads(){
 	pthread_join(p, NULL);
 
   MLOG_INFO(mlog::app, "End Test Pthreads");
+}
+
+void test_omp(){
+  MLOG_INFO(mlog::app, "Test Openmp");
+  int nthreads, tid;
+
+/* Fork a team of threads giving them their own copies of variables */
+#pragma omp parallel private(nthreads, tid)
+  {
+
+  /* Obtain thread number */
+  tid = omp_get_thread_num();
+  MLOG_INFO(mlog::app, "Hello World from thread", DVAR(tid));
+
+  /* Only master thread does this */
+  if (tid == 0) 
+    {
+    nthreads = omp_get_num_threads();
+  MLOG_INFO(mlog::app, "Number of threads", DVAR(nthreads));
+    }
+
+  }
+  MLOG_INFO(mlog::app, "End Test Openmp");
 }
 
 int main()
@@ -301,6 +325,7 @@ int main()
   test_exceptions();
   //test_InterruptControl();
   test_pthreads();
+  test_omp();
 
   //std::vector<int> foo;
   //for (int i=0; i<100; i++) foo.push_back(i);
