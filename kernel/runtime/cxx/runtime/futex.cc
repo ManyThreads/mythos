@@ -1,22 +1,101 @@
-#include "runtime/futex.h"
+#include "runtime/futex.hh"
 #include "runtime/mlog.hh"
+#include "runtime/ExecutionContext.hh"
+#include "util/TidexMutex.hh"
 
 #include <errno.h>
-//#include <atomic>
-#include <stdatomic.h>
+#include <atomic>
+
+struct FutexQueueElem;
+
+struct FutexQueueElem{
+	mythos::CapPtr ec;
+	uint32_t* uaddr;
+	FutexQueueElem* next;	
+}; 
+
+FutexQueueElem* queueHead = nullptr;
+FutexQueueElem** queueTail = &queueHead;
+
+struct MuslThreadContext {
+	typedef uint32_t ThreadID;
+	static ThreadID getThreadID() { return uint32_t(mythos::localEC); }
+	static void pollpause(){};
+};
+
+typedef mythos::TidexMutex<MuslThreadContext> SpinLock; 
+SpinLock readLock;
 
 static int futex_wait(uint32_t *uaddr, unsigned int flags, uint32_t val,
 uint32_t *abs_time, uint32_t bitset)
 {
-	MLOG_DETAIL(mlog::app, DVAR(*uaddr), DVAR(val));
-	while(atomic_load(uaddr) == val);
+	MLOG_DETAIL(mlog::app, DVARhex(uaddr), DVAR(*uaddr), DVAR(val));
+	FutexQueueElem qe;
+	qe.ec = mythos::localEC;
+	qe.uaddr = uaddr;
+	qe.next = nullptr;
+
+	volatile uint32_t* addr = uaddr;
+	{ 
+		SpinLock::Lock guard(readLock);
+		*queueTail = &qe;
+		queueTail = &qe.next;
+	}
+
+	if(val == *addr){
+		MLOG_DETAIL(mlog::app, "going to wait");
+		auto sysret = mythos::syscall_wait();	
+	}
+
+	if(reinterpret_cast<uint64_t>(qe.next) != 1ul){
+		MLOG_DETAIL(mlog::app, "next != -1 -> remove this element from queue");
+		SpinLock::Lock guard(readLock);
+		auto curr = &queueHead;
+		while(*curr){
+			if((*curr)->next == &qe) break;
+			curr = &(*curr)->next;
+		}
+		
+		if(*curr){
+			if(queueTail == &(*curr)->next){
+				MLOG_DETAIL(mlog::app, "last elem in queue");
+				queueTail = curr;
+			}
+			(*curr)->next = (*curr)->next->next;
+		}
+
+	
+	}
+
+	MLOG_DETAIL(mlog::app, "Return from futex_wait");
 	return 0;
 }
 
 static int futex_wake(uint32_t *uaddr, unsigned int flags, int nr_wake, uint32_t bitset){
-	MLOG_DETAIL(mlog::app, DVAR(*uaddr));
-	atomic_fetch_add(uaddr, 1);
-	MLOG_DETAIL(mlog::app, "Futex_wait return" );
+	MLOG_DETAIL(mlog::app, "Futex_wake" );
+	MLOG_DETAIL(mlog::app, DVARhex(uaddr), DVAR(*uaddr));
+	
+	SpinLock::Lock guard(readLock);
+	
+	auto curr = &queueHead; 
+	for(int i = 0; i < nr_wake; i++){
+		while((*curr) && (*curr)->uaddr != uaddr){
+			curr = &(*curr)->next;
+		}
+
+		if(*curr){
+			MLOG_DETAIL(mlog::app, "Found entry" );
+			auto entry = *curr;
+			*curr = entry->next;
+			entry->next = reinterpret_cast<FutexQueueElem*>(1ul);
+			MLOG_DETAIL(mlog::app, "Wake EC" );
+			mythos::syscall_signal(entry->ec);
+		}else{
+			MLOG_DETAIL(mlog::app, "Reached end of queue" );
+	       		return 0;
+		}
+	}
+
 	return 0;
 }
 

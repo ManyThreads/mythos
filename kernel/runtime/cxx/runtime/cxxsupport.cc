@@ -48,7 +48,7 @@
 #include "runtime/KernelMemory.hh"
 #include "runtime/SimpleCapAlloc.hh"
 #include "runtime/tls.hh"
-#include "runtime/futex.h"
+#include "runtime/futex.hh"
 
 extern mythos::InvocationBuf* msg_ptr asm("msg_ptr");
 extern mythos::Portal portal;
@@ -136,6 +136,12 @@ extern "C" int munmap(void *start, size_t len){
 	return 0;
 }
 
+extern "C" int unmapself(void *start, size_t len){
+    MLOG_DETAIL(mlog::app, "unmapself");
+    while(1);
+	return 0;
+}
+
 extern "C" int mprotect(void *addr, size_t len, int prot){
     MLOG_DETAIL(mlog::app, "mprotect");
 	//size_t start, end;
@@ -152,36 +158,51 @@ void* testStart(void* bla){
 struct StartStruct{
     int (*func)(void*);
     void* arg;
+    mythos::CapPtr ec;
 };
 
-void* startFun(void* arg){
-    auto start = reinterpret_cast<StartStruct*>(arg);
-    int (*func)(void*) = start->func;
-    void* args = start->arg;
-    delete start;
-    func(args);
-    return 0;
-}
+//void* startFun(void* arg){
+    //auto start = reinterpret_cast<StartStruct*>(arg);
+    //mythos::localEC = start->ec;
+    //int (*func)(void*) = start->func;
+    //void* args = start->arg;
+    //delete start;
+    //func(args);
+    //return 0;
+//}
 
-int clone(int (*func)(void *), void *stack, int flags, void *arg, ...){
-    MLOG_DETAIL(mlog::app, "clone");
-  
+int myclone(int (*func)(void *), void *stack, int flags, void *arg, int* ptid, void* tls, int ctid){
+    MLOG_DETAIL(mlog::app, "myclone");
     mythos::PortalLock pl(portal); // future access will fail if the portal is in use already
 
-    auto start = new StartStruct;
-    start->func = func;
-    start->arg = arg; 
-    mythos::ExecutionContext ec1(capAlloc());
-    auto tls = mythos::setupNewTLS();
+    mythos::ExecutionContext ec(capAlloc());
+
+    //auto start = new StartStruct;
+    //start->func = func;
+    //start->arg = arg; 
+    //start->ec = ec.cap();
+    //auto tls = mythos::setupNewTLS();
     ASSERT(tls != nullptr);
-    auto res1 = ec1.create(kmem).as(myAS).cs(myCS).sched(mythos::init::SCHEDULERS_START + 1)
-    .prepareStack(stack).startFun(&startFun, start)
+    auto res1 = ec.create(kmem).as(myAS).cs(myCS).sched(mythos::init::SCHEDULERS_START + 1)
+    .prepareStack(stack).startFunInt(func, arg, ec.cap())
     .suspended(false).fs(tls)
     .invokeVia(pl).wait();
 
     //return -ENOSYS;
-    MLOG_DETAIL(mlog::app, DVAR(ec1.cap()));
-    return ec1.cap();
+    MLOG_DETAIL(mlog::app, DVAR(ec.cap()));
+    return ec.cap();
+}
+
+extern "C" int clone(int (*func)(void *), void *stack, int flags, void *arg,...){
+    MLOG_DETAIL(mlog::app, "clone wrapper");
+	va_list args;
+	va_start(args, arg);
+	int* ptid = va_arg(args, int*);
+	void* tls = va_arg(args, void*);
+	int ctid = va_arg(args, int);
+	va_end(args);
+
+	return myclone(func, stack, flags, arg, ptid, tls, ctid);
 }
 
 struct dl_phdr_info

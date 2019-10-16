@@ -1,6 +1,6 @@
 # -*- mode:toml; -*-
 [module.cxxabi-app]
-	incfiles = [ "runtime/futex.h" ]
+    incfiles = [ "runtime/futex.hh" ]
     appfiles = [ "runtime/cxxsupport.cc", "runtime/string.cc", "runtime/cxxdelete.cc", "runtime/pthread.cc", "runtime/futex.cc" ]
     provides = [ "vector", "queue", "functional", "pthread.h", "endian.h", "errno.h", "sys/mman.h", "sys/types.h", "stdlib.h", "sys/time.h", "stdatomic.h" ]
     makefile_head = '''

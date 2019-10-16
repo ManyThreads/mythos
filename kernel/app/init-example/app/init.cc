@@ -185,7 +185,7 @@ void test_tls()
   MLOG_INFO(mlog::app, "test_EC: create ec1 TLS", DVARhex(tls));
   ASSERT(tls != nullptr);
   auto res1 = ec1.create(kmem).as(myAS).cs(myCS).sched(mythos::init::SCHEDULERS_START + 1)
-    .prepareStack(thread1stack_top).startFun(threadFun, nullptr)
+    .prepareStack(thread1stack_top).startFun(threadFun, nullptr, ec1.cap())
     .suspended(false).fs(tls)
     .invokeVia(pl).wait();
   TEST(res1);
@@ -204,7 +204,7 @@ void test_InterruptControl() {
   auto tls = mythos::setupNewTLS();
   ASSERT(tls != nullptr);
   auto res1 = ec.create(kmem).as(myAS).cs(myCS).sched(mythos::init::SCHEDULERS_START + 2)
-    .prepareStack(thread3stack_top).startFun(&thread_main, nullptr)
+    .prepareStack(thread3stack_top).startFun(&thread_main, nullptr, ec.cap())
     .suspended(false).fs(tls)
     .invokeVia(pl).wait();
   TEST(res1);
@@ -270,11 +270,11 @@ void test_exceptions() {
 
 void* threadMain(void* arg){
   MLOG_INFO(mlog::app, "Thread says hello", DVAR(pthread_self()));
-	return NULL;
+  return 0;
 }
 
 void test_pthreads(){
-  MLOG_INFO(mlog::app, "Test Pthreads");
+  MLOG_INFO(mlog::app, "Test Pthreads")
 	pthread_t p;
  
 	auto tmp = pthread_create(&p, NULL, &threadMain, NULL);
@@ -286,6 +286,8 @@ void test_pthreads(){
 
 int main()
 {
+  mythos::localEC = mythos::init::EC; //important initialization!!
+
   char const str[] = "hello world!";
   char const end[] = "bye, cruel world!";
   mythos::syscall_debug(str, sizeof(str)-1);
