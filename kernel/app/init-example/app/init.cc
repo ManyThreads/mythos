@@ -288,7 +288,7 @@ void test_pthreads(){
 void test_omp(){
   MLOG_INFO(mlog::app, "Test Openmp");
   int nthreads, tid;
-
+  omp_set_num_threads(2);
 /* Fork a team of threads giving them their own copies of variables */
 #pragma omp parallel private(nthreads, tid)
   {

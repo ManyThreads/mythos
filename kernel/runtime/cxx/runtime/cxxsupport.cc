@@ -64,17 +64,49 @@ extern "C" [[noreturn]] void __assert_fail (const char *expr, const char *file, 
     mythos::syscall_exit(-1); /// @TODO syscall_abort(); to see some stack backtrace etc
 }
 
+struct iovec{
+	const char* io_base;
+	size_t iov_len;
+};
+
+ssize_t writev(int fd, const struct iovec *iov, int iovcnt){
+	for(int i = 0; i < iovcnt; i++){
+		mlog::sink->write(iov[i].io_base, iov[i].iov_len);
+	}
+	return 0;
+}
+
 extern "C" long mythos_musl_syscall(long num, long a1, long a2, long a3,
 	             long a4, long a5, long a6)
 {
-    MLOG_DETAIL(mlog::app, "mythos_musl_syscall", DVAR(num), 
-            DVAR(a1), DVAR(a2), DVAR(a3),
-            DVAR(a4), DVAR(a5), DVAR(a6));
+    //MLOG_DETAIL(mlog::app, "mythos_musl_syscall", DVAR(num), 
+            //DVAR(a1), DVAR(a2), DVAR(a3),
+            //DVAR(a4), DVAR(a5), DVAR(a6));
     // see http://blog.rchapman.org/posts/Linux_System_Call_Table_for_x86_64/
     switch (num) {
+    case 13: // rt_sigaction
+        MLOG_ERROR(mlog::app, "syscall rt_sigaction NYI");
+        return 0;
+    case 14: // rt_sigprocmask(how, set, oldset, sigsetsize)
+        MLOG_ERROR(mlog::app, "syscall rt_sigprocmask NYI");
+        return 0;
+    case 20: // writev(fd, *iov, iovcnt)
+        MLOG_ERROR(mlog::app, "syscall writev NYI");
+        //MLOG_WARN(mlog::app, "syscall writev only poorly implemented");
+	//return writev(a2, reinterpret_cast<const struct iovec *>(a4), a6);
+	return 0;
+    case 24: // sched_yield
+        MLOG_ERROR(mlog::app, "syscall sched_yield NYI");
+        return 0;
+    case 39: // getpid
+        MLOG_ERROR(mlog::app, "syscall getpid NYI");
+        return 0;
     case 60: // exit(exit_code)
-        MLOG_DETAIL(mlog::app, "syscall exit");
+        MLOG_DETAIL(mlog::app, "syscall exit", DVAR(a1));
         asm volatile ("syscall" : : "D"(0), "S"(a1) : "memory");
+        return 0;
+    case 200: // tkill(pid, sig)
+        MLOG_ERROR(mlog::app, "syscall tkill NYI");
         return 0;
     case 202: // sys_futex
         MLOG_DETAIL(mlog::app, "syscall futex");
@@ -82,14 +114,25 @@ extern "C" long mythos_musl_syscall(long num, long a1, long a2, long a3,
             uint32_t val2 = 0;
             return do_futex(reinterpret_cast<uint32_t*>(a1) /*uaddr*/, a2 /*op*/, a3 /*val*/,   nullptr/* timeout*/, nullptr /*uaddr2*/, val2/*val2*/, a6/*val3*/);
         }
+    case 203: // sched_setaffinity
+        MLOG_ERROR(mlog::app, "syscall sched_setaffinity NYI");
+        return 0;
+    case 204: // sched_getaffinity
+        MLOG_ERROR(mlog::app, "syscall sched_getaffinity NYI");
+        return 0;
+    case 228: // clock_gettime
+        MLOG_ERROR(mlog::app, "syscall clock_gettime NYI");
+        return 0;
     case 231: // exit_group for all pthreads 
-        MLOG_DETAIL(mlog::app, "syscall exit_group");
-        return -1;
+        MLOG_ERROR(mlog::app, "syscall exit_group NYI");
+        return 0;
+    case 302: // prlimit64
+        MLOG_ERROR(mlog::app, "syscall prlimit64 NYI");
+        return 1;
     default:
-        /*MLOG_ERROR(mlog::app, "mythos_musl_syscall", DVAR(num), 
-            DVAR(a1), DVAR(a2), DVAR(a3),
-            DVAR(a4), DVAR(a5), DVAR(a6));*/
-        MLOG_ERROR(mlog::app, "Error: mythos_musl_syscall NYI", DVAR(num));
+	MLOG_ERROR(mlog::app, "Error: mythos_musl_syscall NYI", DVAR(num), 
+	    DVAR(a1), DVAR(a2), DVAR(a3),
+	    DVAR(a4), DVAR(a5), DVAR(a6));
     }
     return -1;
 }

@@ -75,10 +75,12 @@ extern "C" int pthread_setcancelstate(int, int *){
 }
 #endif
 
+#ifdef use_pthreads_stubs
 extern "C" int pthread_setcanceltype(int, int *){
 	MLOG_DETAIL(mlog::app, __PRETTY_FUNCTION__);
 	return 0;
 }
+#endif
 
 #ifdef use_pthreads_stubs
 extern "C" void pthread_testcancel(void){
@@ -117,25 +119,33 @@ extern "C" int pthread_once(pthread_once_t *once_control, void (*init_routine)(v
 #endif
 
 
+#ifdef use_pthreads_stubs
 extern "C" int pthread_mutex_init(pthread_mutex_t *__restrict, const pthread_mutexattr_t *__restrict){
 	MLOG_DETAIL(mlog::app, __PRETTY_FUNCTION__);
 	return 0;
 }
+#endif
 
+#ifdef use_pthreads_stubs
 extern "C" int pthread_mutex_lock(pthread_mutex_t *){
 	MLOG_DETAIL(mlog::app, __PRETTY_FUNCTION__);
 	return 0;
 }
+#endif
 
+#ifdef use_pthreads_stubs
 extern "C" int pthread_mutex_unlock(pthread_mutex_t *){
 	MLOG_DETAIL(mlog::app, __PRETTY_FUNCTION__);
 	return 0;
 }
+#endif
 
+#ifdef use_pthreads_stubs
 extern "C" int pthread_mutex_trylock(pthread_mutex_t *){
 	MLOG_DETAIL(mlog::app, __PRETTY_FUNCTION__);
 	return 0;
 }
+#endif
 
 extern "C" int pthread_mutex_timedlock(pthread_mutex_t *__restrict, const struct timespec *__restrict){
 	MLOG_DETAIL(mlog::app, __PRETTY_FUNCTION__);
@@ -164,20 +174,24 @@ extern "C" int pthread_mutex_setprioceiling(pthread_mutex_t *__restrict, int, in
 }
 
 
+#ifdef use_pthreads_stubs
 extern "C" int pthread_cond_init(pthread_cond_t *__restrict, const pthread_condattr_t *__restrict){
 	MLOG_DETAIL(mlog::app, __PRETTY_FUNCTION__);
 	return 0;
 }
+#endif
 
 extern "C" int pthread_cond_destroy(pthread_cond_t *){
 	MLOG_DETAIL(mlog::app, __PRETTY_FUNCTION__);
 	return 0;
 }
 
+#ifdef use_pthreads_stubs
 extern "C" int pthread_cond_wait(pthread_cond_t *__restrict, pthread_mutex_t *__restrict){
 	MLOG_DETAIL(mlog::app, __PRETTY_FUNCTION__);
 	return 0;
 }
+#endif
 
 extern "C" int pthread_cond_timedwait(pthread_cond_t *__restrict, pthread_mutex_t *__restrict, const struct timespec *__restrict){
 	MLOG_DETAIL(mlog::app, __PRETTY_FUNCTION__);
@@ -205,20 +219,26 @@ extern "C" int pthread_rwlock_destroy(pthread_rwlock_t *){
 	return 0;
 }
 
+#ifdef use_pthreads_stubs
 extern "C" int pthread_rwlock_rdlock(pthread_rwlock_t *){
 	MLOG_DETAIL(mlog::app, __PRETTY_FUNCTION__);
 	return 0;
 }
+#endif
 
+#ifdef use_pthreads_stubs
 extern "C" int pthread_rwlock_tryrdlock(pthread_rwlock_t *){
 	MLOG_DETAIL(mlog::app, __PRETTY_FUNCTION__);
 	return 0;
 }
+#endif
 
+#ifdef use_pthreads_stubs
 extern "C" int pthread_rwlock_timedrdlock(pthread_rwlock_t *__restrict, const struct timespec *__restrict){
 	MLOG_DETAIL(mlog::app, __PRETTY_FUNCTION__);
 	return 0;
 }
+#endif
 
 #ifdef use_pthreads_stubs
 extern "C" int pthread_rwlock_wrlock(pthread_rwlock_t *){
@@ -320,91 +340,100 @@ extern "C" int pthread_setspecific(pthread_key_t key, const void *){
 #endif
 
 
+#ifdef use_pthreads_stubs
 extern "C" int pthread_attr_init(pthread_attr_t *){
 	MLOG_DETAIL(mlog::app, __PRETTY_FUNCTION__);
 	return 0;
 }
+#endif
 
+#ifdef use_pthreads_stubs
 extern "C" int pthread_attr_destroy(pthread_attr_t *){
 	MLOG_DETAIL(mlog::app, __PRETTY_FUNCTION__);
 	return 0;
 }
+#endif
 
+//extern "C" int pthread_attr_getguardsize(const pthread_attr_t *__restrict, size_t *__restrict){
+	//MLOG_DETAIL(mlog::app, __PRETTY_FUNCTION__);
+	//return 0;
+//}
 
-extern "C" int pthread_attr_getguardsize(const pthread_attr_t *__restrict, size_t *__restrict){
-	MLOG_DETAIL(mlog::app, __PRETTY_FUNCTION__);
+//extern "C" int pthread_attr_setguardsize(pthread_attr_t *, size_t){
+	//MLOG_DETAIL(mlog::app, __PRETTY_FUNCTION__);
+	//return 0;
+//}
+
+//extern "C" int pthread_attr_getstacksize(const pthread_attr_t *__restrict, size_t *__restrict){
+	//MLOG_DETAIL(mlog::app, __PRETTY_FUNCTION__);
+	//return 0;
+//}
+
+//#ifdef use_pthreads_stubs
+extern "C" int pthread_attr_setstacksize(pthread_attr_t *, size_t size){
+	MLOG_DETAIL(mlog::app, __PRETTY_FUNCTION__, DVAR(size));
 	return 0;
 }
+//#endif
 
-extern "C" int pthread_attr_setguardsize(pthread_attr_t *, size_t){
-	MLOG_DETAIL(mlog::app, __PRETTY_FUNCTION__);
-	return 0;
-}
+//extern "C" int pthread_attr_getdetachstate(const pthread_attr_t *, int *){
+	//MLOG_DETAIL(mlog::app, __PRETTY_FUNCTION__);
+	//return 0;
+//}
 
-extern "C" int pthread_attr_getstacksize(const pthread_attr_t *__restrict, size_t *__restrict){
-	MLOG_DETAIL(mlog::app, __PRETTY_FUNCTION__);
-	return 0;
-}
-
-extern "C" int pthread_attr_setstacksize(pthread_attr_t *, size_t){
-	MLOG_DETAIL(mlog::app, __PRETTY_FUNCTION__);
-	return 0;
-}
-
-extern "C" int pthread_attr_getdetachstate(const pthread_attr_t *, int *){
-	MLOG_DETAIL(mlog::app, __PRETTY_FUNCTION__);
-	return 0;
-}
-
+#ifdef use_pthreads_stubs
 extern "C" int pthread_attr_setdetachstate(pthread_attr_t *, int){
 	MLOG_DETAIL(mlog::app, __PRETTY_FUNCTION__);
 	return 0;
 }
+#endif
 
+#ifdef use_pthreads_stubs
 extern "C" int pthread_attr_getstack(const pthread_attr_t *__restrict, void **__restrict, size_t *__restrict){
 	MLOG_DETAIL(mlog::app, __PRETTY_FUNCTION__);
 	return 0;
 }
+#endif
 
 extern "C" int pthread_attr_setstack(pthread_attr_t *, void *, size_t){
 	MLOG_DETAIL(mlog::app, __PRETTY_FUNCTION__);
 	return 0;
 }
 
-extern "C" int pthread_attr_getscope(const pthread_attr_t *__restrict, int *__restrict){
-	MLOG_DETAIL(mlog::app, __PRETTY_FUNCTION__);
-	return 0;
-}
+//extern "C" int pthread_attr_getscope(const pthread_attr_t *__restrict, int *__restrict){
+	//MLOG_DETAIL(mlog::app, __PRETTY_FUNCTION__);
+	//return 0;
+//}
 
 extern "C" int pthread_attr_setscope(pthread_attr_t *, int){
 	MLOG_DETAIL(mlog::app, __PRETTY_FUNCTION__);
 	return 0;
 }
 
-extern "C" int pthread_attr_getschedpolicy(const pthread_attr_t *__restrict, int *__restrict){
-	MLOG_DETAIL(mlog::app, __PRETTY_FUNCTION__);
-	return 0;
-}
+//extern "C" int pthread_attr_getschedpolicy(const pthread_attr_t *__restrict, int *__restrict){
+	//MLOG_DETAIL(mlog::app, __PRETTY_FUNCTION__);
+	//return 0;
+//}
 
 extern "C" int pthread_attr_setschedpolicy(pthread_attr_t *, int){
 	MLOG_DETAIL(mlog::app, __PRETTY_FUNCTION__);
 	return 0;
 }
 
-extern "C" int pthread_attr_getschedparam(const pthread_attr_t *__restrict, struct sched_param *__restrict){
-	MLOG_DETAIL(mlog::app, __PRETTY_FUNCTION__);
-	return 0;
-}
+//extern "C" int pthread_attr_getschedparam(const pthread_attr_t *__restrict, struct sched_param *__restrict){
+	//MLOG_DETAIL(mlog::app, __PRETTY_FUNCTION__);
+	//return 0;
+//}
 
 extern "C" int pthread_attr_setschedparam(pthread_attr_t *__restrict, const struct sched_param *__restrict){
 	MLOG_DETAIL(mlog::app, __PRETTY_FUNCTION__);
 	return 0;
 }
 
-extern "C" int pthread_attr_getinheritsched(const pthread_attr_t *__restrict, int *__restrict){
-	MLOG_DETAIL(mlog::app, __PRETTY_FUNCTION__);
-	return 0;
-}
+//extern "C" int pthread_attr_getinheritsched(const pthread_attr_t *__restrict, int *__restrict){
+	//MLOG_DETAIL(mlog::app, __PRETTY_FUNCTION__);
+	//return 0;
+//}
 
 extern "C" int pthread_attr_setinheritsched(pthread_attr_t *, int){
 	MLOG_DETAIL(mlog::app, __PRETTY_FUNCTION__);
@@ -422,30 +451,32 @@ extern "C" int pthread_mutexattr_getprioceiling(const pthread_mutexattr_t *__res
 	return 0;
 }
 
-extern "C" int pthread_mutexattr_getprotocol(const pthread_mutexattr_t *__restrict, int *__restrict){
-	MLOG_DETAIL(mlog::app, __PRETTY_FUNCTION__);
-	return 0;
-}
+//extern "C" int pthread_mutexattr_getprotocol(const pthread_mutexattr_t *__restrict, int *__restrict){
+	//MLOG_DETAIL(mlog::app, __PRETTY_FUNCTION__);
+	//return 0;
+//}
 
-extern "C" int pthread_mutexattr_getpshared(const pthread_mutexattr_t *__restrict, int *__restrict){
-	MLOG_DETAIL(mlog::app, __PRETTY_FUNCTION__);
-	return 0;
-}
+//extern "C" int pthread_mutexattr_getpshared(const pthread_mutexattr_t *__restrict, int *__restrict){
+	//MLOG_DETAIL(mlog::app, __PRETTY_FUNCTION__);
+	//return 0;
+//}
 
-extern "C" int pthread_mutexattr_getrobust(const pthread_mutexattr_t *__restrict, int *__restrict){
-	MLOG_DETAIL(mlog::app, __PRETTY_FUNCTION__);
-	return 0;
-}
+//extern "C" int pthread_mutexattr_getrobust(const pthread_mutexattr_t *__restrict, int *__restrict){
+	//MLOG_DETAIL(mlog::app, __PRETTY_FUNCTION__);
+	//return 0;
+//}
 
-extern "C" int pthread_mutexattr_gettype(const pthread_mutexattr_t *__restrict, int *__restrict){
-	MLOG_DETAIL(mlog::app, __PRETTY_FUNCTION__);
-	return 0;
-}
+//extern "C" int pthread_mutexattr_gettype(const pthread_mutexattr_t *__restrict, int *__restrict){
+	//MLOG_DETAIL(mlog::app, __PRETTY_FUNCTION__);
+	//return 0;
+//}
 
+#ifdef use_pthreads_stubs
 extern "C" int pthread_mutexattr_init(pthread_mutexattr_t *){
 	MLOG_DETAIL(mlog::app, __PRETTY_FUNCTION__);
 	return 0;
 }
+#endif
 
 extern "C" int pthread_mutexattr_setprioceiling(pthread_mutexattr_t *, int){
 	MLOG_DETAIL(mlog::app, __PRETTY_FUNCTION__);
@@ -473,10 +504,12 @@ extern "C" int pthread_mutexattr_settype(pthread_mutexattr_t *, int){
 }
 
 
+#ifdef use_pthreads_stubs
 extern "C" int pthread_condattr_init(pthread_condattr_t *){
 	MLOG_DETAIL(mlog::app, __PRETTY_FUNCTION__);
 	return 0;
 }
+#endif
 
 extern "C" int pthread_condattr_destroy(pthread_condattr_t *){
 	MLOG_DETAIL(mlog::app, __PRETTY_FUNCTION__);
@@ -493,15 +526,15 @@ extern "C" int pthread_condattr_setpshared(pthread_condattr_t *, int){
 	return 0;
 }
 
-extern "C" int pthread_condattr_getclock(const pthread_condattr_t *__restrict, clockid_t *__restrict){
-	MLOG_DETAIL(mlog::app, __PRETTY_FUNCTION__);
-	return 0;
-}
+//extern "C" int pthread_condattr_getclock(const pthread_condattr_t *__restrict, clockid_t *__restrict){
+	//MLOG_DETAIL(mlog::app, __PRETTY_FUNCTION__);
+	//return 0;
+//}
 
-extern "C" int pthread_condattr_getpshared(const pthread_condattr_t *__restrict, int *__restrict){
-	MLOG_DETAIL(mlog::app, __PRETTY_FUNCTION__);
-	return 0;
-}
+//extern "C" int pthread_condattr_getpshared(const pthread_condattr_t *__restrict, int *__restrict){
+	//MLOG_DETAIL(mlog::app, __PRETTY_FUNCTION__);
+	//return 0;
+//}
 
 
 extern "C" int pthread_rwlockattr_init(pthread_rwlockattr_t *){
@@ -519,10 +552,10 @@ extern "C" int pthread_rwlockattr_setpshared(pthread_rwlockattr_t *, int){
 	return 0;
 }
 
-extern "C" int pthread_rwlockattr_getpshared(const pthread_rwlockattr_t *__restrict, int *__restrict){
-	MLOG_DETAIL(mlog::app, __PRETTY_FUNCTION__);
-	return 0;
-}
+//extern "C" int pthread_rwlockattr_getpshared(const pthread_rwlockattr_t *__restrict, int *__restrict){
+	//MLOG_DETAIL(mlog::app, __PRETTY_FUNCTION__);
+	//return 0;
+//}
 
 
 extern "C" int pthread_barrierattr_destroy(pthread_barrierattr_t *){
@@ -530,10 +563,10 @@ extern "C" int pthread_barrierattr_destroy(pthread_barrierattr_t *){
 	return 0;
 }
 
-extern "C" int pthread_barrierattr_getpshared(const pthread_barrierattr_t *__restrict, int *__restrict){
-	MLOG_DETAIL(mlog::app, __PRETTY_FUNCTION__);
-	return 0;
-}
+//extern "C" int pthread_barrierattr_getpshared(const pthread_barrierattr_t *__restrict, int *__restrict){
+	//MLOG_DETAIL(mlog::app, __PRETTY_FUNCTION__);
+	//return 0;
+//}
 
 extern "C" int pthread_barrierattr_init(pthread_barrierattr_t *){
 	MLOG_DETAIL(mlog::app, __PRETTY_FUNCTION__);
@@ -546,11 +579,12 @@ extern "C" int pthread_barrierattr_setpshared(pthread_barrierattr_t *, int){
 }
 
 
+#ifdef use_pthreads_stubs
 extern "C" int pthread_atfork(void (*)(void), void (*)(void), void (*)(void)){
 	MLOG_DETAIL(mlog::app, __PRETTY_FUNCTION__);
 	return 0;
 }
-
+#endif
 
 extern "C" int pthread_getconcurrency(void){
 	MLOG_DETAIL(mlog::app, __PRETTY_FUNCTION__);
@@ -593,10 +627,12 @@ extern "C" int pthread_setaffinity_np(pthread_t, size_t, const struct cpu_set_t 
 	return 0;
 }
 
+#ifdef use_pthreads_stubs
 extern "C" int pthread_getattr_np(pthread_t, pthread_attr_t *){
 	MLOG_DETAIL(mlog::app, __PRETTY_FUNCTION__);
 	return 0;
 }
+#endif
 
 extern "C" int pthread_setname_np(pthread_t, const char *){
 	MLOG_DETAIL(mlog::app, __PRETTY_FUNCTION__);
