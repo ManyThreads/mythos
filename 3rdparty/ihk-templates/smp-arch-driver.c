@@ -319,8 +319,8 @@ int smp_wakeup_secondary_cpu(int apicid, unsigned long start_eip)
 	atomic_set(_init_deasserted, 0);
 #endif
 
-	if (_get_uv_system_type == NULL || _get_uv_system_type() != UV_NON_UNIQUE_APIC) {
-		printk(KERN_INFO "Setting warm reset code and vector. %u \n", _get_uv_system_type());
+	if (_get_uv_system_type == 0 || _get_uv_system_type() != UV_NON_UNIQUE_APIC) {
+		printk(KERN_INFO "Setting warm reset code and vector. \n");
 
 		smpboot_setup_warm_reset_vector(start_eip);
 
