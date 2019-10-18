@@ -80,6 +80,19 @@ In order to run MyThOS on an Intel XeonPhi Knights Corner processor, a recent ve
 * `cd kernel-ihk`
 * `make run`
 
+## Running as cokernel next to Ubuntu with IHK
+
+* First make sure you have installed python, pip, virtualenv, curl and cmake.
+* Run `git submodule init && git submodule update && 3rdparty/mcconf/install-python-libs.sh` in order to install the needed libraries for the build configuration tool. 
+* Run `3rdparty/install-libcxx.sh`
+* Install required packages: `sudo apt-get install linux-headers-$(uname -r) binutils-dev libsystemd-dev libnuma-dev libiberty-dev libudev-dev`
+* Perhaps you have to disable AppArmor by entering `sudo systemctl stop apparmor.service` and `sudo update-rc.d -f apparmor remove`
+* Grant read permission to the System.map file of your kernel version: ``sudo chmod a+r /boot/System.map-`uname -r` ``
+* Run `3rdparty/install-ihk.sh`
+* Now you can run `make` in the root folder. This will assemble the source code into the subfolders `kernel-amd64`, `kernel-ihk`, `kernel-knc` and `host-knc`.
+* `cd kernel-ihk`
+* `make run`
+
 # Acknowledgements
 
 The MyThOS project was funded by the Federal Ministry of Education and Research (BMBF) under Grant No. 01IH13003 from October 2013 to September 2016. The grant was part of the 3rd HPC-Call of the Gauss Allianz.
