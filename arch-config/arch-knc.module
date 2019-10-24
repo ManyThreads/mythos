@@ -1,0 +1,20 @@
+# -*- mode:toml; -*-
+[module.arch-knc]
+    # pseudo modules and so on that are assumed as available
+    provides = [
+      "tag/cpu/amd64",
+      "tag/cpu/delay",
+      "tag/cpu/clevict",
+      "tag/cpu/kncapic",
+      "tag/mode/kernel",
+      "tag/platform/knc",
+      "tag/compiler/gcc",
+      "tag/boot/sfi",
+      "tag/cap/spinning",
+      "tag/cpu/kncioapic",
+      ]
+
+    requires = [
+      "boot64.elf",
+      "Makefile",
+      ]
