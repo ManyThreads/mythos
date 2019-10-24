@@ -39,7 +39,7 @@ namespace mythos {
 
   ExecutionContext::ExecutionContext(IAsyncFree* memory)
     : flags(0)
-	  , memory(memory)
+    , memory(memory)
   {
     setFlags(IS_TRAPPED + NO_AS + NO_SCHED
         + DONT_PREEMPT + NOT_LOADED + NOT_RUNNING);
@@ -111,7 +111,7 @@ namespace mythos {
     MLOG_INFO(mlog::ec, "setScheduler", DVAR(this), DVAR(sce));
     TypedCap<IScheduler> obj(sce);
     if (!obj) RETHROW(obj);
-    
+
     // check if the EC state is currently loaded somewhere
     auto place = currentPlace.exchange(nullptr);
     if (place != nullptr) {
@@ -132,13 +132,13 @@ namespace mythos {
         RETURN(_sched.set(this, *sce, obj.cap()));
     }
   }
-  
+
   Error ExecutionContext::unsetSchedulingContext()
   {
     _sched.reset();
     return Error::SUCCESS;
   }
-  
+
   void ExecutionContext::bind(optional<IScheduler*>)
   {
     MLOG_INFO(mlog::ec, "setScheduler bind", DVAR(this));
@@ -204,7 +204,7 @@ namespace mythos {
     this->msg = msg;
     auto const& data = *msg->getMessage()->cast<protocol::ExecutionContext::ReadRegisters>();
     setFlags(REGISTER_ACCESS | DONT_PREEMPT | (data.suspend?IS_TRAPPED:0));
-    
+
     auto home = currentPlace.load();
     if (home != nullptr) {
         MLOG_DETAIL(mlog::ec, "send preemption message", DVAR(this), DVAR(home));
@@ -318,8 +318,8 @@ namespace mythos {
 
   void ExecutionContext::setTrapped(bool val)
   {
-	  if (val) setFlagsSuspend(IS_TRAPPED);
-	  else clearFlagsResume(IS_TRAPPED);
+    if (val) setFlagsSuspend(IS_TRAPPED);
+    else clearFlagsResume(IS_TRAPPED);
   }
 
   Error ExecutionContext::invokeSuspend(Tasklet* t, Cap, IInvocation* msg)
@@ -387,7 +387,7 @@ namespace mythos {
     MLOG_ERROR(mlog::ec, "...", DVARhex(ctx->fs_base), DVARhex(ctx->gs_base));
     setFlags(IS_TRAPPED | NOT_RUNNING); // mark as not executable until the exception is handled
   }
-  
+
   void ExecutionContext::handleSyscall()
   {
     setFlags(NOT_RUNNING);
@@ -511,7 +511,7 @@ namespace mythos {
             // clear IS_NOTIFIED only if the user mode was waiting for it
             // we won't clear it twice without a second wait() system call
             clearFlags(IS_NOTIFIED); 
-            
+
             // return a notification event if any
             auto e = notificationQueue.pull();
             if (e) {
@@ -536,13 +536,12 @@ namespace mythos {
             MLOG_DETAIL(mlog::ec, "load addrspace", DVAR(this), DVARhex(info.table.physint()));
             getLocalPlace().setCR3(info.table); // without reload if not changed
         }
-        
+
         MLOG_DETAIL(mlog::syscall, "resuming", DVAR(this),
                     DVARhex(threadState.rip), DVARhex(threadState.rsp));
         cpu::return_to_user(); // does never return
     }
 
-  
     void ExecutionContext::loadState()
     {
         // the assertions are quite redundant, just to be safe during debugging
@@ -565,7 +564,7 @@ namespace mythos {
         ASSERT(current_ec->load() == nullptr);
         current_ec->store(this);
     }
-  
+
     void ExecutionContext::saveState()
     {
         // the assertions are quite redundant, just to be safe during debugging

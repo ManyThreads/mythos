@@ -76,7 +76,6 @@ struct DeployHWThread
   static void prepareBSP()
   {
     idt.init();
-    //initAPTrampoline(startIP);
     idle::init_global();
     DeleteBroadcast::init();
     Plugin::initPluginsGlobal();
@@ -111,15 +110,15 @@ struct DeployHWThread
 
   void initThread() {
     /* ATTENTION ATTENTION */
-	/* no logging before loading the GDT for the core-local memory */
-	/* FROM HERE */
+    /* no logging before loading the GDT for the core-local memory */
+    /* FROM HERE */
     loadKernelSpace();
     gdt.load();
     gdt.tss_kernel_load();
-	/* TO HERE */
+    /* TO HERE */
     idt.load();
     cpu::initSyscallEntry();
-	idle::init_thread();
+    idle::init_thread();
     if (UNLIKELY(this->firstboot)) {
       mythos::lapic.init();
       Plugin::initPluginsOnThread(threadID);
