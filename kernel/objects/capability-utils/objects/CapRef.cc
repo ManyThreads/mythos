@@ -52,8 +52,8 @@ namespace mythos {
     // assumption: no need to inform the original object about the revoked reference
     cap::resetReference(this->entry,
       [=](){
-        this->unbinding(phys2kernel<void>(this->entry.cap().data()), Cap(this->orig.load()));
-        this->orig.store(Cap().value());           
+        this->unbinding(offset2kernel<void>(this->entry.cap().data()), Cap(this->orig.load()));
+        this->orig.store(Cap().value());
       });
   }
 
@@ -67,7 +67,7 @@ namespace mythos {
   {
     // assumption: no need to inform the original object about the revoked reference
     // orig.getPtr()->deleteCap(entry, orig, del);
-    this->unbinding(phys2kernel<void>(self.data()), Cap(orig.load()));
+    this->unbinding(offset2kernel<void>(self.data()), Cap(orig.load()));
     this->orig.store(Cap().value());
     RETURN(Error::SUCCESS);
   }

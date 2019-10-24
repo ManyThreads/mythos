@@ -203,7 +203,7 @@ void test_tls()
 {
   MLOG_INFO(mlog::app, "testing thread local storage");
   MLOG_INFO(mlog::app, "main thread TLS:", DVARhex(readFS(0)), DVARhex(readFS(0x28)));
-  
+
   mythos::PortalLock pl(portal);
   TEST_EQ(x, 1024); // just testing if access through %fs is successful
   TEST_EQ(y, 2048);
@@ -279,7 +279,7 @@ void test_heap() {
     int *a = new int[i];
     delete a;
   }
-  
+
 //   int* tests[10];
 //   for (int i=0;i<10;i++) {
 //       tests[i] = new int[100];
@@ -288,7 +288,7 @@ void test_heap() {
 //   for (int i=0;i<10;i++) {
 //       delete tests[i];
 //   }
-  
+
   // test allocation in standard template library
   std::vector<int> foo;
   for (int i=0; i<100; i++) foo.push_back(i);
@@ -331,7 +331,7 @@ bool test_HostChannel(mythos::Portal& portal, uintptr_t vaddr, size_t size)
   // auto res3 = mythos::PortalFuture<void>(pl.invoke<mythos::protocol::CpuDriverKNC::SetInitMem>(mythos::init::CPUDRIVER, hostChannelFrame.cap())).wait();
   // MLOG_INFO(mlog::app, "register at host info table", DVAR(res3.state()));
   //ASSERT(res3.state() == mythos::Error::SUCCESS);
-  
+
   return true;
 }
 
@@ -376,7 +376,7 @@ void test_ExecutionContext()
 
   MLOG_INFO(mlog::app, "sending notifications");
   mythos::syscall_signal(ec1.cap());
-  mythos::syscall_signal(ec2.cap());    
+  mythos::syscall_signal(ec2.cap());
 }
 
 int main()
@@ -385,15 +385,15 @@ int main()
   mythos::syscall_debug(str, sizeof(str)-1);
   MLOG_ERROR(mlog::app, "application is starting :)", DVARhex(msg_ptr), DVARhex(initstack_top));
 
-  test_float();
+  //test_float();
   test_Example();
   test_Portal();
   test_memory_root();
   test_heap(); // heap must be initialized for tls test
   test_tls();
   test_exceptions();
-  test_InterruptControl();
-  test_HostChannel(portal, 24*1024*1024, 2*1024*1024);
+  //test_InterruptControl();
+  //test_HostChannel(portal, 24*1024*1024, 2*1024*1024);
   test_ExecutionContext();
 
   char const end[] = "bye, cruel world!";

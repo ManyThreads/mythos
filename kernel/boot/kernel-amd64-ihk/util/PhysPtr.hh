@@ -31,6 +31,10 @@
 #include <cstddef> // for size_t
 #include <cstdint>
 
+#include "boot/ihk-entry.hh"
+
+//#include "objects/mlog.hh"
+
 namespace mythos {
 
   extern char KERN_END SYMBOL("KERN_END");
@@ -57,12 +61,12 @@ namespace mythos {
 
     static PhysPtr fromImage(T* vp) {
       ASSERT(isImageAddress(vp));
-      return PhysPtr(reinterpret_cast<uintptr_t>(vp) - VIRT_ADDR);
+      return PhysPtr(reinterpret_cast<uintptr_t>(vp) - MAP_KERNEL_START + mythos::boot::x86_kernel_phys_base);
     }
 
     static PhysPtr fromKernel(T* vp) {
       ASSERT(isKernelAddress(vp));
-      return PhysPtr(reinterpret_cast<uintptr_t>(vp) - KERNELMEM_ADDR);
+      return PhysPtr(reinterpret_cast<uintptr_t>(vp) - KERNELMEM_ADDR + mythos::boot::x86_kernel_phys_base);
     }
 
     static PhysPtr fromPhys(T* ptr) {
@@ -92,10 +96,12 @@ namespace mythos {
 
     uintptr_t logint() const {
       ASSERT(kernelmem());
-      return ptr + KERNELMEM_ADDR;
+      return ptr - mythos::boot::x86_kernel_phys_base + KERNELMEM_ADDR;
     }
 
-    bool kernelmem() const { return ptr < KERNELMEM_SIZE; }
+    bool kernelmem() const { 
+		//MLOG_INFO(mlog::km, "kernelmem", DVARhex(ptr), DVARhex(mythos::boot::x86_kernel_phys_base));
+		return (ptr - mythos::boot::x86_kernel_phys_base) < KERNELMEM_SIZE; }
 
     bool canonical() const
     {
@@ -169,12 +175,7 @@ namespace mythos {
   template<class T>
   uint32_t kernel2phys(T* vp) {
     ASSERT(isKernelAddress(vp));
-    return uint32_t(reinterpret_cast<uintptr_t>(vp) - KERNELMEM_ADDR);
-  }
-
-  template<class T>
-  T* phys2kernel(uintptr_t phys) {
-    return reinterpret_cast<T*>(phys + KERNELMEM_ADDR);
+    return uint32_t(reinterpret_cast<uintptr_t>(vp) - KERNELMEM_ADDR + mythos::boot::x86_kernel_phys_base);
   }
 
   template<class T>
@@ -187,6 +188,11 @@ namespace mythos {
   T* offset2kernel(uint32_t o) {
     ASSERT(o < KERNELMEM_SIZE);
     return reinterpret_cast<T*>(o + KERNELMEM_ADDR);
+  }
+
+  template<class T>
+  T* phys2kernel(uintptr_t phys) {
+    return reinterpret_cast<T*>(phys - mythos::boot::x86_kernel_phys_base + KERNELMEM_ADDR);
   }
 
   template<class T>

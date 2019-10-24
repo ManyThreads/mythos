@@ -58,21 +58,21 @@ namespace mythos {
 
     void init() {
       kernel_code.set(SegmentDescriptor::SYSTEM, SegmentDescriptor::CODE_ERA,
-		      0, 0xFFFFF, SegmentDescriptor::PAGES, false, true, true);
+                      0, 0xFFFFF, SegmentDescriptor::PAGES, false, true, true);
       kernel_data.set(SegmentDescriptor::SYSTEM, SegmentDescriptor::DATA_RWA,
-		      0, 0xFFFFF, SegmentDescriptor::PAGES, true, true, true);
+                      0, 0xFFFFF, SegmentDescriptor::PAGES, true, true, true);
       // TODO user_code32 is uninitialised
       user_code.set(SegmentDescriptor::USER, SegmentDescriptor::CODE_ERA,
-		    0, 0xFFFFF, SegmentDescriptor::PAGES, false, true, true);
+                    0, 0xFFFFF, SegmentDescriptor::PAGES, false, true, true);
       user_data.set(SegmentDescriptor::USER, SegmentDescriptor::DATA_RWA,
-		    0, 0xFFFFF, SegmentDescriptor::PAGES, false, true, true);
+                    0, 0xFFFFF, SegmentDescriptor::PAGES, false, true, true);
       kernel_fs.set(SegmentDescriptor::USER, SegmentDescriptor::DATA_RWA,
-		     0, 0xFFFFF, SegmentDescriptor::PAGES, true, true, true);
+                    0, 0xFFFFF, SegmentDescriptor::PAGES, true, true, true);
       kernel_gs.set(SegmentDescriptor::USER, SegmentDescriptor::DATA_RWA,
-		    0, 0xFFFFF, SegmentDescriptor::PAGES, true, true, true);
+                    0, 0xFFFFF, SegmentDescriptor::PAGES, true, true, true);
       tss_kernel.set(SegmentDescriptor::USER, 0, 0, SegmentDescriptor::BYTES, true);
     }
-    
+
     void load() {
       load_gdt(*this);
       asm volatile("mov %0,%%ss" : : "rm" (uint16_t(0x18))); // SS
@@ -81,6 +81,5 @@ namespace mythos {
       asm volatile("mov %0,%%fs" : : "rm" (uint16_t(0x38))); // FS
       asm volatile("mov %0,%%gs" : : "rm" (uint16_t(0x40))); // GS
     }
-
   };
 } // namespace mythos

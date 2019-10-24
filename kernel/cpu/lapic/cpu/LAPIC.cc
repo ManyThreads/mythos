@@ -32,20 +32,34 @@
 namespace mythos {
 LAPIC lapic;
 
+void LAPIC::initMSR()
+{
+    using namespace mythos::x86;
+    if (x2ApicSupported()) {
+        MLOG_DETAIL(mlog::boot, "detected x2Apic support");
+        if (isX2ApicEnabled()) {
+            MLOG_INFO(mlog::boot, "x2Apic is enabled, reset LAPIC by disabling");
+            disableApic(); // disables both xAPIC and x2APIC
+            enableApic(); // reenables xAPIC
+            ASSERT(!isX2ApicEnabled());
+        }
+    }
+}
+
 void LAPIC::init() {
     MLOG_DETAIL(mlog::boot, "initializing local xAPIC");
     Register value;
+
+    initMSR();
 
     // init the Destination Format Register and the Logical
     // Destination Register Intel recommends to set DFR, LDR and TPR
     // before enabling an APIC.  See e.g. "AP-388 82489DX User's
     // Manual" (Intel document number 292116).
     value = read(REG_DFR);
-    MLOG_DETAIL(mlog::boot, "APIC DFR", DVARhex(value.value));
     value.model = 0xF; // flat mode
     write(REG_DFR, value);
     value = read(REG_LDR);
-    MLOG_DETAIL(mlog::boot, "APIC LDR", DVARhex(value.value));
     value.destination = 1; // will not be used anyway
     write(REG_LDR, value);
 
@@ -72,7 +86,7 @@ void LAPIC::init() {
 
     // After a crash, interrupts from previous run can still have ISR bit set.
     // Thus clear these with EndOfInterrupt.
-    size_t queued = 0;
+	size_t queued = 0;
     for (size_t loops = 0; loops < 1000000; loops++) {
         for (size_t i = 0; i < 0x8; i++) queued |= read(REG_IRR + i * 0x10).value;
         if (!queued) break;
@@ -82,6 +96,8 @@ void LAPIC::init() {
                 if (value.value & (1 << j)) endOfInterrupt();
             }
         }
+		if(loops%1000 == 0){MLOG_DETAIL(mlog::boot, "loop", DVAR(queued), DVAR(value.value));}
+		queued = 0;
     }
 
     // init the Spurious Interrupt Vector Register for handling local interrupt sources
@@ -89,16 +105,12 @@ void LAPIC::init() {
     // the lowest 4 bits should be 0, the vector should be above 32 (processor internal interrupts)
     // but the acutal value does not matter, because it is configured for each separately...
     value = read(REG_SVR);
-    MLOG_DETAIL(mlog::boot, "SVR before init", reinterpret_cast<void*>(value.value));
     value.vector = 0xFF;  // this interrupt should never be triggered anyway
     value.apic_enable = 1;
     value.focus_processor_checking = 0;
     value.eio_suppression = 0;
-    MLOG_DETAIL(mlog::boot, "SVR writing", reinterpret_cast<void*>(value.value));
     write(REG_SVR, value);
-    MLOG_DETAIL(mlog::boot, "SVR after init", reinterpret_cast<void*>(read(REG_SVR).value));
 
-    MLOG_DETAIL(mlog::boot, "lapic", DVAR(x86::initialApicID()), DVAR(getId()));
     ASSERT(getId() == x86::initialApicID());
 
     // init Error register
@@ -123,6 +135,18 @@ void LAPIC::disableTimer() {
     write(REG_LVT_TIMER, read(REG_LVT_TIMER).timer_mode(ONESHOT).masked(1).vector(0));
 }
 
+LAPIC::Register LAPIC::edgeIPI(IrcDestinationShorthand dest, IcrDeliveryMode mode, uint8_t vec) {
+      return Register().destination_shorthand(dest).level_triggered(0).level(1)
+        .logical_destination(0).delivery_mode(mode).vector(vec)
+        .delivery_pending(0); //workaround for qemu
+    }
+
+
+void LAPIC::waitForIPI()
+{
+    while (read(REG_ICR_LOW).delivery_pending) hwthread_pause();
+}
+
 bool LAPIC::broadcastInitIPIEdge() {
     write(REG_ESR, 0); // Be paranoid about clearing APIC errors.
     read(REG_ESR);
@@ -139,6 +163,27 @@ bool LAPIC::broadcastInitIPIEdge() {
     return true;
 }
 
+bool LAPIC::sendInitIPIEdge(cpu::ApicID apicid) { // WIP
+    write(REG_ESR, 0); // Be paranoid about clearing APIC errors.
+    read(REG_ESR);
+    const auto assertINIT = Register()
+      .destination_shorthand(ICR_DESTSHORT_NO)
+      .level_triggered(1).level(1)
+      .logical_destination(0)
+      .delivery_mode(MODE_INIT).vector(0)
+      .delivery_pending(0);
+    writeIPI(apicid, assertINIT);
+    waitForIPI();
+
+    hwthread_wait(20000); // 20 millesecond
+
+    const auto deassertINIT = assertINIT.level(0);
+    writeIPI(apicid, deassertINIT);
+    waitForIPI();
+
+    return true;
+}
+
 bool LAPIC::broadcastStartupIPI(size_t startIP) {
     ASSERT((startIP & 0x0FFF) == 0 && ((startIP >> 12) >> 8) == 0);
     write(REG_ESR, 0); // Be paranoid about clearing APIC errors.
@@ -149,6 +194,18 @@ bool LAPIC::broadcastStartupIPI(size_t startIP) {
     MLOG_DETAIL(mlog::boot, "SIPI broadcast result", DVARhex(esr));
     return true;
 }
+
+bool LAPIC::sendStartupIPI(cpu::ApicID apicid, size_t startIP) { // WIP
+    ASSERT((startIP & 0x0FFF) == 0 && ((startIP >> 12) >> 8) == 0);
+    write(REG_ESR, 0); // Be paranoid about clearing APIC errors.
+    read(REG_ESR);
+    writeIPI(apicid, edgeIPI(ICR_DESTSHORT_NO, MODE_SIPI, uint8_t(startIP >> 12)));
+    write(REG_ESR, 0); // Be paranoid about clearing APIC errors.
+    uint32_t esr = read(REG_ESR).value & 0xEF;
+    MLOG_DETAIL(mlog::boot, "SIPI send result", DVAR(apicid), DVARhex(esr));
+    return true;
+}
+
 
 bool LAPIC::sendNMI(size_t destination) {
     write(REG_ESR, 0); // Be paranoid about clearing APIC errors.
@@ -172,7 +229,7 @@ void LAPIC::writeIPI(size_t destination, Register icrlow) {
     ASSERT(destination < 256);
     MLOG_DETAIL(mlog::boot, "write ICR", DVAR(destination), DVARhex(icrlow.value));
 
-    while (read(REG_ICR_LOW).delivery_pending) hwthread_pause();
+    waitForIPI();
 
     write(REG_ICR_HIGH, Register().destination(destination));
     write(REG_ICR_LOW, icrlow);

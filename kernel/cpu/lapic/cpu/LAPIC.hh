@@ -26,6 +26,7 @@
 #pragma once
 
 #include "boot/memory-layout.h"
+#include "cpu/hwthreadid.hh"
 #include "cpu/LAPICdef.hh"
 
 namespace mythos {
@@ -55,17 +56,19 @@ namespace mythos {
     uint32_t getCurrentCount() { return read(REG_TIMER_CCR).value; }
 
     bool broadcastInitIPIEdge();
+    bool sendInitIPIEdge(cpu::ApicID apicid);
     bool broadcastStartupIPI(size_t startIP);
+    bool sendStartupIPI(cpu::ApicID apicid, size_t startIP);
     bool sendNMI(size_t destination);
     bool sendIRQ(size_t destination, uint8_t vector);
     void endOfInterrupt() { write(REG_EOI, 0); }
+    void waitForIPI();
 
   protected:
-    static Register edgeIPI(IrcDestinationShorthand dest, IcrDeliveryMode mode, uint8_t vec) {
-      return Register().destination_shorthand(dest).level_triggered(0).level(1)
-        .logical_destination(0).delivery_mode(mode).vector(vec)
-        .delivery_pending(0); //workaround for qemu
-    }
+
+    void initMSR();
+
+    static Register edgeIPI(IrcDestinationShorthand dest, IcrDeliveryMode mode, uint8_t vec);
 
     static Register read(size_t reg) {
       return *((volatile uint32_t*)(LAPIC_ADDR + reg));

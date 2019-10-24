@@ -1,6 +1,5 @@
 # -*- mode:toml; -*-
 
-[module.address]
-    incfiles = [ "util/alignments.hh", "util/PhysPtr.hh",
-    "util/Range.hh", "util/RangeSet.hh"]
+[module.util-physptr-kernel]
+    incfiles = [ "util/PhysPtr.hh" ]
     requires = [ "tag/mode/kernel" ]

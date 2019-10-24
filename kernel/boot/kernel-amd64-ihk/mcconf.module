@@ -1,29 +1,31 @@
 # -*- mode:toml; -*-
-[module.kernel-amd64-pc]
-    incfiles = [ "boot/mlog.hh", "boot/boot.ld", "boot/memory-layout.h" , "boot/DeployKernelSpace.hh"]
-    kernelfiles = [ "boot/start.S", "boot/mlog.cc" ]
-    requires = [ "tag/platform/pc", "symbol/entry_ap", "symbol/entry_bsp" ]
-    provides = [ "boot32.elf", "boot64.elf", "symbol/_mboot_table", "symbol/_mboot_magic" ]
+[module.kernel-amd64-ihk]
+    incfiles = [ "util/PhysPtr.hh", "boot/mlog.hh", "boot/boot.ld", "boot/memory-layout.h", "boot/DeployKernelSpace.hh", "boot/memory-layout-common.h", "boot/init-kernelspace-common.hh", "boot/pagetables.hh", "boot/bootparam.h", "boot/kmem.hh", "boot/ihk-entry.hh", "boot/IhkSink.hh" ]
+    kernelfiles = [ "boot/mlog.cc", "boot/ihk-entry.cc", "boot/init-kernelspace-common.cc", "boot/kmem.cc", "boot/start.S" ]
+    requires = [ "tag/platform/pc", "tag/boot/ihk", "symbol/entry_bsp"]
+    provides = [ "boot64.elf" ]
 
     makefile_head = '''
 # just for make clean
 EXTRATARGETS += boot/boot.o
-TARGETS += boot32.elf boot64.elf
+
+TARGETS += boot64.elf
 EXTRATARGETS += kernel2.cc kernel2.o
 DEP += kernel2.d
 '''
 
     makefile_body = '''
-kernel2_other = $(filter-out %.cc, $(KERNELFILES))
-kernel2_obj = $(addsuffix .o, $(basename $(kernel2_other)))
-
 # apply preprocessor on linker script
 boot/boot.o: boot/boot.ld
 	$(CPP) $(KERNEL_CPPFLAGS) $(DEPFLAGS) -E -P -xc boot/boot.ld -o boot/boot.o
 
+kernel2_other = $(filter-out %.cc, $(KERNELFILES))
+kernel2_obj = $(addsuffix .o, $(basename $(kernel2_other)))
+
 kernel2.cc:
 	echo "" > kernel2.cc
 	for F in $(filter %.cc, $(KERNELFILES)) ; do echo "#include \"$$F\"" >> kernel2.cc ; done
+
 
 kernel2.o: kernel2.cc
 	$(KERNEL_CXX) $(KERNEL_CXXFLAGS) $(KERNEL_CPPFLAGS) $(DEPFLAGS) -c -o $@ $<
@@ -49,9 +51,18 @@ boot64s.elf: boot/boot.o $(KERNELFILES_OBJ)
 	objdump -dS boot64s.elf | c++filt > boots.disasm
 	strip boot64s.elf
 
-boot32.elf: boot64.elf
-	objcopy --strip-debug -I elf64-x86-64 -O elf32-i386 boot64.elf boot32.elf
+stop:
+	../3rdparty/ihkstop+release.sh 
+
+boot: all
+	sudo rm -rf /tmp/ihkmond
+	sudo ../3rdparty/ihkreboot.sh -k 1 -p $(shell pwd)/boot64.elf
+
+wait:
+	sleep 5
+
+run: boot wait stop
+	cat /tmp/ihkmond/mcos0/kmsg0
+
 '''
 
-[module.kernelspace-amd64-pc]
-    incfiles = [ "boot/memory-layout.h", "boot/DeployKernelSpace.hh" ]
