@@ -585,7 +585,7 @@ namespace mythos {
         current_ec->store(nullptr);
     }
 
-    optional<void> ExecutionContext::deleteCap(Cap self, IDeleter& del)
+    optional<void> ExecutionContext::deleteCap(CapEntry&, Cap self, IDeleter& del)
     {
         if (self.isOriginal()) { // the object gets deleted, not a capability reference
             setFlags(NO_AS + NO_SCHED); // ensure that the EC looks blocked
@@ -642,7 +642,7 @@ namespace mythos {
         RETHROW(obj);
       }
       Cap cap(*obj); /// @todo should have EC specific rights
-      auto res = cap::inherit(*memEntry, *dstEntry, memCap, cap);
+      auto res = cap::inherit(*memEntry, memCap, *dstEntry, cap);
       if (!res) {
         mem->free(*obj); // mem->release(obj) goes through IKernelObject deletion mechanism
         RETHROW(res);

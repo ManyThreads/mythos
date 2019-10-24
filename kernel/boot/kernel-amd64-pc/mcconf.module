@@ -19,7 +19,7 @@ kernel2_obj = $(addsuffix .o, $(basename $(kernel2_other)))
 
 # apply preprocessor on linker script
 boot/boot.o: boot/boot.ld
-        $(CPP) $(KERNEL_CPPFLAGS) $(DEPFLAGS) -E -P -xc boot/boot.ld -o boot/boot.o
+	$(CPP) $(KERNEL_CPPFLAGS) $(DEPFLAGS) -E -P -xc boot/boot.ld -o boot/boot.o
 
 kernel2.cc:
 	echo "" > kernel2.cc

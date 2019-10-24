@@ -38,7 +38,7 @@ namespace mythos {
     TypedCap<IFrame> frame(fe);
     if (!frame) RETHROW(frame);
     auto info = frame.getFrameInfo();
-    if (!info.start.kernelmem() || !info.writable) THROW(Error::INVALID_CAPABILITY);
+    if (info.device || !info.writable) THROW(Error::INVALID_CAPABILITY);
     if (offset+sizeof(InvocationBuf) >= info.size) THROW(Error::INSUFFICIENT_RESOURCES);
     ibNew = reinterpret_cast<InvocationBuf*>(info.start.logint()+offset);
     RETURN(_ib.set(this, *fe, frame.cap()));
@@ -141,7 +141,7 @@ namespace mythos {
     }
   }
 
-  optional<void> Portal::deleteCap(Cap self, IDeleter& del)
+  optional<void> Portal::deleteCap(CapEntry&, Cap self, IDeleter& del)
   {
     MLOG_DETAIL(mlog::portal, "delete cap", self);
     if (self.isOriginal()) {
@@ -205,7 +205,7 @@ namespace mythos {
       RETHROW(obj);
     }
     Cap cap(*obj); /// @todo should have Portal specific rights
-    auto res = cap::inherit(*memEntry, *dstEntry, memCap, cap);
+    auto res = cap::inherit(*memEntry, memCap, *dstEntry, cap);
     if (!res) {
       mem->free(*obj); // mem->release(obj) goes through IKernelObject deletion mechanism
       RETHROW(res);

@@ -57,8 +57,13 @@ namespace mythos {
     Cap cap() const { return Cap(_cap.load()); }
     void initRoot(Cap c);
 
-    optional<void> insertAfter(const Cap& thisCap, CapEntry& target) WARN_UNUSED;
-    // optional<void> insertBefore(const Cap& thisCap, CapEntry& target) WARN_UNUSED;
+    /** try to insert a child behind this parent.
+     * Uses lazy-locking: after locking the parent-child link, it is checked that 
+     * the parent entry still contains the same capability and is still usable, i.e. not deleted.
+     */
+    template<typename COMMITFUN>
+    optional<void> insertAfter(Cap parentCap, CapEntry& targetEntry, Cap targetCap, COMMITFUN const& commit);
+    
     optional<void> moveTo(CapEntry& other);
 
     bool setRevoking() { return !(_prev.fetch_or(REVOKING_FLAG) & REVOKING_FLAG); }
@@ -68,6 +73,7 @@ namespace mythos {
     void setDeleted() { _prev.fetch_or(DELETED_FLAG); }
     bool isDeleted() const { return _prev.load() & DELETED_FLAG; }
 
+    bool tryAcquire();
     optional<void> acquire();
     void commit(const Cap& cap);
     void reset();
@@ -104,9 +110,17 @@ namespace mythos {
     bool isUnlinked() const { return cap().isZombie() && !Link(_next).ptr() && !Link(_prev).ptr(); }
 
   private:
+
+    // called by move and insertAfter
+    void setPrevPreserveFlags(CapEntry* ptr);
+
     static constexpr uintlink_t LOCKED_FLAG = 1;
     static constexpr uintlink_t REVOKING_FLAG = 1 << 1;
     static constexpr uintlink_t DELETED_FLAG = 1 << 2;
+    static constexpr uintlink_t FLAG_MASK = 7;
+
+    static_assert((DELETED_FLAG | REVOKING_FLAG | FLAG_MASK) == FLAG_MASK, "prev flags do not fit");
+    static_assert((LOCKED_FLAG | FLAG_MASK) == FLAG_MASK, "next flags do not fit");
 
     class Link {
     public:
@@ -119,6 +133,7 @@ namespace mythos {
       CapEntry* ptr() const { return _toPtr(); }
       bool has(uintlink_t flags) const { return (_val & flags) == flags; }
       Link with(uintlink_t flags) const { return Link(_val & flags); }
+      Link withFlags(const Link& other) const { return Link(_val).with(other._val & FLAG_MASK); }
     protected:
       static uintlink_t _pack(CapEntry* entry, uintlink_t flags)
       {
@@ -135,6 +150,37 @@ namespace mythos {
     std::atomic<uintlink_t> _next; // all flags that are set or reset with the locking go here
   };
 
+  template<typename COMMITFUN>
+  optional<void> CapEntry::insertAfter(Cap parentCap, 
+                                       CapEntry& targetEntry, Cap targetCap, 
+                                       COMMITFUN const& commit)
+  {
+    ASSERT(isKernelAddress(this));
+    ASSERT(targetEntry.cap().isAllocated());
+    lock(); // lock the parent entry, the child is already acquired
+    auto curCap = cap();
+    // lazy-locking: check that we still operate on the same parent capability
+    if (!curCap.isUsable() || curCap != parentCap) {
+      unlock(); // unlock the parent entry
+      targetEntry.reset(); // release exclusive usage and revert to an empty entry
+      THROW(Error::LOST_RACE);
+    }
+
+    // exec commit function while parent and child are still locked and the insert was successful
+    commit(); 
+
+    auto nextEntry = Link(_next.load()).ptr();
+    nextEntry->setPrevPreserveFlags(&targetEntry);
+    targetEntry._next.store(Link(nextEntry));
+    // deleted or revoking can not be set in target._prev
+    // as we allocated target for being inserted
+    targetEntry._prev.store(Link(this));
+    this->_next.store(Link(&targetEntry)); // unlocks the parent entry
+    targetEntry.commit(targetCap); // release the target entry as usable
+    RETURN(Error::SUCCESS);
+  }
+
+  
   template<class T>
   ostream_base<T>& operator<<(ostream_base<T>& out, const CapEntry& entry)
   {

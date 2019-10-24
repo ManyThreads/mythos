@@ -39,8 +39,8 @@ namespace mythos {
   PageMap::PageMap(IAsyncFree* mem, size_t level, void* tableMem, void* capMem)
     : _level(level), _mem(mem), _deletionSink(nullptr)
   {
-    ASSERT(Alignment<FrameSize::MIN_FRAME_SIZE>::is_aligned(tableMem));
-    _memDesc[0] = MemoryDescriptor(tableMem, FrameSize::MIN_FRAME_SIZE);
+    ASSERT(Alignment<FrameSize::PAGE_MIN_SIZE>::is_aligned(tableMem));
+    _memDesc[0] = MemoryDescriptor(tableMem, FrameSize::PAGE_MIN_SIZE);
     _memDesc[1] = MemoryDescriptor(capMem, sizeof(CapEntry)*num_caps());
     _memDesc[2] = MemoryDescriptor(this, sizeof(PageMap));
     memset(_memDesc[0].ptr, 0, _memDesc[0].size);
@@ -60,19 +60,26 @@ namespace mythos {
     return offset2kernel<IPageMap>(ptr);
   }
 
-  Range<uintptr_t> PageMap::addressRange(Cap self)
+  Range<uintptr_t> PageMap::MappedFrame::addressRange(CapEntry& entry, Cap)
   {
-    PageMapData data(self);
-    if (!data.mapped) {
-      return Range<uintptr_t>::bySize(
-          PhysPtr<void>::fromKernel(_memDesc[0].ptr).physint(),
-          _memDesc[0].size);
-    } else {
-      // this works because the range of frames is the actual physical frame
-      // and the range of the page table includes the actual table frame.
-      auto addr = _pm_table(data.index).getAddr();
-      return {addr, addr+1};
-    }
+    auto idx = &entry - &map->_cap_table(0);  // index into the capability table
+    auto ptr = map->_pm_table(idx).getAddr();
+    MLOG_ERROR(mlog::cap, "MappedFrame::addressRange", DVAR(&entry), DVAR(idx), DVARhex(ptr), DVARhex(map->pageSize()));
+    return Range<uintptr_t>::bySize(ptr, map->pageSize());
+  }
+
+  Range<uintptr_t> PageMap::MappedPageMap::addressRange(CapEntry& entry, Cap)
+  {
+    auto idx = &entry - &map->_cap_table(0);
+    auto addr = map->_pm_table(idx).getAddr();
+    return Range<uintptr_t>::bySize(addr, 4096); // the x86 page table is 4K large
+  }
+
+  Range<uintptr_t> PageMap::addressRange(CapEntry&, Cap)
+  {
+    return Range<uintptr_t>::bySize(
+        PhysPtr<void>::fromKernel(_memDesc[0].ptr).physint(),
+        4096); // 4K large, see MappedPageMap::addressRange() above
   }
 
   void PageMap::print() const
@@ -82,20 +89,32 @@ namespace mythos {
     for (size_t i = num_caps(); i < TABLE_SIZE; ++i) MLOG_INFO(mlog::cap, i, _pm_table(i));
   }
 
-  optional<void> PageMap::deleteCap(Cap self, IDeleter& del)
+  optional<void> PageMap::MappedFrame::deleteCap(CapEntry& entry, Cap /*self*/, IDeleter&)
   {
-    if (PageMapData(self).mapped) {
-      MLOG_DETAIL(mlog::cap, "delete mapped Frame or PageMap", PageMapData(self).index);
-      _pm_table(PageMapData(self).index).reset();
-    } else {
-      if (self.isOriginal()) {
-        MLOG_DETAIL(mlog::cap, "delete PageMap", self);
-        for (size_t i = 0; i < num_caps(); ++i) {
-          auto res = del.deleteEntry(_cap_table(i));
-          ASSERT_MSG(res, "Mapped entries must be deletable.");
-          del.deleteObject(del_handle);
-        }
+    auto idx = &entry - &map->_cap_table(0);
+    MLOG_DETAIL(mlog::cap, "delete mapped Frame", DVAR(idx));
+    map->_pm_table(idx).reset();
+    RETURN(Error::SUCCESS);
+  }
+
+  optional<void> PageMap::MappedPageMap::deleteCap(CapEntry& entry, Cap /*self*/, IDeleter&)
+  {
+    auto idx = &entry - &map->_cap_table(0);
+    MLOG_DETAIL(mlog::cap, "delete mapped PageMap", DVAR(idx));
+    map->_pm_table(idx).reset();
+    RETURN(Error::SUCCESS);
+  }
+
+  optional<void> PageMap::deleteCap(CapEntry&, Cap self, IDeleter& del)
+  {
+    if (self.isOriginal()) {
+      MLOG_DETAIL(mlog::cap, "delete PageMap", self);
+      for (size_t i = 0; i < num_caps(); ++i) {
+        auto res = del.deleteEntry(_cap_table(i));
+        ASSERT_MSG(res, "Mapped entries must be deletable.");
+        if (!res) return res;
       }
+      del.deleteObject(del_handle);
     }
     RETURN(Error::SUCCESS);
   }
@@ -137,13 +156,13 @@ namespace mythos {
       .configurable(info.configurable & req.configurable);
 
     // inherit
-    auto newCap = PageMapData::mapTable(this, table.cap(), entry.configurable, index);
-    cap::resetReference([=]{ pme->reset(); }, _cap_table(index));
-    return cap::setReference([=,&entry]{ pme->set(entry); },
-                            _cap_table(index), newCap, *tableEntry, table.cap());
+    auto capData = PageMapData().writable(entry.configurable);
+    auto newCap = table.cap().asReference().withPtr(&mappedPageMapHelper).withData(capData);
+    cap::resetReference(_cap_table(index), [&]{ pme->reset(); });
+    return cap::setReference(_cap_table(index), newCap, *tableEntry, table.cap(), [=,&entry]{ pme->set(entry); });
   }
 
-  optional<Cap> PageMap::mint(Cap self, CapRequest request, bool)
+  optional<Cap> PageMap::mint(CapEntry&, Cap self, CapRequest request, bool)
   {
     return PageMapData(self).mint(self, PageMapReq(request));
   }
@@ -153,9 +172,8 @@ namespace mythos {
   {
     TypedCap<IFrame> frame(frameEntry);
     if (!frame) RETHROW(frame);
-    IFrame::Info frameInfo;
-    if (frame) frameInfo = frame.getFrameInfo(); 
-   
+    auto frameInfo = frame.getFrameInfo(); 
+
     MLOG_INFO(mlog::cap, "mapFrame", DVAR(level()), DVAR(frame.cap()), DVAR(index), DVAR(offset),
                   DVARhex(frameInfo.start.physint()), DVARhex(frameInfo.size), DVARhex(pageSize()));
     ASSERT(index < num_caps());
@@ -177,12 +195,12 @@ namespace mythos {
       .withAddr(frameaddr)
       .configurable(frameInfo.writable)
       .pmPtr(pme->pmPtr);
-    auto newCap = PageMapData::mapFrame(this, frame.cap(), frameInfo, index);
 
     // inherit
-    cap::resetReference([=]{ pme->reset(); }, _cap_table(index));
-    return cap::setReference([=,&entry]{ pme->set(entry); },
-                            _cap_table(index), newCap, *frameEntry, frame.cap());
+    auto newCap = frame.cap().asReference().withPtr(&mappedFrameHelper);
+    MLOG_ERROR(mlog::cap, "PageMap::mapFrame", DVAR(&frameEntry), DVAR(index), DVARhex(frameInfo.size), DVARhex(frameInfo.start.physint()));
+    cap::resetReference(_cap_table(index), [&]{ pme->reset(); });
+    return cap::setReference(_cap_table(index), newCap, *frameEntry, frame.cap(), [=,&entry]{ pme->set(entry); });
   }
 
   optional<void> PageMap::unmapEntry(size_t index)
@@ -190,7 +208,7 @@ namespace mythos {
     MLOG_INFO(mlog::cap, "unmapEntry", DVAR(level()), DVAR(index));
     ASSERT(index < num_caps());
     auto pme = &_pm_table(index);
-    cap::resetReference([=]{ pme->reset(); }, _cap_table(index)); // ignore lost races
+    cap::resetReference(_cap_table(index), [&]{ pme->reset(); }); // ignore lost races
     RETURN(Error::SUCCESS);
   }
 
@@ -306,7 +324,7 @@ namespace mythos {
     auto res = visitPages(&_pm_table(0), level(), op);
     *failaddr = op.vaddr();
     *faillevel = op.current_level;
-    RETHROW(res.state());
+    RETURN(res.state());
   }
 
   Error PageMap::invokeMmap(Tasklet*, Cap self, IInvocation* msg)
@@ -399,29 +417,29 @@ namespace mythos {
                          size_t level)
   {
     if (!(level>=1 && level<=4)) THROW(Error::INVALID_ARGUMENT);
-    auto table = mem->alloc(FrameSize::MIN_FRAME_SIZE, FrameSize::MIN_FRAME_SIZE);
+    auto table = mem->alloc(FrameSize::PAGE_MIN_SIZE, FrameSize::PAGE_MIN_SIZE);
     if (!table) {
       dstEntry->reset();
       RETHROW(table);
     }
-    auto caps = mem->alloc(sizeof(CapEntry)*PageMap::num_caps(level), FrameSize::MIN_FRAME_SIZE);
+    auto caps = mem->alloc(sizeof(CapEntry)*PageMap::num_caps(level), FrameSize::PAGE_MIN_SIZE);
     if (!caps) {
-      mem->free(*table, FrameSize::MIN_FRAME_SIZE);
+      mem->free(*table, FrameSize::PAGE_MIN_SIZE);
       dstEntry->reset();
       RETHROW(caps);
     }
     auto obj = mem->create<PageMap>(level, *table, *caps);
     if (!obj) {
-      mem->free(*table, FrameSize::MIN_FRAME_SIZE);
+      mem->free(*table, FrameSize::PAGE_MIN_SIZE);
       mem->free(*caps, sizeof(CapEntry)*PageMap::num_caps(level));
       dstEntry->reset();
       RETHROW(obj);
     }
     auto cap = Cap(*obj).withData(PageMapData());
-    auto res = cap::inherit(*memEntry, *dstEntry, memCap, cap);
+    auto res = cap::inherit(*memEntry, memCap, *dstEntry, cap);
     if (!res) {
       mem->free(*obj); // mem->release(obj) goes throug IKernelObject deletion mechanism
-      mem->free(*table, FrameSize::MIN_FRAME_SIZE);
+      mem->free(*table, FrameSize::PAGE_MIN_SIZE);
       mem->free(*caps, sizeof(CapEntry)*PageMap::num_caps(level));
       RETHROW(res);
     }
