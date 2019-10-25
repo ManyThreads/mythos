@@ -16,6 +16,7 @@
       ]
 
     requires = [
+      "tag/platform/ihk",
       "boot64.elf",
       "Makefile",
       ]

@@ -16,6 +16,7 @@
       ]
 
     requires = [
+      "tag/platform/amd64",
       "boot32.elf",
       "tag/emu-qemu",
       "tag/emu-bochs",

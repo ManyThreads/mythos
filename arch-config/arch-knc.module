@@ -7,7 +7,6 @@
       "tag/cpu/clevict",
       "tag/cpu/kncapic",
       "tag/mode/kernel",
-      "tag/platform/knc",
       "tag/compiler/gcc",
       "tag/boot/sfi",
       "tag/cap/spinning",
@@ -15,6 +14,7 @@
       ]
 
     requires = [
+      "tag/platform/knc",
       "boot64.elf",
       "Makefile",
       ]
