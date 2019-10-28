@@ -1,6 +1,7 @@
 # -*- mode:toml; -*-
 [module.arch-amd64]
     # pseudo modules and so on that are assumed as available
+    noauto = true
     provides = [
       "tag/cpu/amd64",
       "tag/cpu/pause",
@@ -13,7 +14,6 @@
       "tag/boot/intelmp",
       "tag/boot/multiboot",
       "tag/cap/spinning",
-      "tag/arch/config",
       ]
 
     requires = [

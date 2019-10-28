@@ -1,6 +1,7 @@
 # -*- mode:toml; -*-
 [module.arch-ihk]
     # pseudo modules and so on that are assumed as available
+    noauto = true
     provides = [
       "tag/cpu/amd64",
       "tag/cpu/pause",
@@ -13,7 +14,6 @@
       "tag/boot/ihk",
       "tag/boot/multiboot",
       "tag/cap/spinning",
-      "tag/arch/config",
       ]
 
     requires = [

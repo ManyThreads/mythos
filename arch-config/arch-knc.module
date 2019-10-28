@@ -1,6 +1,7 @@
 # -*- mode:toml; -*-
 [module.arch-knc]
     # pseudo modules and so on that are assumed as available
+    noauto = true
     provides = [
       "tag/cpu/amd64",
       "tag/cpu/delay",
@@ -11,7 +12,7 @@
       "tag/boot/sfi",
       "tag/cap/spinning",
       "tag/cpu/kncioapic",
-      "tag/arch/config",
+      "tag/platform/knc",
       ]
 
     requires = [
