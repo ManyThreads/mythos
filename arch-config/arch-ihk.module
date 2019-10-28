@@ -13,10 +13,10 @@
       "tag/boot/ihk",
       "tag/boot/multiboot",
       "tag/cap/spinning",
+      "tag/arch/config",
       ]
 
     requires = [
-      "tag/platform/ihk",
       "boot64.elf",
       "Makefile",
       ]

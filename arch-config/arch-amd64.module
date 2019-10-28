@@ -13,10 +13,10 @@
       "tag/boot/intelmp",
       "tag/boot/multiboot",
       "tag/cap/spinning",
+      "tag/arch/config",
       ]
 
     requires = [
-      "tag/platform/amd64",
       "boot32.elf",
       "tag/emu-qemu",
       "tag/emu-bochs",

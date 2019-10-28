@@ -11,10 +11,10 @@
       "tag/boot/sfi",
       "tag/cap/spinning",
       "tag/cpu/kncioapic",
+      "tag/arch/config",
       ]
 
     requires = [
-      "tag/platform/knc",
       "boot64.elf",
       "Makefile",
       ]
