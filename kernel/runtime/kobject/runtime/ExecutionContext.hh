@@ -34,6 +34,8 @@
 
 namespace mythos {
     
+    extern thread_local CapPtr localEC;
+
     template<class MSG> class Msg;
     
     template<> class Msg<protocol::ExecutionContext::Create>
@@ -43,6 +45,7 @@ namespace mythos {
         CapPtr obj;
     public:
         typedef void* (*StartFun)(void*);
+        typedef int (*StartFunInt)(void*);
         
         Msg(CapPtr dst, CapPtr kmem, CapPtr factory) : ib(dst, factory), obj(kmem) {}
         
@@ -59,12 +62,22 @@ namespace mythos {
             ib.regs.rsp = uintptr_t(tos); 
             return *this; 
         }
-        Msg& startFun(StartFun fun, void* userctx) { 
+        Msg& startFun(StartFun fun, void* userctx, CapPtr ec) { 
             ib.regs.rdi = uintptr_t(fun);                   // arg 1
             ib.regs.rsi = uintptr_t(userctx);               // arg 2
+            ib.regs.rdx = uintptr_t(ec);               	    // arg 3
             ib.regs.rip = uintptr_t(&start);
             return *this; 
         }
+
+        Msg& startFunInt(StartFunInt fun, void* userctx, CapPtr ec) { 
+            ib.regs.rdi = uintptr_t(fun);                   // arg 1
+            ib.regs.rsi = uintptr_t(userctx);               // arg 2
+            ib.regs.rdx = uintptr_t(ec);                    // arg 3
+            ib.regs.rip = uintptr_t(&startInt);
+            return *this; 
+        }
+
         Msg& suspended(bool value) { ib.start = !value; return *this; }
         Msg& fs(void* ptr) { ib.regs.fs_base = uintptr_t(ptr); return *this; }
         Msg& gs(void* ptr) { ib.regs.gs_base = uintptr_t(ptr); return *this; }
@@ -81,16 +94,23 @@ namespace mythos {
         }
 
     protected:
-        static void start(StartFun main, void* userctx) { 
+        static void start(StartFun main, void* userctx, CapPtr ec) { 
+            localEC = ec;
             syscall_exit(uintptr_t(main(userctx)));
         }
+
+        static void startInt(StartFunInt main, void* userctx, CapPtr ec) { 
+            localEC = ec;
+            syscall_exit(main(userctx));
+        }
     };    
+
 
   class ExecutionContext : public KObject
   {
   public:
     typedef protocol::ExecutionContext::Amd64Registers register_t;
-    typedef void* (*StartFun)(void*);
+    typedef int (*StartFun)(void*);
 
     ExecutionContext() {}
     ExecutionContext(CapPtr cap) : KObject(cap) {}

@@ -13,6 +13,7 @@ extern char __executable_start; //< provided by the default linker script
 
 namespace mythos {
 
+/* Dont change! */
 struct TLSControlBlock
 {
     TLSControlBlock() { tcb = this; }

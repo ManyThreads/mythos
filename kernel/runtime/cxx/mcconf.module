@@ -1,9 +1,10 @@
 # -*- mode:toml; -*-
 [module.cxxabi-app]
-    appfiles = [ "runtime/cxxsupport.cc", "runtime/string.cc", "runtime/cxxdelete.cc" ]
-    provides = [ "vector", "queue", "functional", "pthread.h", "endian.h" ]
+    incfiles = [ "runtime/futex.hh" ]
+    appfiles = [ "runtime/cxxsupport.cc", "runtime/string.cc", "runtime/cxxdelete.cc", "runtime/pthread.cc", "runtime/futex.cc" ]
+    provides = [ "vector", "queue", "functional", "pthread.h", "endian.h", "errno.h", "sys/mman.h", "sys/types.h", "stdlib.h", "sys/time.h", "stdatomic.h", "omp.h", "sys/resource.h" ]
     makefile_head = '''
 APP_CPPFLAGS += -nostdinc -nostdinc++ -isystem ${vars.cxx_path}/include/c++/v1 -isystem ${vars.cxx_path}/include 
 APP_LDFLAGS += -Wl,--eh-frame-hdr --sysroot=${vars.cxx_path}/../
-APP_LIBS += ${vars.cxx_path}/lib/libc++.a ${vars.cxx_path}/lib/libc++abi.a ${vars.cxx_path}/lib/libunwind.a ${vars.cxx_path}/lib/libc.a -lgcc
+APP_LIBS += ${vars.cxx_path}/lib/libomp.a ${vars.cxx_path}/lib/libc++.a ${vars.cxx_path}/lib/libc++abi.a ${vars.cxx_path}/lib/libunwind.a ${vars.cxx_path}/lib/libc.a -lgcc
 '''

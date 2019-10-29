@@ -17,9 +17,6 @@ command -v git >/dev/null 2>&1 || fail "require git but it's not installed"
 export CMAKE=cmake
 command -v cmake3 >/dev/null 2>&1 && CMAKE=cmake3
 
-# need: libtool ???
-# TODO: check compiler-rt (instead of libgcc)
-
 command -v k1om-mpss-linux-g++ >/dev/null 2>&1 && CROSS_K1OM=1
 
 
@@ -28,7 +25,7 @@ cd `dirname $0`
 BASEDIR=`pwd`
 echo installing in $BASEDIR
 
-#git submodule update
+#git submodule update --init --recursive
 
 mkdir cxx-src
 cd cxx-src
@@ -71,7 +68,16 @@ fi
 rm -rf libunwind
 tar -xJf libunwind-7.0.0.src.tar.xz && mv libunwind-7.0.0.src libunwind || fail
 
+#openmp
+if test ! -e openmp-9.0.0.src.tar.xz ; then  
+  curl -O http://releases.llvm.org/9.0.0/openmp-9.0.0.src.tar.xz || fail
+fi
+rm -rf openmp
+tar -xJf openmp-9.0.0.src.tar.xz && mv openmp-9.0.0.src openmp || fail
 
+
+
+###########################################################
 function compile {
 
 rm -rf "$DSTDIR"
@@ -169,7 +175,22 @@ $CMAKE -DCMAKE_INSTALL_PREFIX="$DSTDIR/usr" \
     ../ && make -j`nproc` && make install || fail
 cd ../..
 
+
+# install openmp
+#    -DLIBOMP_SYSROOT="$DSTDIR"
+cd openmp
+rm -rf build && mkdir build && cd build
+$CMAKE -DCMAKE_INSTALL_PREFIX="$DSTDIR/usr" \
+    -DCMAKE_C_COMPILER="$DSTDIR/usr/bin/musl-gcc" \
+    -DCMAKE_CXX_COMPILER="$DSTDIR/usr/bin/musl-gcc" \
+    -DCMAKE_CXX_FLAGS="-isystem $DSTDIR/usr/include -isystem $DSTDIR/usr/include/c++/v1" \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DLIBOMP_ENABLE_SHARED=OFF \
+    ../ && make -j`nproc` && make install || fail
+cd ../..
+
 } # function compile
+###########################################################
 
 
 

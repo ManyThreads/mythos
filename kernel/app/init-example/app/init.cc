@@ -46,6 +46,9 @@
 #include <vector>
 #include <array>
 
+#include <pthread.h>
+#include <omp.h>
+
 mythos::InvocationBuf* msg_ptr asm("msg_ptr");
 int main() asm("main");
 
@@ -69,18 +72,6 @@ char threadstack2[stacksize];
 char* thread3stack_top = threadstack2+stacksize/2;
 char* thread4stack_top = threadstack2+stacksize;
 
-mythos::Mutex mutex;
-
-void* thread_main(void* ctx)
-{
-  MLOG_INFO(mlog::app, "hello thread!", DVAR(ctx));
-  mutex << [ctx]() {
-    MLOG_INFO(mlog::app, "thread in mutex", DVAR(ctx));
-  };
-  mythos::ISysretHandler::handle(mythos::syscall_wait());
-  MLOG_INFO(mlog::app, "thread resumed from wait", DVAR(ctx));
-  return 0;
-}
 
 void test_Example()
 {
@@ -231,33 +222,15 @@ void test_tls()
   MLOG_INFO(mlog::app, "test_EC: create ec1 TLS", DVARhex(tls));
   ASSERT(tls != nullptr);
   auto res1 = ec1.create(kmem).as(myAS).cs(myCS).sched(mythos::init::SCHEDULERS_START + 1)
-    .prepareStack(thread1stack_top).startFun(threadFun, nullptr)
+    .prepareStack(thread1stack_top).startFun(threadFun, nullptr, ec1.cap())
     .suspended(false).fs(tls)
     .invokeVia(pl).wait();
   TEST(res1);
   TEST(ec1.setFSGS(pl,(uint64_t) tls, 0).wait());
   mythos::syscall_signal(ec1.cap());
+  MLOG_INFO(mlog::app, "End test tls");
 }
 
-void test_InterruptControl() {
-  MLOG_INFO(mlog::app, "test_InterruptControl start");
-  mythos::InterruptControl ic(mythos::init::INTERRUPT_CONTROL_START);
-
-  mythos::PortalLock pl(portal); // future access will fail if the portal is in use already
-
-  mythos::ExecutionContext ec(capAlloc());
-  auto tls = mythos::setupNewTLS();
-  ASSERT(tls != nullptr);
-  auto res1 = ec.create(kmem).as(myAS).cs(myCS).sched(mythos::init::SCHEDULERS_START + 2)
-    .prepareStack(thread3stack_top).startFun(&thread_main, nullptr)
-    .suspended(false).fs(tls)
-    .invokeVia(pl).wait();
-  TEST(res1);
-  TEST(ic.registerForInterrupt(pl, ec.cap(), 0x32).wait());
-  TEST(ic.unregisterInterrupt(pl, 0x32).wait());
-  TEST(capAlloc.free(ec, pl));
-  MLOG_INFO(mlog::app, "test_InterruptControl end");
-}
 
 void test_heap() {
   MLOG_INFO(mlog::app, "Test heap");
@@ -336,16 +309,71 @@ bool test_HostChannel(mythos::Portal& portal, uintptr_t vaddr, size_t size)
 }
 
 void test_exceptions() {
+  MLOG_INFO(mlog::app, "Test Exceptions");
     try{
         MLOG_INFO(mlog::app, "throwing 42");
         throw 42;
     } catch (int i){
         MLOG_INFO(mlog::app, "catched", i);
     }
+  MLOG_INFO(mlog::app, "End Test Exceptions");
+}
+
+void* threadMain(void* arg){
+  MLOG_INFO(mlog::app, "Thread says hello", DVAR(pthread_self()));
+  return 0;
+}
+
+void test_pthreads(){
+  MLOG_INFO(mlog::app, "Test Pthreads");
+	pthread_t p;
+ 
+	auto tmp = pthread_create(&p, NULL, &threadMain, NULL);
+  MLOG_INFO(mlog::app, "pthread_create returned", DVAR(tmp));
+	pthread_join(p, NULL);
+
+  MLOG_INFO(mlog::app, "End Test Pthreads");
+}
+
+void test_omp(){
+  MLOG_INFO(mlog::app, "Test Openmp");
+  int nthreads, tid;
+  omp_set_num_threads(2);
+/* Fork a team of threads giving them their own copies of variables */
+#pragma omp parallel private(nthreads, tid)
+  {
+
+  /* Obtain thread number */
+  tid = omp_get_thread_num();
+  MLOG_INFO(mlog::app, "Hello World from thread", DVAR(tid));
+
+  /* Only master thread does this */
+  if (tid == 0) 
+    {
+    nthreads = omp_get_num_threads();
+  MLOG_INFO(mlog::app, "Number of threads", DVAR(nthreads));
+    }
+
+  }
+  MLOG_INFO(mlog::app, "End Test Openmp");
+}
+
+
+mythos::Mutex mutex;
+void* thread_main(void* ctx)
+{
+  MLOG_INFO(mlog::app, "hello thread!", DVAR(ctx));
+  mutex << [ctx]() {
+    MLOG_INFO(mlog::app, "thread in mutex", DVAR(ctx));
+  };
+  mythos::ISysretHandler::handle(mythos::syscall_wait());
+  MLOG_INFO(mlog::app, "thread resumed from wait", DVAR(ctx));
+  return 0;
 }
 
 void test_ExecutionContext()
 {
+  MLOG_INFO(mlog::app, "Test ExecutionContext");
   mythos::ExecutionContext ec1(capAlloc());
   mythos::ExecutionContext ec2(capAlloc());
   {
@@ -355,7 +383,7 @@ void test_ExecutionContext()
     auto tls1 = mythos::setupNewTLS();
     ASSERT(tls1 != nullptr);
     auto res1 = ec1.create(kmem).as(myAS).cs(myCS).sched(mythos::init::SCHEDULERS_START)
-    .prepareStack(thread1stack_top).startFun(&thread_main, nullptr)
+    .prepareStack(thread1stack_top).startFun(&thread_main, nullptr, ec1.cap())
     .suspended(false).fs(tls1)
     .invokeVia(pl).wait();
     TEST(res1);
@@ -364,7 +392,7 @@ void test_ExecutionContext()
     auto tls2 = mythos::setupNewTLS();
     ASSERT(tls2 != nullptr);
     auto res2 = ec2.create(kmem).as(myAS).cs(myCS).sched(mythos::init::SCHEDULERS_START+1)
-    .prepareStack(thread2stack_top).startFun(&thread_main, nullptr)
+    .prepareStack(thread2stack_top).startFun(&thread_main, nullptr, ec2.cap())
     .suspended(false).fs(tls2)
     .invokeVia(pl).wait();
     TEST(res2);
@@ -377,7 +405,29 @@ void test_ExecutionContext()
   MLOG_INFO(mlog::app, "sending notifications");
   mythos::syscall_signal(ec1.cap());
   mythos::syscall_signal(ec2.cap());
+  MLOG_INFO(mlog::app, "End Test ExecutionContext");
 }
+
+void test_InterruptControl() {
+  MLOG_INFO(mlog::app, "test_InterruptControl start");
+  mythos::InterruptControl ic(mythos::init::INTERRUPT_CONTROL_START);
+
+  mythos::PortalLock pl(portal); // future access will fail if the portal is in use already
+
+  mythos::ExecutionContext ec(capAlloc());
+  auto tls = mythos::setupNewTLS();
+  ASSERT(tls != nullptr);
+  auto res1 = ec.create(kmem).as(myAS).cs(myCS).sched(mythos::init::SCHEDULERS_START + 2)
+    .prepareStack(thread3stack_top).startFun(&thread_main, nullptr, ec.cap())
+    .suspended(false).fs(tls)
+    .invokeVia(pl).wait();
+  TEST(res1);
+  TEST(ic.registerForInterrupt(pl, ec.cap(), 0x32).wait());
+  TEST(ic.unregisterInterrupt(pl, 0x32).wait());
+  TEST(capAlloc.free(ec, pl));
+  MLOG_INFO(mlog::app, "test_InterruptControl end");
+}
+
 
 int main()
 {
@@ -395,6 +445,8 @@ int main()
   //test_InterruptControl();
   //test_HostChannel(portal, 24*1024*1024, 2*1024*1024);
   test_ExecutionContext();
+  test_pthreads();
+  test_omp();
 
   char const end[] = "bye, cruel world!";
   mythos::syscall_debug(end, sizeof(end)-1);
