@@ -7,6 +7,8 @@ INSTALLDIR="${IHKDIR}/install"
 
 cp "${SCRIPTDIR}/ihk-templates/ihkmond.c" "${IHKDIR}/linux/user/"
 cp "${SCRIPTDIR}/ihk-templates/mikc.c" "${IHKDIR}/linux/core/"
+cp "${SCRIPTDIR}/ihk-templates/smp-arch-driver.c" "${IHKDIR}/linux/driver/smp/arch/x86_64/"
+
 
 rm -rf $INSTALLDIR $BUILDDIR
 
