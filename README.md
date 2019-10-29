@@ -72,7 +72,7 @@ In order to run MyThOS on an Intel XeonPhi Knights Corner processor, a recent ve
 * Then, change into the `kernel-knc` folder and run `make` in order to compile the init application and the kernel.
 * In order to boot the system on the XeonPhi, you need root access (sudo). Run `make micrun` in order to stop any running coprocessor OS and boot MyThOS. If everything goes well, the script will start the `xmicterm` and you see the debug output. Stop it with CTRL-c and use `make micstop` to shut down the coprocessor. You can enable more detailed debug messages by editing `Makefile.user` and recompiling the kernel.
 
-## Running as cokernel next to linux (Cent-OS) with IHK
+## Running as IHK cokernel next to CentOS GNU/Linux
 
 * First, run `git submodule update --init --recursive` to pull the needed projects
 * Run `3rdparty/mcconf/install-python-libs.sh` in order to install the build configuration tool. This requires python and pip (a widespread package installer for python).
@@ -86,12 +86,13 @@ In order to run MyThOS on an Intel XeonPhi Knights Corner processor, a recent ve
 * `cd kernel-ihk`
 * `make run`
 
-## Running as cokernel next to Ubuntu with IHK
+## Running as IHK cokernel next to Ubuntu GNU/Linux
 
-* First make sure you have installed python, pip, virtualenv, curl and cmake.
-* Run `git submodule init && git submodule update && 3rdparty/mcconf/install-python-libs.sh` in order to install the needed libraries for the build configuration tool. 
+* `sudo apt install python python-pip python-virtualenv curl cmake`
+* `git submodule update --init --recursive` to pull the needed projects.
+* Run `3rdparty/mcconf/install-python-libs.sh` in order to install the build configuration tool.
 * Run `3rdparty/install-libcxx.sh`
-* Install required packages: `sudo apt-get install linux-headers-$(uname -r) binutils-dev libsystemd-dev libnuma-dev libiberty-dev libudev-dev`
+* `sudo apt install linux-headers-$(uname -r) binutils-dev libsystemd-dev libnuma-dev libiberty-dev libudev-dev`
 * Perhaps you have to disable AppArmor by entering `sudo systemctl stop apparmor.service` and `sudo update-rc.d -f apparmor remove`
 * Grant read permission to the System.map file of your kernel version: ``sudo chmod a+r /boot/System.map-`uname -r` ``
 * Run `3rdparty/install-ihk.sh`
