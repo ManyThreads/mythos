@@ -44,6 +44,11 @@ namespace mythos {
       return pr.invoke<protocol::Frame::Create>(kmem.cap(), _cap, factory, size, alignment);
     }
 
+    PortalFuture<void> createDevice(PortalLock pr, KObject root,
+                              size_t addr, size_t size, bool writable) {
+      return pr.invoke<protocol::DeviceMemory::Create>(root.cap(), _cap, addr, size, writable);
+    }
+
     struct Info {
       Info() {}
       Info(InvocationBuf* ib) {

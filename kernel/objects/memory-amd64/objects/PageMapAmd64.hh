@@ -168,15 +168,15 @@ public:
   virtual void response(Tasklet*, optional<void>) override;
 
 public: // IKernelObject interface
-  Range<uintptr_t> addressRange(Cap self) override;
+  Range<uintptr_t> addressRange(CapEntry&, Cap self) override;
   optional<void const*> vcast(TypeId id) const override {
     if (id == typeId<IPageMap>()) return static_cast<IPageMap const*>(this);
     THROW(Error::TYPE_MISMATCH);
   }
 
-  optional<void> deleteCap(Cap self, IDeleter& del) override;
+  optional<void> deleteCap(CapEntry&, Cap self, IDeleter& del) override;
   void deleteObject(Tasklet* t, IResult<void>* r) override;
-  optional<Cap> mint(Cap self, CapRequest request, bool derive) override;
+  optional<Cap> mint(CapEntry&, Cap self, CapRequest request, bool derive) override;
 
   void invoke(Tasklet* t, Cap self, IInvocation* msg) override;
   Error invokeMmap(Tasklet* t, Cap self, IInvocation* msg);
@@ -185,6 +185,28 @@ public: // IKernelObject interface
   Error invokeMprotect(Tasklet* t, Cap self, IInvocation* msg);
   Error invokeInstallMap(Tasklet* t, Cap self, IInvocation* msg);
   Error invokeRemoveMap(Tasklet* t, Cap self, IInvocation* msg);
+
+private:
+  class MappedFrame : public IKernelObject {
+  public:
+    MappedFrame(PageMap* map) : map(map) {}
+    ~MappedFrame() override {}
+    Range<uintptr_t> addressRange(CapEntry& entry, Cap) override;
+    mythos::optional<void> deleteCap(CapEntry& entry, Cap self, IDeleter&) override;
+    PageMap* const map;
+  };
+
+  class MappedPageMap : public IKernelObject {
+  public:
+    MappedPageMap(PageMap* map) : map(map) {}
+    ~MappedPageMap() override {}
+    Range<uintptr_t> addressRange(CapEntry& entry, Cap) override;
+    mythos::optional<void> deleteCap(CapEntry& entry, Cap self, IDeleter&) override;
+    PageMap* const map;
+  };
+
+  MappedFrame mappedFrameHelper = {this};
+  MappedPageMap mappedPageMapHelper = {this};
 
 private:
   size_t _level;

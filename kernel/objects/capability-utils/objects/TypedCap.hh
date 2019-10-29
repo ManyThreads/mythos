@@ -65,10 +65,10 @@ namespace mythos {
     TypedCap& set(Cap c);
 
   public: // IKernelObject interface
-    Range<uintptr_t> addressRange() const { return ptr()->addressRange(cap()); }
-    optional<Cap> mint(CapRequest request, bool derive) const { return ptr()->mint(_cap, request, derive); }
-    optional<void> deleteCap(IDeleter& del) const { return ptr()->deleteCap(_cap, del); }
-    void invoke(Tasklet* t, IInvocation* msg) const { return ptr()->invoke(t, _cap, msg); }
+    //Range<uintptr_t> addressRange() const { return ptr()->addressRange(cap()); }
+    //optional<Cap> mint(CapRequest request, bool derive) const { return ptr()->mint(_cap, request, derive); }
+    //optional<void> deleteCap(IDeleter& del) const { return ptr()->deleteCap(_cap, del); }
+    //void invoke(Tasklet* t, IInvocation* msg) const { return ptr()->invoke(t, _cap, msg); }
 
   public: // ICapMap interface
     optional<CapEntryRef> lookup(CapPtr needle, CapPtrDepth maxDepth, bool writeable) const

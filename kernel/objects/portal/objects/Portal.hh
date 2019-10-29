@@ -119,7 +119,7 @@ namespace mythos {
       if (id == typeId<IPortal>()) return static_cast<IPortal const*>(this);
       THROW(Error::TYPE_MISMATCH);
     }
-    optional<void> deleteCap(Cap self, IDeleter& del) override;
+    optional<void> deleteCap(CapEntry&, Cap self, IDeleter& del) override;
 
     void deleteObject(Tasklet* t, IResult<void>* r) override {
       monitor.doDelete(t, [=](Tasklet* t) { memory->free(t, r, this, sizeof(Portal)); });
