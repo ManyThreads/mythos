@@ -72,18 +72,6 @@ char threadstack2[stacksize];
 char* thread3stack_top = threadstack2+stacksize/2;
 char* thread4stack_top = threadstack2+stacksize;
 
-mythos::Mutex mutex;
-
-void* thread_main(void* ctx)
-{
-  MLOG_INFO(mlog::app, "hello thread!", DVAR(ctx));
-  mutex << [ctx]() {
-    MLOG_INFO(mlog::app, "thread in mutex", DVAR(ctx));
-  };
-  mythos::ISysretHandler::handle(mythos::syscall_wait());
-  MLOG_INFO(mlog::app, "thread resumed from wait", DVAR(ctx));
-  return 0;
-}
 
 void test_Example()
 {
@@ -243,25 +231,6 @@ void test_tls()
   MLOG_INFO(mlog::app, "End test tls");
 }
 
-void test_InterruptControl() {
-  MLOG_INFO(mlog::app, "test_InterruptControl start");
-  mythos::InterruptControl ic(mythos::init::INTERRUPT_CONTROL_START);
-
-  mythos::PortalLock pl(portal); // future access will fail if the portal is in use already
-
-  mythos::ExecutionContext ec(capAlloc());
-  auto tls = mythos::setupNewTLS();
-  ASSERT(tls != nullptr);
-  auto res1 = ec.create(kmem).as(myAS).cs(myCS).sched(mythos::init::SCHEDULERS_START + 2)
-    .prepareStack(thread3stack_top).startFun(&thread_main, nullptr, ec.cap())
-    .suspended(false).fs(tls)
-    .invokeVia(pl).wait();
-  TEST(res1);
-  TEST(ic.registerForInterrupt(pl, ec.cap(), 0x32).wait());
-  TEST(ic.unregisterInterrupt(pl, 0x32).wait());
-  TEST(capAlloc.free(ec, pl));
-  MLOG_INFO(mlog::app, "test_InterruptControl end");
-}
 
 void test_heap() {
   MLOG_INFO(mlog::app, "Test heap");
@@ -388,6 +357,19 @@ void test_omp(){
   MLOG_INFO(mlog::app, "End Test Openmp");
 }
 
+
+mythos::Mutex mutex;
+void* thread_main(void* ctx)
+{
+  MLOG_INFO(mlog::app, "hello thread!", DVAR(ctx));
+  mutex << [ctx]() {
+    MLOG_INFO(mlog::app, "thread in mutex", DVAR(ctx));
+  };
+  mythos::ISysretHandler::handle(mythos::syscall_wait());
+  MLOG_INFO(mlog::app, "thread resumed from wait", DVAR(ctx));
+  return 0;
+}
+
 void test_ExecutionContext()
 {
   mythos::ExecutionContext ec1(capAlloc());
@@ -422,6 +404,27 @@ void test_ExecutionContext()
   mythos::syscall_signal(ec1.cap());
   mythos::syscall_signal(ec2.cap());
 }
+
+void test_InterruptControl() {
+  MLOG_INFO(mlog::app, "test_InterruptControl start");
+  mythos::InterruptControl ic(mythos::init::INTERRUPT_CONTROL_START);
+
+  mythos::PortalLock pl(portal); // future access will fail if the portal is in use already
+
+  mythos::ExecutionContext ec(capAlloc());
+  auto tls = mythos::setupNewTLS();
+  ASSERT(tls != nullptr);
+  auto res1 = ec.create(kmem).as(myAS).cs(myCS).sched(mythos::init::SCHEDULERS_START + 2)
+    .prepareStack(thread3stack_top).startFun(&thread_main, nullptr, ec.cap())
+    .suspended(false).fs(tls)
+    .invokeVia(pl).wait();
+  TEST(res1);
+  TEST(ic.registerForInterrupt(pl, ec.cap(), 0x32).wait());
+  TEST(ic.unregisterInterrupt(pl, 0x32).wait());
+  TEST(capAlloc.free(ec, pl));
+  MLOG_INFO(mlog::app, "test_InterruptControl end");
+}
+
 
 int main()
 {
