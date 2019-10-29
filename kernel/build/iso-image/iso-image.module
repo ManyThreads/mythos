@@ -8,5 +8,5 @@
     makefile_body = '''
 boot.iso: boot32.elf
 	cp boot32.elf boot/isodir/boot/kernel.elf
-	grub-mkrescue -d /usr/lib/grub/i386-pc -o boot.iso boot/isodir
+	command -v grub-mkrescue && grub-mkrescue -d /usr/lib/grub/i386-pc -o boot.iso boot/isodir || grub2-mkrescue -d /usr/lib/grub/i386-pc -o boot.iso boot/isodir
 '''

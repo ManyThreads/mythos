@@ -51,7 +51,6 @@
 #include "async/Place.hh"
 #include "boot/load_init.hh"
 #include "objects/KernelMemory.hh"
-#include "objects/StaticMemoryRegion.hh"
 #include "objects/ISchedulable.hh"
 #include "objects/SchedulingContext.hh"
 #include "objects/InterruptControl.hh"
@@ -121,9 +120,10 @@ void entry_ap(size_t apicID, size_t reason)
 {
   //asm volatile("xchg %bx,%bx");
   mythos::boot::apboot_thread(apicID);
-  MLOG_DETAIL(mlog::boot, "started hardware thread", DVAR(reason));
+  MLOG_DETAIL(mlog::boot, "started hardware thread", DVAR(apicID), DVAR(reason));
   mythos::cpu::FpuState::initCpu();
   MLOG_DETAIL(mlog::boot, DVARhex(mythos::x86::getXCR0()));
+  MLOG_DETAIL(mlog::boot, "EFER", DVARhex(mythos::x86::getMSR(mythos::x86::MSR_EFER)), DVAR(mythos::x86::getCR0()));
   mythos::idle::wokeup(apicID, reason); // may not return
   runUser();
 }
@@ -164,8 +164,8 @@ void mythos::cpu::irq_entry_user(mythos::cpu::ThreadState* ctx)
 void mythos::cpu::irq_entry_kernel(mythos::cpu::KernelIRQFrame* ctx)
 {
   mythos::idle::wokeupFromInterrupt(); // can also be caused by preemption points!
-  MLOG_DETAIL(mlog::boot, "kernel interrupt", DVARhex(ctx->irq), DVARhex(ctx->error),
-      DVARhex(ctx->rip), DVARhex(ctx->rsp));
+  //MLOG_DETAIL(mlog::boot, "kernel interrupt", DVARhex(ctx->irq), DVARhex(ctx->error),
+  //  DVARhex(ctx->rip), DVARhex(ctx->rsp));
   bool wasbug = handle_bugirqs(ctx); // initiate irq processing: first kernel bugs
   bool nested = mythos::async::getLocalPlace().enterKernel();
   if (!wasbug) {

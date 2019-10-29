@@ -6,6 +6,8 @@
     provides = [ "boot64.elf", "symbol/host_info_ptr", "symbol/_mboot_table", "symbol/_mboot_magic" ]
 
     makefile_head = '''
+# just for make clean
+EXTRATARGETS += boot/boot.o
 TARGETS += boot64.elf
 EXTRATARGETS += kernel2.cc kernel2.o
 DEP += kernel2.d
@@ -14,6 +16,10 @@ DEP += kernel2.d
 makefile_body = '''
 kernel2_other = $(filter-out %.cc, $(KERNELFILES))
 kernel2_obj = $(addsuffix .o, $(basename $(kernel2_other)))
+
+# apply preprocessor on linker script
+boot/boot.o: boot/boot.ld
+	$(CPP) $(KERNEL_CPPFLAGS) $(DEPFLAGS) -E -P -xc boot/boot.ld -o boot/boot.o
 
 kernel2.cc:
 	echo "" > kernel2.cc

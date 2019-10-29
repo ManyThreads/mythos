@@ -14,8 +14,8 @@ command -v make >/dev/null 2>&1 || fail "require make but it's not installed"
 command -v g++ >/dev/null 2>&1 || fail "require g++ but it's not installed"
 command -v git >/dev/null 2>&1 || fail "require git but it's not installed"
 
-# need: libtool ???
-# TODO: check compiler-rt (instead of libgcc)
+export CMAKE=cmake
+command -v cmake3 >/dev/null 2>&1 && CMAKE=cmake3
 
 command -v k1om-mpss-linux-g++ >/dev/null 2>&1 && CROSS_K1OM=1
 
@@ -25,7 +25,7 @@ cd `dirname $0`
 BASEDIR=`pwd`
 echo installing in $BASEDIR
 
-#git submodule update
+#git submodule update --init --recursive
 
 mkdir cxx-src
 cd cxx-src
@@ -75,6 +75,9 @@ fi
 rm -rf openmp
 tar -xJf openmp-9.0.0.src.tar.xz && mv openmp-9.0.0.src openmp || fail
 
+
+
+###########################################################
 function compile {
 
 rm -rf "$DSTDIR"
@@ -92,14 +95,14 @@ env CC=$REALGCC CFLAGS="-nostdinc" \
 ../configure $MUSLTARGET --prefix="$DSTDIR/usr" \
     --disable-shared \
     --enable-wrapper=all \
-    && make -j `nproc` && make install || fail
+    && make -j`nproc` && make install || fail
 cd ../..
 
 ### build preliminary libcxx just for the header files
 #    -DCMAKE_CC_COMPILER="$DSTDIR/usr/bin/musl-gcc"
 cd libcxx
 rm -rf build && mkdir build && cd build
-cmake -DCMAKE_INSTALL_PREFIX="$DSTDIR/usr" \
+$CMAKE -DCMAKE_INSTALL_PREFIX="$DSTDIR/usr" \
     -DCMAKE_FIND_ROOT_PATH="$DSTDIR" \
     -DCMAKE_C_COMPILER="$DSTDIR/usr/bin/musl-gcc" \
     -DCMAKE_CXX_COMPILER="$DSTDIR/usr/bin/musl-gcc" \
@@ -108,13 +111,13 @@ cmake -DCMAKE_INSTALL_PREFIX="$DSTDIR/usr" \
     -DLIBCXX_SYSROOT="$DSTDIR" \
     -DLIBCXX_ENABLE_SHARED=OFF \
     -DLLVM_PATH="$BASEDIR/cxx-src/llvm" \
-    ../ && make -j `nproc` && make install || fail
+    ../ && make -j`nproc` && make install || fail
 cd ../..
 
 ### install llvm's libunwind for amd64
 cd libunwind
 rm -rf build && mkdir build && cd build
-cmake -DCMAKE_INSTALL_PREFIX="$DSTDIR/usr" \
+$CMAKE -DCMAKE_INSTALL_PREFIX="$DSTDIR/usr" \
     -DCMAKE_C_COMPILER="$DSTDIR/usr/bin/musl-gcc" \
     -DCMAKE_CXX_COMPILER="$DSTDIR/usr/bin/musl-gcc" \
     -DCMAKE_CXX_FLAGS="-isystem $DSTDIR/usr/include -isystem $DSTDIR/usr/include/c++/v1" \
@@ -122,7 +125,7 @@ cmake -DCMAKE_INSTALL_PREFIX="$DSTDIR/usr" \
     -DLIBUNWIND_ENABLE_SHARED=OFF \
     -DCMAKE_BUILD_TYPE=Release \
     -DLLVM_PATH="$BASEDIR/cxx-src/llvm" \
-    ../ && make -j `nproc` && make install || fail
+    ../ && make -j`nproc` && make install || fail
 cd ../..
 
 
@@ -132,7 +135,7 @@ cd ../..
 # on linux you may need -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++
 cd libcxxabi
 rm -rf build && mkdir build && cd build
-cmake -DCMAKE_INSTALL_PREFIX="$DSTDIR/usr" \
+$CMAKE -DCMAKE_INSTALL_PREFIX="$DSTDIR/usr" \
     -DCMAKE_C_COMPILER="$DSTDIR/usr/bin/musl-gcc" \
     -DCMAKE_CXX_COMPILER="$DSTDIR/usr/bin/musl-gcc" \
     -DCMAKE_CXX_FLAGS="-isystem $DSTDIR/usr/include -isystem $DSTDIR/usr/include/c++/v1" \
@@ -146,7 +149,7 @@ cmake -DCMAKE_INSTALL_PREFIX="$DSTDIR/usr" \
     -DLIBCXXABI_ENABLE_NEW_DELETE_DEFINITIONS=OFF \
     -DLIBCXXABI_SHARED_LINK_FLAGS="-L$DSTDIR/usr/lib" \
     -DLLVM_PATH="$BASEDIR/cxx-src/llvm" \
-    ../ && make -j `nproc` && make install || fail
+    ../ && make -j`nproc` && make install || fail
 cd ../..
 
 
@@ -157,7 +160,7 @@ cd ../..
 #    -DLIBCXX_HAS_MUSL_LIBC=ON 
 cd libcxx
 rm -rf build && mkdir build && cd build
-cmake -DCMAKE_INSTALL_PREFIX="$DSTDIR/usr" \
+$CMAKE -DCMAKE_INSTALL_PREFIX="$DSTDIR/usr" \
     -DCMAKE_C_COMPILER="$DSTDIR/usr/bin/musl-gcc" \
     -DCMAKE_CXX_COMPILER="$DSTDIR/usr/bin/musl-gcc" \
     -DCMAKE_CXX_FLAGS="-isystem $DSTDIR/usr/include -isystem $DSTDIR/usr/include/c++/v1" \
@@ -169,24 +172,27 @@ cmake -DCMAKE_INSTALL_PREFIX="$DSTDIR/usr" \
     -DLIBCXX_CXX_ABI_LIBRARY_PATH="$DSTDIR/usr/lib" \
     -DLLVM_PATH="$BASEDIR/cxx-src/llvm" \
     -DLIBCXX_ENABLE_STATIC_ABI_LIBRARY=ON \
-    ../ && make -j `nproc` && make install || fail
+    ../ && make -j`nproc` && make install || fail
 cd ../..
 
 
-#    -DLIBOMP_SYSROOT="$DSTDIR" \
 # install openmp
+#    -DLIBOMP_SYSROOT="$DSTDIR"
 cd openmp
 rm -rf build && mkdir build && cd build
-cmake -DCMAKE_INSTALL_PREFIX="$DSTDIR/usr" \
+$CMAKE -DCMAKE_INSTALL_PREFIX="$DSTDIR/usr" \
     -DCMAKE_C_COMPILER="$DSTDIR/usr/bin/musl-gcc" \
     -DCMAKE_CXX_COMPILER="$DSTDIR/usr/bin/musl-gcc" \
     -DCMAKE_CXX_FLAGS="-isystem $DSTDIR/usr/include -isystem $DSTDIR/usr/include/c++/v1" \
     -DCMAKE_BUILD_TYPE=Release \
     -DLIBOMP_ENABLE_SHARED=OFF \
-    ../ && make -j `nproc` && make install || fail
+    ../ && make -j`nproc` && make install || fail
 cd ../..
 
 } # function compile
+###########################################################
+
+
 
 export DSTDIR="$BASEDIR/cxx-amd64"
 export MUSLTARGET=""

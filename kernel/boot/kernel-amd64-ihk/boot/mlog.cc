@@ -32,16 +32,16 @@
 namespace mythos {
   namespace boot {
 
+alignas(IhkSink) char mlogsink[sizeof(IhkSink)];
 
-	alignas(IhkSink) char mlogsink[sizeof(IhkSink)];
+void initMLog()
+{
+  // need constructor for vtable before global constructors were called
+  auto s = new(mlogsink) IhkSink();
+  mlog::sink = s; // now logging is working
+  mlog::boot.setName("boot"); // because constructor is still not called
+}
 
-    void initMLog()
-    {
-      // need constructor for vtable before global constructors were called
-      auto s = new(mlogsink) IhkSink();
-      mlog::sink = s; // now logging is working
-      mlog::boot.setName("boot"); // because constructor is still not called
-    }
   } // namespace boot
 } // namespace mythos
 

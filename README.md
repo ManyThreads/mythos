@@ -23,6 +23,7 @@ synchronisation.
 * Supports x86-64 (aka amd64) emulators like QEMU and Bochs.
   Gem5 still requires additional patches.
 * Supports the Intel Xeon Phi Knights Corner processor.
+* Support via Riken's IHK for booting as a co-kernel next to Linux on multi-core machines.
 * Starts an embedded init application on the first core and this
   application can create and configure further kernel objects.
 * Creating and starting application threads (aka Execution Contexts)
@@ -31,10 +32,12 @@ synchronisation.
   untyped memory for allocation of kernel objects,
   portals for outgoing system calls and messages,
   execution contexts for application threads.
+* musl libc, llvm/clang libcxx++ integration mostly usable
 * x87 FPU support (does not enable AVX yet, no XCR0)
 
 ## Work in Progress
 
+* pthreads and openmp support
 * basic benchmarks, testing, performance tuning
 * endpoints for receiving incoming messages
 * asynchronous notifications for Futex and similar constructs
@@ -51,8 +54,9 @@ synchronisation.
 
 ## Running in the QEMU virtual machine
 
-* First, run `git submodule init && git submodule update && 3rdparty/mcconf/install-python-libs.sh` in order to install the needed libraries for the build configuration tool. This requires python and pip (a widespread package installer for python).
-* Run `3rdparty/install-libcxx.sh`
+* First, run `git submodule update --init --recursive` to pull the needed projects
+* Run `3rdparty/mcconf/install-python-libs.sh` in order to install the build configuration tool. This requires python and pip (a widespread package installer for python).
+* Run `3rdparty/install-libcxx.sh` to compile the musl libc and llvm/clang libstdc++
 * Now you can run `make` in the root folder. This will assemble the source code into the subfolders `kernel-amd64`, `kernel-knc` and `host-knc`.
 * Change into the `kernel-amd64` folder and run `make qemu`. This will compile the init application, the kernel, and finally boot the kernel image inside the qemu emulator. The debug and application output will be written to the console.
 * Whenever you add or remove files from modules (the `mcconf.module` files in the `kernel` folder), rerun `make` in the root folder and then `make clean` in the target-specific folder.
@@ -60,20 +64,36 @@ synchronisation.
 ## Running on the Intel XeonPhi KNC
 
 In order to run MyThOS on an Intel XeonPhi Knights Corner processor, a recent version of Intel's MPSS software stack is needed. In addition a not too old C++ compiler is needed for the host tools. After loading the respective environment variables:
-* First, run `git submodule init && git submodule update && 3rdparty/mcconf/install-python-libs.sh` in order to install the needed libraries for the build configuration tool. This requires python and pip (a widespread package installer for python).
-* Run `3rdparty/install-libcxx.sh`
+* First, run `git submodule update --init --recursive` to pull the needed projects
+* Run `3rdparty/mcconf/install-python-libs.sh` in order to install the build configuration tool. This requires python and pip (a widespread package installer for python).
+* Run `3rdparty/install-libcxx.sh` to compile the musl libc and llvm/clang libstdc++
 * Now you can run `make` in the root folder. This will assemble the source code into the subfolders `kernel-amd64`, `kernel-knc` and `host-knc`.
 * Change into the `host-knc` folder and run `make` in order to compile the `xmicterm` application. This is used to receive the debugging and log messages from the MyThOS kernel and applications.
 * Then, change into the `kernel-knc` folder and run `make` in order to compile the init application and the kernel.
 * In order to boot the system on the XeonPhi, you need root access (sudo). Run `make micrun` in order to stop any running coprocessor OS and boot MyThOS. If everything goes well, the script will start the `xmicterm` and you see the debug output. Stop it with CTRL-c and use `make micstop` to shut down the coprocessor. You can enable more detailed debug messages by editing `Makefile.user` and recompiling the kernel.
 
-## Running as cokernel next to linux (Cent-OS) with IHK
+## Running as IHK cokernel next to CentOS GNU/Linux
 
-* First, run `git submodule init && git submodule update && 3rdparty/mcconf/install-python-libs.sh` in order to install the needed libraries for the build configuration tool. This requires python and pip (a widespread package installer for python).
-* Run `3rdparty/install-libcxx.sh`
+* First, run `git submodule update --init --recursive` to pull the needed projects
+* Run `3rdparty/mcconf/install-python-libs.sh` in order to install the build configuration tool. This requires python and pip (a widespread package installer for python).
+* Run `3rdparty/install-libcxx.sh` to compile the musl libc and llvm/clang libstdc++
 * Disable SELinux: `vim /etc/selinux/config` and change the file to SELINUX=disabled
 * Reboot the machine: `sudo reboot`
 * Install required packages: `sudo yum install cmake kernel-devel binutils-devel systemd-devel numactl-devel`
+* Grant read permission to the System.map file of your kernel version: ``sudo chmod a+r /boot/System.map-`uname -r` ``
+* Run `3rdparty/install-ihk.sh`
+* Now you can run `make` in the root folder. This will assemble the source code into the subfolders `kernel-amd64`, `kernel-ihk`, `kernel-knc` and `host-knc`.
+* `cd kernel-ihk`
+* `make run`
+
+## Running as IHK cokernel next to Ubuntu GNU/Linux
+
+* `sudo apt install python python-pip python-virtualenv curl cmake`
+* `git submodule update --init --recursive` to pull the needed projects.
+* Run `3rdparty/mcconf/install-python-libs.sh` in order to install the build configuration tool.
+* Run `3rdparty/install-libcxx.sh`
+* `sudo apt install linux-headers-$(uname -r) binutils-dev libsystemd-dev libnuma-dev libiberty-dev libudev-dev`
+* Perhaps you have to disable AppArmor by entering `sudo systemctl stop apparmor.service` and `sudo update-rc.d -f apparmor remove`
 * Grant read permission to the System.map file of your kernel version: ``sudo chmod a+r /boot/System.map-`uname -r` ``
 * Run `3rdparty/install-ihk.sh`
 * Now you can run `make` in the root folder. This will assemble the source code into the subfolders `kernel-amd64`, `kernel-ihk`, `kernel-knc` and `host-knc`.

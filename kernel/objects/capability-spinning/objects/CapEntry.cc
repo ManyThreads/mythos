@@ -41,15 +41,17 @@ namespace mythos {
     _cap.store(c.value());
   }
 
-  optional<void> CapEntry::acquire()
+  bool CapEntry::tryAcquire()
   {
     auto expected = Cap::asEmpty().value();
     const auto desired = Cap::asAllocated().value();
-    if (_cap.compare_exchange_strong(expected, desired)) {
-     RETURN(Error::SUCCESS);
-    } else {
-      THROW(Error::CAP_NONEMPTY);
-    }
+    return _cap.compare_exchange_strong(expected, desired);
+  }
+
+  optional<void> CapEntry::acquire()
+  {
+    if (tryAcquire()) RETURN(Error::SUCCESS);
+    else THROW(Error::CAP_NONEMPTY);
   }
 
   void CapEntry::commit(const Cap& cap)
@@ -67,23 +69,13 @@ namespace mythos {
     _cap.store(Cap().value());
   }
 
-  optional<void> CapEntry::insertAfter(const Cap& thisCap, CapEntry& target)
+  void CapEntry::setPrevPreserveFlags(CapEntry* ptr)
   {
-    ASSERT(isKernelAddress(this));
-    ASSERT(target.cap().isAllocated());
-    // lock and check this
-    lock();
-    auto curCap = cap();
-    if (!curCap.isUsable() || curCap != thisCap) {
-      unlock();
-      THROW(Error::LOST_RACE);
+    auto expected = _prev.load();
+    auto desired = Link(ptr).withFlags(Link(expected)).val();
+    while (!_prev.compare_exchange_weak(expected, desired)) {
+      desired = Link(ptr).withFlags(Link(expected));
     }
-    auto nextEntry = Link(_next.load()).ptr();
-    nextEntry->_prev.store(Link(&target));
-    target._next.store(Link(nextEntry));
-    target._prev.store(Link(this));
-    this->_next.store(Link(&target));
-    RETURN(Error::SUCCESS);
   }
 
   optional<void> CapEntry::moveTo(CapEntry& other)
@@ -106,8 +98,10 @@ namespace mythos {
     auto nextEntry = Link(_next).ptr();
     auto prevEntry = Link(_prev).ptr();
 
-    nextEntry->_prev.store(Link(&other));
+    nextEntry->setPrevPreserveFlags(&other);
     other._next.store(Link(nextEntry));
+    // deleted or revoking can not be set in other._prev
+    // as we allocated other for moving
     other._prev.store(Link(prevEntry));
     prevEntry->_next.store(Link(&other));
     other.commit(thisCap);
