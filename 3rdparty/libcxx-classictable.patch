@@ -1,0 +1,37 @@
+--- cxx-src/libcxx/src/locale.cpp	2018-04-04 06:00:14.000000000 +0200
++++ locale_new.cpp	2019-10-29 19:31:15.343224724 +0100
+@@ -1030,11 +1030,11 @@
+     return low;
+ }
+ 
+-#if defined(__EMSCRIPTEN__)
++//#if defined(__EMSCRIPTEN__)
+ extern "C" const unsigned short ** __ctype_b_loc();
+ extern "C" const int ** __ctype_tolower_loc();
+ extern "C" const int ** __ctype_toupper_loc();
+-#endif
++//#endif
+ 
+ #ifdef _LIBCPP_PROVIDES_DEFAULT_RUNE_TABLE
+ const ctype<char>::mask*
+@@ -1137,13 +1137,16 @@
+     return _ctype_ + 1;
+ #elif defined(_AIX)
+     return (const unsigned int *)__lc_ctype_ptr->obj->mask;
++//#elif defined(_LIBCPP_HAS_MUSL_LIBC)
+ #else
++    //assume musl
++    return (const unsigned long *)*__ctype_b_loc();
+     // Platform not supported: abort so the person doing the port knows what to
+     // fix
+-# warning  ctype<char>::classic_table() is not implemented
+-    printf("ctype<char>::classic_table() is not implemented\n");
+-    abort();
+-    return NULL;
++//# warning  ctype<char>::classic_table() is not implemented
++    //printf("ctype<char>::classic_table() is not implemented\n");
++    //abort();
++    //return NULL;
+ #endif
+ }
+ #endif

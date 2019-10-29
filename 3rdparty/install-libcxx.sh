@@ -52,7 +52,8 @@ fi
 rm -rf libcxx
 tar -xJf libcxx-7.0.0.src.tar.xz && mv libcxx-7.0.0.src libcxx || fail
 cd libcxx
-patch -p1 < ../../libcxx-nolinux.patch
+patch -p1 < ../../libcxx-nolinux.patch 
+patch -p2 < ../../libcxx-classictable.patch
 cd ..
 
 #git clone https://github.com/llvm-mirror/llvm.git
