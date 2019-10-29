@@ -35,6 +35,7 @@
 #include <errno.h>
 #include <sys/mman.h>
 #include <sys/time.h>
+#include <sys/resource.h>
 
 #include "mythos/syscall.hh"
 #include "runtime/mlog.hh"
@@ -57,6 +58,8 @@ extern mythos::PageMap myAS;
 extern mythos::KernelMemory kmem;
 extern mythos::SimpleCapAllocDel capAlloc;
 
+#define NUM_CPUS (3)
+
 extern "C" [[noreturn]] void __assert_fail (const char *expr, const char *file, int line, const char *func)
 {
     mlog::Logger<> logassert("assert");
@@ -70,18 +73,45 @@ struct iovec{
 };
 
 ssize_t writev(int fd, const struct iovec *iov, int iovcnt){
+	MLOG_WARN(mlog::app, "syscall writev");
+	ssize_t ret = 0;
 	for(int i = 0; i < iovcnt; i++){
 		mlog::sink->write(iov[i].io_base, iov[i].iov_len);
+		ret += iov[i].iov_len;
+	}
+	return ret;
+}
+
+int prlimit(pid_t pid, int resource, const struct rlimit *new_limit,
+struct rlimit *old_limit){
+
+}
+
+int sched_setaffinity(pid_t pid, size_t cpusetsize, cpu_set_t *mask){
+	MLOG_ERROR(mlog::app, "syscall sched_setaffinity", DVAR(pid), DVAR(cpusetsize), DVARhex(mask));
+	if(cpusetsize == NUM_CPUS && mask == NULL){
+		return -EFAULT;
 	}
 	return 0;
+}
+
+int sched_getaffinity(pid_t pid, size_t cpusetsize, cpu_set_t *mask){
+	MLOG_ERROR(mlog::app, "syscall sched_getaffinity", DVAR(pid), DVAR(cpusetsize), DVARhex(mask));
+	if(mask){
+		CPU_ZERO(mask);
+		for(int i = 0; i < NUM_CPUS; i++){
+			CPU_SET(i, mask);
+		}
+	}
+	return NUM_CPUS;
 }
 
 extern "C" long mythos_musl_syscall(long num, long a1, long a2, long a3,
 	             long a4, long a5, long a6)
 {
     //MLOG_DETAIL(mlog::app, "mythos_musl_syscall", DVAR(num), 
-            //DVAR(a1), DVAR(a2), DVAR(a3),
-            //DVAR(a4), DVAR(a5), DVAR(a6));
+	    //DVAR(a1), DVAR(a2), DVAR(a3),
+	    //DVAR(a4), DVAR(a5), DVAR(a6));
     // see http://blog.rchapman.org/posts/Linux_System_Call_Table_for_x86_64/
     switch (num) {
     case 13: // rt_sigaction
@@ -90,11 +120,12 @@ extern "C" long mythos_musl_syscall(long num, long a1, long a2, long a3,
     case 14: // rt_sigprocmask(how, set, oldset, sigsetsize)
         MLOG_ERROR(mlog::app, "syscall rt_sigprocmask NYI");
         return 0;
+    case 16: // ioctl
+        MLOG_ERROR(mlog::app, "syscall ioctl NYI");
+        return 0;
     case 20: // writev(fd, *iov, iovcnt)
-        MLOG_ERROR(mlog::app, "syscall writev NYI");
-        //MLOG_WARN(mlog::app, "syscall writev only poorly implemented");
-	//return writev(a2, reinterpret_cast<const struct iovec *>(a4), a6);
-	return 0;
+        //MLOG_ERROR(mlog::app, "syscall writev NYI");
+	return writev(a1, reinterpret_cast<const struct iovec *>(a2), a3);
     case 24: // sched_yield
         MLOG_ERROR(mlog::app, "syscall sched_yield NYI");
         return 0;
@@ -115,11 +146,9 @@ extern "C" long mythos_musl_syscall(long num, long a1, long a2, long a3,
             return do_futex(reinterpret_cast<uint32_t*>(a1) /*uaddr*/, a2 /*op*/, a3 /*val*/,   nullptr/* timeout*/, nullptr /*uaddr2*/, val2/*val2*/, a6/*val3*/);
         }
     case 203: // sched_setaffinity
-        MLOG_ERROR(mlog::app, "syscall sched_setaffinity NYI");
-        return 0;
+	return sched_setaffinity(a1, a2, reinterpret_cast<cpu_set_t*>(a3));
     case 204: // sched_getaffinity
-        MLOG_ERROR(mlog::app, "syscall sched_getaffinity NYI");
-        return 0;
+	return sched_getaffinity(a1, a2, reinterpret_cast<cpu_set_t*>(a3));
     case 228: // clock_gettime
         MLOG_ERROR(mlog::app, "syscall clock_gettime NYI");
         return 0;
@@ -127,7 +156,7 @@ extern "C" long mythos_musl_syscall(long num, long a1, long a2, long a3,
         MLOG_ERROR(mlog::app, "syscall exit_group NYI");
         return 0;
     case 302: // prlimit64
-        MLOG_ERROR(mlog::app, "syscall prlimit64 NYI");
+        MLOG_ERROR(mlog::app, "syscall prlimit64 NYI", DVAR(a1), DVAR(a2), DVAR(a3), DVAR(a4), DVAR(a5), DVAR(a6));
         return 1;
     default:
 	MLOG_ERROR(mlog::app, "Error: mythos_musl_syscall NYI", DVAR(num), 

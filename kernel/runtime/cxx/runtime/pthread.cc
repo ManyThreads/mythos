@@ -152,10 +152,12 @@ extern "C" int pthread_mutex_timedlock(pthread_mutex_t *__restrict, const struct
 	return 0;
 }
 
+#ifdef use_pthreads_stubs
 extern "C" int pthread_mutex_destroy(pthread_mutex_t *){
 	MLOG_DETAIL(mlog::app, __PRETTY_FUNCTION__);
 	return 0;
 }
+#endif
 
 extern "C" int pthread_mutex_consistent(pthread_mutex_t *){
 	MLOG_DETAIL(mlog::app, __PRETTY_FUNCTION__);
@@ -181,10 +183,12 @@ extern "C" int pthread_cond_init(pthread_cond_t *__restrict, const pthread_conda
 }
 #endif
 
+#ifdef use_pthreads_stubs
 extern "C" int pthread_cond_destroy(pthread_cond_t *){
 	MLOG_DETAIL(mlog::app, __PRETTY_FUNCTION__);
 	return 0;
 }
+#endif
 
 #ifdef use_pthreads_stubs
 extern "C" int pthread_cond_wait(pthread_cond_t *__restrict, pthread_mutex_t *__restrict){
@@ -198,10 +202,12 @@ extern "C" int pthread_cond_timedwait(pthread_cond_t *__restrict, pthread_mutex_
 	return 0;
 }
 
+#ifdef use_pthreads_stubs
 extern "C" int pthread_cond_broadcast(pthread_cond_t *){
 	MLOG_DETAIL(mlog::app, __PRETTY_FUNCTION__);
 	return 0;
 }
+#endif
 
 extern "C" int pthread_cond_signal(pthread_cond_t *){
 	MLOG_DETAIL(mlog::app, __PRETTY_FUNCTION__);
