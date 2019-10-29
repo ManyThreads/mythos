@@ -316,6 +316,7 @@ void test_exceptions() {
     } catch (int i){
         MLOG_INFO(mlog::app, "catched", i);
     }
+  MLOG_INFO(mlog::app, "End Test Exceptions");
 }
 
 void* threadMain(void* arg){
@@ -372,6 +373,7 @@ void* thread_main(void* ctx)
 
 void test_ExecutionContext()
 {
+  MLOG_INFO(mlog::app, "Test ExecutionContext");
   mythos::ExecutionContext ec1(capAlloc());
   mythos::ExecutionContext ec2(capAlloc());
   {
@@ -403,6 +405,7 @@ void test_ExecutionContext()
   MLOG_INFO(mlog::app, "sending notifications");
   mythos::syscall_signal(ec1.cap());
   mythos::syscall_signal(ec2.cap());
+  MLOG_INFO(mlog::app, "End Test ExecutionContext");
 }
 
 void test_InterruptControl() {
