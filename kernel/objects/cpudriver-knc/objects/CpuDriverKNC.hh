@@ -35,7 +35,7 @@ class CpuDriverKNC
 {
 public:
   optional<void const*> vcast(TypeId) const override { THROW(Error::TYPE_MISMATCH); }
-  optional<void> deleteCap(Cap, IDeleter&) override { RETURN(Error::SUCCESS); }
+  optional<void> deleteCap(CapEntry&, Cap, IDeleter&) override { RETURN(Error::SUCCESS); }
   void deleteObject(Tasklet*, IResult<void>*) override {}
   void invoke(Tasklet* t, Cap self, IInvocation* msg) override;
 

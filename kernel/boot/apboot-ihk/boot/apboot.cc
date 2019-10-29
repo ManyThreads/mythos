@@ -21,7 +21,7 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  *
- * Copyright 2014 Randolf Rotta, Maik Krüger, and contributors, BTU Cottbus-Senftenberg
+ * Copyright 2019 Philipp Gypser and contributors, BTU Cottbus-Senftenberg
  */
 
 #include "boot/apboot.hh"
@@ -44,18 +44,16 @@ extern char _dbg_trampoline_end;
 namespace mythos {
   namespace boot {
 
+int ihk_get_nr_cores(void) { return boot_param->nr_cpus; }
 
-int ihk_get_nr_cores(void)
+ihk_smp_boot_param_cpu* get_param_cpu(int i)
 {
-	return boot_param->nr_cpus;
+  return reinterpret_cast<ihk_smp_boot_param_cpu*>(reinterpret_cast<uintptr_t>(boot_param) + sizeof(*boot_param) + i * sizeof(ihk_smp_boot_param_cpu));
 }
 
-ihk_smp_boot_param_cpu* get_param_cpu(int i){
-	return reinterpret_cast<ihk_smp_boot_param_cpu*>(reinterpret_cast<uintptr_t>(boot_param) + sizeof(*boot_param) + i * sizeof(ihk_smp_boot_param_cpu));
-}
-
-int ihk_get_apicid(int i) {
-	return boot_param->ihk_ikc_irq_apicids[get_param_cpu(i)->linux_cpu_id];
+int ihk_get_apicid(int i)
+{
+  return boot_param->ihk_ikc_irq_apicids[get_param_cpu(i)->linux_cpu_id];
 }
 
 /** basic cpu configuration, indexed by the logical thread ID. */
@@ -84,6 +82,7 @@ struct PACKED dbg_t {
   uint16_t gdt32_size;
   uint32_t gdt32_ptr;
 };
+
 void printDbg()
 {
   auto tr = reinterpret_cast<dbg_t*>(IHK_TRAMPOLINE_ADDR);
@@ -101,18 +100,15 @@ void printDbg()
 }
 
 
-void apboot_thread(size_t apicID)
-{ 
-	ap_apic2config[apicID]->initThread();
-}
+void apboot_thread(size_t apicID) { ap_apic2config[apicID]->initThread(); }
 
-      NORETURN void apboot() {
+NORETURN void apboot()
+{
   // read acpi topology, then initialise HWThread objects
-  //MPApicTopology topo;
   cpu::hwThreadCount = ihk_get_nr_cores();
   ASSERT(cpu::getNumThreads() < MYTHOS_MAX_THREADS);
-	MLOG_INFO(mlog::boot, DVAR(cpu::getNumThreads()), DVAR(ihk_get_nr_cores()));
- 
+  MLOG_INFO(mlog::boot, DVAR(cpu::getNumThreads()), DVAR(ihk_get_nr_cores()));
+
   for (cpu::ThreadID id=0; id<cpu::getNumThreads(); id++) {
     MLOG_INFO(mlog::boot, DVAR(id),
         DVAR(get_param_cpu(id)->numa_id),
@@ -126,7 +122,7 @@ void apboot_thread(size_t apicID)
   }
 
   auto bsp_apic_id = x86::initialApicID();
-	MLOG_DETAIL(mlog::boot, DVAR(bsp_apic_id));
+  MLOG_DETAIL(mlog::boot, DVAR(bsp_apic_id));
 
   DeployHWThread::prepareBSP();
   MLOG_DETAIL(mlog::boot, "Init Trampoline ", DVARhex(ap_trampoline));
@@ -149,14 +145,9 @@ void apboot_thread(size_t apicID)
   ASSERT(*trampoline_phys_high == uint16_t(ap_trampoline >> 4));
   ASSERT(*trampoline_phys_low == uint16_t(ap_trampoline & 0xf));
 
-  // test: we leave everything as it is, but jump to _start_ap64_loop
-  // just loop -> F390EBFC
-  //tr->jump_intr = 0xFCEB90F3ull;
+  mythos::lapic.init(); // does check for lapic presence and activation via MSRs
 
-  mythos::cpu::disablePIC(); // <- maybe don't do this, should only concern IOAPIC
-  //mythos::x86::enableApic(); // just to be sure it is enabled
-  mythos::lapic.init(); // maybe do the enabling check here?
-
+  // loop through the assigned cores and boot one after another
   for (cpu::ThreadID id=0; id<cpu::getNumThreads(); id++) {
     auto apicID = cpu::ApicID(ihk_get_apicid(id));
     if (apicID != bsp_apic_id) {
@@ -166,17 +157,11 @@ void apboot_thread(size_t apicID)
           reinterpret_cast<void*>(IHK_TRAMPOLINE_ADDR),
           &_dbg_trampoline,
           size_t(&_dbg_trampoline_end-&_dbg_trampoline));
-      /*
-      auto tr_bytes = reinterpret_cast<char*>(IHK_TRAMPOLINE_ADDR);
-      for (int i = 0x3c; i < 0x4b; ++i) {
-        tr_bytes[i] = '\x90'; 
-      }
-      */
-	  
+
       auto t = reinterpret_cast<dbg_t*>(IHK_TRAMPOLINE_ADDR);
       t->table32 = old_tr.header_pgtbl;
       t->pml4 = virt_to_phys(pml4_table);
-	  t->startap = reinterpret_cast<uint64_t>(&start_ap64_pregdt);
+      t->startap = reinterpret_cast<uint64_t>(&start_ap64_pregdt);
 
       asm volatile("wbinvd"::: "memory");
       printDbg();
@@ -200,7 +185,6 @@ void apboot_thread(size_t apicID)
           if (after == 7) break;
         }
       }
-      //break; // one is enough for today
     } else {
       MLOG_DETAIL(mlog::boot, "Skipped BSP in startup", DVAR(bsp_apic_id));
     }

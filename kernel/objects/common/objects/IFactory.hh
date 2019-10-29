@@ -65,7 +65,7 @@ namespace mythos {
       THROW(Error::TYPE_MISMATCH);
     }
 
-    optional<void> deleteCap(Cap, IDeleter&) override { RETURN(Error::SUCCESS); }
+    optional<void> deleteCap(CapEntry&, Cap, IDeleter&) override { RETURN(Error::SUCCESS); }
   };
 
 } // namespace mythos

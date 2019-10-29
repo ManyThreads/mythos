@@ -31,7 +31,10 @@
 namespace mythos {
   namespace boot {
 
+    /** boot the BSP and all AP hardware threads such that they arrive in entry_ap(). */
     NORETURN void apboot();
+
+    /** perform thread-local initialisation after booting the hardware thread. */
     void apboot_thread(size_t apicID);
 
   } // namespace boot

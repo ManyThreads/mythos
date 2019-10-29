@@ -41,7 +41,7 @@ public:
         {}
 public: // IKernelObject interface
     optional<void const*> vcast(TypeId id) const override;
-    optional<void> deleteCap(Cap self, IDeleter& del) override;
+    optional<void> deleteCap(CapEntry&, Cap self, IDeleter& del) override;
     void invoke(Tasklet* t, Cap, IInvocation* msg) override;
 public: // for CapRef
     void bind(optional<ISignalable*>) { }

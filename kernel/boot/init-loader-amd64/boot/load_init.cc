@@ -34,7 +34,6 @@
 #include "objects/ops.hh"
 #include "objects/CapMap.hh"
 #include "objects/KernelMemory.hh"
-#include "objects/StaticMemoryRegion.hh"
 #include "objects/MemoryRegion.hh"
 #include "objects/PageMapAmd64.hh"
 #include "objects/ExecutionContext.hh"
@@ -128,7 +127,7 @@ optional<void> InitLoader::csSet(CapPtr dst, CapEntry& root)
   auto& dstEntry = *_cspace->get(dst);
   auto res = dstEntry.acquire();
   if (!res) RETHROW(res);
-  RETURN(cap::inherit(root, dstEntry, root.cap(), root.cap().asReference()));
+  RETURN(cap::inherit(root, root.cap(), dstEntry, root.cap().asReference()));
 }
 
 optional<void> InitLoader::csSet(CapPtr dst, IKernelObject& obj)
@@ -136,7 +135,7 @@ optional<void> InitLoader::csSet(CapPtr dst, IKernelObject& obj)
   auto& dstEntry = *_cspace->get(dst);
   auto res = dstEntry.acquire();
   if (!res) RETHROW(res);
-  RETURN(cap::inherit(*_memEntry, dstEntry, _memEntry->cap(), Cap(image2kernel(&obj))));
+  RETURN(cap::inherit(*_memEntry, _memEntry->cap(), dstEntry, Cap(image2kernel(&obj))));
 }
 
 optional<void> InitLoader::initCSpace()
@@ -174,10 +173,9 @@ optional<void> InitLoader::initCSpace()
   if (res) res = csSet(UNTYPED_MEMORY_FACTORY, factory::untypedMemory);
   if (!res) RETHROW(res);
 
-  MLOG_INFO(mlog::boot, "... create memory regions in caps", STATIC_MEM_START, "till", STATIC_MEM_START+STATIC_MEMORY_REGIONS-1);
-  static_assert(STATIC_MEMORY_REGIONS <= STATIC_MEM_START-SCHEDULERS_START, "Initial cspace to small.");
-  for (size_t i = 0; i < STATIC_MEMORY_REGIONS; ++i) {
-    auto res = csSet(CapPtr(STATIC_MEM_START+i), memory_region(i)->getRoot());
+  MLOG_INFO(mlog::boot, "... create memory regions root in cap", DEVICE_MEM);
+  {
+    auto res = csSet(CapPtr(DEVICE_MEM), boot::device_memory_root_entry());
     if (!res) RETHROW(res);
   }
 
@@ -269,7 +267,8 @@ optional<void> InitLoader::createMsgFrame()
   auto memCap = memEntry->cap();
 
   typedef protocol::Frame::FrameReq FrameReq;
-  auto request = FrameReq().offset((*frameNum)*512).size(FrameReq::PAGE_4KB).writable(1);
+  // we insert 2MiB pages, which have the size of 512*4KiB
+  auto request = FrameReq().offset((*frameNum)*512).size(4096).writable(true).device(false);
   auto frameEntry = _cspace->get(MSG_FRAME);
   auto res = cap::derive(*memEntry, *frameEntry, memCap, request);
   if (!res) RETHROW(res);

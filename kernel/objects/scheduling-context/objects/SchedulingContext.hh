@@ -87,7 +87,7 @@ namespace mythos {
     void ready(handle_t* ec_handle) override;
 
   public: // IKernelObject interface
-    optional<void> deleteCap(Cap, IDeleter&) override { RETURN(Error::SUCCESS); }
+    optional<void> deleteCap(CapEntry&, Cap, IDeleter&) override { RETURN(Error::SUCCESS); }
     optional<void const*> vcast(TypeId id) const override {
       if (id == typeId<IScheduler>()) return static_cast<const IScheduler*>(this);
       THROW(Error::TYPE_MISMATCH);

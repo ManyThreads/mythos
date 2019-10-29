@@ -33,68 +33,42 @@
 namespace mythos {
   namespace cap {
 
-  bool isParentOf(Cap parent, Cap other)
+  bool isParentOf(CapEntry& parentEntry, Cap parent, CapEntry& otherEntry, Cap other)
   {
     ASSERT(parent.getPtr());
     ASSERT(other.getPtr());
     // first check ranges
-    auto parentRange = parent.getPtr()->addressRange(parent);
-    auto otherRange = other.getPtr()->addressRange(other);
+    auto parentRange = parent.getPtr()->addressRange(parentEntry, parent);
+    auto otherRange = other.getPtr()->addressRange(otherEntry, other);
     //MLOG_DETAIL(mlog::cap, DVAR(parentRange), DVAR(otherRange));
-    if (parentRange.contains(otherRange)) {
+    if (!parentRange.contains(otherRange)) return false; // is not within parent's range
+    if (!otherRange.contains(parentRange)) return !parent.isReference(); // subrange is child unless parent is reference
 
-      if (!otherRange.contains(parentRange)) {
-        // parent range is real superset
-        // so it's a child if parent is not a reference
-        return !parent.isReference();
-      }
+    ASSERT(parentRange == otherRange);
+    if (parent.isReference()) return false; // references can only have siblings, this also covers parent.isDerivedReverence()
+    if (parent.isDerived()) return other.isDerivedReference(); // derived can have only derived references as child
 
-      // check the flags
-      if (parent.isOriginal()) {
-        ASSERT_MSG(!other.isDerivedReference(), "there must be a derived cap inbetween");
-        return other.isReference() || other.isDerived();
-      } else if (parent.isDerived() && !parent.isReference()) {
-        return other.isDerivedReference();
-      } else {
-        ASSERT(parent.isReference());
-        return false; // References can only have siblings
-      }
-    }
-    return false; // is not contained
+    ASSERT(parent.isOriginal());
+    ASSERT_MSG(!other.isDerivedReference(), "there must be a derived cap inbetween");
+    return true; // everything with equal range to an orignial is a child
   }
 
-  optional<void> inherit(CapEntry& thisEntry, CapEntry& newEntry, Cap thisCap, Cap newCap)
+  optional<void> derive(CapEntry& parentEntry, CapEntry& targetEntry, Cap parentCap, CapRequest request)
   {
-    MLOG_DETAIL(mlog::cap, "inherit caps", DVAR(thisCap), DVAR(newCap),
-      DVAR(isParentOf(thisCap, newCap)), DVAR(isParentOf(newCap, thisCap)));
-    ASSERT(newEntry.cap().isAllocated());
-    ASSERT(implies(thisCap.isReference(), !isParentOf(thisCap, newCap) && !isParentOf(newCap, thisCap)));
-    ASSERT(implies(!thisCap.isReference(), isParentOf(thisCap, newCap)));
-    // try to insert into the resource tree
-    // insertAfter checks if thisCap is stored in thisEntry after locking
-    // and fails if it is not ...
-    auto result = thisEntry.insertAfter(thisCap, newEntry);
-    if (result) newEntry.commit(newCap); // release the entry as usable
-    else newEntry.reset(); // release exclusive usage and revert to an empty entry
-    RETURN(result);
-  }
-
-  optional<void> derive(CapEntry& thisEntry, CapEntry& newEntry, Cap thisCap, CapRequest request)
-  {
-    if (!thisCap.isUsable() || thisCap.isDerived()) THROW(Error::INVALID_CAPABILITY);
-    auto minted = thisCap.getPtr()->mint(thisCap, request, true);
+    if (!parentCap.isUsable() || parentCap.isDerived()) THROW(Error::INVALID_CAPABILITY);
+    auto minted = parentCap.getPtr()->mint(parentEntry, parentCap, request, true);
     if (!minted) RETHROW(minted);
-    if (!newEntry.acquire()) THROW(Error::LOST_RACE); // try to acquire exclusive usage
-    RETURN(inherit(thisEntry, newEntry, thisCap, (*minted).stripReference().asDerived()));
+    if (!targetEntry.acquire()) THROW(Error::LOST_RACE); // try to acquire exclusive usage
+    RETURN(inherit(parentEntry, parentCap, targetEntry, (*minted).stripReference().asDerived()));
   }
 
-  optional<void> reference(CapEntry& thisEntry, CapEntry& newEntry, Cap thisCap, CapRequest request)
+  optional<void> reference(CapEntry& parentEntry, CapEntry& targetEntry, Cap parentCap, CapRequest request)
   {
-    if (!thisCap.isUsable()) THROW(Error::INVALID_CAPABILITY);
-    auto minted = thisCap.getPtr()->mint(thisCap, request, false);
+    if (!parentCap.isUsable()) THROW(Error::INVALID_CAPABILITY);
+    auto minted = parentCap.getPtr()->mint(parentEntry, parentCap, request, false);
     if (!minted) RETHROW(minted);
-    if (!newEntry.acquire()) THROW(Error::LOST_RACE); // try to acquire exclusive usage
-    RETURN(inherit(thisEntry, newEntry, thisCap, (*minted).asReference()));
+    if (!targetEntry.acquire()) THROW(Error::LOST_RACE); // try to acquire exclusive usage
+    RETURN(inherit(parentEntry, parentCap, targetEntry, (*minted).asReference()));
   }
 
   } // namespace cap

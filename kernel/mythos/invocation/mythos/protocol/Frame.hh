@@ -30,9 +30,92 @@
 #include "util/error-trace.hh"
 
 namespace mythos {
+
+  struct FrameSize
+  {
+    static constexpr size_t PAGE_MIN_SIZE = 1ull << 12; // 4096 bytes
+    static constexpr size_t PAGE_SIZE_SHIFT = 9; // 9 bits per page map level
+    static constexpr size_t PAGE_SIZE_FACTOR = 1ull << PAGE_SIZE_SHIFT; // 9 bits per page map level
+    static constexpr size_t FRAME_MIN_SIZE = PAGE_MIN_SIZE; // 4096 bytes
+    static constexpr size_t FRAME_SIZE_SHIFT = 1; // 1 bit increment per mythos frame, ie. all powers of two
+    static constexpr size_t FRAME_SIZE_FACTOR = 1ull << FRAME_SIZE_SHIFT; // double the size
+    static constexpr size_t FRAME_MAX_BITS = 25; // at lest 32-12=20 bits, at most what still fits into the capability data
+
+    static constexpr size_t REGION_MAX_SIZE = FRAME_MIN_SIZE * (1ull << FRAME_MAX_BITS); // 25bits for offset = 128GiB
+    // use 2048 static memory regions to cover the whole 48 bits physical address space with 25+12 bits per region
+    // this requires 32KiB of kernel memory with 16 bytes per region
+    static constexpr size_t DEVICE_REGIONS = (1ull<<48)/REGION_MAX_SIZE;
+
+    constexpr static size_t logBase(size_t n, size_t base) {
+      return ( (n<base) ? 0 : 1+logBase(n/base, base));
+    }
+
+    constexpr static size_t frameBits2Size(size_t bits) {
+      return FRAME_MIN_SIZE << (bits*FRAME_SIZE_SHIFT);
+    }
+
+    constexpr static size_t frameSize2Bits(size_t size) {
+      return logBase(size/FRAME_MIN_SIZE, FRAME_SIZE_FACTOR);
+    }
+
+    constexpr static size_t pageLevel2Size(size_t level) {
+      return PAGE_MIN_SIZE << (level*PAGE_SIZE_SHIFT);
+    }
+
+    constexpr static size_t pageSize2Level(size_t size) {
+      return logBase(size/PAGE_MIN_SIZE, PAGE_SIZE_FACTOR);
+    }
+  };
+
   namespace protocol {
 
-    struct Frame {
+    struct DeviceMemory
+    {
+      constexpr static uint8_t proto = DEVICE_MEMORY;
+
+      enum Methods : uint8_t {
+        CREATE
+      };
+
+      struct Create : public InvocationBase {
+        constexpr static uint16_t label = (proto<<8) + CREATE;
+
+        Create(CapPtr dst, size_t addr, size_t size, bool writable)
+          : InvocationBase(label, getLength(this), 2)
+          , dstDepth(0), addr(addr), size(size), writable(writable)
+        {
+          this->dstPtr = dst;
+          this->factory(null_cap);
+          this->dstSpace(null_cap);
+        }
+
+        CapPtr factory() const { return this->capPtrs[0]; }
+        CapPtr dstSpace() const { return this->capPtrs[1]; }
+        void factory(CapPtr c) { this->capPtrs[0] = c; }
+        void dstSpace(CapPtr c) { this->capPtrs[1] = c; }
+
+        void setIndirectDest(CapPtr dstCSpace, CapPtrDepth dstDepth) {
+          this->dstSpace(dstCSpace);
+          this->dstDepth = dstDepth;
+        }
+
+        CapPtrDepth dstDepth;
+        uint64_t addr;
+        uint64_t size;
+        bool writable;
+      };
+
+      template<class IMPL, class... ARGS>
+      static Error dispatchRequest(IMPL* obj, uint8_t m, ARGS const&...args) {
+        switch(Methods(m)) {
+          case CREATE: return obj->invokeCreate(args...);
+          default: return Error::NOT_IMPLEMENTED;
+        }
+      }
+    };
+
+    struct Frame
+    {
       constexpr static uint8_t proto = FRAME;
 
       enum Methods : uint8_t {
@@ -41,10 +124,16 @@ namespace mythos {
 
       BITFIELD_DEF(CapRequest, FrameReq)
       BoolField<value_t,base_t,0> writable;
-      UIntField<value_t,base_t,1,2> size;
-      UIntField<value_t,base_t,3,29> offset;
-      enum Sizes { PAGE_4KB = 0, PAGE_2MB, PAGE_1GB, PAGE_512GB };
+      BoolField<value_t,base_t,1> device;
+      UIntField<value_t,base_t,2,5> sizeBits;
+      UIntField<value_t,base_t,7,25> offset;
+      enum Sizes { PAGE_4KB = 4096, PAGE_2MB=4096*512, PAGE_1GB=4096*512*512 };
+
       FrameReq() : value(0) {}
+      constexpr static size_t log2(size_t n) {
+        return ( (n<2) ? 0 : 1+log2(n/2));
+      }
+      FrameReq size(size_t size) { return this->sizeBits(log2(size/4096)); }
       BITFIELD_END
 
       struct Info : public InvocationBase {
@@ -53,8 +142,8 @@ namespace mythos {
 
         uint64_t addr;
         uint64_t size;
+        bool device;
         bool writable;
-        bool executable;
       };
 
       struct Create : public KernelMemory::CreateBase {

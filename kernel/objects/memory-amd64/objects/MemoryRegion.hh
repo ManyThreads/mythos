@@ -27,7 +27,6 @@
 
 #include "objects/IFrame.hh"
 #include "objects/IKernelObject.hh"
-#include "objects/FrameAmd64.hh"
 #include "objects/FrameDataAmd64.hh"
 #include "objects/IFactory.hh"
 #include "objects/ops.hh"
@@ -35,22 +34,25 @@
 
 namespace mythos {
 
-/**
- * MemoryRegion to be allocated from the untyped memory.
- * The offset must be alligned by the maximum page size.
+/** A frame that can be allocated from kernel memory and have arbitrary size.
+ * The start address and size have to be 4KiB aligned.
+ * Derived and referenced capabilities can further restrict the range
+ * but can have to adhere to the power-of-two frame sizes.
  */
 class MemoryRegion final
-  : public IKernelObject, public IFrame
+  : public IFrame
 {
 public:
   typedef protocol::Frame::FrameReq FrameReq;
-  MemoryRegion(IAsyncFree* mem, PhysPtr<void> start, size_t size);
+  MemoryRegion(IAsyncFree* mem, PhysPtr<void> base, size_t size)
+    : base(base), size(size), _mem(mem) {}
+
   MemoryRegion(const MemoryRegion&) = delete;
 
 public: // IFrame interface
   Info getFrameInfo(Cap self) const override {
     FrameData c(self);
-    return {PhysPtr<void>(frame.start), size, c.writable};
+    return Info(c.getStart(base.physint()), self.isOriginal() ? size : c.getSize(), c.device, c.writable);
   }
 
 public: // IKernelObject interface
@@ -59,21 +61,25 @@ public: // IKernelObject interface
     THROW(Error::TYPE_MISMATCH);
   }
 
-  optional<void> deleteCap(Cap self, IDeleter& del) override {
+  optional<void> deleteCap(CapEntry&, Cap self, IDeleter& del) override {
     if (self.isOriginal()) { del.deleteObject(_deleteHandle); }
     RETURN(Error::SUCCESS);
   }
 
   void deleteObject(Tasklet* t, IResult<void>* r) override {
+    _memdesc[0] = {base.log(), size};
+    _memdesc[1] = {this, sizeof(MemoryRegion)};
     _mem->free(t, r, &_memdesc[0], &_memdesc[2]);
   }
 
-  optional<Cap> mint(Cap self, CapRequest request, bool derive) override {
-    if (!derive) return FrameData(self).referenceRegion(self, FrameReq(request));
-    else return FrameData(self).deriveRegion(self, frame, FrameReq(request), size);
+  optional<Cap> mint(CapEntry&, Cap self, CapRequest request, bool derive) override {
+    return FrameData::subRegion(self, base.physint(), size, FrameReq(request), derive);
   }
 
-  Range<uintptr_t> addressRange(Cap) override { return {frame.start, frame.start+size}; }
+  Range<uintptr_t> addressRange(CapEntry&, Cap self) override { 
+    FrameData c(self);
+    return Range<uintptr_t>::bySize(c.getStart(base.physint()), self.isOriginal() ? size : c.getSize());
+  }
 
   void invoke(Tasklet* t, Cap self, IInvocation* msg) override {
     Error err = Error::NOT_IMPLEMENTED;
@@ -88,14 +94,15 @@ public: // IKernelObject interface
   Error frameInfo(Tasklet*, Cap self, IInvocation* msg){
     auto data = msg->getMessage()->write<protocol::Frame::Info>();
     FrameData c(self);
-    data->addr = frame.start;
-    data->size = size;
+    data->addr = c.getStart(base.physint());
+    data->size = self.isOriginal() ? size : c.getSize();
+    data->device = c.device;
     data->writable = c.writable;
     return Error::SUCCESS;
   }
 
 private:
-  Frame frame;
+  PhysPtr<void> base;
   size_t size;
   IAsyncFree* _mem;
   MemoryDescriptor _memdesc[2];
