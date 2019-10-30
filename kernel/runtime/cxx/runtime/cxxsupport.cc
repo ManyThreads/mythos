@@ -207,13 +207,16 @@ extern "C" int mprotect(void *addr, size_t len, int prot)
 
 int myclone(
     int (*func)(void *), void *stack, int flags, 
-    void *arg, int* ptid, void* tls, int ctid)
+    void *arg, int* ptid, void* tls, int* ctid)
 {
     MLOG_DETAIL(mlog::app, "myclone");
     ASSERT(tls != nullptr);
 
     mythos::PortalLock pl(portal); // future access will fail if the portal is in use already
     mythos::ExecutionContext ec(capAlloc());
+    if (ptid && (flags&CLONE_PARENT_SETTID)) *ptid = int(ec.cap());
+    // @todo store thread-specific ctid pointer, which should set to 0 by the OS on the thread's exit
+    // @todo needs interaction with a process internal scheduler or core manager in order to figure out where to schedule the new thread
     auto res1 = ec.create(kmem).as(myAS).cs(myCS).sched(mythos::init::SCHEDULERS_START + 1)
         .prepareStack(stack).startFunInt(func, arg, ec.cap())
         .suspended(false).fs(tls)
@@ -229,7 +232,7 @@ extern "C" int clone(int (*func)(void *), void *stack, int flags, void *arg, ...
     va_start(args, arg);
     int* ptid = va_arg(args, int*);
     void* tls = va_arg(args, void*);
-    int ctid = va_arg(args, int);
+    int* ctid = va_arg(args, int*);
     va_end(args);
     return myclone(func, stack, flags, arg, ptid, tls, ctid);
 }
