@@ -36,37 +36,35 @@ ln -s ../musl
 
 #svn co http://llvm.org/svn/llvm-project/libcxxabi/trunk libcxxabi
 #git clone https://github.com/llvm-mirror/libcxxabi.git
-if test ! -e libcxxabi-7.0.0.src.tar.xz ; then  
-  curl -O http://releases.llvm.org/7.0.0/libcxxabi-7.0.0.src.tar.xz || fail
+if test ! -e libcxxabi-9.0.0.src.tar.xz ; then  
+  curl -O http://releases.llvm.org/9.0.0/libcxxabi-9.0.0.src.tar.xz || fail
 fi
 rm -rf libcxxabi
-tar -xJf libcxxabi-7.0.0.src.tar.xz && mv libcxxabi-7.0.0.src libcxxabi || fail
-#cd libcxxabi
-#patch -p1 < ../../libcxxabi-cmake.patch
-#cd ..
+tar -xJf libcxxabi-9.0.0.src.tar.xz && mv libcxxabi-9.0.0.src libcxxabi || fail
 
 #git clone https://github.com/llvm-mirror/libcxx.git
-if test ! -e libcxx-7.0.0.src.tar.xz ; then  
-  curl -O http://releases.llvm.org/7.0.0/libcxx-7.0.0.src.tar.xz || fail
+if test ! -e libcxx-9.0.0.src.tar.xz ; then  
+  curl -O http://releases.llvm.org/9.0.0/libcxx-9.0.0.src.tar.xz || fail
 fi
 rm -rf libcxx
-tar -xJf libcxx-7.0.0.src.tar.xz && mv libcxx-7.0.0.src libcxx || fail
+tar -xJf libcxx-9.0.0.src.tar.xz && mv libcxx-9.0.0.src libcxx || fail
 cd libcxx
 patch -p1 < ../../libcxx-nolinux.patch
+patch -p1 < ../../libcxx-musl-compat.patch
 cd ..
 
 #git clone https://github.com/llvm-mirror/llvm.git
-if test ! -e llvm-7.0.0.src.tar.xz ; then  
-  curl -O http://releases.llvm.org/7.0.0/llvm-7.0.0.src.tar.xz || fail
+if test ! -e llvm-9.0.0.src.tar.xz ; then  
+  curl -O http://releases.llvm.org/9.0.0/llvm-9.0.0.src.tar.xz || fail
 fi
 rm -rf llvm
-tar -xJf llvm-7.0.0.src.tar.xz && mv llvm-7.0.0.src llvm || fail
+tar -xJf llvm-9.0.0.src.tar.xz && mv llvm-9.0.0.src llvm || fail
 
-if test ! -e libunwind-7.0.0.src.tar.xz ; then  
-  curl -O http://releases.llvm.org/7.0.0/libunwind-7.0.0.src.tar.xz || fail
+if test ! -e libunwind-9.0.0.src.tar.xz ; then  
+  curl -O http://releases.llvm.org/9.0.0/libunwind-9.0.0.src.tar.xz || fail
 fi
 rm -rf libunwind
-tar -xJf libunwind-7.0.0.src.tar.xz && mv libunwind-7.0.0.src libunwind || fail
+tar -xJf libunwind-9.0.0.src.tar.xz && mv libunwind-9.0.0.src libunwind || fail
 
 #openmp
 if test ! -e openmp-9.0.0.src.tar.xz ; then  
@@ -103,6 +101,7 @@ cd ../..
 cd libcxx
 rm -rf build && mkdir build && cd build
 $CMAKE -DCMAKE_INSTALL_PREFIX="$DSTDIR/usr" \
+    -DLIBCXX_HAS_MUSL_LIBC=ON \
     -DCMAKE_FIND_ROOT_PATH="$DSTDIR" \
     -DCMAKE_C_COMPILER="$DSTDIR/usr/bin/musl-gcc" \
     -DCMAKE_CXX_COMPILER="$DSTDIR/usr/bin/musl-gcc" \
@@ -133,6 +132,9 @@ cd ../..
 # -DLIBCXXABI_ENABLE_THREADS=OFF would also disable c++11 atomics :(
 # -DLIBCXXABI_BAREMETAL=ON 
 # on linux you may need -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++
+#    -DLIBCXXABI_USE_LLVM_UNWINDER=ON \
+#    -DLIBCXXABI_LIBUNWIND_INCLUDES="$BASEDIR/cxx-src/libunwind/include" \
+#    -DLIBCXXABI_ENABLE_STATIC_UNWINDER=ON \
 cd libcxxabi
 rm -rf build && mkdir build && cd build
 $CMAKE -DCMAKE_INSTALL_PREFIX="$DSTDIR/usr" \
@@ -143,9 +145,6 @@ $CMAKE -DCMAKE_INSTALL_PREFIX="$DSTDIR/usr" \
     -DLIBCXXABI_SYSROOT="$DSTDIR" \
     -DLIBCXXABI_ENABLE_SHARED=OFF \
     -DLIBCXXABI_LIBCXX_PATH="$BASEDIR/cxx-src/libcxx" \
-    -DLIBCXXABI_USE_LLVM_UNWINDER=ON \
-    -DLIBCXXABI_LIBUNWIND_INCLUDES="$BASEDIR/cxx-src/libunwind/include" \
-    -DLIBCXXABI_ENABLE_STATIC_UNWINDER=ON \
     -DLIBCXXABI_ENABLE_NEW_DELETE_DEFINITIONS=OFF \
     -DLIBCXXABI_SHARED_LINK_FLAGS="-L$DSTDIR/usr/lib" \
     -DLLVM_PATH="$BASEDIR/cxx-src/llvm" \
@@ -157,10 +156,10 @@ cd ../..
 # see also https://libcxx.llvm.org/docs/BuildingLibcxx.html
 #LIBRARY_PATH=$BASEDIR/cxx/lib make -j
 #LIBRARY_PATH=$BASEDIR/cxx/lib make install
-#    -DLIBCXX_HAS_MUSL_LIBC=ON 
 cd libcxx
 rm -rf build && mkdir build && cd build
 $CMAKE -DCMAKE_INSTALL_PREFIX="$DSTDIR/usr" \
+    -DLIBCXX_HAS_MUSL_LIBC=ON \
     -DCMAKE_C_COMPILER="$DSTDIR/usr/bin/musl-gcc" \
     -DCMAKE_CXX_COMPILER="$DSTDIR/usr/bin/musl-gcc" \
     -DCMAKE_CXX_FLAGS="-isystem $DSTDIR/usr/include -isystem $DSTDIR/usr/include/c++/v1" \
@@ -181,6 +180,7 @@ cd ../..
 cd openmp
 rm -rf build && mkdir build && cd build
 $CMAKE -DCMAKE_INSTALL_PREFIX="$DSTDIR/usr" \
+    -DOPENMP_ENABLE_LIBOMPTARGET=OFF \
     -DCMAKE_C_COMPILER="$DSTDIR/usr/bin/musl-gcc" \
     -DCMAKE_CXX_COMPILER="$DSTDIR/usr/bin/musl-gcc" \
     -DCMAKE_CXX_FLAGS="-isystem $DSTDIR/usr/include -isystem $DSTDIR/usr/include/c++/v1" \
