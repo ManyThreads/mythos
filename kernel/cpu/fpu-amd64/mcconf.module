@@ -1,2 +1,4 @@
 [module.amd64-cpu-fpu]
     incfiles = [ "cpu/fpu.hh" ]
+    kernelfiles = [ "cpu/fpu.cc" ]
+

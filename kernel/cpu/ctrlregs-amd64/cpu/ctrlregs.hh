@@ -21,7 +21,7 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  *
- * Copyright 2014 Randolf Rotta, Maik Krüger, and contributors, BTU Cottbus-Senftenberg
+ * Copyright 2019 Randolf Rotta and contributors, BTU Cottbus-Senftenberg
  */
 #pragma once
 
@@ -36,6 +36,16 @@ namespace mythos {
 
   /** extract a single bit from an integer */
   inline constexpr bool bits(uint32_t val, unsigned pos) {
+    return (val >> pos) & 0x1;
+  }
+
+  /** extract a bitrange from an integer */
+  inline constexpr uint64_t bits(uint64_t val, unsigned last, unsigned first) {
+    return (val >> first) & ((1<<(last-first+1))-1);
+  }
+
+  /** extract a single bit from an integer */
+  inline constexpr bool bits(uint64_t val, unsigned pos) {
     return (val >> pos) & 0x1;
   }
 
@@ -249,17 +259,7 @@ namespace mythos {
     }
 
     inline void setCR4(size_t val) { asm volatile ("mov %0, %%cr4" : : "r"(val)); }
-    
-    inline uint64_t getXCR0() {
-        uint32_t eax, edx;
-        asm volatile ("xgetbv" : "=a" (eax), "=d" (edx) : "c" (0));
-        return uint64_t(edx)<<32 | eax;
-    }
-    
-    inline void setXCR0(uint64_t val) {
-        asm volatile ("xsetbv" : : "a" (val), "d" (val>>32), "c" (0));
-    }
- 
+
   } // namespace x86
 
   namespace cpu {
