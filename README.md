@@ -20,10 +20,10 @@ synchronisation.
 
 ## Current State of Implementation
 
-* Supports x86-64 (aka amd64) emulators like QEMU and Bochs.
-  Gem5 still requires additional patches.
-* Supports the Intel Xeon Phi Knights Corner processor.
-* Support via Riken's IHK for booting as a co-kernel next to Linux on multi-core machines.
+* Supports x86-64 aka amd64 on following platforms:
+ * emulators like QEMU and Bochs (Gem5 still requires additional patches)
+ * as co-kernel next Linux via Riken's IHK on multi-core machines
+ * Intel Xeon Phi Knights Corner processor
 * Starts an embedded init application on the first core and this
   application can create and configure further kernel objects.
 * Creating and starting application threads (aka Execution Contexts)
@@ -32,23 +32,24 @@ synchronisation.
   untyped memory for allocation of kernel objects,
   portals for outgoing system calls and messages,
   execution contexts for application threads.
-* musl libc, llvm/clang libcxx++ integration mostly usable
-* x87 FPU support (does not enable AVX yet, no XCR0)
+* musl libc, llvm/clang libcxx, llvm libomp integration mostly usable
+ * user-mode futex within the same capability space, uses the execution context's binary semaphore for notifications
+ * `pthread_create`, `pthread_join`, `pthread_mutex` are working
+* x87 FPU support including AVX and AVX512F (needs more testing though)
 
 ## Work in Progress
 
-* pthreads and openmp support
+* actual memory management support for mmap
+* more complete pthreads and openmp support
 * basic benchmarks, testing, performance tuning
 * endpoints for receiving incoming messages
-* asynchronous notifications for Futex and similar constructs
 * integrating a tracing framework for system-wide performance analysis
-* KNC: vector unit support
-* KNC: CPUHOT interrupt and related events
 
 ## Future Work
 
 * access to the performance counters
-* improved user-level programming like libc, stdc++
+* KNC: vector unit support (if needed by users)
+* KNC: CPUHOT interrupt and related events (if needed by users)
 
 # Quick Usage Guide
 
