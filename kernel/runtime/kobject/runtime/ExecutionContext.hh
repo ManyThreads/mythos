@@ -95,12 +95,12 @@ namespace mythos {
 
     protected:
         static void start(StartFun main, void* userctx, CapPtr ec) { 
-	    localEC = ec;
+            localEC = ec;
             syscall_exit(uintptr_t(main(userctx)));
         }
 
         static void startInt(StartFunInt main, void* userctx, CapPtr ec) { 
-	    localEC = ec;
+            localEC = ec;
             syscall_exit(main(userctx));
         }
     };    

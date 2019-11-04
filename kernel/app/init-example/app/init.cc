@@ -431,8 +431,6 @@ void test_InterruptControl() {
 
 int main()
 {
-  mythos::localEC = mythos::init::EC; //important initialization!!
-
   char const str[] = "hello world!";
   mythos::syscall_debug(str, sizeof(str)-1);
   MLOG_ERROR(mlog::app, "application is starting :)", DVARhex(msg_ptr), DVARhex(initstack_top));

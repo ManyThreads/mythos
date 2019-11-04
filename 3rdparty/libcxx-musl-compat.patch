@@ -1,0 +1,19 @@
+--- libcxx.orig/include/support/musl/xlocale.h	2019-10-30 18:27:20.070151981 +0100
++++ libcxx/include/support/musl/xlocale.h	2019-10-30 18:27:31.510099685 +0100
+@@ -24,16 +24,6 @@
+ extern "C" {
+ #endif
+ 
+-static inline long long strtoll_l(const char *nptr, char **endptr, int base,
+-                                  locale_t) {
+-  return strtoll(nptr, endptr, base);
+-}
+-
+-static inline unsigned long long strtoull_l(const char *nptr, char **endptr,
+-                                            int base, locale_t) {
+-  return strtoull(nptr, endptr, base);
+-}
+-
+ static inline long long wcstoll_l(const wchar_t *nptr, wchar_t **endptr,
+                                   int base, locale_t) {
+   return wcstoll(nptr, endptr, base);

@@ -94,8 +94,8 @@ public:
         align = Alignment::round_up(align); // enforce own minimum alignment
         auto headsize = AlignmentObject(align).round_up(sizeof(Head));
         auto allocSize = Alignment::round_up(headsize + length);
-	MLOG_DETAIL(mlog::app, "heap: try to allocate", DVAR(length), DVAR(align), 
-		    DVAR(allocSize));
+        MLOG_DETAIL(mlog::app, "heap: try to allocate", DVAR(length), DVAR(align), 
+            DVAR(allocSize));
         mutex << [&]() {
             res = heap.alloc(allocSize, align);
         };
@@ -106,8 +106,8 @@ public:
         head->begin = begin;
         head->size = allocSize;
         head->reqSize = length;
-	MLOG_DETAIL(mlog::app, "allocated", DVARhex(begin), DVARhex(addr),
-		    DVAR(allocSize), DVAR(align));
+        MLOG_DETAIL(mlog::app, "allocated", DVARhex(begin), DVARhex(addr),
+            DVAR(allocSize), DVAR(align));
         ASSERT(AlignmentObject(align).is_aligned(addr));
         ASSERT(Alignment::is_aligned(addr));
         return {reinterpret_cast<addr_t>(addr)};
@@ -121,15 +121,15 @@ public:
         auto allocSize = head->size;
         ASSERT(Alignment::is_aligned(begin));
         ASSERT(Alignment::is_aligned(allocSize));
-	MLOG_DETAIL(mlog::app, "freeing ", DVARhex(begin), DVARhex(addr), DVARhex(allocSize));
-	mutex << [&]() {
+        MLOG_DETAIL(mlog::app, "freeing ", DVARhex(begin), DVARhex(addr), DVARhex(allocSize));
+        mutex << [&]() {
             heap.free(reinterpret_cast<addr_t>(begin), allocSize);
         };
     }
 
     void addRange(addr_t start, size_t length) {
         mutex << [&]() {
-	    MLOG_DETAIL(mlog::app, "Add range", DVARhex(start), DVARhex(length));
+        MLOG_DETAIL(mlog::app, "Add range", DVARhex(start), DVARhex(length));
             heap.addRange(start, length);
         };
     }
