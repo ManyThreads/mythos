@@ -40,23 +40,14 @@ static uint32_t xstate_offsets[x86::XFeature::MAX];
 static uint32_t xstate_sizes[x86::XFeature::MAX];
 static uint32_t xstate_comp_offsets[x86::XFeature::MAX];
 
-enum FpuMode {
-  FSAVE,
-  FXSAVE,
-  XSAVE,
-  XSAVEOPT,
-  XSAVES,
-};
-
+enum FpuMode { FSAVE, FXSAVE, XSAVE, XSAVEOPT, XSAVES };
+static char const * const fpuModeNames[] = 
+  {"FSAVE", "FXSAVE", "XSAVE", "XSAVEOPT", "XSAVES"};
 static FpuMode fpu_mode = FSAVE;
+
 
 static void fpu_setup_xstate()
 {
-  if (!x86::hasXSAVE()) {
-    mlog::boot.error("fpu has no XSAVE: will use", x86::hasFXSR() ? "FXSAVE" : "FNSAVE");
-    return;
-  }
-
   // ask cpuid for supported features
   xfeatures_mask = x86::getXFeaturesMask(); 
   mlog::boot.detail("xsave features from cpuid 0xd", DVARhex(xfeatures_mask));
@@ -86,7 +77,7 @@ static void fpu_setup_xstate()
 
   // compute the context size for enabled features
   if (x86::hasXSAVES()) {
-    fpu_xstate_size = x86::get_xsaves_size();
+    fpu_xstate_size = x86::get_xsaves_size(); // xsave+Supervisor
     fpu_mode = XSAVES;
   } else if (x86::hasXSAVEOPT()) {
     fpu_xstate_size = x86::get_xsave_size();
@@ -141,24 +132,21 @@ static void fpu_setup_xstate()
   char const* names[] = {"x87", "mmx/sse", "ymm", "bndregs", "bndcsr", "opmask", "zmm_hi256", "hi16_zmm", "pt", "pkru"};
   for (uint8_t idx = 0; idx < x86::XFeature::MAX; idx++) {
     if (!xfeatures_mask.enabled(idx)) continue;
-    mlog::boot.error("we support XSAVE feature", idx, names[idx], 
+    mlog::boot.detail("we support XSAVE feature", idx, names[idx], 
       DVARhex(xstate_offsets[idx]), DVAR(xstate_sizes[idx]),
       DVARhex(xstate_comp_offsets[idx]), DVAR(xstate_comp_sizes[idx]));
   }
-
-  mlog::boot.error("enabled XSAVE", DVARhex(xfeatures_mask.value), DVAR(fpu_xstate_size),
-    (x86::hasXSAVES()) ? "compacted layout" : "standard layout");
 }
-
-
 
 void FpuState::initBSP()
 {
   initAP();
 
-  // TODO probably crashing if xsave is not supported by the processor
-  mlog::boot.error("has x87 FPU:", DVAR(x86::hasMMX()), DVAR(x86::hasAVX()), DVAR(x86::hasAVX512F()),
-    DVAR(x86::hasXSAVE()), DVAR(x86::hasXSAVEC()), DVAR(x86::hasXSAVEOPT()), DVAR(x86::hasXSAVES()));
+  mlog::boot.info("has x87 FPU:", DVAR(x86::hasMMX()), DVAR(x86::hasAVX()),
+    DVAR(x86::hasAVX()&&x86::hasAVX512F()), DVAR(x86::hasXSAVE()),
+    DVAR(x86::hasXSAVE()&&x86::hasXSAVEC()), 
+    DVAR(x86::hasXSAVE()&&x86::hasXSAVEOPT()), 
+    DVAR(x86::hasXSAVE()&&x86::hasXSAVES()));
 
   // initialise MXCR feature mask for fxsr
   if (x86::hasFXSR()) {
@@ -168,18 +156,37 @@ void FpuState::initBSP()
   } else mxcsr_feature_mask = 0;
 
   // find the size needed to store the FPU state
-  if (x86::hasFXSR()) {
+  if (x86::hasXSAVE()) {
+    fpu_setup_xstate();
+  } else if (x86::hasFXSR()) {
     fpu_xstate_size = sizeof(x86::FXRegs);
     fpu_mode = FXSAVE;
   } else {
     fpu_xstate_size = sizeof(x86::FRegs);
     fpu_mode = FSAVE;
   }
-  fpu_setup_xstate(); // overwrites fpu_xstate_size
 
+  mlog::boot.info("fpu state storage will use", fpuModeNames[fpu_mode],
+    DVAR(fpu_xstate_size), DVARhex(xfeatures_mask.value));
+  PANIC(fpu_xstate_size <= sizeof(x86::FpuState));
+
+  // set up the initial FPU context
   memset(&fpu_init_state, 0, fpu_xstate_size);
-  // set up the legacy init FPU context
-  if (x86::hasFXSR()) {
+  if (x86::hasXSAVE()) {
+    fpu_init_state.xsave.i387.cwd = 0x37f;
+    fpu_init_state.xsave.i387.mxcsr = 0x1f80; // MXCSR_DEFAULT
+    // Init all the features state with header.xfeatures being 0x0. This triggers xrstor to initialize the FPU.
+    // Then dump the initialized state and store it as template for new execution contexts.
+    if (x86::hasXSAVES()) {
+      // XRSTORS requires these bits set in xcomp_bv, otherwisw #GP
+      fpu_init_state.xsave.header.xcomp_bv = (uint64_t(1) << 63) | xfeatures_mask;
+      x86::xrstors(&fpu_init_state.xsave, -1);
+      x86::xsaves(&fpu_init_state.xsave, -1);
+    } else if (x86::hasXSAVE()) {
+      x86::xrstor(&fpu_init_state.xsave, -1);
+      x86::xsave(&fpu_init_state.xsave, -1);
+    }
+  } else if (x86::hasFXSR()) {
     fpu_init_state.fxsave.cwd = 0x37f;
     fpu_init_state.fxsave.mxcsr = 0x1f80; // MXCSR_DEFAULT
   } else {
@@ -188,20 +195,7 @@ void FpuState::initBSP()
     fpu_init_state.fsave.twd = 0xffffffffu;
     fpu_init_state.fsave.fos = 0xffff0000u;
   }
-
-  // init all the features state with header.xfeatures being 0x0
-  // then dump the init state again to identify the init state of features not represented by just 0
-  if (x86::hasXSAVES())	{
-    // XRSTORS requires these bits set in xcomp_bv, otherwisw #GP
-    fpu_init_state.xsave.header.xcomp_bv = (uint64_t(1) << 63) | xfeatures_mask;
-    x86::xrstors(&fpu_init_state.xsave, -1);
-    x86::xsaves(&fpu_init_state.xsave, -1);
-  } else if (x86::hasXSAVE()) {
-    x86::xrstor(&fpu_init_state.xsave, -1);
-    x86::xsave(&fpu_init_state.xsave, -1);
-  }
 }
-
 
 void FpuState::initAP()
 {
@@ -224,7 +218,9 @@ void FpuState::initAP()
   // enable the extended processor state save/restore if XSAVE is supported
   if (x86::hasXSAVE()) {
     x86::setCR4(x86::getCR4() | x86::OSXSAVE); // enable XSAVE, xsetbv etc
-    // don't do this when called from initBSP() with uninitialized features mask
+    // Don't do this when called from initBSP() with uninitialized xfeatures_mask.
+    // initAP() will called again on the BSP after starting all APs and, then, xfeatures_mask is usable.
+    // xfeatures_mask is initialized by fpu_setup_xstate().
     if (xfeatures_mask.value) x86::setXCR0(xfeatures_mask); // XCR_XFEATURE_ENABLED_MASK
   }
 }
@@ -234,19 +230,20 @@ void FpuState::save()
 {
   switch (fpu_mode) {
   case XSAVES:
-    x86::xsaves(&state.xsave, -1);
+    // This saves system state when in supervisor mode.
+    // Outside, its advantage is compacted storage of the actually modified state (combining XSAVEOPT+XSAVEC)
+    x86::xsaves(&state.xsave, -1); // xsave_S_
     break;
-  case XSAVEOPT:
+  case XSAVEOPT: // this produces standard layout, just saves state that was modified since the last restore
     x86::xsaveopt(&state.xsave, -1);
     break;
-  case XSAVE:
+  case XSAVE: // this produces standard layout
     x86::xsave(&state.xsave, -1);
     break;
-  case FXSAVE:
+  case FXSAVE: // legacy
     x86::fxsave(&state.fxsave);
     break;
-  case FSAVE:
-    // legacy FPU register saving, FNSAVE always clears FPU registers !!!
+  case FSAVE: // even more ancient, FNSAVE always clears FPU registers such that the FPU is unusable until FRSTOR !!!
     asm volatile("fnsave %0 ; fwait" : "=m" (state.fsave));
     break;
   };
@@ -255,19 +252,20 @@ void FpuState::save()
 
 void FpuState::restore()
 {
+  // The xrstors and xrstor initialize any fpu state that was not saved in the xsave extended state area.
+  // This is stored as bitmask in the XSTATE_BV field of the xsave header.
   switch (fpu_mode) {
-  case XSAVES:
-    x86::xrstor(&state.xsave, -1);
+  case XSAVES: // this requires compacted layout as produced by XSAVES and XSAVEC
+    x86::xrstors(&state.xsave, -1); // xrstor_S_
     break;
-  case XSAVEOPT:
+  case XSAVEOPT: // this requires standard layout
   case XSAVE:
     x86::xrstor(&state.xsave, -1);
     break;
-  case FXSAVE:
+  case FXSAVE: // legacy
     x86::fxrestore(&state.fxsave);
     break;
-  case FSAVE:
-    // legacy FPU register saving, FNSAVE always clears FPU registers !!!
+  case FSAVE: // even more ancient
     asm volatile("frstor %[fp]" :  "=m" (state.fsave) : [fp] "m" (state.fsave));
     break;
   };
