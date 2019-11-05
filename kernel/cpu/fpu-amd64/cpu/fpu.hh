@@ -21,11 +21,11 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  *
- * Copyright 2014 Randolf Rotta, Maik Krüger, and contributors, BTU Cottbus-Senftenberg
+ * Copyright 2019 Randolf Rotta and contributors, BTU Cottbus-Senftenberg
  */
 #pragma once
 
-#include "cpu/ctrlregs.hh"
+#include "cpu/fpuregs.hh"
 
 namespace mythos {
   namespace cpu {
@@ -38,26 +38,19 @@ namespace mythos {
     class FpuState
     {
     public:
-      void clear() { 
-          memset(this, 0, sizeof(FpuState));
-          //save();
-      }
-      
-      void save() { asm volatile("fxsaveq %0" : "=m" (*this)); }
-      void restore() { asm volatile("fxrstorq %0" : "=m" (*this)); }
+      /** called once during bootup to initialize size variables etc. */
+      static void initBSP();
 
-      static void initCpu() {
-        x86::setCR0((x86::getCR0() & ~0xC) | 0x19);
-        x86::setCR4((x86::getCR4() & ~0x0) | (x86::OSFXSR+x86::OSXSAVE+x86::OSXMMEXCPT));
-        /// @todo check cpuid flags before accessing XCR0 !!!
-        //x86::setXCR0(x86::getXCR0() | ((1<<1) + (1<<2)));
-        /// @todo for KNC/KNL: To enable AVX-512, set the OPMASK (bit 5), ZMM_Hi256 (bit 6), Hi16_ZMM (bit 7) of XCR0. You must ensure that these bits are valid first (see above). 
-        asm volatile ("clts");
-        asm volatile ("fninit");
-      }
+      /** called during bootup on each processor. */
+      static void initAP();
 
-    private:
-      char raw[512] alignas(16);
+
+      void clear();
+      void save();
+      void restore();
+
+    public:
+      x86::FpuState state;      
     };
 
   } // namespace cpu

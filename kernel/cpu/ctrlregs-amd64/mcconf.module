@@ -1,2 +1,2 @@
 [module.amd64-cpu-regs]
-    incfiles = [ "cpu/ctrlregs.hh" ]
+    incfiles = [ "cpu/ctrlregs.hh", "cpu/fpuregs.hh" ]
