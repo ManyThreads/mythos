@@ -52,11 +52,11 @@ boot64s.elf: boot/boot.o $(KERNELFILES_OBJ)
 	strip boot64s.elf
 
 stop:
-	../3rdparty/ihkstop+release.sh 
+	$(mythos_root)/3rdparty/ihkstop+release.sh 
 
 boot: all
 	sudo rm -rf /tmp/ihkmond
-	sudo ../3rdparty/ihkreboot.sh -k 1 -p $(shell pwd)/boot64.elf
+	sudo $(mythos_root)/3rdparty/ihkreboot.sh -k 1 -p $(shell pwd)/boot64.elf
 
 wait:
 	sleep 5
