@@ -21,9 +21,9 @@ synchronisation.
 ## Current State of Implementation
 
 * Supports x86-64 aka amd64 on following platforms:
- * emulators like QEMU and Bochs (Gem5 still requires additional patches)
- * as co-kernel next Linux via Riken's IHK on multi-core machines
- * Intel Xeon Phi Knights Corner processor
+    * emulators like QEMU and Bochs (Gem5 still requires additional patches)
+    * as co-kernel next Linux via Riken's IHK on multi-core machines
+    * Intel Xeon Phi Knights Corner processor
 * Starts an embedded init application on the first core and this
   application can create and configure further kernel objects.
 * Creating and starting application threads (aka Execution Contexts)
@@ -33,8 +33,8 @@ synchronisation.
   portals for outgoing system calls and messages,
   execution contexts for application threads.
 * musl libc, llvm/clang libcxx, llvm libomp integration mostly usable
- * user-mode futex within the same capability space, uses the execution context's binary semaphore for notifications
- * `pthread_create`, `pthread_join`, `pthread_mutex` are working
+    * user-mode futex within the same capability space, uses the execution context's binary semaphore for notifications
+    * `pthread_create`, `pthread_join`, `pthread_mutex` are working
 * x87 FPU support including AVX and AVX512F (needs more testing though)
 
 ## Work in Progress
