@@ -1,4 +1,4 @@
-/* -*- mode:C++; indent-tabs-mode:nil; -*- */
+/* -*- mode:C++; -*- */
 /* MIT License -- MyThOS: The Many-Threads Operating System
  *
  * Permission is hereby granted, free of charge, to any person
@@ -21,30 +21,40 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  *
- * Copyright 2016 Randolf Rotta, Robert Kuban, and contributors, BTU Cottbus-Senftenberg
+ * Copyright 2019 Randolf Rotta and contributors, BTU Cottbus-Senftenberg
  */
 #pragma once
 
-#include "util/PhysPtr.hh"
-#include "objects/Cap.hh"
+#include "util/VectorMax.hh"
+#include "objects/CapMap.hh"
+#include "mythos/caps.hh"
+#include <cstdint>
 
 namespace mythos {
 
-  class IFrame
-    : public IKernelObject
-  {
-  public:
-    struct Info {
-      // @TODO replace the constructor by the new C++ initializer list
-      Info(uintptr_t start, size_t size, bool device, bool writable) : start(PhysPtr<void>(start)), size(size), device(device), writable(writable) {}
-      PhysPtr<void> start;
-      size_t size;
-      bool device;
-      bool writable;
-    };
 
-    virtual ~IFrame() {}
-    virtual Info getFrameInfo(Cap self) const = 0;
-  };
+class CapAlloc
+{
+public:
+    CapAlloc(CapPtr begin, uint32_t capcount, CapMap* cspace)
+        : begin(begin), count(capcount), cspace(cspace)
+    {}
+
+    optional<CapPtr> alloc() {
+        if (count==0) THROW(Error::INSUFFICIENT_RESOURCES);
+        count--;
+        return begin++;
+    }
+
+    // TODO give access to the cspace
+    optional<CapEntry*> get(CapPtr ptr) const {
+        return cspace->get(ptr);
+    }
+
+protected:
+    CapPtr begin;
+    uint32_t count;
+    CapMap* cspace;
+};
 
 } // namespace mythos

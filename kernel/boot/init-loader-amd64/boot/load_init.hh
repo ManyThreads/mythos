@@ -28,10 +28,14 @@
 #include "util/elf64.hh"
 #include "util/Range.hh"
 #include "util/alignments.hh"
+#include "util/VectorMax.hh"
 #include "objects/CapEntry.hh"
 #include "objects/IPageMap.hh"
 #include "plugins/Plugin.hh"
 #include "plugins/events.hh"
+
+#include "boot/CapAlloc.hh"
+#include "boot/MemMapper.hh"
 
 namespace mythos {
 
@@ -42,8 +46,8 @@ namespace mythos {
 
   namespace boot {
 
-
-    class InitLoader {
+    class InitLoader
+    {
     public:
       InitLoader(char* image);
       ~InitLoader();
