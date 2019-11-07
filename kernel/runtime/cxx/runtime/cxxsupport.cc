@@ -75,7 +75,7 @@ struct iovec
 
 ssize_t writev(int fd, const struct iovec *iov, int iovcnt)
 {
-    MLOG_WARN(mlog::app, "syscall writev");
+    //MLOG_WARN(mlog::app, "syscall writev");
     ssize_t ret = 0;
     for (int i = 0; i < iovcnt; i++) {
         mlog::sink->write(iov[i].io_base, iov[i].iov_len);
