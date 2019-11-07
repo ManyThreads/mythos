@@ -33,6 +33,8 @@
 #include "objects/IPageMap.hh"
 #include "plugins/Plugin.hh"
 #include "plugins/events.hh"
+#include "boot/MemMapper.hh"
+#include "boot/CapAlloc.hh"
 
 #include "boot/CapAlloc.hh"
 #include "boot/MemMapper.hh"
@@ -56,56 +58,34 @@ namespace mythos {
       typedef Align2M PageAlign;
 
       optional<void> initCSpace();
-      optional<void> createDirectories();
-      optional<void> createMemoryRegion();
-      optional<void> createMsgFrame();
+      optional<void> createPortal(uintptr_t ipc_vaddr, CapPtr dstPortal);
       optional<void> loadImage();
-      optional<void> createEC();
+      optional<void> createEC(uintptr_t ipc_vaddr);
 
-      optional<void> load(const elf64::PHeader* header);
+      optional<void> loadProgramHeader(
+        const elf64::PHeader* ph, CapPtr frameCap, size_t offset);
 
       template<class Object, class Factory, class... ARGS>
-      optional<Object*> create(CapEntry* dstEntry, ARGS const&...args);
+      optional<Object*> create(optional<CapEntry*> dstEntry, ARGS const&...args);
 
       optional<void> csSet(CapPtr dst, CapEntry& root);
       optional<void> csSet(CapPtr dst, IKernelObject& obj);
 
       mythos::elf64::Elf64Image _img;
-      CapMap* _cspace;
 
-      CapPtr _caps;
-      PhysPtr<void> _regionStart;
-      size_t _frames;
-      size_t _maxFrames;
       KernelMemory* _mem;
       CapEntry* _memEntry;
 
+      /** allocates capability entries in CAP_ALLOC_START..CAP_ALLOC_END */
+      CapAlloc capAlloc;
+      MemMapper memMapper;
+
       Portal* _portal;
-      uintptr_t ipc_vaddr;
-
-      typedef Range<uintptr_t> range_type;
-      static range_type toPageRange(const elf64::PHeader* header);
-      static range_type toFrameRange(const elf64::PHeader* header);
-
-      size_t countPages();
-
-      optional<void> mapDirectory(size_t target, size_t entry, size_t index);
-      optional<size_t> mapFrame(size_t pageNum, bool writeable, bool executable);
-
-      CapPtr peekCap();
-      /// allocates a capability entry in CAP_ALLOC_START..CAP_ALLOC_END
-      CapPtr allocCap();
-
-      /// allocates a consecutive frame in the dynamic memory region
-      size_t allocFrame();
     };
 
     extern HookRegistry<InitLoader> initLoaderEvent;
 
-    /** sets up the initial application based on the embedded elf
-     * image. Returns true if the loading was successful.
-     */
-    optional<void> load_init();
+    extern char app_image_start SYMBOL("app_image_start");
 
     /** create the root task EC on the first hardware thread */
     class InitLoaderPlugin
@@ -114,8 +94,9 @@ namespace mythos {
     public:
       virtual ~InitLoaderPlugin() {}
       void initThread(cpu::ThreadID threadID) {
-        if (threadID == 0)
-          OOPS(mythos::boot::load_init()); // start the first application
+        if (threadID == 0) {
+            OOPS(InitLoader(&app_image_start).load());
+        }
       }
     };
 

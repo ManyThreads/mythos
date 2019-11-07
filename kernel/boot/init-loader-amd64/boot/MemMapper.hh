@@ -42,18 +42,18 @@ public:
 
     struct MapInfo
     {
-        uint64_t vaddr;
+        uintptr_t vaddr;
         CapPtr cap;
         uint8_t level; // counted 0,1,2,3 for PML1 to PML4
 
-        uint64_t size() const { return 1<<(12+9*level); }
-        bool contains(uint64_t ptr) const {
+        size_t size() const { return 1ull<<(12+9*(level+1)); }
+        bool contains(uintptr_t ptr) const {
             return (vaddr <= ptr) && (ptr < vaddr+size());
         }
     };
 
-    MemMapper(CapAlloc* caps, CapPtr kmem)
-        : caps(caps), kmem(kmem)
+    MemMapper(CapAlloc* caps, CapPtr kmemCap)
+        : caps(caps), kmemCap(kmemCap)
     { }
 
     /** call once to create the initial root map at the given
@@ -61,18 +61,26 @@ public:
     optional<void> installPML4(CapPtr dstCap);
 
     /** map a frame and create missing tables on demand. */
-    optional<void> mmap(uint64_t vaddr, uint64_t length, int prot,
-        CapPtr frame, uint64_t offset);
+    optional<void> mmap(
+        uintptr_t vaddr, size_t length,
+        bool writable, bool executable,
+        CapPtr frameCap, size_t offset);
 
     /** helps to allocate a frame. */
-    optional<CapPtr> createFrame(size_t size);
+    optional<CapPtr> createFrame(CapPtr frameCap, size_t size, size_t alignment);
+    optional<CapPtr> createFrame(size_t size, size_t alignment)
+    {
+        auto frameCap = caps->alloc();
+        if (!frameCap) RETHROW(frameCap);
+        return createFrame(*frameCap, size, alignment);
+    }
 
     /** helps to create a page map. */
     optional<CapEntry*> createPageMap(CapPtr dstCap, int level);
 
 protected:
     CapAlloc* caps;
-    CapPtr kmem;
+    CapPtr kmemCap;
     VectorMax<MapInfo,MAX_PAGE_MAPS> pagemaps;
 };
 

@@ -25,26 +25,31 @@
  */
 
 #include "util/alignments.hh"
+#include "objects/MemoryRegion.hh"
+#include "objects/PageMapAmd64.hh"
 #include <boot/MemMapper.hh>
 
 namespace mythos {
 
 
-optional<CapPtr> MemMapper::createFrame(size_t size)
+optional<CapPtr> MemMapper::createFrame(CapPtr frameCap, size_t size, size_t alignment)
 {
     auto kmemEntry = caps->get(kmemCap);
     TypedCap<IAllocator> kmem(kmemEntry);
     if (!kmem) RETHROW(kmem);
 
-    CapPtr frameCap = caps->alloc();
     auto frameEntry = caps->get(frameCap);
     if (!frameEntry) RETHROW(frameEntry);
+    if (!frameEntry->acquire()) THROW(Error::LOST_RACE);
 
     auto frame = MemoryRegionFactory::factory(
-        *frameEntry, *kmemEntry, kmemCap, *kmem, size, 1ull<<(12+9));
-    if (!frame) RETHROW(frame);
+        *frameEntry, *kmemEntry, kmem.cap(), *kmem, size, alignment);
+    if (!frame) {
+        frameEntry->reset();
+        RETHROW(frame);
+    }
 
-    RETURN(frameCap);
+    return frameCap;
 }
 
 optional<CapEntry*> MemMapper::createPageMap(CapPtr dstCap, int level)
@@ -58,12 +63,13 @@ optional<CapEntry*> MemMapper::createPageMap(CapPtr dstCap, int level)
     if (!dstEntry->acquire()) THROW(Error::LOST_RACE);
 
     auto pagemap = PageMapFactory::factory(
-        *dstEntry, *kmemEntry, kmemCap, *kmem, level+1); // PageMap counts 1,2,3,4
+        *dstEntry, *kmemEntry, kmem.cap(), *kmem, level+1); // PageMap counts 1,2,3,4
     if (!pagemap) {
         dstEntry->reset();
         RETHROW(pagemap);
     }
-    RETURN(*dstEntry);
+
+    return dstEntry;
 }
 
 
@@ -77,22 +83,27 @@ optional<void> MemMapper::installPML4(CapPtr dstCap)
 
 
 optional<void> MemMapper::mmap(
-    uint64_t vaddr, uint64_t length, bool writable, bool executable,
-    CapPtr frameCap, uint64_t offset)
+    uintptr_t vaddr, size_t length, bool writable, bool executable,
+    CapPtr frameCap, size_t offset)
 {
     auto remaining = length;
     auto curAddr = vaddr;
     auto curOffset = offset;
+    MLOG_INFO(mlog::boot, "    MemMapper::mmap", DVARhex(vaddr),
+        DVARhex(length), DVAR(writable), DVAR(executable),
+        DVAR(frameCap), DVARhex(offset));
 
     // 0) get info about frame and check for plausibility
-    TypedCap<IFrame> frame(caps->get(frameCap));
+    auto frameEntry = caps->get(frameCap);
+    if (!frameEntry) RETHROW(frameEntry);
+    TypedCap<IFrame> frame(frameEntry);
     if (!frame) RETHROW(frame);
     auto frameInfo = frame.getFrameInfo();
     if (curOffset + remaining > frameInfo.size)
         THROW(Error::INSUFFICIENT_RESOURCES);
-    if (!Align4K.is_aligned(remaining) ||
-        !Align4K.is_aligned(curAddr) ||
-        !Align4K.is_aligned(curOffset))
+    if (!Align4k::is_aligned(remaining) ||
+        !Align4k::is_aligned(curAddr) ||
+        !Align4k::is_aligned(curOffset))
         THROW(Error::UNALIGNED);
     auto flags = protocol::PageMap::MapFlags()
         .writable(writable && frameInfo.writable)
@@ -101,39 +112,44 @@ optional<void> MemMapper::mmap(
     // continue on the next page map until all of the frame is mapped
     while (remaining > 0) {
         bool isAligned2M =
-            Align2M.is_aligned(frameInfo.start.physint()+curOffset) &&
-            remaining > (1ull << 21) &&
-            Align2M.is_aligned(curAddr);
+            Align2M::is_aligned(frameInfo.start.physint()+curOffset) &&
+            remaining >= (1ull << 21) &&
+            Align2M::is_aligned(curAddr);
 
         // 1) find page maps that contain vaddr
         // there can be only one per level
         MapInfo* levels[] = {nullptr, nullptr, nullptr, nullptr};
-        foreach (auto& entry : pagemaps) {
+        for (auto& entry : pagemaps) {
             if (entry.contains(curAddr)) levels[entry.level] = &entry;
         }
 
         // 2) add missing page maps
         for (int l=3; l>=0; l--) {
             if (levels[l]) continue; // 2.1) page map is present
-            if (l==1 && isAligned2M) break; // 2.2) pml1 not needed
+            if (l==0 && isAligned2M) break; // 2.2) pml1 not needed
 
             // 2.2) allocate a page map for this level
-            CapPtr pmCap = caps->alloc();
-            auto dstEntry = createPageMap(pmCap, l);
+            auto pmCap = caps->alloc();
+            if (!pmCap) RETHROW(pmCap);
+            auto pmEntry = createPageMap(*pmCap, l);
             if (!pmEntry) RETHROW(pmEntry);
 
             // 2.3) install the page map in the previous level
-            TypedCap<IPageMap> pmlup(caps->get(levels[l+1].cap));
+            TypedCap<IPageMap> pmlup(caps->get(levels[l+1]->cap));
             if (!pmlup) RETHROW(pmlup);
-            auto psize = 1ull << (12+9*l);
-            auto idx = (curAddr / psize) % 512;
+            auto tsize = 1ull << (12+9*(l+1));
+            auto idx = (curAddr / tsize) % 512;
             auto req = protocol::PageMap::MapFlags()
                 .writable(true).configurable(true);
-            auto res = pmul->mapTable(*pmEntry, req, idx));
+            auto res = pmlup->mapTable(*pmEntry, req, idx);
+            if (!res) RETHROW(res);
 
             // 2.4) update levels[l] and pagemaps
-            pagemaps.push_back({curAddr/psize*psize, pmCap, l});
+            pagemaps.push_back({curAddr/tsize*tsize, *pmCap, uint8_t(l)});
             levels[l] = &pagemaps.back();
+            MLOG_DETAIL(mlog::boot, "    added page map",
+                DVARhex(levels[l]->vaddr), DVARhex(levels[l]->size()),
+                DVAR(levels[l]->level), DVAR(levels[l]->cap));
         }
 
         // 3) insert frames in lowest page table until end of frame or table
@@ -144,12 +160,11 @@ optional<void> MemMapper::mmap(
             level = 1;
             psize = (1ull << 21); // 2MiB
         }
-        TypedCap<IPageMap> pagemap(caps->get(levels[level]));
+        TypedCap<IPageMap> pagemap(caps->get(levels[level]->cap));
         if (!pagemap) RETHROW(pagemap);
         auto idx = (curAddr / psize) % 512;
         while (idx < 512 && remaining >= psize) {
-            auto res = pagemap->mapFrame(idx, caps.get(frameCap),
-                flags, curOffset);
+            auto res = pagemap->mapFrame(idx, *frameEntry, flags, curOffset);
             if (!res) RETHROW(res);
             idx++;
             remaining -= psize;

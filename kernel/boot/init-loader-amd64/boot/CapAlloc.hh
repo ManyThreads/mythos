@@ -36,17 +36,20 @@ namespace mythos {
 class CapAlloc
 {
 public:
-    CapAlloc(CapPtr begin, uint32_t capcount, CapMap* cspace)
-        : begin(begin), count(capcount), cspace(cspace)
+    CapAlloc(CapPtr begin, uint32_t capcount)
+        : begin(begin), count(capcount)
     {}
+
+    void setCSpace(CapMap* cspace) { this->cspace = cspace; }
 
     optional<CapPtr> alloc() {
         if (count==0) THROW(Error::INSUFFICIENT_RESOURCES);
+        auto c = begin;
+        begin++;
         count--;
-        return begin++;
+        return c;
     }
 
-    // TODO give access to the cspace
     optional<CapEntry*> get(CapPtr ptr) const {
         return cspace->get(ptr);
     }
@@ -54,7 +57,7 @@ public:
 protected:
     CapPtr begin;
     uint32_t count;
-    CapMap* cspace;
+    CapMap* cspace = nullptr;
 };
 
 } // namespace mythos
