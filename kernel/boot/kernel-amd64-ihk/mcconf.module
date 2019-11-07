@@ -56,7 +56,7 @@ stop:
 
 boot: all
 	sudo rm -rf /tmp/ihkmond
-	sudo ${vars.mythos_root}/3rdparty/ihkreboot.sh -k 1 -p $(shell pwd)/boot64.elf
+	sudo ${vars.mythos_root}/3rdparty/ihkreboot.sh -m 2048M -k 1 -p $(shell pwd)/boot64.elf
 
 wait:
 	sleep 5
