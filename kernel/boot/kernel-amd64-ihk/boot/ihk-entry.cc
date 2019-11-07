@@ -203,9 +203,10 @@ void _start_ihk_mythos_(
   kmsg_buf = (struct ihk_kmsg_buf*)phys_to_virt(boot_param->msg_buffer);
 
   kputs("Hello from the other side!\n");	
-  putHex(phys_address);
-  putHex(boot_param->bootstrap_mem_end);
-  putHex(boot_param->bootstrap_mem_end - phys_address);
+  putHex(_ap_trampoline);
+  //putHex(phys_address);
+  //putHex(boot_param->bootstrap_mem_end);
+  //putHex(boot_param->bootstrap_mem_end - phys_address);
 
   //kputs("Trampoline data...");
   //putHex(_ap_trampoline);
@@ -223,7 +224,7 @@ void _start_ihk_mythos_(
   boot_param->mikc_queue_send = virt_to_phys(rq);
 
   /* get ready */
-  boot_param->status = 2; // @todo is this to early? when does IHK expect the trampoline to be free again?
+  boot_param->status = 1; // @todo is this to early? when does IHK expect the trampoline to be free again?
   asm volatile("" ::: "memory");
 
   // @todo this is dangerous with C++ because of stack unwinding and it should not be necessary because IHK provides a stack already. On thwe other hand, we never return...
