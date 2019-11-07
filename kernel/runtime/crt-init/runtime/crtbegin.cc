@@ -57,6 +57,13 @@ extern "C" __attribute__((noreturn)) int __libc_start_main(int (*)(), int, char 
 
 extern "C" int main();
 
+void __attribute__((weak)) initMythos(){};
+
+int wrapper_main(){
+	initMythos();
+	return main();
+}
+
 extern "C" void start_c(long *)
 {
     // init TLS is done by musl libc
@@ -117,10 +124,10 @@ extern "C" void start_c(long *)
     env.phdr.a_val = (uint64_t)img.phdr(0);
     env.phnum.a_val = img.phnum();
     env.phent.a_val = img.phent();
-    
+   
     int argc = p[0];
     char **argv = (char **)(p+1);
-    __libc_start_main(&main, argc, argv);
+    __libc_start_main(&wrapper_main, argc, argv);
 }
 
 // see also http://stackoverflow.com/a/28981890 :(
