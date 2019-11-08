@@ -137,15 +137,15 @@ optional<void> MemMapper::mmap(
             // 2.3) install the page map in the previous level
             TypedCap<IPageMap> pmlup(caps->get(levels[l+1]->cap));
             if (!pmlup) RETHROW(pmlup);
-            auto tsize = 1ull << (12+9*(l+1));
-            auto idx = (curAddr / tsize) % 512;
+            auto tsize = FrameSize::pageLevel2Size(l+1); // bytes spanned by this page map
+            auto idx = (curAddr / tsize) % 512; // position of this map in parent map
             auto req = protocol::PageMap::MapFlags()
                 .writable(true).configurable(true);
             auto res = pmlup->mapTable(*pmEntry, req, idx);
             if (!res) RETHROW(res);
 
             // 2.4) update levels[l] and pagemaps
-            pagemaps.push_back({curAddr/tsize*tsize, *pmCap, uint8_t(l)});
+            pagemaps.push_back({AlignmentObject(tsize).round_down(curAddr), *pmCap, uint8_t(l)});
             levels[l] = &pagemaps.back();
             MLOG_DETAIL(mlog::boot, "    added page map",
                 DVARhex(levels[l]->vaddr), DVARhex(levels[l]->size()),
@@ -155,14 +155,14 @@ optional<void> MemMapper::mmap(
         // 3) insert frames in lowest page table until end of frame or table
         // have to use PML1 if present, else PML2 is good because of step (2.2)
         auto level = 0;
-        auto psize = 1ull << 12; // 4KiB
+        auto psize = FrameSize::pageLevel2Size(0); // 4KiB
         if (!levels[0]) {
             level = 1;
-            psize = (1ull << 21); // 2MiB
+            psize = FrameSize::pageLevel2Size(1); // 2MiB
         }
         TypedCap<IPageMap> pagemap(caps->get(levels[level]->cap));
         if (!pagemap) RETHROW(pagemap);
-        auto idx = (curAddr / psize) % 512;
+        auto idx = (curAddr / psize) % 512; // position of this vaddr in the page map
         while (idx < 512 && remaining >= psize) {
             auto res = pagemap->mapFrame(idx, *frameEntry, flags, curOffset);
             if (!res) RETHROW(res);

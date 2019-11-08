@@ -47,10 +47,7 @@
 
 
 namespace mythos {
-  extern KernelMemory* kmem_root();
-
 namespace boot {
-    using namespace mythos::init; // TODO shouldn't do this for readability
 
 HookRegistry<InitLoader> initLoaderEvent;
 InitLoaderPlugin initloaderplugin;
@@ -77,7 +74,7 @@ optional<void> InitLoader::load()
   // order matters here
   optional<void> res(Error::SUCCESS);
   if (res) res = initCSpace();
-  if (res) res = createPortal(ipc_vaddr, PORTAL);
+  if (res) res = createPortal(ipc_vaddr, init::PORTAL);
   if (res) res = loadImage();
   if (res) res = createEC(ipc_vaddr);
   RETURN(res);
@@ -125,7 +122,7 @@ optional<void> InitLoader::csSet(CapPtr dst, IKernelObject& obj)
 optional<void> InitLoader::initCSpace()
 {
   MLOG_INFO(mlog::boot, "create initial cspace ...");
-  ASSERT(CapMap::cap_count(12) == CSpaceLayout::SIZE);
+  ASSERT(CapMap::cap_count(12) == init::CSpaceLayout::SIZE);
   auto ocspace = CapMapFactory::initial(_memEntry, _memEntry->cap(), _mem,
       CapPtrDepth(12), CapPtrDepth(20), CapPtr(0));
   if (!ocspace) RETHROW(ocspace);
@@ -133,46 +130,48 @@ optional<void> InitLoader::initCSpace()
 
   initLoaderEvent.trigger_before(*this);
 
-  MLOG_INFO(mlog::boot, "... create cspace reference in cap", CSPACE);
-  auto res = csSet(CSPACE, ocspace->getRoot());
+  MLOG_INFO(mlog::boot, "... create cspace reference in cap", init::CSPACE);
+  auto res = csSet(init::CSPACE, ocspace->getRoot());
   if (!res) RETHROW(res);
 
-  MLOG_INFO(mlog::boot, "... create KM reference in cap", KM);
-  res = csSet(KM, *_memEntry);
+  MLOG_INFO(mlog::boot, "... create KM reference in cap", init::KM);
+  res = csSet(init::KM, *_memEntry);
   if (!res) RETHROW(res);
 
-  MLOG_INFO(mlog::boot, "... create address space in cap", PML4);
-  res = memMapper.installPML4(PML4);
+  MLOG_INFO(mlog::boot, "... create address space in cap", init::PML4);
+  res = memMapper.installPML4(init::PML4);
   if (!res) RETHROW(res);
 
-  MLOG_INFO(mlog::boot, "... create example factory in cap", EXAMPLE_FACTORY);
+  MLOG_INFO(mlog::boot, "... create example factory in cap", init::EXAMPLE_FACTORY);
   res = optional<void>(Error::SUCCESS);
-  if (res) res = csSet(EXAMPLE_FACTORY, factory::example);
-  if (res) res = csSet(MEMORY_REGION_FACTORY, factory::memoryRegion);
-  if (res) res = csSet(EXECUTION_CONTEXT_FACTORY, factory::executionContext);
-  if (res) res = csSet(PORTAL_FACTORY, factory::portal);
-  if (res) res = csSet(CAPMAP_FACTORY, factory::capmap);
-  if (res) res = csSet(PAGEMAP_FACTORY, factory::pagemap);
-  if (res) res = csSet(UNTYPED_MEMORY_FACTORY, factory::untypedMemory);
+  if (res) res = csSet(init::EXAMPLE_FACTORY, factory::example);
+  if (res) res = csSet(init::MEMORY_REGION_FACTORY, factory::memoryRegion);
+  if (res) res = csSet(init::EXECUTION_CONTEXT_FACTORY, factory::executionContext);
+  if (res) res = csSet(init::PORTAL_FACTORY, factory::portal);
+  if (res) res = csSet(init::CAPMAP_FACTORY, factory::capmap);
+  if (res) res = csSet(init::PAGEMAP_FACTORY, factory::pagemap);
+  if (res) res = csSet(init::UNTYPED_MEMORY_FACTORY, factory::untypedMemory);
   if (!res) RETHROW(res);
 
-  MLOG_INFO(mlog::boot, "... create memory regions root in cap", DEVICE_MEM);
+  MLOG_INFO(mlog::boot, "... create memory regions root in cap", init::DEVICE_MEM);
   {
-    auto res = csSet(CapPtr(DEVICE_MEM), boot::device_memory_root_entry());
+    auto res = csSet(init::DEVICE_MEM, boot::device_memory_root_entry());
     if (!res) RETHROW(res);
   }
 
-  ASSERT(cpu::getNumThreads() <= SCHEDULERS_START-APP_CAP_START);
-  MLOG_INFO(mlog::boot, "... create scheduling context caps in caps", SCHEDULERS_START, "till", SCHEDULERS_START+cpu::getNumThreads()-1);
+  ASSERT(cpu::getNumThreads() <= init::SCHEDULERS_START - init::APP_CAP_START);
+  MLOG_INFO(mlog::boot, "... create scheduling context caps in caps",
+        init::SCHEDULERS_START, "till", init::SCHEDULERS_START+cpu::getNumThreads()-1);
   for (cpu::ThreadID id = 0; id < cpu::getNumThreads(); ++id) {
-    auto res = csSet(SCHEDULERS_START+id, boot::getScheduler(id));
+    auto res = csSet(init::SCHEDULERS_START+id, boot::getScheduler(id));
     if (!res) RETHROW(res);
   }
 
-  ASSERT(cpu::getNumThreads() <= INTERRUPT_CONTROL_START-APP_CAP_START);
-  MLOG_INFO(mlog::boot, "... create interrupt controller caps in caps", INTERRUPT_CONTROL_START, "till", INTERRUPT_CONTROL_START+cpu::getNumThreads()-1);
+  ASSERT(cpu::getNumThreads() <= init::INTERRUPT_CONTROL_START - init::APP_CAP_START);
+  MLOG_INFO(mlog::boot, "... create interrupt controller caps in caps",
+        init::INTERRUPT_CONTROL_START, "till", init::INTERRUPT_CONTROL_START+cpu::getNumThreads()-1);
   for (cpu::ThreadID id = 0; id < cpu::getNumThreads(); ++id) {
-    auto res = csSet(INTERRUPT_CONTROL_START+id, boot::getInterruptController(id));
+    auto res = csSet(init::INTERRUPT_CONTROL_START+id, boot::getInterruptController(id));
     if (!res) RETHROW(res);
   }
 
@@ -273,13 +272,13 @@ optional<void> InitLoader::loadProgramHeader(
 optional<void> InitLoader::createEC(uintptr_t ipc_vaddr)
 {
   MLOG_INFO(mlog::boot, "create and initialize EC");
-  auto ec = create<ExecutionContext,ExecutionContextFactory>(capAlloc.get(EC));
+  auto ec = create<ExecutionContext,ExecutionContextFactory>(capAlloc.get(init::EC));
   if (!ec) RETHROW(ec);
-  _portal->setOwner(capAlloc.get(EC));
+  _portal->setOwner(capAlloc.get(init::EC));
   optional<void> res(Error::SUCCESS);
-  if (res) res = ec->setCapSpace(capAlloc.get(CSPACE));
-  if (res) res = ec->setAddressSpace(capAlloc.get(PML4));
-  if (res) res = ec->setSchedulingContext(capAlloc.get(SCHEDULERS_START));
+  if (res) res = ec->setCapSpace(capAlloc.get(init::CSPACE));
+  if (res) res = ec->setAddressSpace(capAlloc.get(init::PML4));
+  if (res) res = ec->setSchedulingContext(capAlloc.get(init::SCHEDULERS_START));
   if (!res) RETHROW(res);
   ec->getThreadState().rdi = ipc_vaddr;
   ec->setEntryPoint(_img.header()->entry);

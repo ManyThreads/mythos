@@ -46,7 +46,8 @@ public:
         CapPtr cap;
         uint8_t level; // counted 0,1,2,3 for PML1 to PML4
 
-        size_t size() const { return 1ull<<(12+9*(level+1)); }
+        /** size of this page map */
+        size_t size() const { return FrameSize::pageLevel2Size(level+1); }
         bool contains(uintptr_t ptr) const {
             return (vaddr <= ptr) && (ptr < vaddr+size());
         }
@@ -66,7 +67,7 @@ public:
         bool writable, bool executable,
         CapPtr frameCap, size_t offset);
 
-    /** helps to allocate a frame. */
+    /** allocate a frame and register it at the specified capability pointer */
     optional<CapPtr> createFrame(CapPtr frameCap, size_t size, size_t alignment);
     optional<CapPtr> createFrame(size_t size, size_t alignment)
     {
@@ -75,7 +76,8 @@ public:
         return createFrame(*frameCap, size, alignment);
     }
 
-    /** helps to create a page map. */
+    /** allocate a page map of the specified level and register it
+     *  in the cspace at the specified capability pointer. */
     optional<CapEntry*> createPageMap(CapPtr dstCap, int level);
 
 protected:

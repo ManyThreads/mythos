@@ -37,16 +37,16 @@ class CapAlloc
 {
 public:
     CapAlloc(CapPtr begin, uint32_t capcount)
-        : begin(begin), count(capcount)
+        : next(begin), remaining(capcount)
     {}
 
     void setCSpace(CapMap* cspace) { this->cspace = cspace; }
 
     optional<CapPtr> alloc() {
-        if (count==0) THROW(Error::INSUFFICIENT_RESOURCES);
-        auto c = begin;
-        begin++;
-        count--;
+        if (remaining==0) THROW(Error::INSUFFICIENT_RESOURCES);
+        auto c = next;
+        next++;
+        remaining--;
         return c;
     }
 
@@ -55,8 +55,8 @@ public:
     }
 
 protected:
-    CapPtr begin;
-    uint32_t count;
+    CapPtr next;
+    uint32_t remaining;
     CapMap* cspace = nullptr;
 };
 
