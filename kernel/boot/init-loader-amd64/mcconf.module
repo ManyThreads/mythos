@@ -1,7 +1,9 @@
 # -*- mode:toml; -*-
 [module.boot-init-loader-amd64]
-    incfiles = [ "boot/load_init.hh" ]
-    kernelfiles = [ "boot/init_image.S", "boot/load_init.cc" ]
+    incfiles = [ "boot/load_init.hh", "boot/MemMapper.hh",
+        "boot/CapAlloc.hh" ]
+    kernelfiles = [ "boot/init_image.S", "boot/load_init.cc",
+        "boot/MemMapper.cc" ]
     requires = [ "app/init.elf" ]
     makefile_body = '''
 boot/init_image.o: app/init.elf

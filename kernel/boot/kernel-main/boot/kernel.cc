@@ -101,9 +101,8 @@ NORETURN void runUser();
 
 void runUser() {
   mythos::async::getLocalPlace().processTasks();
-  MLOG_DETAIL(mlog::boot, "trying to execute app");
   mythos::boot::getLocalScheduler().tryRunUser();
-  MLOG_DETAIL(mlog::boot, "going to sleep now");
+//  MLOG_DETAIL(mlog::boot, "going to sleep now");
   mythos::idle::sleep(); // resets the kernel stack!
 }
 
@@ -136,12 +135,12 @@ void mythos::idle::sleeping_failed()
   runUser();
 }
 
-void mythos::cpu::syscall_entry_cxx(mythos::cpu::ThreadState* ctx)
+void mythos::cpu::syscall_entry_cxx(mythos::cpu::ThreadState* /*ctx*/)
 {
   mythos::async::getLocalPlace().enterKernel();
   mythos::idle::enteredFromSyscall();
-  MLOG_DETAIL(mlog::boot, "user system call", DVARhex(ctx->rdi), DVARhex(ctx->rsi),
-      DVARhex(ctx->rip), DVARhex(ctx->rsp));
+//  MLOG_DETAIL(mlog::boot, "user system call", DVARhex(ctx->rdi), DVARhex(ctx->rsi),
+//      DVARhex(ctx->rip), DVARhex(ctx->rsp));
   mythos::ec_handle_syscall();
   runUser();
 }

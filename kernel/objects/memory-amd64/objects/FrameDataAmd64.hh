@@ -70,7 +70,7 @@ namespace mythos {
   uintptr_t getEnd(uintptr_t base) const { return getStart(base)+getSize(); }
   FrameData start(uintptr_t base, uintptr_t addr) {
     ASSERT(base <= addr && addr < base+FrameSize::REGION_MAX_SIZE);
-    return this->offset((addr-base)/FrameSize::FRAME_MIN_SIZE); 
+    return this->offset((addr-base)/FrameSize::FRAME_MIN_SIZE);
   }
 
   /** make a capability that restricts the frame to a subrange with possibly reduced access rights.
@@ -92,7 +92,7 @@ namespace mythos {
   BITFIELD_END
 
   /** x86-64 page table entries.
-   * 
+   *
    * Entries that reference page tables ignore bits 8--11 and 52--62 (not reserved by intel!).
    * We use bits 52--62 for a partial pointer to the table's PageMap object.
    * We use bit 8 for mapped tables to tell that recursive operations can modify the referenced table.
@@ -105,13 +105,13 @@ namespace mythos {
   BoolField<value_t, base_t, 2> userMode;
   BoolField<value_t, base_t, 3> writeThrough;
   BoolField<value_t, base_t, 4> cacheDisabled;
-  BoolField<value_t, base_t, 5> access;
+  BoolField<value_t, base_t, 5> accessed;
   BoolField<value_t, base_t, 6> dirty;
-  BoolField<value_t, base_t, 7> page;
+  BoolField<value_t, base_t, 7> page; // huge page
   BoolField<value_t, base_t, 8> global;
-  BoolField<value_t, base_t, 12> pat2; // only for mapped 2MiB and 1GiB pages
+  BoolField<value_t, base_t, 12> pat2; // for 2MiB and 1GiB pages the bits 12--20 are not needed, bit 12 contains the PAT flag
   UIntField<value_t, base_t, 12, (MAXPHYADDR - 12)> addr;
-  BoolField<value_t, base_t, 8> configurable; // MyThOS page table: can modify the mapped table, MYTHOS page: has write access rights
+  BoolField<value_t, base_t, 9> configurable; // MyThOS page table: can modify the mapped table, MYTHOS page: has write access rights
   UIntField<value_t, base_t, 52, 10> pmPtr; // MyThOS: table's partial IPageMap* in first 3 entries
   BoolField<value_t, base_t, 63> executeDisabled;
   std::atomic<uint64_t> atomic; // atomic variant for compare-exchange
@@ -139,10 +139,11 @@ namespace mythos {
     if (e.executeDisabled) o << " XD";
     if (e.writeThrough) o << " PWT";
     if (e.cacheDisabled) o << " PCD";
-    if (e.page) o << " Pa/PAT";
+    if (e.page) o << " Huge";
     if (e.pat2) o << " PAT2";
-    if (e.access) o << " A";
+    if (e.accessed) o << " A";
     if (e.dirty) o << " D";
+    if (e.configurable) o << " MC";
     o << '>';
     return o;
   }
@@ -151,7 +152,7 @@ namespace mythos {
   typedef protocol::PageMap::PageMapReq PageMapReq;
   /** For mapped and non-mapped PageMap: can be modified. */
   BoolField<value_t, base_t, 1> writable;
-  PageMapData() : value(0) { writable=true; } /** @todo why writable by default here? */ 
+  PageMapData() : value(0) { writable=true; } /** @todo why writable by default here? */
   PageMapData(Cap cap) : value(cap.data()) {}
 
   Cap mint(Cap self, PageMapReq r) const {
