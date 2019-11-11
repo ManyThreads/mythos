@@ -78,7 +78,7 @@ namespace mythos {
       uint64_t memsize; // target size in the memory
       uint64_t alignment;
     };
-    
+
     struct PACKED SHeader
     {
         uint32_t name; // index into section name table
@@ -101,7 +101,7 @@ namespace mythos {
         ASSERT(header()->phentsize >= sizeof(PHeader));
         return header()->isElf64Header();
       }
- 
+
       Header const* header() const { return reinterpret_cast<Header*>(start); }
       size_t phnum() const { return header()->phnum; }
       size_t phent() const { return header()->phentsize; }
@@ -113,6 +113,8 @@ namespace mythos {
       SHeader const* shdr(size_t idx) const {
         return reinterpret_cast<SHeader*>(start + header()->shoffset + idx*header()->shentsize);
       }
+
+      void* getData(PHeader const& ph) const { return reinterpret_cast<void*>(start+ph.offset); }
 
       const char* sectionName(size_t idx) const {
           if (header()->shstrndx > shnum()) return nullptr;

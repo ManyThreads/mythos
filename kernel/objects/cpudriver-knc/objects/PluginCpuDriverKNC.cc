@@ -25,7 +25,7 @@
  */
 
 #include "objects/CpuDriverKNC.hh"
-#include "plugins/Plugin.hh"
+#include "util/events.hh"
 #include "boot/load_init.hh"
 #include "mythos/init.hh"
 #include "boot/mlog.hh"
@@ -33,25 +33,21 @@
 namespace mythos {
 
   class PluginCpuDriverKNC
-    : public Plugin, protected EventHook<boot::InitLoader>
+    : public EventHook<boot::InitLoader&>
   {
   public:
-    virtual ~PluginCpuDriverKNC() {}
-    void initGlobal() override {
-      MLOG_ERROR(mlog::boot, "registering init loader event hook");
-      boot::initLoaderEvent.register_hook(this);
+    PluginCpuDriverKNC() {
+      MLOG_DETAIL(mlog::boot, "registering init loader event hook");
+      boot::initLoaderEvent.add(this);
     }
-  protected:
-    EventCtrl before(boot::InitLoader& event) override;
+    virtual ~PluginCpuDriverKNC() {}
+
+    EventCtrl before(boot::InitLoader& loader) override {
+      OOPS(loader.csSet(init::CPUDRIVER, cpudrv));
+      return EventCtrl::OK;
+    }
     CpuDriverKNC cpudrv;
   };
-
-  EventCtrl PluginCpuDriverKNC::before(boot::InitLoader& loader)
-  {
-    auto res = loader.csSet(init::CPUDRIVER, cpudrv);
-    if (!res) ASSERT(res);
-    return EventCtrl::OK;
-  }
 
   PluginCpuDriverKNC pluginCpuDriverKNC;
 

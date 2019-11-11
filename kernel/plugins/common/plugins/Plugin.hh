@@ -43,20 +43,14 @@ namespace mythos {
     : public IPlugin
   {
   public:
-    Plugin(const char* name = "plugin") : log(name)
-    {
-      this->next = first;
-      first = this;
-    }
+    Plugin(const char* name = "plugin");
     virtual ~Plugin() {}
-
-    static void initPluginsGlobal();
-    static void initPluginsOnThread(cpu::ThreadID threadID);
 
   protected:
     mlog::Logger<mlog::FilterAny> log;
 
   private:
+    friend class InitPlugins;
     Plugin* next;
     static Plugin* first;
   };

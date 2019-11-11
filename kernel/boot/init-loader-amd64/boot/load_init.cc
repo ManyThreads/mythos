@@ -49,8 +49,7 @@
 namespace mythos {
 namespace boot {
 
-HookRegistry<InitLoader> initLoaderEvent;
-InitLoaderPlugin initloaderplugin;
+Event<InitLoader&> initLoaderEvent;
 
 
 InitLoader::InitLoader(char* image)
@@ -60,14 +59,15 @@ InitLoader::InitLoader(char* image)
   , capAlloc(init::CAP_ALLOC_START,
         init::CAP_ALLOC_END-init::CAP_ALLOC_START)
   , memMapper(&capAlloc, mythos::init::KM)
-{}
+{
+  MLOG_INFO(mlog::boot, "found init application image at", (void*)image);
+}
 
-InitLoader::~InitLoader() {}
+InitLoader::~InitLoader() { }
 
 optional<void> InitLoader::load()
 {
   if (!_img.isValid()) RETURN(Error::GENERIC_ERROR);
-  MLOG_INFO(mlog::boot, "found init application image at", (void*)&app_image_start);
 
   uintptr_t ipc_vaddr = 10ull << 21;
 
@@ -263,7 +263,7 @@ optional<void> InitLoader::loadProgramHeader(
     memset(pstart.log(), 0, vend-vbegin);
     pstart.incbytes(ph->vaddr - vbegin);
     //MLOG_INFO(mlog::boot, "    zeroing2", DVARhex(pstart), DVARhex(vend-vbegin));
-    memcpy(pstart.log(), &app_image_start+ph->offset, ph->filesize);
+    memcpy(pstart.log(), _img.getData(*ph), ph->filesize);
     //MLOG_INFO(mlog::boot, "    zeroing3", DVARhex(pstart), DVARhex(vend-vbegin));
     RETURN(Error::SUCCESS);
 }
