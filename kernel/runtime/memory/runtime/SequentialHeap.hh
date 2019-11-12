@@ -30,33 +30,11 @@
 #include "util/FirstFitHeap.hh"
 #include "cpu/hwthread_pause.hh"
 #include "runtime/mlog.hh"
+#include "runtime/Mutex.hh"
 #include <atomic>
 
 
 namespace mythos {
-
-class SpinMutex {
-public:
-    void lock() {
-        while (flag.test_and_set()) { mythos::hwthread_pause(); }
-    }
-
-    void unlock() {
-        flag.clear();
-    }
-
-    template<typename FUNCTOR>
-    void operator<<(FUNCTOR fun) {
-        lock();
-        fun();
-        unlock();
-    }
-
-private:
-    std::atomic_flag flag;
-};
-
-
 
 /**
  * Wrapper for FirstFitHeap intrusive. Allocates additional meta data.
@@ -76,11 +54,11 @@ public:
         Head() {}
         bool isGood() const { return cannary == 0x08154711; }
         size_t cannary = 0x08154711;
-        char* begin; //< the start of the allocated area, not same as "this" because of alignment 
+        char* begin; //< the start of the allocated area, not same as "this" because of alignment
         size_t size; //< the size that was actually allocated starting at begin
         size_t reqSize; //< the size that was requested in alloc()
     };
-    
+
 
     SequentialHeap() {}
     virtual ~SequentialHeap() {}
@@ -94,7 +72,7 @@ public:
         align = Alignment::round_up(align); // enforce own minimum alignment
         auto headsize = AlignmentObject(align).round_up(sizeof(Head));
         auto allocSize = Alignment::round_up(headsize + length);
-        MLOG_DETAIL(mlog::app, "heap: try to allocate", DVAR(length), DVAR(align), 
+        MLOG_DETAIL(mlog::app, "heap: try to allocate", DVAR(length), DVAR(align),
             DVAR(allocSize));
         mutex << [&]() {
             res = heap.alloc(allocSize, align);
@@ -133,7 +111,7 @@ public:
             heap.addRange(start, length);
         };
     }
-    
+
     size_t getSize(void* ptr) {
         auto addr = reinterpret_cast<char*>(ptr);
         auto head = reinterpret_cast<Head*>(addr - sizeof(Head));
@@ -143,8 +121,7 @@ public:
 
 private:
     FirstFitHeap<T, A> heap;
-    SpinMutex mutex;
-
+    Mutex mutex;
 };
 
 } // namespace mythos
