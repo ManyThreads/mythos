@@ -1,4 +1,4 @@
 # -*- mode:toml; -*-
 
 [module.utils-alignment]
-    incfiles = [ "util/alignments.hh", "util/Range.hh", "util/RangeSet.hh"]
+    incfiles = [ "util/alignments.hh"]
