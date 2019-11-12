@@ -28,7 +28,6 @@
 #include "mythos/InvocationBuf.hh"
 #include "util/assert.hh"
 #include "util/PhysPtr.hh"
-#include "util/alignments.hh"
 #include "objects/Example.hh"
 #include "objects/ops.hh"
 #include "objects/KernelMemory.hh"

@@ -27,7 +27,7 @@
 
 #include "util/assert.hh"
 #include "util/optional.hh"
-#include "util/alignments.hh"
+#include "util/align.hh"
 
 namespace mythos {
 
@@ -35,21 +35,21 @@ namespace mythos {
    *
    * \author Randolf Rotta, Robert Kuban
    */
-  template<typename T, class A=AlignLine>
+  template<typename T, size_t HA=alignLine>
   class FirstFitHeap
   {
   public:
     typedef T addr_t;
-    typedef A Alignment;
+    constexpr static size_t heapAlign = HA;
 
     FirstFitHeap() : first_free(0) {}
     virtual ~FirstFitHeap() {}
 
-    size_t getAlignment() const { return A::alignment(); }
+    size_t getAlignment() const { return heapAlign; }
 
     optional<addr_t> alloc(size_t length, size_t alignment) {
-      length = Alignment::round_up(length);
-      auto r = salloc(length, AlignmentObject(alignment));
+      length = round_up(length, heapAlign);
+      auto r = salloc(length, alignment);
       //tracer.allocated(r, length, alignment);
       // if(r) tracer.allocated(size_t(*r), length, alignment);
       // else tracer.allocateFailed(length, alignment);
@@ -57,14 +57,14 @@ namespace mythos {
     }
 
     void free(addr_t start, size_t length) {
-      length = Alignment::round_up(length);
+      length = round_up(length, heapAlign);
       sfree(size_t(start), length);
       //tracer.freed(uintptr_t(start), length);
     }
 
     void addRange(addr_t start, size_t length) {
-      start = Alignment::round_up(start);
-      length = Alignment::round_down(length);
+      start = round_up(start, heapAlign);
+      length = round_down(length, heapAlign);
       sfree(size_t(start), length);
       //tracer.rangeAdded(size_t(start), length);
     }
@@ -77,22 +77,16 @@ namespace mythos {
         : length(length), next(0) {}
 
       uintptr_t start() { return reinterpret_cast<uintptr_t>(this); }
+      uintptr_t start(size_t alignment) { return round_up(start(), alignment); }
+      uintptr_t offset(size_t alignment) { return start(alignment) - start(); }
 
-      template<class Al>
-      uintptr_t start(const Al& alignment) { return alignment.round_up(start()); }
-
-      template<class Al>
-      uintptr_t offset(const Al& alignment) { return start(alignment) - start(); }
-
-      template<class Al>
-      uintptr_t aligned_length(const Al& alignment) {
+      uintptr_t aligned_length(size_t alignment) {
         if (length > offset(alignment)) {
           return length - offset(alignment);
         } else return 0;
       }
 
-      template<class Al>
-      uintptr_t fit(size_t size, const Al& alignment) {
+      uintptr_t fit(size_t size, size_t alignment) {
         return size <= aligned_length(alignment);
       }
 
@@ -100,11 +94,10 @@ namespace mythos {
       Range* next;
     };
 
-    static_assert(sizeof(Range) <= Alignment::alignment(), "Firstfit range descriptor must fit into alignment.");
+    static_assert(sizeof(Range) <= heapAlign, "Firstfit range descriptor must fit into alignment.");
     static_assert(sizeof(uintptr_t) == sizeof(addr_t), "Firstfit range type size.");
 
-    template<class Al>
-    optional<addr_t> salloc(size_t size, const Al& alignment);
+    optional<addr_t> salloc(size_t size, size_t alignment);
 
     void sfree(uintptr_t start, size_t length);
 
@@ -112,19 +105,18 @@ namespace mythos {
     Range* first_free;
   };
 
-  template<typename T, class A>
-  template<class Al>
-  auto FirstFitHeap<T,A>::salloc(size_t size, const Al& alignment) -> optional<addr_t>
+  template<typename T, size_t HA>
+  auto FirstFitHeap<T,HA>::salloc(size_t size, size_t alignment) -> optional<addr_t>
   {
-    ASSERT(Alignment::is_aligned(size));
-    ASSERT(Alignment::is_aligned(alignment.alignment()));
+    ASSERT(is_aligned(size, heapAlign));
+    ASSERT(is_aligned(alignment, heapAlign));
     // first fit search
     Range* r = first_free;
     Range** prev = &first_free;
     while (r != 0) {
       if (r->fit(size, alignment)) {
         // it fits
-        if (!alignment.is_aligned(r)) {
+        if (!is_aligned(r,alignment)) {
           // split into "offset" and aligned range n
           auto n = reinterpret_cast<Range*>(r->start(alignment));
           n->length = r->aligned_length(alignment);
@@ -154,11 +146,11 @@ namespace mythos {
     return optional<addr_t>();
   }
 
-  template<typename T, class A>
-  void FirstFitHeap<T,A>::sfree(size_t start, size_t length)
+  template<typename T, size_t HA>
+  void FirstFitHeap<T,HA>::sfree(size_t start, size_t length)
   {
-    ASSERT(Alignment::is_aligned(start));
-    ASSERT(Alignment::is_aligned(length));
+    ASSERT(is_aligned(start, heapAlign));
+    ASSERT(is_aligned(length, heapAlign));
     Range* r = first_free;
     Range** prev = &first_free;
     while (r != 0) {

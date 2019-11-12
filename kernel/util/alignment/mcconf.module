@@ -1,4 +1,4 @@
 # -*- mode:toml; -*-
 
 [module.utils-alignment]
-    incfiles = [ "util/alignments.hh"]
+    incfiles = [ "util/align.hh" ]

@@ -27,7 +27,7 @@
 
 #include "util/elf64.hh"
 #include "util/Range.hh"
-#include "util/alignments.hh"
+#include "util/align.hh"
 #include "util/VectorMax.hh"
 #include "objects/CapEntry.hh"
 #include "objects/IPageMap.hh"
@@ -53,8 +53,6 @@ namespace mythos {
       InitLoader(char* image);
       ~InitLoader();
       optional<void> load();
-
-      typedef Align2M PageAlign;
 
       optional<void> initCSpace();
       optional<void> createPortal(uintptr_t ipc_vaddr, CapPtr dstPortal);
