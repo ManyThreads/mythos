@@ -31,8 +31,7 @@
 #include "util/VectorMax.hh"
 #include "objects/CapEntry.hh"
 #include "objects/IPageMap.hh"
-#include "plugins/Plugin.hh"
-#include "plugins/events.hh"
+#include "util/events.hh"
 #include "boot/MemMapper.hh"
 #include "boot/CapAlloc.hh"
 
@@ -83,22 +82,7 @@ namespace mythos {
       Portal* _portal;
     };
 
-    extern HookRegistry<InitLoader> initLoaderEvent;
-
-    extern char app_image_start SYMBOL("app_image_start");
-
-    /** create the root task EC on the first hardware thread */
-    class InitLoaderPlugin
-      : public Plugin
-    {
-    public:
-      virtual ~InitLoaderPlugin() {}
-      void initThread(cpu::ThreadID threadID) {
-        if (threadID == 0) {
-            OOPS(InitLoader(&app_image_start).load());
-        }
-      }
-    };
+    extern Event<InitLoader&> initLoaderEvent;
 
   } // namespace boot
 } // namespace mythos

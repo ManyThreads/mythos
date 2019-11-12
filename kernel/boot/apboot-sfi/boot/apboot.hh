@@ -32,7 +32,7 @@ namespace mythos {
   namespace boot {
 
     NORETURN void apboot();
-    void apboot_thread(size_t apicID);
+    boot apboot_thread(size_t apicID, size_t reason);
 
   } // namespace boot
 } // namespace mythos

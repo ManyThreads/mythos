@@ -21,21 +21,13 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  *
- * Copyright 2014 Randolf Rotta, Maik Krüger, and contributors, BTU Cottbus-Senftenberg
+ * Copyright 2019 Randolf Rotta and contributors, BTU Cottbus-Senftenberg
  */
-#pragma once
-
-#include "util/compiler.hh"
-#include <cstddef>
+#include "cpu/hwthreadid.hh"
+#include "util/events.hh"
 
 namespace mythos {
-  namespace boot {
 
-    /** boot the BSP and all AP hardware threads such that they arrive in entry_ap(). */
-    NORETURN void apboot();
+extern Event<cpu::ThreadID, bool, size_t> bootAPEvent;
 
-    /** perform thread-local initialisation after booting the hardware thread. */
-    bool apboot_thread(size_t apicID, size_t reason);
-
-  } // namespace boot
 } // namespace mythos

@@ -28,7 +28,6 @@
 #include "util/assert.hh"
 #include "cpu/PIC.hh"
 #include "cpu/LAPIC.hh"
-#include "cpu/IOApic.hh"
 #include "cpu/ctrlregs.hh"
 #include "boot/memory-layout.h"
 #include "boot/DeployHWThread.hh"
@@ -100,7 +99,9 @@ void printDbg()
 }
 
 
-void apboot_thread(size_t apicID) { ap_apic2config[apicID]->initThread(); }
+bool apboot_thread(size_t apicID, size_t reason) {
+  return ap_apic2config[apicID]->initThread(reason);
+}
 
 NORETURN void apboot()
 {

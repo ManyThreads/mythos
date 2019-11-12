@@ -21,21 +21,31 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  *
- * Copyright 2014 Randolf Rotta, Maik Krüger, and contributors, BTU Cottbus-Senftenberg
+ * Copyright 2019 Randolf Rotta and contributors, BTU Cottbus-Senftenberg
  */
-#pragma once
-
-#include "util/compiler.hh"
-#include <cstddef>
+#include "boot/load_init.hh"
+#include "boot/kernel.hh"
+#include "util/events.hh"
 
 namespace mythos {
-  namespace boot {
 
-    /** boot the BSP and all AP hardware threads such that they arrive in entry_ap(). */
-    NORETURN void apboot();
+extern char app_image_start SYMBOL("app_image_start");
 
-    /** perform thread-local initialisation after booting the hardware thread. */
-    bool apboot_thread(size_t apicID, size_t reason);
+/** create the root task EC on the first hardware thread */
+class InitLoaderPlugin
+   : public EventHook<cpu::ThreadID, bool, size_t>
+{
+public:
+    InitLoaderPlugin() { bootAPEvent.add(this); }
 
-  } // namespace boot
+    EventCtrl after(cpu::ThreadID threadID, bool firstBoot, size_t) override {
+        if (threadID == 0 && firstBoot) {
+            OOPS(boot::InitLoader(&app_image_start).load());
+        }
+        return EventCtrl::OK;
+    }
+};
+
+InitLoaderPlugin initloaderplugin;
+
 } // namespace mythos

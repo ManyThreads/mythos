@@ -32,7 +32,6 @@
 #include "util/SFI.hh"
 #include "boot/DeployHWThread.hh"
 #include "util/MPApicTopology.hh"
-#include "cpu/IOApic.hh"
 
 namespace mythos {
   namespace boot {
@@ -46,7 +45,9 @@ DeployHWThread ap_config[MYTHOS_MAX_THREADS];
  * apicID, which was gathered via the cpuid instruction.
  */
 DeployHWThread* ap_apic2config[MYTHOS_MAX_APICID];
-void apboot_thread(size_t apicID) { ap_apic2config[apicID]->initThread(); }
+bool apboot_thread(size_t apicID, size_t reason) {
+  return ap_apic2config[apicID]->initThread();
+}
 
 NORETURN extern void start_ap64(size_t reason) SYMBOL("_start_ap64");
 
@@ -63,11 +64,8 @@ NORETURN void apboot()
   }
 
   auto apics = topo.getApics();
-  for (uint64_t i = 0; i < topo.numApics(); i++) {
-    uint64_t addr = apics[i]->apicID[0];
-    auto offs = addr - MMIO_PHYS;
-    ioapic.init(MMIO_ADDR + offs);
-  }
+  for (int i = 0; i < topo.numApics(); i++)
+    initIOApicEvent.trigger_before(i, apics[i]->apicID[i]);
 
   DeployHWThread::prepareBSP();
 

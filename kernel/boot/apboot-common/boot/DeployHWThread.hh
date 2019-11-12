@@ -27,9 +27,9 @@
 
 #include <cstddef>
 #include <cstdint>
-#include "plugins/Plugin.hh"
 #include "util/compiler.hh"
 #include "util/assert.hh"
+#include "util/events.hh"
 #include "cpu/GdtAmd64.hh"
 #include "cpu/IdtAmd64.hh"
 #include "cpu/CoreLocal.hh"
@@ -61,6 +61,13 @@ namespace mythos {
     InterruptControl& getInterruptController(cpu::ThreadID threadID) { return interruptController[threadID]; }
     InterruptControl& getLocalInterruptController() { return *localInterruptController.get(); }
 
+    /** event to initialize an ioApic.
+     * Arguments are the number of the ioAPIC and its physical address.
+     * The memory mapping is up to the plugins.
+     */
+    extern Event<int, size_t> initIOApicEvent;
+
+
 struct DeployHWThread
 {
   ALIGN_4K static char stackspace[CORE_STACK_SIZE*MYTHOS_MAX_THREADS];
@@ -76,9 +83,7 @@ struct DeployHWThread
   static void prepareBSP()
   {
     idt.init();
-    idle::init_global();
-    DeleteBroadcast::init();
-    Plugin::initPluginsGlobal();
+    DeleteBroadcast::init(); // depends on hwthread enumeration
   }
 
   void prepare(cpu::ThreadID threadID, cpu::ApicID apicID)
@@ -108,7 +113,7 @@ struct DeployHWThread
     firstboot = true;
   }
 
-  void initThread() {
+  bool initThread(size_t /*reason*/) {
     /* ATTENTION ATTENTION */
     /* no logging before loading the GDT for the core-local memory */
     /* FROM HERE */
@@ -121,10 +126,11 @@ struct DeployHWThread
     idle::init_thread();
     if (UNLIKELY(this->firstboot)) {
       mythos::lapic.init();
-      Plugin::initPluginsOnThread(threadID);
       this->firstboot = false;
+      return true;
     } else {
-      // not needed, would through away pending irqs: mythos::lapic.init();
+      // not needed because it would throw away pending irqs: mythos::lapic.init();
+      return false;
     }
   }
 
