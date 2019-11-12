@@ -4,6 +4,3 @@
 
 [module.thread-mutex-tidex]
     incfiles = [ "util/ThreadMutex.hh" ]
-
-[module.user-mutex-tidex]
-    incfiles = [ "runtime/Mutex.hh" ]
