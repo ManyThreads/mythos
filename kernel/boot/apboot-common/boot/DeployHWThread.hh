@@ -108,7 +108,7 @@ struct DeployHWThread
     getScheduler(threadID).init(async::getPlace(threadID));
     cpu::initSyscallStack(threadID, stacks[apicID]);
     MLOG_DETAIL(mlog::boot, "  hw thread", DVAR(threadID), DVAR(apicID),
-                DVARhex(stacks[apicID]), DVARhex(stackphys.physint()), DVARhex(tss_kernel.ist[1]),
+                DVARhex(stacks[apicID]), DVARhex(stackphys.physint()), /*DVARhex(tss_kernel.ist[1]),*/
                 DVARhex(KernelCLM::getOffset(threadID)));
     firstboot = true;
   }
