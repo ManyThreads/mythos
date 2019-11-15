@@ -21,42 +21,31 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  *
- * Copyright 2016 Randolf Rotta, Robert Kuban, and contributors, BTU Cottbus-Senftenberg
+ * Copyright 2019 Randolf Rotta and contributors, BTU Cottbus-Senftenberg
  */
-#pragma once
-
-#include <cstddef>
-#include "mythos/caps.hh"
-#include "mythos/InvocationBuf.hh"
+#include "boot/load_init.hh"
+#include "boot/kernel.hh"
+#include "util/events.hh"
 
 namespace mythos {
-namespace init {
 
-  enum CSpaceLayout : CapPtr {
-    NULLCAP = 0,
-    KM,
-    CSPACE,
-    PML4,
-    EC,
-    PORTAL,
-    EXAMPLE_FACTORY,
-    MEMORY_REGION_FACTORY,
-    EXECUTION_CONTEXT_FACTORY,
-    PORTAL_FACTORY,
-    CAPMAP_FACTORY,
-    PAGEMAP_FACTORY,
-    UNTYPED_MEMORY_FACTORY,
-    CAP_ALLOC_START,
-    CAP_ALLOC_END = CAP_ALLOC_START+200,
-    MSG_FRAME,
-    DEVICE_MEM,
-    SCHEDULERS_START,
-    CPUDRIVER = SCHEDULERS_START+256,
-    INTERRUPT_CONTROL_START,
-    INTERRUPT_CONTROL_END = INTERRUPT_CONTROL_START+256,
-    APP_CAP_START = 1024,
-    SIZE = 4096
-  };
+extern char app_image_start SYMBOL("app_image_start");
 
-} // namespace init
+/** create the root task EC on the first hardware thread */
+class InitLoaderPlugin
+   : public EventHook<cpu::ThreadID, bool, size_t>
+{
+public:
+    InitLoaderPlugin() { bootAPEvent.add(this); }
+
+    EventCtrl after(cpu::ThreadID threadID, bool firstBoot, size_t) override {
+        if (threadID == 0 && firstBoot) {
+            OOPS(boot::InitLoader(&app_image_start).load());
+        }
+        return EventCtrl::OK;
+    }
+};
+
+InitLoaderPlugin initloaderplugin;
+
 } // namespace mythos

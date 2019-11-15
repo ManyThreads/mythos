@@ -21,42 +21,43 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  *
- * Copyright 2016 Randolf Rotta, Robert Kuban, and contributors, BTU Cottbus-Senftenberg
+ * Copyright 2019 Randolf Rotta and contributors, BTU Cottbus-Senftenberg
  */
 #pragma once
 
-#include <cstddef>
+#include "util/VectorMax.hh"
+#include "objects/CapMap.hh"
 #include "mythos/caps.hh"
-#include "mythos/InvocationBuf.hh"
+#include <cstdint>
 
 namespace mythos {
-namespace init {
 
-  enum CSpaceLayout : CapPtr {
-    NULLCAP = 0,
-    KM,
-    CSPACE,
-    PML4,
-    EC,
-    PORTAL,
-    EXAMPLE_FACTORY,
-    MEMORY_REGION_FACTORY,
-    EXECUTION_CONTEXT_FACTORY,
-    PORTAL_FACTORY,
-    CAPMAP_FACTORY,
-    PAGEMAP_FACTORY,
-    UNTYPED_MEMORY_FACTORY,
-    CAP_ALLOC_START,
-    CAP_ALLOC_END = CAP_ALLOC_START+200,
-    MSG_FRAME,
-    DEVICE_MEM,
-    SCHEDULERS_START,
-    CPUDRIVER = SCHEDULERS_START+256,
-    INTERRUPT_CONTROL_START,
-    INTERRUPT_CONTROL_END = INTERRUPT_CONTROL_START+256,
-    APP_CAP_START = 1024,
-    SIZE = 4096
-  };
 
-} // namespace init
+class CapAlloc
+{
+public:
+    CapAlloc(CapPtr begin, uint32_t capcount)
+        : next(begin), remaining(capcount)
+    {}
+
+    void setCSpace(CapMap* cspace) { this->cspace = cspace; }
+
+    optional<CapPtr> alloc() {
+        if (remaining==0) THROW(Error::INSUFFICIENT_RESOURCES);
+        auto c = next;
+        next++;
+        remaining--;
+        return c;
+    }
+
+    optional<CapEntry*> get(CapPtr ptr) const {
+        return cspace->get(ptr);
+    }
+
+protected:
+    CapPtr next;
+    uint32_t remaining;
+    CapMap* cspace = nullptr;
+};
+
 } // namespace mythos
