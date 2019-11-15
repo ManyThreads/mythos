@@ -1,6 +1,6 @@
 [submodule "3rdparty/mcconf"]
 	path = 3rdparty/mcconf
-	url = https://github.com/ManyThreads/mcconf.git
+	url = git@github.com:ManyThreads/mcconf.git
 	branch = master
 	ignore = dirty
 [submodule "3rdparty/musl"]
@@ -10,5 +10,5 @@
 	ignore = dirty
 [submodule "3rdparty/ihk"]
 	path = 3rdparty/ihk
-	url = https://github.com/RIKEN-SysSoft/ihk.git
+	url = git@github.com:ManyThreads/ihk.git
 	ignore = dirty
