@@ -28,7 +28,6 @@
 #include "util/assert.hh"
 #include "cpu/PIC.hh"
 #include "cpu/LAPIC.hh"
-#include "cpu/IOApic.hh"
 #include "cpu/ctrlregs.hh"
 #include "boot/memory-layout.h"
 #include "util/MPApicTopology.hh"
@@ -48,7 +47,9 @@ DeployHWThread ap_config[MYTHOS_MAX_THREADS];
  * apicID, which was gathered via the cpuid instruction.
  */
 DeployHWThread* ap_apic2config[MYTHOS_MAX_APICID];
-void apboot_thread(size_t apicID) { ap_apic2config[apicID]->initThread(); }
+bool apboot_thread(size_t apicID, size_t reason) {
+  return ap_apic2config[apicID]->initThread(reason);
+}
 
 NORETURN extern void start_ap64(size_t reason) SYMBOL("_start_ap64");
 
@@ -63,8 +64,7 @@ NORETURN void apboot() {
     ap_apic2config[topo.threadID(id)] = &ap_config[id];
   }
 
-  mapIOApic((uint32_t)topo.ioapic_address());
-  ioapic.init(IOAPIC_ADDR);
+  initIOApicEvent.trigger_before(0, topo.ioapic_address());
 
   DeployHWThread::prepareBSP();
 

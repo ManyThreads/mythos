@@ -435,7 +435,7 @@ int main()
   mythos::syscall_debug(str, sizeof(str)-1);
   MLOG_ERROR(mlog::app, "application is starting :)", DVARhex(msg_ptr), DVARhex(initstack_top));
 
-  //test_float();
+  test_float();
   test_Example();
   test_Portal();
   test_memory_root();

@@ -64,7 +64,7 @@ namespace mythos {
   {
     auto idx = &entry - &map->_cap_table(0);  // index into the capability table
     auto ptr = map->_pm_table(idx).getAddr();
-    MLOG_ERROR(mlog::cap, "MappedFrame::addressRange", DVAR(&entry), DVAR(idx), DVARhex(ptr), DVARhex(map->pageSize()));
+    MLOG_DETAIL(mlog::cap, "MappedFrame::addressRange", DVAR(&entry), DVAR(idx), DVARhex(ptr), DVARhex(map->pageSize()));
     return Range<uintptr_t>::bySize(ptr, map->pageSize());
   }
 
@@ -158,6 +158,7 @@ namespace mythos {
     // inherit
     auto capData = PageMapData().writable(entry.configurable);
     auto newCap = table.cap().asReference().withPtr(&mappedPageMapHelper).withData(capData);
+    MLOG_DETAIL(mlog::cap, "mapTable", DVARhex(&tableEntry), DVARhex(pme), DVAR(index), DVAR(entry));
     cap::resetReference(_cap_table(index), [&]{ pme->reset(); });
     return cap::setReference(_cap_table(index), newCap, *tableEntry, table.cap(), [=,&entry]{ pme->set(entry); });
   }
@@ -172,7 +173,7 @@ namespace mythos {
   {
     TypedCap<IFrame> frame(frameEntry);
     if (!frame) RETHROW(frame);
-    auto frameInfo = frame.getFrameInfo(); 
+    auto frameInfo = frame.getFrameInfo();
 
     MLOG_INFO(mlog::cap, "mapFrame", DVAR(level()), DVAR(frame.cap()), DVAR(index), DVAR(offset),
                   DVARhex(frameInfo.start.physint()), DVARhex(frameInfo.size), DVARhex(pageSize()));
@@ -189,7 +190,7 @@ namespace mythos {
     auto pme = &_pm_table(index);
     auto entry = PageTableEntry().present(true).userMode(true).page(level() > 1)
       .writeable(flags.writable && frameInfo.writable)
-      //.executeDisabled(!req.executable) // not working on KNC
+      //.executeDisabled(!flags.executable) // not working on KNC???
       .writeThrough(flags.write_through)
       .cacheDisabled(flags.cache_disabled)
       .withAddr(frameaddr)
@@ -198,7 +199,8 @@ namespace mythos {
 
     // inherit
     auto newCap = frame.cap().asReference().withPtr(&mappedFrameHelper);
-    MLOG_ERROR(mlog::cap, "PageMap::mapFrame", DVAR(&frameEntry), DVAR(index), DVARhex(frameInfo.size), DVARhex(frameInfo.start.physint()));
+    MLOG_DETAIL(mlog::cap, "mapFrame", DVAR(&frameEntry), DVARhex(pme), DVAR(index), DVAR(entry),
+      DVARhex(frameInfo.size), DVARhex(frameInfo.start.physint()));
     cap::resetReference(_cap_table(index), [&]{ pme->reset(); });
     return cap::setReference(_cap_table(index), newCap, *frameEntry, frame.cap(), [=,&entry]{ pme->set(entry); });
   }
@@ -216,7 +218,7 @@ namespace mythos {
   {
     MLOG_INFO(mlog::cap, "mprotect", DVAR(index), DVARhex(flags.value));
     PageTableEntry pme = table[index].load(); // atomic load of the entry for later compare_exchange!
-    // no assert here because the table could have been modified since the previous check! 
+    // no assert here because the table could have been modified since the previous check!
     if (!pme.present || !pme.page) THROW(Error::LOST_RACE);
     auto entry = pme.writeable(flags.writable && pme.configurable)
       //.executeDisabled(!req.executable) // TODO not working on KNC
@@ -236,7 +238,7 @@ namespace mythos {
     if (numEntries > num_caps(LEVEL)-startIndex) numEntries = num_caps(LEVEL)-startIndex; // restrict range to this table
     for (size_t i=0; i < numEntries; i++) {
       op.current_level = LEVEL;
-      auto pme = table[startIndex+i].load(); // atomic copy 
+      auto pme = table[startIndex+i].load(); // atomic copy
       MLOG_DETAIL(mlog::cap, "operateFrame", DVARhex(op.vaddr()), DVARhex(op.sizeRemaining()),
                   DVARhex(op.offset()), DVAR(op.current_level));
       if (LEVEL > 1 && pme.present && !pme.page) { // recurse into lower page map
@@ -314,7 +316,7 @@ namespace mythos {
       } );
   }
 
-  optional<void> PageMap::mapFrame(uintptr_t vaddr, size_t size, CapEntry* frameEntry, MapFlags flags, uintptr_t offset, 
+  optional<void> PageMap::mapFrame(uintptr_t vaddr, size_t size, CapEntry* frameEntry, MapFlags flags, uintptr_t offset,
                                    uintptr_t* failaddr, size_t* faillevel)
   {
     *failaddr = 0;
@@ -332,7 +334,7 @@ namespace mythos {
     PageMapData pd(self);
     if (!pd.writable) return Error::REQUEST_DENIED;
     auto data = msg->getMessage()->read<protocol::PageMap::Mmap>();
-    uintptr_t failaddr; 
+    uintptr_t failaddr;
     size_t faillevel;
     auto frameEntry = msg->lookupEntry(data.tgtFrame());
     if (!frameEntry) return Error::INVALID_CAPABILITY;
@@ -388,7 +390,7 @@ namespace mythos {
     PageMapData pd(self);
     if (!pd.writable) return Error::REQUEST_DENIED;
     auto data = msg->getMessage()->read<protocol::PageMap::InstallMap>();
-    uintptr_t failaddr; 
+    uintptr_t failaddr;
     size_t faillevel;
     auto tableEntry = msg->lookupEntry(data.pagemap());
     if (!tableEntry) return Error::INVALID_CAPABILITY;

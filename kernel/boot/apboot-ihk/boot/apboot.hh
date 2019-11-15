@@ -35,7 +35,7 @@ namespace mythos {
     NORETURN void apboot();
 
     /** perform thread-local initialisation after booting the hardware thread. */
-    void apboot_thread(size_t apicID);
+    bool apboot_thread(size_t apicID, size_t reason);
 
   } // namespace boot
 } // namespace mythos

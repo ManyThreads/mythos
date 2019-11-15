@@ -55,6 +55,10 @@
 #include "objects/SchedulingContext.hh"
 #include "objects/InterruptControl.hh"
 #include "boot/memory-root.hh"
+#include "boot/kernel.hh"
+
+
+mythos::Event<mythos::cpu::ThreadID, bool, size_t> mythos::bootAPEvent;
 
 ALIGN_4K uint8_t boot_stack[BOOT_STACK_SIZE] SYMBOL("BOOT_STACK");
 extern char CLM_ADDR;
@@ -91,7 +95,10 @@ void entry_bsp()
 
   mythos::boot::initCxxGlobals(); // init all global variables
   mythos::boot::initMemoryRegions();
+  mythos::idle::init_global();
   mythos::boot::initKernelMemory(*mythos::boot::kmem_root());
+  mythos::cpu::FpuState::initBSP(); // TODO do this as a plugin with high priority
+  mythos::bootAPEvent.trigger_before(-1, true, 0);
   mythos::boot::apboot(); // does not return, jumps to entry_ap()
   PANIC_MSG(false, "should never reach here");
 }
@@ -100,9 +107,8 @@ NORETURN void runUser();
 
 void runUser() {
   mythos::async::getLocalPlace().processTasks();
-  MLOG_DETAIL(mlog::boot, "trying to execute app");
   mythos::boot::getLocalScheduler().tryRunUser();
-  MLOG_DETAIL(mlog::boot, "going to sleep now");
+//  MLOG_DETAIL(mlog::boot, "going to sleep now");
   mythos::idle::sleep(); // resets the kernel stack!
 }
 
@@ -119,9 +125,10 @@ void runUser() {
 void entry_ap(size_t apicID, size_t reason)
 {
   //asm volatile("xchg %bx,%bx");
-  mythos::boot::apboot_thread(apicID);
+  auto firstBoot = mythos::boot::apboot_thread(apicID, reason);
   MLOG_DETAIL(mlog::boot, "started hardware thread", DVAR(apicID), DVAR(reason));
-  mythos::cpu::FpuState::initCpu();
+  mythos::cpu::FpuState::initAP();
+  mythos::bootAPEvent.trigger_after(mythos::cpu::getThreadID(), firstBoot, reason);
   MLOG_DETAIL(mlog::boot, DVARhex(mythos::x86::getXCR0()));
   MLOG_DETAIL(mlog::boot, "EFER", DVARhex(mythos::x86::getMSR(mythos::x86::MSR_EFER)), DVAR(mythos::x86::getCR0()));
   mythos::idle::wokeup(apicID, reason); // may not return
@@ -135,12 +142,12 @@ void mythos::idle::sleeping_failed()
   runUser();
 }
 
-void mythos::cpu::syscall_entry_cxx(mythos::cpu::ThreadState* ctx)
+void mythos::cpu::syscall_entry_cxx(mythos::cpu::ThreadState* /*ctx*/)
 {
   mythos::async::getLocalPlace().enterKernel();
   mythos::idle::enteredFromSyscall();
-  MLOG_DETAIL(mlog::boot, "user system call", DVARhex(ctx->rdi), DVARhex(ctx->rsi),
-      DVARhex(ctx->rip), DVARhex(ctx->rsp));
+//  MLOG_DETAIL(mlog::boot, "user system call", DVARhex(ctx->rdi), DVARhex(ctx->rsi),
+//      DVARhex(ctx->rip), DVARhex(ctx->rsp));
   mythos::ec_handle_syscall();
   runUser();
 }

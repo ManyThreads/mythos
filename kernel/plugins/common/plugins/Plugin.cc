@@ -24,6 +24,8 @@
  * Copyright 2016 Randolf Rotta, Robert Kuban, Maik Krüger, and contributors, BTU Cottbus-Senftenberg
  */
 
+#include "util/events.hh"
+#include "boot/kernel.hh"
 #include "plugins/Plugin.hh"
 #include "boot/mlog.hh"
 
@@ -31,18 +33,36 @@ namespace mythos {
 
   Plugin* Plugin::first = nullptr;
 
-  void Plugin::initPluginsGlobal() {
-    for (Plugin* c = first; c != nullptr; c = c->next) {
-      MLOG_DETAIL(mlog::boot, "initPluginsGlobal", c);
-      c->initGlobal();
-    }
+  Plugin::Plugin(const char* name) : log(name)
+  {
+    this->next = first;
+    first = this;
   }
 
-  void Plugin::initPluginsOnThread(cpu::ThreadID threadID) {
-    for (Plugin* c = first; c != nullptr; c = c->next) {
-      MLOG_DETAIL(mlog::boot, "initPluginsOnThread", c, threadID);
-      c->initThread(threadID);
+  class InitPlugins : public EventHook<cpu::ThreadID, bool, size_t>
+  {
+  public:
+    InitPlugins() { bootAPEvent.add(this); }
+
+    EventCtrl before(cpu::ThreadID, bool, size_t) override {
+      for (Plugin* c = Plugin::first; c != nullptr; c = c->next) {
+        MLOG_DETAIL(mlog::boot, "initPluginsGlobal", c);
+        c->initGlobal();
+      }
+      return EventCtrl::OK;
     }
-  }
+
+    EventCtrl after(cpu::ThreadID threadID, bool firstBoot, size_t) override {
+      if (firstBoot) {
+        for (Plugin* c = Plugin::first; c != nullptr; c = c->next) {
+          MLOG_DETAIL(mlog::boot, "initPluginsOnThread", c, threadID);
+          c->initThread(threadID);
+        }
+      }
+      return EventCtrl::OK;
+    }
+  };
+
+  InitPlugins initPluginsPlugin;
 
 } // namespace mythos

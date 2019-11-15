@@ -45,6 +45,8 @@ namespace mythos {
     InterruptControl interruptController[MYTHOS_MAX_THREADS];
     CoreLocal<InterruptControl*> localInterruptController KERNEL_CLM;
 
+    Event<int, size_t> initIOApicEvent;
+
     void initAPTrampoline(size_t startIP) {
       PhysPtr<uint16_t> trampoline_phys_high(0x469ul);
       PhysPtr<uint16_t> trampoline_phys_low(0x467ul);
@@ -53,8 +55,8 @@ namespace mythos {
 
       ASSERT((startIP & 0x0FFF) == 0 && ((startIP>>12)>>8) == 0);
       memcpy(PhysPtr<char>(startIP).log(),
-	     physPtr(&_setup_ap).log(),
-	     size_t(&_setup_ap_end - &_setup_ap));
+       physPtr(&_setup_ap).log(),
+       size_t(&_setup_ap_end - &_setup_ap));
       asm volatile("wbinvd");
     }
 
