@@ -2,7 +2,7 @@
 #include "util/elf64.hh"
 #include "runtime/brk.hh"
 #include "runtime/mlog.hh"
-#include "util/alignments.hh"
+#include "util/align.hh"
 #include "runtime/umem.hh"
 #include "mythos/init.hh"
 #include "mythos/protocol/ExecutionContext.hh"
@@ -80,12 +80,12 @@ void setupInitialTLS() {
     ASSERT(ph->type == elf64::Type::PT_TLS);
     
     // allocate some memory from sbrk and then copy the TLS segment and control block there
-    AlignmentObject align(max(ph->alignment, alignof(TLSControlBlock)));
-    auto tlsAllocationSize = align.round_up(ph->memsize) + sizeof(TLSControlBlock);
-    auto addr = reinterpret_cast<char*>(__mythos_get_tlsmem(tlsAllocationSize)); // @todo should be aligned to align.alignment()
+    auto align = max(ph->alignment, alignof(TLSControlBlock));
+    auto tlsAllocationSize = round_up(ph->memsize, align) + sizeof(TLSControlBlock);
+    auto addr = reinterpret_cast<char*>(__mythos_get_tlsmem(tlsAllocationSize)); // @todo should be aligned to align
     ASSERT(addr != nullptr);
-    auto tcbAddr = addr + align.round_up(ph->memsize);
-    auto tlsAddr = tcbAddr - AlignmentObject(ph->alignment).round_up(ph->memsize);
+    auto tcbAddr = addr + round_up(ph->memsize, align);
+    auto tlsAddr = tcbAddr - round_up(ph->memsize, ph->alignment);
     
     ASSERT(ph->filesize <= ph->memsize);
     memset(tlsAddr, 0, ph->memsize);
@@ -102,19 +102,19 @@ void* setupNewTLS() {
         return nullptr;
     }
 
-    AlignmentObject align(max(ph->alignment, alignof(TLSControlBlock)));
-    auto tlsAllocationSize = align.round_up(ph->memsize) + sizeof(TLSControlBlock);
+    auto align = max(ph->alignment, alignof(TLSControlBlock));
+    auto tlsAllocationSize = round_up(ph->memsize, align) + sizeof(TLSControlBlock);
 
-    auto tmp = mythos::heap.alloc(tlsAllocationSize, align.alignment());
+    auto tmp = mythos::heap.alloc(tlsAllocationSize, align);
     if (!tmp) {
         MLOG_ERROR(mlog::app, "Load TLS could not allocate memory from heap",
-            DVAR(tlsAllocationSize), DVAR(align.alignment()), tmp.state());
+            DVAR(tlsAllocationSize), DVAR(align), tmp.state());
         return nullptr;
     }
     auto addr = reinterpret_cast<char*>(*tmp);
 
-    auto tcbAddr = addr + align.round_up(ph->memsize);
-    auto tlsAddr = tcbAddr - AlignmentObject(ph->alignment).round_up(ph->memsize);
+    auto tcbAddr = addr + round_up(ph->memsize, align);
+    auto tlsAddr = tcbAddr - round_up(ph->memsize, ph->alignment);
     
     ASSERT(ph->filesize <= ph->memsize);
     memset(tlsAddr, 0, ph->memsize);

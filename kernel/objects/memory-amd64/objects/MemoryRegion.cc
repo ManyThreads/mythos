@@ -24,17 +24,18 @@
  * Copyright 2016 Randolf Rotta, Robert Kuban, and contributors, BTU Cottbus-Senftenberg
  */
 #include "objects/MemoryRegion.hh"
-#include "util/alignments.hh"
+#include "util/align.hh"
 #include "objects/mlog.hh"
 
 namespace mythos {
 
   optional<MemoryRegion*>
-  MemoryRegionFactory::factory(CapEntry* dstEntry, CapEntry* memEntry, Cap memCap, IAllocator* mem,
-                               size_t size, size_t alignment)
+  MemoryRegionFactory::factory(
+    CapEntry* dstEntry, CapEntry* memEntry, Cap memCap, IAllocator* mem,
+    size_t size, size_t alignment)
   {
     MLOG_DETAIL(mlog::cap, "Frame alloc", DVARhex(size), DVARhex(alignment));
-    if (!Align4k::is_aligned(alignment) || !AlignmentObject(alignment).is_aligned(size))
+    if (!is_aligned(alignment, align4K) || !is_aligned(size, alignment))
       THROW(Error::UNALIGNED);
     auto region = mem->alloc(size, alignment);
     if (!region) {

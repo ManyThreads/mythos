@@ -27,6 +27,7 @@
 
 #include "util/assert.hh"
 #include "util/mstring.hh"
+#include "util/align.hh"
 #include "objects/ops.hh"
 #include "objects/TypedCap.hh"
 #include "objects/FrameDataAmd64.hh"
@@ -39,7 +40,7 @@ namespace mythos {
   PageMap::PageMap(IAsyncFree* mem, size_t level, void* tableMem, void* capMem)
     : _level(level), _mem(mem), _deletionSink(nullptr)
   {
-    ASSERT(Alignment<FrameSize::PAGE_MIN_SIZE>::is_aligned(tableMem));
+    ASSERT(is_aligned(tableMem, FrameSize::PAGE_MIN_SIZE));
     _memDesc[0] = MemoryDescriptor(tableMem, FrameSize::PAGE_MIN_SIZE);
     _memDesc[1] = MemoryDescriptor(capMem, sizeof(CapEntry)*num_caps());
     _memDesc[2] = MemoryDescriptor(this, sizeof(PageMap));

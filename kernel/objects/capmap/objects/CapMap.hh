@@ -28,7 +28,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <atomic>
-#include "util/alignments.hh"
+#include "util/align.hh"
 #include "mythos/protocol/CapMap.hh"
 #include "mythos/protocol/KernelObject.hh"
 #include "async/NestedMonitorDelegating.hh"
@@ -53,7 +53,7 @@ public:
   /** helper function for the construction of the initial capability space */
   CapEntry* get(size_t idx) { return caps()+idx; }
 
-  static size_t offset() { return AlignWord::round_up(sizeof(CapMap)); }
+  static size_t offset() { return round_up(sizeof(CapMap), alignWord); }
   static size_t size(uint8_t bits) { return offset() + cap_count(bits)*sizeof(CapEntry); }
   static size_t cap_count(uint8_t bits) { ASSERT(bits <= 32); return 1 << (bits); }
 
