@@ -39,20 +39,24 @@ namespace mythos {
     first = this;
   }
 
-  class InitPlugins : public EventHook<cpu::ThreadID, bool, size_t>
+  class InitPluginsBSP : public EventHook<>
   {
   public:
-    InitPlugins() { bootAPEvent.add(this); }
-
-    EventCtrl before(cpu::ThreadID, bool, size_t) override {
+    InitPluginsBSP() { event::bootBSP.add(this); }
+    EventCtrl before() override {
       for (Plugin* c = Plugin::first; c != nullptr; c = c->next) {
         MLOG_DETAIL(mlog::boot, "initPluginsGlobal", c);
         c->initGlobal();
       }
       return EventCtrl::OK;
     }
+  };
 
-    EventCtrl after(cpu::ThreadID threadID, bool firstBoot, size_t) override {
+  class InitPluginsAP : public EventHook<cpu::ThreadID, bool, size_t>
+  {
+  public:
+    InitPluginsAP() { event::bootAP.add(this); }
+    EventCtrl before(cpu::ThreadID threadID, bool firstBoot, size_t) override {
       if (firstBoot) {
         for (Plugin* c = Plugin::first; c != nullptr; c = c->next) {
           MLOG_DETAIL(mlog::boot, "initPluginsOnThread", c, threadID);
@@ -63,6 +67,7 @@ namespace mythos {
     }
   };
 
-  InitPlugins initPluginsPlugin;
+  InitPluginsBSP initPluginsBSP;
+  InitPluginsAP initPluginsAP;
 
 } // namespace mythos

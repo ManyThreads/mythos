@@ -27,7 +27,16 @@
 #include "util/events.hh"
 
 namespace mythos {
+    namespace event {
 
-extern Event<cpu::ThreadID, bool, size_t> bootAPEvent;
+extern Event<> bootBSP;
+extern Event<cpu::ThreadID, bool, size_t> bootAP;
 
+/** event to initialize an ioApic.
+ * Arguments are the number of the ioAPIC and its physical address.
+ * The memory mapping is up to the plugins.
+ */
+extern Event<int, size_t> initIOApic;
+
+    } // namespace event
 } // namespace mythos

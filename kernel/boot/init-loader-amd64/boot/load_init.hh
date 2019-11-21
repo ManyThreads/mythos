@@ -80,7 +80,10 @@ namespace mythos {
       Portal* _portal;
     };
 
-    extern Event<InitLoader&> initLoaderEvent;
-
   } // namespace boot
+
+  namespace event {
+    extern Event<boot::InitLoader&> initLoader;
+  }
+
 } // namespace mythos

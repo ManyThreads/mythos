@@ -34,6 +34,7 @@
 #include "util/ACPIApicTopology.hh"
 #include "boot/DeployHWThread.hh"
 #include "util/PhysPtr.hh"
+#include "boot/kernel.hh"
 
 namespace mythos {
   namespace boot {
@@ -64,7 +65,7 @@ NORETURN void apboot() {
     ap_apic2config[topo.threadID(id)] = &ap_config[id];
   }
 
-  initIOApicEvent.trigger_before(0, topo.ioapic_address());
+  event::initIOApic.trigger(0, topo.ioapic_address());
 
   DeployHWThread::prepareBSP();
 

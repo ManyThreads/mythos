@@ -38,7 +38,7 @@ namespace mythos {
   public:
     PluginCpuDriverKNC() {
       MLOG_DETAIL(mlog::boot, "registering init loader event hook");
-      boot::initLoaderEvent.add(this);
+      event::initLoader.add(this);
     }
     virtual ~PluginCpuDriverKNC() {}
 

@@ -50,7 +50,8 @@ namespace mythos {
     mlog::Logger<mlog::FilterAny> log;
 
   private:
-    friend class InitPlugins;
+    friend class InitPluginsBSP;
+    friend class InitPluginsAP;
     Plugin* next;
     static Plugin* first;
   };

@@ -61,12 +61,6 @@ namespace mythos {
     InterruptControl& getInterruptController(cpu::ThreadID threadID) { return interruptController[threadID]; }
     InterruptControl& getLocalInterruptController() { return *localInterruptController.get(); }
 
-    /** event to initialize an ioApic.
-     * Arguments are the number of the ioAPIC and its physical address.
-     * The memory mapping is up to the plugins.
-     */
-    extern Event<int, size_t> initIOApicEvent;
-
 
 struct DeployHWThread
 {
