@@ -44,6 +44,10 @@ namespace mythos {
 
     void processEvent(boot::InitLoader& loader) override {
       OOPS(loader.csSet(init::CPUDRIVER, cpudrv));
+      
+      // map arbitrary memory into the init application: 
+      // virtual addr, size, writable, executable, physical address
+      loader.memMapper.mmapDevice(128ull*1024*1024*1024, 2*1024*1024, false, false, 0);
     }
     
     CpuDriverKNC cpudrv;

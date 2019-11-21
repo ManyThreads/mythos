@@ -25,9 +25,11 @@
  */
 
 #include "util/align.hh"
+#include "objects/DeviceMemory.hh"
 #include "objects/MemoryRegion.hh"
 #include "objects/PageMapAmd64.hh"
 #include <boot/MemMapper.hh>
+#include "mythos/init.hh"
 
 namespace mythos {
 
@@ -81,6 +83,23 @@ optional<void> MemMapper::installPML4(CapPtr dstCap)
     RETURN(Error::SUCCESS);
 }
 
+optional<void> MemMapper::mmapDevice(
+    uintptr_t vaddr, size_t length,
+    bool writable, bool executable,
+    uintptr_t physaddr)
+{
+    // TODO this should be configurable instead of importing mythos/init.hh
+    auto memEntry = caps->get(init::DEVICE_MEM);
+    TypedCap<DeviceMemory> mem(memEntry);
+    if (!mem) RETHROW(mem);
+    auto dstPtr = caps->alloc();
+    if (!dstPtr) RETHROW(dstPtr);
+    auto dstEntry = caps->get(*dstPtr);
+    if (!dstEntry) RETHROW(dstEntry);
+    auto res = mem->deriveFrame(**memEntry, memEntry->cap(), **dstEntry, physaddr, length, false);
+    if (!res) RETHROW(res);
+    return mmap(vaddr, length, writable, executable, *dstPtr, 0); // offset 0 of the derived frame
+}
 
 optional<void> MemMapper::mmap(
     uintptr_t vaddr, size_t length, bool writable, bool executable,
