@@ -65,7 +65,7 @@ NORETURN void apboot() {
     ap_apic2config[topo.threadID(id)] = &ap_config[id];
   }
 
-  event::initIOApic.trigger(0, topo.ioapic_address());
+  event::initIOApic.emit(0, topo.ioapic_address());
 
   DeployHWThread::prepareBSP();
 

@@ -173,7 +173,7 @@ optional<void> InitLoader::initCSpace()
     if (!res) RETHROW(res);
   }
 
-  event::initLoader.trigger(*this);
+  event::initLoader.emit(*this);
 
   RETURN(Error::SUCCESS);
 }

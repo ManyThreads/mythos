@@ -42,10 +42,10 @@ namespace mythos {
     }
     virtual ~PluginCpuDriverKNC() {}
 
-    EventCtrl before(boot::InitLoader& loader) override {
+    void processEvent(boot::InitLoader& loader) override {
       OOPS(loader.csSet(init::CPUDRIVER, cpudrv));
-      return EventCtrl::OK;
     }
+    
     CpuDriverKNC cpudrv;
   };
 

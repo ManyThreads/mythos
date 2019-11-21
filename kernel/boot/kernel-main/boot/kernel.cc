@@ -100,7 +100,7 @@ void entry_bsp()
   mythos::idle::init_global();
   mythos::boot::initKernelMemory(*mythos::boot::kmem_root());
   mythos::cpu::FpuState::initBSP(); // TODO do this as a plugin with high priority
-  mythos::event::bootBSP.trigger();
+  mythos::event::bootBSP.emit();
   mythos::boot::apboot(); // does not return, jumps to entry_ap()
   PANIC_MSG(false, "should never reach here");
 }
@@ -130,7 +130,7 @@ void entry_ap(size_t apicID, size_t reason)
   auto firstBoot = mythos::boot::apboot_thread(apicID, reason);
   MLOG_DETAIL(mlog::boot, "started hardware thread", DVAR(apicID), DVAR(reason));
   mythos::cpu::FpuState::initAP();
-  mythos::event::bootAP.trigger(mythos::cpu::getThreadID(), firstBoot, reason);
+  mythos::event::bootAP.emit(mythos::cpu::getThreadID(), firstBoot, reason);
   MLOG_DETAIL(mlog::boot, DVARhex(mythos::x86::getXCR0()));
   MLOG_DETAIL(mlog::boot, "EFER", DVARhex(mythos::x86::getMSR(mythos::x86::MSR_EFER)), DVAR(mythos::x86::getCR0()));
   mythos::idle::wokeup(apicID, reason); // may not return

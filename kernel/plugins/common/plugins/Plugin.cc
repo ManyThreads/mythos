@@ -43,12 +43,11 @@ namespace mythos {
   {
   public:
     InitPluginsBSP() { event::bootBSP.add(this); }
-    EventCtrl before() override {
+    void processEvent() override {
       for (Plugin* c = Plugin::first; c != nullptr; c = c->next) {
         MLOG_DETAIL(mlog::boot, "initPluginsGlobal", c);
         c->initGlobal();
       }
-      return EventCtrl::OK;
     }
   };
 
@@ -56,14 +55,13 @@ namespace mythos {
   {
   public:
     InitPluginsAP() { event::bootAP.add(this); }
-    EventCtrl before(cpu::ThreadID threadID, bool firstBoot, size_t) override {
+    void processEvent(cpu::ThreadID threadID, bool firstBoot, size_t) override {
       if (firstBoot) {
         for (Plugin* c = Plugin::first; c != nullptr; c = c->next) {
           MLOG_DETAIL(mlog::boot, "initPluginsOnThread", c, threadID);
           c->initThread(threadID);
         }
       }
-      return EventCtrl::OK;
     }
   };
 

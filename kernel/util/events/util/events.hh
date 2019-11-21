@@ -29,8 +29,6 @@
 
 namespace mythos {
 
-enum class EventCtrl { OK, STOP, PREVENT_DEFAULT, STOP_AND_PREVENT };
-
 template<typename... Args>
 class Event;
 
@@ -42,8 +40,7 @@ public:
   EventHook() {}
   virtual ~EventHook() {}
   virtual int priority() const { return 0; }
-  virtual EventCtrl before(Args...) { return EventCtrl::OK; }
-  virtual EventCtrl after(Args...) { return EventCtrl::OK; }
+  virtual void processEvent(Args...) = 0;
 private:
   friend class Event<Args...>;
   EventHook<Args...>* next = {nullptr};
@@ -68,17 +65,7 @@ public:
    * lower priority. */
   void add(hook_t* ev);
 
-  template<class FUN>
-  Event& trigger(FUN const& fun, Args... args) {
-    trigger(hooks, true, fun, args...);
-    return *this;
-  }
-
-  Event& trigger(Args... args) { return trigger([](Args...){}, args...); }
-
-protected:
-  template<class FUN>
-  bool trigger(hook_t* h, bool doDefault, FUN const& fun, Args... args);
+  void emit(Args... args);
 
 private:
   hook_t* hooks = {nullptr};
@@ -95,26 +82,10 @@ void Event<Args...>::add(hook_t* ev)
 }
 
 template<typename... Args>
-template<class FUN>
-bool Event<Args...>::trigger(hook_t* h, bool doDefault, FUN const& fun, Args... args)
+void Event<Args...>::emit(Args... args)
 {
-    if (!h) {
-        if (doDefault) fun(args...);
-        return true;
-    }
-    bool doAfter;
-    switch (h->before(args...)) {
-    case EventCtrl::STOP: doAfter = trigger(nullptr, doDefault, fun, args...); break;
-    case EventCtrl::PREVENT_DEFAULT: doAfter = trigger(h->next, false, fun, args...); break;
-    case EventCtrl::STOP_AND_PREVENT: doAfter = trigger(nullptr, false, fun, args...); break;
-    default: doAfter = trigger(h->next, doDefault, fun, args...);
-    }
-    if (!doAfter) return false;
-    switch (h->after(args...)) {
-    case EventCtrl::STOP: return false;
-    case EventCtrl::STOP_AND_PREVENT: return false;
-    default: return true;
-    }
+    for (hook_t* h=hooks; h != nullptr; h=h->next)
+        h->processEvent(args...);
 }
 
 } // namespace mythos
