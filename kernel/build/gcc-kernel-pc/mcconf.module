@@ -4,16 +4,12 @@
     requires = [ "tag/platform/pc", "tag/mode/kernel", "tag/compiler/gcc" ]
 
     makefile_head = '''
-KERNEL_CXX = $(CXX)
-ifeq ($(AS), as)
-KERNEL_AS = $(CXX)
-else
-KERNEL_AS = $(AS)
-endif
-LD=ld
-NM=nm
-OBJDUMP=objdump
-STRIP=strip
+KERNEL_CXX ?= $(CXX)
+KERNEL_AS ?= $(CXX)
+LD ?= ld
+NM ?= nm
+OBJDUMP ?= objdump
+STRIP ?= strip
 
 KERNEL_CPPFLAGS += $(CPPFLAGS)
 KERNEL_CPPFLAGS += -I.
@@ -44,11 +40,12 @@ KERNEL_CXXFLAGS += -mcmodel=kernel -fno-pic -fno-stack-protector
 # use -gdwarf-2 in order to avoid linker error in gcc4.7
 #KERNEL_CXXFLAGS += -O2 -g3 -ggdb -gdwarf-2
 #KERNEL_CXXFLAGS += -Os -DNDEBUG
-KERNEL_CXXFLAGS += -O2 -g
+KERNEL_CXXFLAGS += -O2 -ggdb3
+KERNEL_ASFLAGS += -ggdb3
 
 KERNEL_LD = $(LD)
 KERNEL_LFLAGS += $(LFLAGS)
-KERNEL_LFLAGS += -g -z max-page-size=0x1000 --gc-sections --warn-common -static -n
+KERNEL_LFLAGS += -z max-page-size=0x1000 --gc-sections --warn-common -static -n
 
 APP_CXX = $(CXX) 
 APP_AS = $(KERNEL_AS)
@@ -57,9 +54,10 @@ APP_CPPFLAGS += -I.
 APP_CXXFLAGS += $(CXXFLAGS)
 APP_CXXFLAGS += -std=c++11
 #APP_CXXFLAGS += -O2 -g3 -ggdb -gdwarf-2
-APP_CXXFLAGS += -O2 -g
+APP_CXXFLAGS += -O2 -ggdb3
 APP_LD = $(LD)
-APP_LDFLAGS += -g -static
+APP_LDFLAGS += -static
+APP_ASFLAGS += -ggdb3
 
 -include ../Makefile.user
 '''

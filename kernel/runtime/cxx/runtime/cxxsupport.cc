@@ -89,6 +89,7 @@ int prlimit(
     struct rlimit *old_limit)
 {
     // dummy implementation
+    return 0;
 }
 
 int sched_setaffinity(pid_t pid, size_t cpusetsize, cpu_set_t *mask)
