@@ -46,7 +46,7 @@ static int futex_wait(
     uint32_t *uaddr, unsigned int flags, uint32_t val,
     uint32_t *abs_time, uint32_t bitset)
 {
-    MLOG_DETAIL(mlog::app, DVARhex(uaddr), DVAR(*uaddr), DVAR(val));
+    MLOG_DETAIL(mlog::app, "futex_wait", DVARhex(uaddr), DVAR(*uaddr), DVAR(val));
     FutexQueueElem qe;
     qe.ec = mythos::localEC;
     qe.uaddr = uaddr;
@@ -60,26 +60,30 @@ static int futex_wait(
     }
 
     if (val == *addr) {
-        MLOG_DETAIL(mlog::app, "going to wait");
+        MLOG_DETAIL(mlog::app, "going to wait", DVAR(mythos::localEC));
         auto sysret = mythos::syscall_wait();	
+    }else{
+        MLOG_DETAIL(mlog::app, "val != *addr");
     }
 
-    if (reinterpret_cast<uint64_t>(qe.next) != 1ul) {
-        MLOG_DETAIL(mlog::app, "next != -1 -> remove this element from queue");
+    {
         mythos::Mutex::Lock guard(readLock);
-        auto curr = &queueHead;
-        while (*curr) {
-            if ((*curr)->next == &qe) break;
-            curr = &(*curr)->next;
-        }
+	    if (reinterpret_cast<uint64_t>(qe.next) != 1ul) {
+		MLOG_DETAIL(mlog::app, "next != 1 -> remove this element from queue");
+		auto curr = &queueHead;
+		while (*curr) {
+		    if ((*curr)->next == &qe) break;
+		    curr = &(*curr)->next;
+		}
 
-        if (*curr) {
-            if (queueTail == &(*curr)->next) {
-                MLOG_DETAIL(mlog::app, "last elem in queue");
-                queueTail = curr;
-            }
-            (*curr)->next = (*curr)->next->next;
-        }
+		if (*curr) {
+		    if (queueTail == &(*curr)->next) {
+			MLOG_DETAIL(mlog::app, "last elem in queue");
+			queueTail = curr;
+		    }
+		    (*curr)->next = (*curr)->next->next;
+		}
+	    }
     }
 
     MLOG_DETAIL(mlog::app, "Return from futex_wait");
@@ -95,15 +99,20 @@ static int futex_wake(
     auto curr = &queueHead; 
     for (int i = 0; i < nr_wake; i++) {
         while ((*curr) && (*curr)->uaddr != uaddr) {
+            MLOG_DETAIL(mlog::app, "Skip entry", DVARhex((*curr)->uaddr), DVAR((*curr)->ec), DVAR((*curr)->next) );
             curr = &(*curr)->next;
         }
 
         if (*curr) {
-            MLOG_DETAIL(mlog::app, "Found entry" );
+            MLOG_DETAIL(mlog::app, "Found entry matching" );
+	    if (queueTail == &(*curr)->next) {
+		MLOG_DETAIL(mlog::app, "last elem in queue");
+		queueTail = curr;
+	    }
             auto entry = *curr;
             *curr = entry->next;
             entry->next = reinterpret_cast<FutexQueueElem*>(1ul);
-            MLOG_DETAIL(mlog::app, "Wake EC" );
+            MLOG_DETAIL(mlog::app, "Wake EC", DVAR(entry->ec) );
             mythos::syscall_signal(entry->ec);
         } else {
             MLOG_DETAIL(mlog::app, "Reached end of queue" );
