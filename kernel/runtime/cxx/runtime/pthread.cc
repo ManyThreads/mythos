@@ -197,10 +197,12 @@ extern "C" int pthread_cond_wait(pthread_cond_t *__restrict, pthread_mutex_t *__
 }
 #endif
 
+#ifdef use_pthreads_stubs
 extern "C" int pthread_cond_timedwait(pthread_cond_t *__restrict, pthread_mutex_t *__restrict, const struct timespec *__restrict){
 	MLOG_ERROR(mlog::app, __PRETTY_FUNCTION__);
 	return 0;
 }
+#endif
 
 #ifdef use_pthreads_stubs
 extern "C" int pthread_cond_broadcast(pthread_cond_t *){
