@@ -36,6 +36,7 @@
 #include <sys/mman.h>
 #include <sys/time.h>
 #include <sys/resource.h>
+#include <string.h>
 
 #include "mythos/syscall.hh"
 #include "runtime/mlog.hh"
@@ -102,7 +103,8 @@ int sched_getaffinity(pid_t pid, size_t cpusetsize, cpu_set_t *mask)
 {
     MLOG_ERROR(mlog::app, "syscall sched_getaffinity", DVAR(pid), DVAR(cpusetsize), DVARhex(mask));
     if (mask) {
-        CPU_ZERO(mask);
+        //CPU_ZERO(mask);
+	memset(mask, 0, cpusetsize);
         for(int i = 0; i < NUM_CPUS; i++) CPU_SET(i, mask);
     }
     return NUM_CPUS;
