@@ -67,22 +67,23 @@ static int futex_wait(
     }
 
     {
+	//todo: only lock futex if qe.next != 1ul
         mythos::Mutex::Lock guard(readLock);
 	    if (reinterpret_cast<uint64_t>(qe.next) != 1ul) {
 		MLOG_DETAIL(mlog::app, "next != 1 -> remove this element from queue");
 		auto curr = &queueHead;
 		while (*curr) {
-		    if ((*curr)->next == &qe) break;
+		    if ((*curr)->next == &qe){
+			if (queueTail == &qe.next) {
+				MLOG_DETAIL(mlog::app, "last elem in queue");
+				queueTail = curr;
+		    	}
+		    	(*curr)->next = qe.next;
+			break;
+		    }
 		    curr = &(*curr)->next;
 		}
 
-		if (*curr) {
-		    if (queueTail == &(*curr)->next) {
-			MLOG_DETAIL(mlog::app, "last elem in queue");
-			queueTail = curr;
-		    }
-		    (*curr)->next = (*curr)->next->next;
-		}
 	    }
     }
 
@@ -111,9 +112,10 @@ static int futex_wake(
 	    }
             auto entry = *curr;
             *curr = entry->next;
+	    auto ec = entry->ec;
             entry->next = reinterpret_cast<FutexQueueElem*>(1ul);
-            MLOG_DETAIL(mlog::app, "Wake EC", DVAR(entry->ec) );
-            mythos::syscall_signal(entry->ec);
+            MLOG_DETAIL(mlog::app, "Wake EC", DVAR(ec) );
+            mythos::syscall_signal(ec);
         } else {
             MLOG_DETAIL(mlog::app, "Reached end of queue" );
             return 0;
