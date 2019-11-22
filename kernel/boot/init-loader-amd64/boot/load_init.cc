@@ -47,10 +47,10 @@
 
 
 namespace mythos {
+    
+Event<boot::InitLoader&> event::initLoader;
+    
 namespace boot {
-
-Event<InitLoader&> initLoaderEvent;
-
 
 InitLoader::InitLoader(char* image)
   : _img(image)
@@ -128,8 +128,6 @@ optional<void> InitLoader::initCSpace()
   if (!ocspace) RETHROW(ocspace);
   capAlloc.setCSpace(*ocspace);
 
-  initLoaderEvent.trigger_before(*this);
-
   MLOG_INFO(mlog::boot, "... create cspace reference in cap", init::CSPACE);
   auto res = csSet(init::CSPACE, ocspace->getRoot());
   if (!res) RETHROW(res);
@@ -175,7 +173,7 @@ optional<void> InitLoader::initCSpace()
     if (!res) RETHROW(res);
   }
 
-  initLoaderEvent.trigger_after(*this);
+  event::initLoader.emit(*this);
 
   RETURN(Error::SUCCESS);
 }

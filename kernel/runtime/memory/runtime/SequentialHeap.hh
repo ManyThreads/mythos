@@ -28,35 +28,11 @@
 #include "util/optional.hh"
 #include "util/align.hh"
 #include "util/FirstFitHeap.hh"
-#include "cpu/hwthread_pause.hh"
 #include "runtime/mlog.hh"
-#include <atomic>
+#include "runtime/Mutex.hh"
 
 
 namespace mythos {
-
-class SpinMutex {
-public:
-    void lock() {
-        while (flag.test_and_set()) { mythos::hwthread_pause(); }
-    }
-
-    void unlock() {
-        flag.clear();
-    }
-
-    template<typename FUNCTOR>
-    void operator<<(FUNCTOR fun) {
-        lock();
-        fun();
-        unlock();
-    }
-
-private:
-    std::atomic_flag flag;
-};
-
-
 
 /**
  * Wrapper for FirstFitHeap intrusive. Allocates additional meta data.
@@ -143,7 +119,7 @@ public:
 
 private:
     FirstFitHeap<T, HA> heap;
-    SpinMutex mutex;
+    Mutex mutex;
 
 };
 

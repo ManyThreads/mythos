@@ -54,9 +54,16 @@ namespace mythos {
       return rootEntry; 
     }
 
+    optional<void> deriveFrame(
+        CapEntry& rootEntry, Cap rootCap, CapEntry& dstEntry,
+        uintptr_t addr, size_t size, bool writable);
+
   public: // IKernelObject interface
     Range<uintptr_t> addressRange(CapEntry&, Cap) override  { return {0, ~uintptr_t(0)}; }
-    optional<void const*> vcast(TypeId) const override { THROW(Error::TYPE_MISMATCH); }
+    optional<void const*> vcast(TypeId id) const override { 
+        if (typeId<DeviceMemory>() == id) return this;
+        THROW(Error::TYPE_MISMATCH);
+    }
     optional<void> deleteCap(CapEntry&, Cap, IDeleter&) override { RETURN(Error::SUCCESS); }
     void invoke(Tasklet* t, Cap self, IInvocation* msg) override;
     Error invokeCreate(Tasklet*, Cap self, IInvocation* msg);
