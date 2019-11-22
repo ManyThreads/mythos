@@ -36,7 +36,6 @@
 #include <sys/mman.h>
 #include <sys/time.h>
 #include <sys/resource.h>
-#include <string.h>
 
 #include "mythos/syscall.hh"
 #include "runtime/mlog.hh"
