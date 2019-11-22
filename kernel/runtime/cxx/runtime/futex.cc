@@ -76,7 +76,7 @@ static int futex_wait(
 		    if ((*curr)->next == &qe){
 			if (queueTail == &qe.next) {
 				MLOG_DETAIL(mlog::app, "last elem in queue");
-				queueTail = curr;
+				queueTail = &(*curr)->next;
 		    	}
 		    	(*curr)->next = qe.next;
 			break;
