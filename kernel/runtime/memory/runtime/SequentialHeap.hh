@@ -85,7 +85,16 @@ public:
     SequentialHeap() {}
     virtual ~SequentialHeap() {}
 
-    size_t getAlignment() const { return heap.getAlignment(); }
+    void init(){
+    	static bool isInitialized = false;
+	if(!isInitialized){
+		new(heap) (FirstFitHeap<T, A>);
+		allocated = 0;	
+		isInitialized = true;
+	}
+    }
+
+    size_t getAlignment() const { return getHeap().getAlignment(); }
 
     optional<addr_t> alloc(size_t length) { return this->alloc(length, Alignment::alignment()); }
 
@@ -94,20 +103,26 @@ public:
         align = Alignment::round_up(align); // enforce own minimum alignment
         auto headsize = AlignmentObject(align).round_up(sizeof(Head));
         auto allocSize = Alignment::round_up(headsize + length);
-        MLOG_DETAIL(mlog::app, "heap: try to allocate", DVAR(length), DVAR(align), 
-            DVAR(allocSize));
+	//MLOG_DETAIL(mlog::app, "heap: try to allocate", DVAR(length), DVAR(align), 
+	    //DVAR(allocSize));
         mutex << [&]() {
-            res = heap.alloc(allocSize, align);
+            res = getHeap().alloc(allocSize, align);
         };
-        if (!res) return res;
+        if (!res){ 
+	MLOG_ERROR(mlog::app, "heap: out of memory! allocation request:", DVAR(length), DVAR(align), 
+	    DVAR(allocSize));
+	MLOG_ERROR(mlog::app, "heap: already allocted: ", DVAR(allocated));
+		return res;
+	}
+	allocated += allocSize;
         auto begin = reinterpret_cast<char*>(*res);
         auto addr = begin + headsize;
         auto head = new(addr - sizeof(Head)) Head();
         head->begin = begin;
         head->size = allocSize;
         head->reqSize = length;
-        MLOG_DETAIL(mlog::app, "allocated", DVARhex(begin), DVARhex(addr),
-            DVAR(allocSize), DVAR(align));
+	//MLOG_DETAIL(mlog::app, "allocated", DVARhex(begin), DVARhex(addr),
+	    //DVAR(allocSize), DVAR(align), DVAR(allocated));
         ASSERT(AlignmentObject(align).is_aligned(addr));
         ASSERT(Alignment::is_aligned(addr));
         return {reinterpret_cast<addr_t>(addr)};
@@ -121,16 +136,17 @@ public:
         auto allocSize = head->size;
         ASSERT(Alignment::is_aligned(begin));
         ASSERT(Alignment::is_aligned(allocSize));
-        MLOG_DETAIL(mlog::app, "freeing ", DVARhex(begin), DVARhex(addr), DVARhex(allocSize));
+	//MLOG_DETAIL(mlog::app, "freeing ", DVARhex(begin), DVARhex(addr), DVARhex(allocSize));
         mutex << [&]() {
-            heap.free(reinterpret_cast<addr_t>(begin), allocSize);
+            getHeap().free(reinterpret_cast<addr_t>(begin), allocSize);
+	    allocated -= allocSize;
         };
     }
 
     void addRange(addr_t start, size_t length) {
         mutex << [&]() {
         MLOG_DETAIL(mlog::app, "Add range", DVARhex(start), DVARhex(length));
-            heap.addRange(start, length);
+            getHeap().addRange(start, length);
         };
     }
     
@@ -141,10 +157,13 @@ public:
         return head->reqSize;
     }
 
+    FirstFitHeap<T, A>& getHeap(){ return *reinterpret_cast<FirstFitHeap<T, A>* >(&heap[0]); }
 private:
-    FirstFitHeap<T, A> heap;
+     
+    alignas(FirstFitHeap<T, A>) char heap[sizeof(FirstFitHeap<T, A>)];
     SpinMutex mutex;
 
+    size_t allocated;
 };
 
 } // namespace mythos
