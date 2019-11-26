@@ -22,7 +22,7 @@ qemu: boot32.elf
 	qemu-system-x86_64 $(QEMUFLAGS) -kernel boot32.elf
 
 qemu-text: boot32.elf
-	qemu-system-x86_64 -m 1024 -cpu SandyBridge -smp 4 -curses -kernel boot32.elf
+	qemu-system-x86_64 -m 2048 -cpu SandyBridge -smp 4 -curses -kernel boot32.elf
 
 qemuidbg: boot32.elf
 	qemu-system-x86_64 $(QEMUFLAGS) -kernel boot32.elf -qmp stdio
