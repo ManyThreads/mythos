@@ -66,7 +66,7 @@ SECTIONS
       CTORS_END = .;
     }
 
-    . = ALIGN(2M); /* page aligned */
+    . = ALIGN(4096); /* page aligned */
     /*PROVIDE (KERN_ROEND = . - VIRT_ADDR);*/
 
     .data : {
@@ -87,6 +87,7 @@ SECTIONS
 
     . = ALIGN(4096); /* page aligned */
     PROVIDE (VIRT_END = .);
+    . += 4096 * 20; 
     . = ALIGN(2M); /* page aligned */
     PROVIDE (KERN_END = . - VIRT_ADDR); /* to make kmem-common.h happy */
     PROVIDE (KERN_SIZE = . - VIRT_ADDR); /* the kernel SIZE (not physical end of the upper half stuff) */
