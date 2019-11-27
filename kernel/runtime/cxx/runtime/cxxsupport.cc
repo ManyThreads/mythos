@@ -67,6 +67,10 @@ extern "C" [[noreturn]] void __assert_fail (const char *expr, const char *file, 
     mythos::syscall_exit(-1); /// @TODO syscall_abort(); to see some stack backtrace etc
 }
 
+void mythosExit(){
+    MLOG_ERROR(mlog::app, "MYTHOS:PLEASE KILL ME!!!!!!1 elf");
+}
+
 struct iovec
 {
     const char* io_base;
@@ -131,7 +135,7 @@ extern "C" long mythos_musl_syscall(
         //MLOG_ERROR(mlog::app, "syscall writev NYI");
         return writev(a1, reinterpret_cast<const struct iovec *>(a2), a3);
     case 24: // sched_yield
-        MLOG_ERROR(mlog::app, "syscall sched_yield NYI");
+        //MLOG_ERROR(mlog::app, "syscall sched_yield NYI");
         return 0;
     case 39: // getpid
         MLOG_ERROR(mlog::app, "syscall getpid NYI");
@@ -140,6 +144,9 @@ extern "C" long mythos_musl_syscall(
         MLOG_DETAIL(mlog::app, "syscall exit", DVAR(a1));
         asm volatile ("syscall" : : "D"(0), "S"(a1) : "memory");
         return 0;
+    case 186: // gettid
+        MLOG_ERROR(mlog::app, "syscall gettid");
+        return -1;
     case 200: // tkill(pid, sig)
         MLOG_ERROR(mlog::app, "syscall tkill NYI");
         return 0;
@@ -160,6 +167,7 @@ extern "C" long mythos_musl_syscall(
         return 0;
     case 231: // exit_group for all pthreads 
         MLOG_ERROR(mlog::app, "syscall exit_group NYI");
+	mythosExit();
         return 0;
     case 302: // prlimit64
         MLOG_ERROR(mlog::app, "syscall prlimit64 NYI", DVAR(a1), DVAR(a2), DVAR(a3), DVAR(a4), DVAR(a5), DVAR(a6));

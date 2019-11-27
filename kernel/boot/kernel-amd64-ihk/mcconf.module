@@ -59,10 +59,13 @@ boot: all
 	sudo ${vars.mythos_root}/3rdparty/ihkreboot.sh -m 2048M -k 1 -p $(shell pwd)/boot64.elf
 
 wait:
-	sleep 5
+	while [ ! -f /tmp/ihkmond/mcos0/kmsg0 ]; do sleep 1; done
+
+	echo "kmsg file found\n"
+	
+	( tail -f -n +0 /tmp/ihkmond/mcos0/kmsg0 & ) | sed '/MYTHOS:PLEASE KILL ME!!!!!!1 elf/ q'
 
 run: boot wait stop
-	cat /tmp/ihkmond/mcos0/kmsg0
 
 '''
 
