@@ -170,10 +170,7 @@ NORETURN void apboot()
       auto before = *reinterpret_cast<volatile uint32_t*>(IHK_TRAMPOLINE_ADDR);
       asm volatile ("" ::: "memory");
       //MLOG_ERROR(mlog::boot, "before send", DVARhex(before));
-      //MLOG_INFO(mlog::boot, "Send Init IPI", DVAR(apicID));
-      mythos::lapic.sendInitIPIEdge(apicID);
-      //MLOG_INFO(mlog::boot, "Send SIPI", DVAR(apicID));
-      mythos::lapic.sendStartupIPI(apicID, ap_trampoline);
+      mythos::lapic.startup(apicID, ap_trampoline);
       //MLOG_ERROR(mlog::boot, "loop for change ...");
       while(1) {
         asm volatile ("" ::: "memory");

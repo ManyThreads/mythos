@@ -73,8 +73,7 @@ NORETURN void apboot()
   initAPTrampoline(0x40000);
   mythos::x86::enableApic(); // just to be sure it is enabled
   mythos::lapic.init();
-  mythos::lapic.broadcastInitIPIEdge();
-  mythos::lapic.broadcastStartupIPI(0x40000);
+  mythos::lapic.startupBroadcast(0x40000);
 
   // switch to BSP's stack here
   start_ap64(0); // will never return from here!
