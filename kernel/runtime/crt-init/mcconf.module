@@ -5,15 +5,17 @@
     requires = [ "runtime/cxxsupport.cc", "runtime/DebugSink.cc" ]
 
     makefile_head = '''
-INITAPP_CXX = $(APP_CXX)
-INITAPP_AS = $(APP_AS)
+INITAPP_CXX ?= $(APP_CXX)
+INITAPP_AS ?= $(APP_AS)
 INITAPP_CXXFLAGS += $(APP_CXXFLAGS)
 INITAPP_CPPFLAGS += $(APP_CPPFLAGS)
 INITAPP_CXXFLAGS += -fno-stack-protector
+INITAPP_ASFLAGS += $(APP_ASFLAGS)
 
 CRT_CXX = $(APP_CXX)
 CRT_AS = $(APP_AS)
 CRT_CXXFLAGS += $(APP_CXXFLAGS)
 CRT_CPPFLAGS += $(APP_CPPFLAGS)
 CRT_CXXFLAGS += -fno-stack-protector
+CRT_ASFLAGS += $(APP_ASFLAGS)
 '''

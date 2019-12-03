@@ -26,9 +26,8 @@
 #pragma once
 
 #include "util/optional.hh"
-#include "util/alignments.hh"
+#include "util/align.hh"
 #include "util/FirstFitHeap.hh"
-#include "cpu/hwthread_pause.hh"
 #include "runtime/mlog.hh"
 #include "runtime/Mutex.hh"
 #include <atomic>
@@ -39,12 +38,12 @@ namespace mythos {
 /**
  * Wrapper for FirstFitHeap intrusive. Allocates additional meta data.
  */
-template<typename T, class A = AlignLine>
+template<typename T, size_t HA = alignLine>
 class SequentialHeap
 {
 public:
     typedef T addr_t;
-    typedef A Alignment;
+    constexpr static size_t heapAlign = HA;
 
     /**
     * Used to store the size of an allocated chunk.
@@ -65,14 +64,14 @@ public:
 
     size_t getAlignment() const { return heap.getAlignment(); }
 
-    optional<addr_t> alloc(size_t length) { return this->alloc(length, Alignment::alignment()); }
+    optional<addr_t> alloc(size_t length) { return this->alloc(length, heapAlign); }
 
     optional<addr_t> alloc(size_t length, size_t align) {
         optional<addr_t> res;
-        align = Alignment::round_up(align); // enforce own minimum alignment
-        auto headsize = AlignmentObject(align).round_up(sizeof(Head));
-        auto allocSize = Alignment::round_up(headsize + length);
-        MLOG_DETAIL(mlog::app, "heap: try to allocate", DVAR(length), DVAR(align),
+        align = round_up(align, heapAlign); // enforce own minimum alignment
+        auto headsize = round_up(sizeof(Head), align);
+        auto allocSize = round_up(headsize + length, heapAlign);
+        MLOG_DETAIL(mlog::app, "heap: try to allocate", DVAR(length), DVAR(align), 
             DVAR(allocSize));
         mutex << [&]() {
             res = heap.alloc(allocSize, align);
@@ -86,8 +85,8 @@ public:
         head->reqSize = length;
         MLOG_DETAIL(mlog::app, "allocated", DVARhex(begin), DVARhex(addr),
             DVAR(allocSize), DVAR(align));
-        ASSERT(AlignmentObject(align).is_aligned(addr));
-        ASSERT(Alignment::is_aligned(addr));
+        ASSERT(is_aligned(addr, align));
+        ASSERT(is_aligned(addr, heapAlign));
         return {reinterpret_cast<addr_t>(addr)};
     }
 
@@ -97,8 +96,8 @@ public:
         ASSERT(head->isGood());
         auto begin = head->begin;
         auto allocSize = head->size;
-        ASSERT(Alignment::is_aligned(begin));
-        ASSERT(Alignment::is_aligned(allocSize));
+        ASSERT(is_aligned(begin, heapAlign));
+        ASSERT(is_aligned(allocSize, heapAlign));
         MLOG_DETAIL(mlog::app, "freeing ", DVARhex(begin), DVARhex(addr), DVARhex(allocSize));
         mutex << [&]() {
             heap.free(reinterpret_cast<addr_t>(begin), allocSize);
@@ -120,8 +119,9 @@ public:
     }
 
 private:
-    FirstFitHeap<T, A> heap;
+    FirstFitHeap<T, HA> heap;
     Mutex mutex;
+
 };
 
 } // namespace mythos

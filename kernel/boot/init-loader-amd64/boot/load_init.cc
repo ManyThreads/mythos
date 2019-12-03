@@ -27,7 +27,7 @@
 #include "boot/load_init.hh"
 
 #include "util/elf64.hh"
-#include "util/alignments.hh"
+#include "util/align.hh"
 #include "util/compiler.hh"
 #include "util/mstring.hh"
 #include "util/assert.hh"
@@ -47,10 +47,10 @@
 
 
 namespace mythos {
+    
+Event<boot::InitLoader&> event::initLoader;
+    
 namespace boot {
-
-Event<InitLoader&> initLoaderEvent;
-
 
 InitLoader::InitLoader(char* image)
   : _img(image)
@@ -128,8 +128,6 @@ optional<void> InitLoader::initCSpace()
   if (!ocspace) RETHROW(ocspace);
   capAlloc.setCSpace(*ocspace);
 
-  initLoaderEvent.trigger_before(*this);
-
   MLOG_INFO(mlog::boot, "... create cspace reference in cap", init::CSPACE);
   auto res = csSet(init::CSPACE, ocspace->getRoot());
   if (!res) RETHROW(res);
@@ -175,7 +173,7 @@ optional<void> InitLoader::initCSpace()
     if (!res) RETHROW(res);
   }
 
-  initLoaderEvent.trigger_after(*this);
+  event::initLoader.emit(*this);
 
   RETURN(Error::SUCCESS);
 }
@@ -207,8 +205,8 @@ optional<void> InitLoader::loadImage()
     for (size_t i=0; i <_img.phnum(); ++i) {
         auto ph = _img.phdr(i);
         if (ph->type == elf64::PT_LOAD) {
-            auto begin = Align2M::round_down(ph->vaddr);
-            auto end = Align2M::round_up(ph->vaddr + ph->memsize);
+            auto begin = round_down(ph->vaddr, align2M);
+            auto end = round_up(ph->vaddr + ph->memsize, align2M);
             size += end-begin;
         }
     }
@@ -224,8 +222,8 @@ optional<void> InitLoader::loadImage()
     for (size_t i=0; i <_img.phnum(); ++i) {
         auto ph = _img.phdr(i);
         if (ph->type == elf64::PT_LOAD) {
-            auto begin = Align2M::round_down(ph->vaddr);
-            auto end = Align2M::round_up(ph->vaddr + ph->memsize);
+            auto begin = round_down(ph->vaddr, align2M);
+            auto end = round_up(ph->vaddr + ph->memsize, align2M);
             auto res = loadProgramHeader(ph, *frameCap, offset);
             if (!res) RETHROW(res);
             offset += end-begin;
@@ -240,11 +238,11 @@ optional<void> InitLoader::loadProgramHeader(
     MLOG_INFO(mlog::boot, "... load PH", DVAR(ph->type), DVAR(ph->flags), DVARhex(ph->offset),
         DVARhex(ph->vaddr), DVARhex(ph->filesize), DVARhex(ph->memsize),
         DVARhex(ph->alignment), DVARhex(offset));
-    ASSERT(ph->alignment <= Align2M::alignment());
+    ASSERT(ph->alignment <= align2M);
 
     // align the page in the logical address space
-    auto vbegin = AlignmentObject(ph->alignment).round_down(ph->vaddr);
-    auto vend = AlignmentObject(ph->alignment).round_up(ph->vaddr+ph->memsize);
+    auto vbegin = round_down(ph->vaddr, ph->alignment);
+    auto vend = round_up(ph->vaddr+ph->memsize,ph->alignment);
     if (vend-vbegin == 0) RETURN(Error::SUCCESS); // nothing to do
 
     // map the frame into the pages

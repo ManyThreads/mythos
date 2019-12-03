@@ -76,8 +76,8 @@ ACPIApicTopology::ACPIApicTopology()
         // TODO should store the io-apic address!
         // ioapic_id = io_apic->apic_id;
         // unsigned int id = system_topology.ioapic_id << 4;
-        // addr_t ioapic_regs_addr = Align4k::round_down(IO_APIC_REGISTERS_ADDRESS);
-        // mmapper->mmap(ioapic_regs_addr, ioapic_regs_addr, Align4k::round_up(sizeof(int) * 2), IMemoryMapper::RWCD);
+        // addr_t ioapic_regs_addr = round_down(IO_APIC_REGISTERS_ADDRESS, align4K);
+        // mmapper->mmap(ioapic_regs_addr, ioapic_regs_addr, round_up(sizeof(int) * 2, align4K), IMemoryMapper::RWCD);
         // (*((volatile unsigned int*) 0xfec00000)) = 0;
         // (*((volatile unsigned int*) 0xfec00010)) = id;
         break;

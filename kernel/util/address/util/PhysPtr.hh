@@ -28,6 +28,7 @@
 #include "boot/memory-layout.h"
 #include "util/compiler.hh"
 #include "util/assert.hh"
+#include "util/align.hh"
 #include <cstddef> // for size_t
 #include <cstdint>
 
@@ -119,9 +120,24 @@ namespace mythos {
   template<class T>
   PhysPtr<T> physPtrFromKernel(T* ptr) { return PhysPtr<T>::fromKernel(ptr); }
 
-
+  // compile ignores this for PhysPtr<void> :-)
   template<class T>
   T& operator*(PhysPtr<T> ptr) { return *ptr.log(); }
+
+//   template<typename T>
+//   constexpr bool is_aligned(PhysPtr<T> addr, size_t a) { 
+//     return is_aligned(addr.physint(), a); 
+//   }
+// 
+//   template<typename T>
+//   constexpr PhysPtr<T> round_down(PhysPtr<T> addr, size_t a) { 
+//     return {round_down(addr.physint(), a)};
+//   }
+// 
+//   template<typename T>
+//   constexpr PhysPtr<T> round_up(PhysPtr<T> addr, size_t a) { 
+//     return {round_up(addr.physint(), a)}; 
+//   }
 
   template<typename T>
   class PACKED PhysPtr32

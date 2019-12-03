@@ -24,10 +24,12 @@
  * Copyright 2019 Randolf Rotta and contributors, BTU Cottbus-Senftenberg
  */
 
-#include "util/alignments.hh"
+#include "util/align.hh"
+#include "objects/DeviceMemory.hh"
 #include "objects/MemoryRegion.hh"
 #include "objects/PageMapAmd64.hh"
 #include <boot/MemMapper.hh>
+#include "mythos/init.hh"
 
 namespace mythos {
 
@@ -81,6 +83,23 @@ optional<void> MemMapper::installPML4(CapPtr dstCap)
     RETURN(Error::SUCCESS);
 }
 
+optional<void> MemMapper::mmapDevice(
+    uintptr_t vaddr, size_t length,
+    bool writable, bool executable,
+    uintptr_t physaddr)
+{
+    // TODO this should be configurable instead of importing mythos/init.hh
+    auto memEntry = caps->get(init::DEVICE_MEM);
+    TypedCap<DeviceMemory> mem(memEntry);
+    if (!mem) RETHROW(mem);
+    auto dstPtr = caps->alloc();
+    if (!dstPtr) RETHROW(dstPtr);
+    auto dstEntry = caps->get(*dstPtr);
+    if (!dstEntry) RETHROW(dstEntry);
+    auto res = mem->deriveFrame(**memEntry, memEntry->cap(), **dstEntry, physaddr, length, false);
+    if (!res) RETHROW(res);
+    return mmap(vaddr, length, writable, executable, *dstPtr, 0); // offset 0 of the derived frame
+}
 
 optional<void> MemMapper::mmap(
     uintptr_t vaddr, size_t length, bool writable, bool executable,
@@ -101,9 +120,9 @@ optional<void> MemMapper::mmap(
     auto frameInfo = frame.getFrameInfo();
     if (curOffset + remaining > frameInfo.size)
         THROW(Error::INSUFFICIENT_RESOURCES);
-    if (!Align4k::is_aligned(remaining) ||
-        !Align4k::is_aligned(curAddr) ||
-        !Align4k::is_aligned(curOffset))
+    if (!is_aligned(remaining, align4K) ||
+        !is_aligned(curAddr, align4K) ||
+        !is_aligned(curOffset, align4K))
         THROW(Error::UNALIGNED);
     auto flags = protocol::PageMap::MapFlags()
         .writable(writable && frameInfo.writable)
@@ -112,9 +131,9 @@ optional<void> MemMapper::mmap(
     // continue on the next page map until all of the frame is mapped
     while (remaining > 0) {
         bool isAligned2M =
-            Align2M::is_aligned(frameInfo.start.physint()+curOffset) &&
-            remaining >= (1ull << 21) &&
-            Align2M::is_aligned(curAddr);
+            is_aligned(frameInfo.start.physint()+curOffset, align2M) &&
+            remaining >= align2M &&
+            is_aligned(curAddr, align2M);
 
         // 1) find page maps that contain vaddr
         // there can be only one per level
@@ -145,7 +164,7 @@ optional<void> MemMapper::mmap(
             if (!res) RETHROW(res);
 
             // 2.4) update levels[l] and pagemaps
-            pagemaps.push_back({AlignmentObject(tsize).round_down(curAddr), *pmCap, uint8_t(l)});
+            pagemaps.push_back({round_down(curAddr, tsize), *pmCap, uint8_t(l)});
             levels[l] = &pagemaps.back();
             MLOG_DETAIL(mlog::boot, "    added page map",
                 DVARhex(levels[l]->vaddr), DVARhex(levels[l]->size()),

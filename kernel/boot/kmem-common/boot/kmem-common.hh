@@ -30,7 +30,7 @@
 #include "boot/mlog.hh"
 #include "boot/memory-layout.h"
 #include "objects/KernelMemory.hh"
-#include "util/alignments.hh"
+#include "util/align.hh"
 
 namespace mythos {
   namespace boot {
@@ -48,7 +48,8 @@ namespace mythos {
 
       void removeKernelReserved() {
         reserve(0, 1024*1024, "legacy interrupt vectors etc");
-        reserve(Align2M::round_down(LOAD_ADDR), size_t(Align2M::round_up(&KERN_END)), "kernel image");
+        reserve(round_down(uintptr_t(LOAD_ADDR), align2M), 
+                round_up(uintptr_t(&KERN_END), align2M), "kernel image");
       }
 
       void reserve(size_t begin, size_t end, const char* reason) {

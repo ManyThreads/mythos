@@ -29,8 +29,6 @@
 
 namespace mythos {
 
-enum class EventCtrl { OK, STOP, PREVENT_DEFAULT, STOP_AND_PREVENT };
-
 template<typename... Args>
 class Event;
 
@@ -42,8 +40,7 @@ public:
   EventHook() {}
   virtual ~EventHook() {}
   virtual int priority() const { return 0; }
-  virtual EventCtrl before(Args...) { return EventCtrl::OK; }
-  virtual EventCtrl after(Args...) { return EventCtrl::OK; }
+  virtual void processEvent(Args...) = 0;
 private:
   friend class Event<Args...>;
   EventHook<Args...>* next = {nullptr};
@@ -51,7 +48,11 @@ private:
 
 /** Typed registry for hooks into a certain event.
  * Manages a single-linked list of hooks ordered by their priority.
- * Inspired by dokuwiki's event hooks. */
+ * Inspired by dokuwiki's event hooks.
+ *
+ * @todo Should be protected against concurrency? actually a reader-writer lock,
+ * but only if we allow dynamic insert/remove after startup.
+ */
 template<typename... Args>
 class Event
 {
@@ -64,12 +65,7 @@ public:
    * lower priority. */
   void add(hook_t* ev);
 
-  /** process 'before' handlers, return false if default action
-   * should be prevented. */
-  bool trigger_before(Args...);
-
-  /** process 'after' handlers */
-  void trigger_after(Args...);
+  void emit(Args... args);
 
 private:
   hook_t* hooks = {nullptr};
@@ -78,8 +74,6 @@ private:
 template<typename... Args>
 void Event<Args...>::add(hook_t* ev)
 {
-  // TODO should be protected against concurrency!
-  // actually a reader-writer lock, but only if we allow dynamic insert/remove after startup
   ASSERT(ev && !ev->next);
   auto cur = &hooks;
   while (*cur && (*cur)->priority() > ev->priority()) cur = &(*cur)->next;
@@ -88,31 +82,10 @@ void Event<Args...>::add(hook_t* ev)
 }
 
 template<typename... Args>
-bool Event<Args...>::trigger_before(Args... args)
+void Event<Args...>::emit(Args... args)
 {
-  bool ok = true;
-  for (hook_t* h = hooks; h!=nullptr; h = h->next) {
-    switch (h->before(args...)) {
-    case EventCtrl::STOP: return ok;
-    case EventCtrl::PREVENT_DEFAULT: ok = false; break;
-    case EventCtrl::STOP_AND_PREVENT: return false;
-    default:;
-    }
-  }
-  return ok;
-}
-
-
-template<typename... Args>
-void Event<Args...>::trigger_after(Args... args)
-{
-  for (hook_t* h = hooks; h!=nullptr; h = h->next) {
-    switch (h->after(args...)) {
-    case EventCtrl::STOP:
-    case EventCtrl::STOP_AND_PREVENT: return;
-    default:;
-    }
-  }
+    for (hook_t* h=hooks; h != nullptr; h=h->next)
+        h->processEvent(args...);
 }
 
 } // namespace mythos

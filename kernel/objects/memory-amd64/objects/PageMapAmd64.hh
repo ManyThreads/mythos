@@ -26,7 +26,6 @@
 #pragma once
 
 #include <array>
-#include "util/alignments.hh"
 #include "objects/IPageMap.hh"
 #include "objects/IFactory.hh"
 #include "objects/FrameDataAmd64.hh"

@@ -28,6 +28,7 @@
 #include "boot/kmem-common.hh"
 #include "util/PhysPtr.hh"
 #include "boot/mlog.hh"
+#include "util/align.hh"
 
 #include "boot/bootparam.h"
 
@@ -53,8 +54,8 @@ void initKernelMemory(KernelMemory& km)
   // Reserve everthing from phys addr 0 to the end of the kernel image.
   // @todo This works because the kernel is placed at the beginning of the first chunk?
   usable_mem.reserve(0, 1024*1024, "legacy interrupt vectors etc");
-  usable_mem.reserve(Align2M::round_down(x86_kernel_phys_base), 
-                     Align2M::round_up(x86_kernel_phys_base + uintptr_t(KERN_SIZE)), "kernel image");
+  usable_mem.reserve(round_down(x86_kernel_phys_base, align2M), 
+                     round_up(x86_kernel_phys_base + uintptr_t(KERN_SIZE), align2M), "kernel image");
   usable_mem.addToKM(km);
 }
 

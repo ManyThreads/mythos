@@ -29,7 +29,7 @@
 
 #include <new>
 #include "util/assert.hh"
-#include "util/alignments.hh"
+#include "util/align.hh"
 
 namespace mythos {
 
@@ -185,7 +185,7 @@ void KernelMemory::free(Tasklet* t, IResult<void>* r, void* start, size_t length
   KernelMemoryFactory::factory(CapEntry* dstEntry, CapEntry* memEntry, Cap memCap, IAllocator* mem,
                                size_t size, size_t alignment)
   {
-    if (!Align4k::is_aligned(alignment) || !AlignmentObject(alignment).is_aligned(size))
+    if (!is_aligned(alignment, align4K) || !is_aligned(size,alignment))
       THROW(Error::UNALIGNED);
     auto region = mem->alloc(size, alignment);
     if (!region) {

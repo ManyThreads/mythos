@@ -62,6 +62,12 @@ public:
     optional<void> installPML4(CapPtr dstCap);
 
     /** map a frame and create missing tables on demand. */
+    optional<void> mmapDevice(
+        uintptr_t vaddr, size_t length,
+        bool writable, bool executable,
+        uintptr_t physaddr);
+
+    /** map a frame and create missing tables on demand. */
     optional<void> mmap(
         uintptr_t vaddr, size_t length,
         bool writable, bool executable,

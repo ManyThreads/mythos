@@ -26,6 +26,7 @@
 #include "objects/DeviceMemory.hh"
 
 #include "util/assert.hh"
+#include "util/align.hh"
 #include "objects/IFrame.hh"
 #include "objects/IKernelObject.hh"
 #include "objects/CapEntry.hh"
@@ -40,6 +41,29 @@ mythos::DeviceMemory::DeviceMemory()
   for (size_t i = 0; i < FrameSize::DEVICE_REGIONS; ++i) {
     _memory_region[i].setBase(FrameSize::REGION_MAX_SIZE * i);
   }
+}
+
+mythos::optional<void> mythos::DeviceMemory::deriveFrame(
+    CapEntry& rootEntry, Cap rootCap, CapEntry& dstEntry,
+    uintptr_t addr, size_t size, bool writable)
+{
+  // check position and alignment
+  if (addr/FrameSize::REGION_MAX_SIZE >= FrameSize::DEVICE_REGIONS)
+    THROW(Error::INSUFFICIENT_RESOURCES);
+  if (!is_aligned(addr, align4K) || !is_aligned(size, align4K)) THROW(Error::UNALIGNED);
+  auto sizeBits = FrameSize::frameSize2Bits(size);
+  if (size != FrameSize::frameBits2Size(sizeBits)) THROW(Error::UNALIGNED);
+  auto obj = &_memory_region[addr/FrameSize::REGION_MAX_SIZE];
+  auto base = obj->base;
+  ASSERT(base == round_down(addr, FrameSize::REGION_MAX_SIZE));
+
+  MLOG_DETAIL(mlog::km, "create device frame in", DVAR(&dstEntry));
+  if (!dstEntry.acquire()) RETURN(Error::LOST_RACE);
+
+  // insert derived capability into the tree as child of the memory root object
+  auto capData = FrameData().start(base, addr).sizeBits(sizeBits).device(true).writable(writable);
+  auto res = cap::inherit(rootEntry, rootCap, dstEntry, Cap(obj, capData).asDerived());
+  RETURN(res);
 }
 
 void mythos::DeviceMemory::invoke(Tasklet* t, Cap self, IInvocation* msg)
@@ -59,18 +83,7 @@ mythos::Error mythos::DeviceMemory::invokeCreate(Tasklet*, Cap self, IInvocation
   auto data = ib->read<protocol::DeviceMemory::Create>();
   MLOG_DETAIL(mlog::km, "create device frame", DVAR(data.dstSpace()), DVAR(data.dstPtr), 
               DVARhex(data.addr), DVARhex(data.size), DVAR(data.writable));
-
-  // check position and alignment
-  if (data.addr/FrameSize::REGION_MAX_SIZE >= FrameSize::DEVICE_REGIONS)
-    return Error::INSUFFICIENT_RESOURCES;
-  if (data.addr % 4096 != 0 || data.size % 4096 != 0) return Error::UNALIGNED;
-  // TODO disallow access to the 4GiB kernel memory area
-  auto sizeBits = FrameSize::frameSize2Bits(data.size);
-  if (data.size != FrameSize::frameBits2Size(sizeBits)) return Error::UNALIGNED;
-  auto obj = &_memory_region[data.addr/FrameSize::REGION_MAX_SIZE];
-  auto base = obj->base;
-  ASSERT(base == (data.addr/FrameSize::REGION_MAX_SIZE)*FrameSize::REGION_MAX_SIZE);
-
+  
   optional<CapEntry*> dstEntry;
   if (data.dstSpace() == null_cap) { // direct address
     dstEntry = msg->lookupEntry(data.dstPtr, 32, true); // lookup for write access
@@ -85,13 +98,7 @@ mythos::Error mythos::DeviceMemory::invokeCreate(Tasklet*, Cap self, IInvocation
     // The CapMap containing the entry can not be deallocated until the end of this function.
   }
 
-  MLOG_DETAIL(mlog::km, "create device frame in", DVAR(*dstEntry));
-  if (!dstEntry->acquire()) return Error::LOST_RACE;
-
-  // insert derived capability into the tree as child of the memory root object
-  auto capData = FrameData().start(base, data.addr).sizeBits(sizeBits).device(true).writable(data.writable);
-  auto res = cap::inherit(*msg->getCapEntry(), self, **dstEntry, Cap(obj, capData).asDerived());
-
+  auto res = deriveFrame(*msg->getCapEntry(), self, **dstEntry, data.addr, data.size, data.writable);
   return res.state();
 }
 

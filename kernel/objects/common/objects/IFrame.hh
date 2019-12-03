@@ -35,8 +35,8 @@ namespace mythos {
   {
   public:
     struct Info {
-      // @TODO replace the constructor by the new C++ initializer list
-      Info(uintptr_t start, size_t size, bool device, bool writable) : start(PhysPtr<void>(start)), size(size), device(device), writable(writable) {}
+      Info(uintptr_t start, size_t size, bool device, bool writable) 
+        : start(PhysPtr<void>(start)), size(size), device(device), writable(writable) {}
       PhysPtr<void> start;
       size_t size;
       bool device;
