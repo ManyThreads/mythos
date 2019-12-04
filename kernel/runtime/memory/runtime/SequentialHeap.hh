@@ -26,47 +26,23 @@
 #pragma once
 
 #include "util/optional.hh"
-#include "util/alignments.hh"
+#include "util/align.hh"
 #include "util/FirstFitHeap.hh"
-#include "cpu/hwthread_pause.hh"
 #include "runtime/mlog.hh"
-#include <atomic>
+#include "runtime/Mutex.hh"
 
 
 namespace mythos {
 
-class SpinMutex {
-public:
-    void lock() {
-        while (flag.test_and_set()) { mythos::hwthread_pause(); }
-    }
-
-    void unlock() {
-        flag.clear();
-    }
-
-    template<typename FUNCTOR>
-    void operator<<(FUNCTOR fun) {
-        lock();
-        fun();
-        unlock();
-    }
-
-private:
-    std::atomic_flag flag;
-};
-
-
-
 /**
  * Wrapper for FirstFitHeap intrusive. Allocates additional meta data.
  */
-template<typename T, class A = AlignLine>
+template<typename T, size_t HA = alignLine>
 class SequentialHeap
 {
 public:
     typedef T addr_t;
-    typedef A Alignment;
+    constexpr static size_t heapAlign = HA;
 
     /**
     * Used to store the size of an allocated chunk.
@@ -88,7 +64,7 @@ public:
     void init(){
     	static bool isInitialized = false;
 	if(!isInitialized){
-		new(heap) (FirstFitHeap<T, A>);
+		new(heap) (FirstFitHeap<T, HA>);
 		allocated = 0;	
 		isInitialized = true;
 	}
@@ -96,15 +72,15 @@ public:
 
     size_t getAlignment() const { return getHeap().getAlignment(); }
 
-    optional<addr_t> alloc(size_t length) { return this->alloc(length, Alignment::alignment()); }
+    optional<addr_t> alloc(size_t length) { return this->alloc(length, heapAlign); }
 
     optional<addr_t> alloc(size_t length, size_t align) {
         optional<addr_t> res;
-        align = Alignment::round_up(align); // enforce own minimum alignment
-        auto headsize = AlignmentObject(align).round_up(sizeof(Head));
-        auto allocSize = Alignment::round_up(headsize + length);
-	//MLOG_DETAIL(mlog::app, "heap: try to allocate", DVAR(length), DVAR(align), 
-	    //DVAR(allocSize));
+        align = round_up(align, heapAlign); // enforce own minimum alignment
+        auto headsize = round_up(sizeof(Head), align);
+        auto allocSize = round_up(headsize + length, heapAlign);
+        //MLOG_DETAIL(mlog::app, "heap: try to allocate", DVAR(length), DVAR(align), 
+            //DVAR(allocSize));
         mutex << [&]() {
             res = getHeap().alloc(allocSize, align);
         };
@@ -121,10 +97,10 @@ public:
         head->begin = begin;
         head->size = allocSize;
         head->reqSize = length;
-	//MLOG_DETAIL(mlog::app, "allocated", DVARhex(begin), DVARhex(addr),
-	    //DVAR(allocSize), DVAR(align), DVAR(allocated));
-        ASSERT(AlignmentObject(align).is_aligned(addr));
-        ASSERT(Alignment::is_aligned(addr));
+        //MLOG_DETAIL(mlog::app, "allocated", DVARhex(begin), DVARhex(addr),
+            //DVAR(allocSize), DVAR(align));
+        ASSERT(is_aligned(addr, align));
+        ASSERT(is_aligned(addr, heapAlign));
         return {reinterpret_cast<addr_t>(addr)};
     }
 
@@ -134,9 +110,9 @@ public:
         ASSERT(head->isGood());
         auto begin = head->begin;
         auto allocSize = head->size;
-        ASSERT(Alignment::is_aligned(begin));
-        ASSERT(Alignment::is_aligned(allocSize));
-	//MLOG_DETAIL(mlog::app, "freeing ", DVARhex(begin), DVARhex(addr), DVARhex(allocSize));
+        ASSERT(is_aligned(begin, heapAlign));
+        ASSERT(is_aligned(allocSize, heapAlign));
+        //MLOG_DETAIL(mlog::app, "freeing ", DVARhex(begin), DVARhex(addr), DVARhex(allocSize));
         mutex << [&]() {
             getHeap().free(reinterpret_cast<addr_t>(begin), allocSize);
 	    allocated -= allocSize;
@@ -157,11 +133,10 @@ public:
         return head->reqSize;
     }
 
-    FirstFitHeap<T, A>& getHeap(){ return *reinterpret_cast<FirstFitHeap<T, A>* >(&heap[0]); }
 private:
-     
-    alignas(FirstFitHeap<T, A>) char heap[sizeof(FirstFitHeap<T, A>)];
-    SpinMutex mutex;
+    FirstFitHeap<T, HA>& getHeap(){ return *reinterpret_cast<FirstFitHeap<T, HA>* >(&heap[0]); }
+    alignas(FirstFitHeap<T, HA>) char heap[sizeof(FirstFitHeap<T, HA>)];
+    Mutex mutex;
 
     size_t allocated;
 };

@@ -5,7 +5,7 @@
     provides = ["tag/emu-qemu"]
 
     makefile_head = '''
-QEMUFLAGS += -m 1024 -cpu SandyBridge -smp 4
+QEMUFLAGS += -m 1024 -cpu max -smp 4
 # com1: text output to terminal
 QEMUFLAGS += -serial stdio
 # com2: object channel for remote procedure calls into mythos
@@ -40,13 +40,13 @@ qemudbg: boot32.elf boot64.elf
 
 qemu-ddd: boot32.elf
 	file=`mktemp` \
-        && trap "rm -f -- '$$file'" INT EXIT \
-        && echo "target remote | exec qemu-system-x86_64 -gdb stdio -kernel boot32.elf -k en-us -smp 2 -S" > "$$file" \
-		  && ddd --dbx --eval-command="set architecture i386:x86-64:intel" --eval-command="hbreak kernel_main" --gdb -x "$$file" boot64.elf
+		&& trap "rm -f -- '$$file'" INT EXIT \
+		&& echo "target remote | exec qemu-system-x86_64 -gdb stdio -kernel boot32.elf -k en-us -smp 2 -S" > "$$file" \
+		&& ddd --dbx --eval-command="set architecture i386:x86-64:intel" --eval-command="hbreak entry_bsp" --gdb -x "$$file" boot64.elf
 
 qemu-ddd32: boot32.elf
 	file=`mktemp` \
-        && trap "rm -f -- '$$file'" INT EXIT \
-        && echo "target remote | exec qemu -gdb stdio -kernel boot32.elf -k en-us -smp 2 -S" > "$$file" \
-		  && ddd --dbx --eval-command="set architecture i386:intel" --eval-command="hbreak kernel_main" --gdb -x "$$file" boot32.elf
+		&& trap "rm -f -- '$$file'" INT EXIT \
+		&& echo "target remote | exec qemu -gdb stdio -kernel boot32.elf -k en-us -smp 2 -S" > "$$file" \
+		&& ddd --dbx --eval-command="set architecture i386:intel" --eval-command="hbreak entry_bsp" --gdb -x "$$file" boot32.elf
 '''

@@ -38,14 +38,18 @@ namespace mythos {
   public:
     PluginCpuDriverKNC() {
       MLOG_DETAIL(mlog::boot, "registering init loader event hook");
-      boot::initLoaderEvent.add(this);
+      event::initLoader.add(this);
     }
     virtual ~PluginCpuDriverKNC() {}
 
-    EventCtrl before(boot::InitLoader& loader) override {
+    void processEvent(boot::InitLoader& loader) override {
       OOPS(loader.csSet(init::CPUDRIVER, cpudrv));
-      return EventCtrl::OK;
+      
+      // map arbitrary memory into the init application: 
+      // virtual addr, size, writable, executable, physical address
+      loader.memMapper.mmapDevice(128ull*1024*1024*1024, 2*1024*1024, false, false, 0);
     }
+    
     CpuDriverKNC cpudrv;
   };
 

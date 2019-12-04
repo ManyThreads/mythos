@@ -54,6 +54,7 @@
 #include "objects/SchedulingContext.hh"
 #include "objects/InterruptControl.hh"
 #include "boot/memory-root.hh"
+#include "boot/load_init.hh"
 
 #include "boot/ihk-entry.hh"
 
@@ -337,6 +338,22 @@ void _start_ihk_mythos_(
 
   while(1); /* never return */
 }
+
+
+class IhkInitLoaderPlugin
+   : public EventHook<InitLoader&>
+{
+public:
+    IhkInitLoaderPlugin() { event::initLoader.add(this); }
+    void processEvent(InitLoader& loader) override {
+      // map arbitrary memory into the init application: 
+      // virtual addr, size, writable, executable, physical address
+      //loader.memMapper.mmapDevice(vaddr, size, true, false, physaddr);
+    }
+};
+
+IhkInitLoaderPlugin ihkinitloaderplugin;
+
 
 } // boot
 } // mythos

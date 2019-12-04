@@ -25,7 +25,7 @@
  */
 
 #include "host/MemMapperPci.hh"
-#include "util/alignments.hh"
+#include "util/align.hh"
 
 #include <string>
 #include <iostream>
@@ -53,8 +53,8 @@ namespace mythos {
 
   void* MemMapperPci::map(PhysPtr<void> paddr, size_t len)
   {
-    size_t base = Align4k::round_down(paddr.physint());
-    size_t pagelen = Align4k::round_up(len+paddr.physint())-base;
+    size_t base = round_down(paddr.physint(), align4K);
+    size_t pagelen = round_up(len+paddr.physint(), align4K)-base;
     void* aper_va = ::mmap(0, pagelen, PROT_READ|PROT_WRITE, MAP_SHARED, aper_fd, base);
     std::cerr << "mmap " << (void*)paddr.physint() << " size " << len
 	      << " base " << (void*)base << " pagelen " << pagelen
@@ -65,8 +65,8 @@ namespace mythos {
 
   void MemMapperPci::unmap(void const* vaddr, size_t len)
   {
-    size_t base = Align4k::round_down(size_t(vaddr));
-    size_t pagelen = Align4k::round_up(len+size_t(vaddr))-base;
+    size_t base = round_down(size_t(vaddr), align4K);
+    size_t pagelen = round_up(len+size_t(vaddr), align4K)-base;
     ::munmap((void*)base, pagelen);
   }
 

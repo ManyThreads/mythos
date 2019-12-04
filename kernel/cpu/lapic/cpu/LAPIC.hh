@@ -30,10 +30,10 @@
 #include "cpu/LAPICdef.hh"
 
 namespace mythos {
-  class LAPIC;
-  extern LAPIC lapic;
+  class XApic;
+  extern XApic lapic;
 
-  class LAPIC
+  class XApic
     : public LAPICdef
   {
   public:
@@ -55,14 +55,11 @@ namespace mythos {
     void setInitialCount(uint32_t count) { write(REG_TIMER_ICR, count); }
     uint32_t getCurrentCount() { return read(REG_TIMER_CCR).value; }
 
-    bool broadcastInitIPIEdge();
-    bool sendInitIPIEdge(cpu::ApicID apicid);
-    bool broadcastStartupIPI(size_t startIP);
-    bool sendStartupIPI(cpu::ApicID apicid, size_t startIP);
-    bool sendNMI(size_t destination);
-    bool sendIRQ(size_t destination, uint8_t vector);
+    void startupBroadcast(size_t startIP);
+    void startup(uint32_t apicid, size_t startIP);
+    void sendNMI(uint32_t apicid);
+    void sendIRQ(uint32_t apicid, uint8_t vector);
     void endOfInterrupt() { write(REG_EOI, 0); }
-    void waitForIPI();
 
   protected:
 
@@ -79,6 +76,7 @@ namespace mythos {
     }
 
     void writeIPI(size_t destination, Register icrlow);
+    void waitForIPI();
   };
 
 } // namespace mythos

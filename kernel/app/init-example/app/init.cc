@@ -124,6 +124,12 @@ void test_Portal()
 
 void test_memory_root()
 {
+  // see example mapping in PluginCpuDriverKNC.cc
+  auto ivt = reinterpret_cast<uint64_t*>(128ull*1024*1024*1024);
+  MLOG_INFO(mlog::app, "test_memory_root: try read from init mapping", DVAR(ivt));
+  auto val = *ivt;
+  MLOG_INFO(mlog::app, "...got", DVARhex(val));
+    
   uintptr_t paddr = 0xB8000; // text mode CGA screen
   uintptr_t vaddr = 22*1024*1024; // choose address different from invokation buffer
 
