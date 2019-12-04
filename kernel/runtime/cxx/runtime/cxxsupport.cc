@@ -36,6 +36,7 @@
 #include <sys/mman.h>
 #include <sys/time.h>
 #include <sys/resource.h>
+#include <bits/alltypes.h>
 
 #include "mythos/syscall.hh"
 #include "runtime/mlog.hh"
@@ -59,6 +60,7 @@ extern mythos::KernelMemory kmem;
 extern mythos::SimpleCapAllocDel capAlloc;
 
 #define NUM_CPUS (3)
+#define PS_PER_TSC (0x0000000000000181)
 
 extern "C" [[noreturn]] void __assert_fail (const char *expr, const char *file, int line, const char *func)
 {
@@ -97,20 +99,29 @@ int prlimit(
 
 int sched_setaffinity(pid_t pid, size_t cpusetsize, cpu_set_t *mask)
 {
-    MLOG_ERROR(mlog::app, "syscall sched_setaffinity", DVAR(pid), DVAR(cpusetsize), DVARhex(mask));
+    MLOG_DETAIL(mlog::app, "syscall sched_setaffinity", DVAR(pid), DVAR(cpusetsize), DVARhex(mask));
     if(cpusetsize == NUM_CPUS && mask == NULL) return -EFAULT;
     return 0;
 }
 
 int sched_getaffinity(pid_t pid, size_t cpusetsize, cpu_set_t *mask)
 {
-    MLOG_ERROR(mlog::app, "syscall sched_getaffinity", DVAR(pid), DVAR(cpusetsize), DVARhex(mask));
+    MLOG_DETAIL(mlog::app, "syscall sched_getaffinity", DVAR(pid), DVAR(cpusetsize), DVARhex(mask));
     if (mask) {
         //CPU_ZERO(mask);
 	memset(mask, 0, cpusetsize);
         for(int i = 0; i < NUM_CPUS; i++) CPU_SET(i, mask);
     }
     return NUM_CPUS;
+}
+
+void clock_gettime(long clk, struct timespec *ts){
+    unsigned low,high;
+    asm volatile("rdtsc" : "=a" (low), "=d" (high));
+    unsigned long tsc = low | uint64_t(high) << 32;	
+        MLOG_DETAIL(mlog::app, "syscall clock_gettime", DVAR(clk), DVARhex(ts), DVAR(tsc), DVAR((tsc * PS_PER_TSC)/1000000000000));
+    ts->tv_nsec = (tsc * PS_PER_TSC / 1000)%1000000000;
+    ts->tv_sec = (tsc * PS_PER_TSC)/1000000000000;
 }
 
 extern "C" long mythos_musl_syscall(
@@ -123,13 +134,13 @@ extern "C" long mythos_musl_syscall(
     // see http://blog.rchapman.org/posts/Linux_System_Call_Table_for_x86_64/
     switch (num) {
     case 13: // rt_sigaction
-        MLOG_ERROR(mlog::app, "syscall rt_sigaction NYI");
+        MLOG_WARN(mlog::app, "syscall rt_sigaction NYI");
         return 0;
     case 14: // rt_sigprocmask(how, set, oldset, sigsetsize)
-        MLOG_ERROR(mlog::app, "syscall rt_sigprocmask NYI");
+        MLOG_WARN(mlog::app, "syscall rt_sigprocmask NYI");
         return 0;
     case 16: // ioctl
-        MLOG_ERROR(mlog::app, "syscall ioctl NYI");
+        MLOG_WARN(mlog::app, "syscall ioctl NYI");
         return 0;
     case 20: // writev(fd, *iov, iovcnt)
         //MLOG_ERROR(mlog::app, "syscall writev NYI");
@@ -138,20 +149,20 @@ extern "C" long mythos_musl_syscall(
         //MLOG_ERROR(mlog::app, "syscall sched_yield NYI");
         return 0;
     case 39: // getpid
-        MLOG_ERROR(mlog::app, "syscall getpid NYI");
+        MLOG_WARN(mlog::app, "syscall getpid NYI");
         return 0;
     case 60: // exit(exit_code)
         MLOG_DETAIL(mlog::app, "syscall exit", DVAR(a1));
         asm volatile ("syscall" : : "D"(0), "S"(a1) : "memory");
         return 0;
     case 186: // gettid
-        MLOG_ERROR(mlog::app, "syscall gettid");
+        MLOG_WARN(mlog::app, "syscall gettid");
         return -1;
     case 200: // tkill(pid, sig)
-        MLOG_ERROR(mlog::app, "syscall tkill NYI");
+        MLOG_WARN(mlog::app, "syscall tkill NYI");
         return 0;
     case 202: // sys_futex
-        MLOG_DETAIL(mlog::app, "syscall futex");
+        //MLOG_DETAIL(mlog::app, "syscall futex");
         {
             uint32_t val2 = 0;
             return do_futex(reinterpret_cast<uint32_t*>(a1) /*uaddr*/, 
@@ -163,14 +174,17 @@ extern "C" long mythos_musl_syscall(
     case 204: // sched_getaffinity
         return sched_getaffinity(a1, a2, reinterpret_cast<cpu_set_t*>(a3));
     case 228: // clock_gettime
-        MLOG_ERROR(mlog::app, "syscall clock_gettime NYI");
+        //MLOG_ERROR(mlog::app, "Error: mythos_musl_syscall clock_gettime", DVAR(num), 
+            //DVARhex(a1), DVARhex(a2), DVARhex(a3),
+            //DVARhex(a4), DVARhex(a5), DVARhex(a6));
+	clock_gettime(a1, reinterpret_cast<struct timespec *>(a2));
         return 0;
     case 231: // exit_group for all pthreads 
-        MLOG_ERROR(mlog::app, "syscall exit_group NYI");
+        MLOG_WARN(mlog::app, "syscall exit_group NYI");
 	mythosExit();
         return 0;
     case 302: // prlimit64
-        MLOG_ERROR(mlog::app, "syscall prlimit64 NYI", DVAR(a1), DVAR(a2), DVAR(a3), DVAR(a4), DVAR(a5), DVAR(a6));
+        MLOG_WARN(mlog::app, "syscall prlimit64 NYI", DVAR(a1), DVAR(a2), DVAR(a3), DVAR(a4), DVAR(a5), DVAR(a6));
         return 1;
     default:
         MLOG_ERROR(mlog::app, "Error: mythos_musl_syscall NYI", DVAR(num), 
