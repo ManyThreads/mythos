@@ -175,9 +175,8 @@ namespace mythos {
     static RSDP* find(PhysPtr<char> start, size_t len) { return find(start.log(), len); }
     
     static RSDP* find(void* start, size_t len) {
-      unsigned int* search = (unsigned int*) start;
-      unsigned int* end = search + len/4;
-      for (; search < end; search+=4 ) {
+      auto pstart = reinterpret_cast<unsigned int*>(start);
+      for (auto search = pstart; size_t(search - pstart) < len/4; search+=4 ) {
 	if (search[0] != 0x20445352  ) continue; // "RSD "
 	if (search[1] != 0x20525450 ) continue; // "PTR "
 	if (((RSDP*)search)->check_sum()) return (RSDP*)search;

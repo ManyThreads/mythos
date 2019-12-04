@@ -61,8 +61,8 @@ namespace mythos {
     inline Regs cpuid(uint32_t eax, uint32_t ecx=0) {
       Regs r;
       asm volatile("cpuid"
-		   : "=a"(r.eax), "=b"(r.ebx), "=c"(r.ecx), "=d"(r.edx)
-		   : "a"(eax), "c"(ecx));
+           : "=a"(r.eax), "=b"(r.ebx), "=c"(r.ecx), "=d"(r.edx)
+           : "a"(eax), "c"(ecx));
       return r;
     }
 
@@ -71,7 +71,7 @@ namespace mythos {
     inline uint32_t initialApicID() { return bits(cpuid(1).ebx,31,24); }
     inline uint32_t maxApicThreads() { return bits(cpuid(1).ebx,23,16); }
     inline uint32_t maxApicCores() { return 1+bits(cpuid(4,0).eax,31,26); }
-    
+
     // see http://developer.amd.com/resources/documentation-articles/articles-whitepapers/processor-and-core-enumeration-using-cpuid/
     // does not work on XeonPhi
     inline uint32_t apicIdCoreIdSize() { return 1<<bits(cpuid(0x80000008).ecx,15,12); }
@@ -80,7 +80,7 @@ namespace mythos {
 
     inline bool x2ApicSupported() { return bits(cpuid(1).ecx, 21); }
     inline uint32_t x2ApicID() { return cpuid(11, 0).edx; }
-    inline uint32_t x2ApicThreadsPerCore() { return 1<<bits(cpuid(11,0).eax,4,0); } 
+    inline uint32_t x2ApicThreadsPerCore() { return 1<<bits(cpuid(11,0).eax,4,0); }
     inline uint32_t x2ApicThreadsPerPkg() { return 1<<bits(cpuid(11,1).eax,4,0); }
     inline uint32_t x2ApicThreadsEnabled(unsigned level) { return bits(cpuid(11,level).ebx,15,0); }
 
@@ -88,7 +88,7 @@ namespace mythos {
      * supported. When the PAT is supported, three bits in certain
      * paging-structure entries select a memory type (used to
      * determine type of caching used) from the PAT (see Section
-     * 4.9.2). 
+     * 4.9.2).
      */
     inline bool hasPAT() { return bits(cpuid(0x01).edx,16); }
 
@@ -140,7 +140,7 @@ namespace mythos {
 
     inline void setMSR(uint32_t msr, uint64_t value) {
       asm volatile ("wrmsr" : : "a"(uint32_t(value)),
-		    "d"(uint32_t(value >> 32)), "c"(msr));
+            "d"(uint32_t(value >> 32)), "c"(msr));
     }
 
     inline size_t getApicBase() { return (getMSR(IA32_APIC_BASE_MSR) & 0xFFFFFF000); }
@@ -201,7 +201,7 @@ namespace mythos {
       MP = 1<<1,  // Monitor co-processor: Controls interaction of WAIT/FWAIT instructions with TS flag in CR0
       PE = 1<<0   // Protected Mode Enable: If 1, system is in protected mode, else real mode
     };
-    
+
     inline size_t getCR0() {
       size_t res;
       asm volatile ("mov %%cr0, %0" : "=r"(res));
@@ -209,7 +209,7 @@ namespace mythos {
     }
 
     inline void setCR0(size_t val) { asm volatile ("mov %0, %%cr0" : : "r"(val)); }
-    
+
     /** Page Fault Linear Address (PFLA). When a page fault occurs,
      * the address the program attempted to access is stored in the
      * CR2 register.
@@ -236,10 +236,10 @@ namespace mythos {
       SMAP = 1<<21, // Supervisor Mode Access Protection Enable: access of data in a higher ring generates a fault
       SMEP = 1<<20, // Supervisor Mode Execution Protection Enable: execution of code in a higher ring generates a fault
       OSXSAVE = 1<<18, // XSAVE and Processor Extended States Enable
-      PCIDE = 1<<17, //	PCID Enable: enables process-context identifiers (PCIDs) in the TLB
+      PCIDE = 1<<17, // PCID Enable: enables process-context identifiers (PCIDs) in the TLB
       SMXE = 1<<14, // Safer Mode Extensions Enable, see Trusted Execution Technology (TXT)
       VMXE = 1<<13, // Virtual Machine Extensions Enable, see Intel VT-x
-      OSXMMEXCPT = 1<<10, // Operating System Support for Unmasked SIMD Floating-Point Exceptions 	If set, enables unmasked SSE exception.
+      OSXMMEXCPT = 1<<10, // Operating System Support for Unmasked SIMD Floating-Point Exceptions   If set, enables unmasked SSE exception.
       OSFXSR = 1<<9, // Operating system support for FXSAVE and FXRSTOR instructions: enables SSE instructions and fast FPU save & restore
       PCE = 1<<8, // Performance-Monitoring Counter enable: RDPMC can be executed at any privilege level, else RDPMC can only be used in ring 0
       PGE = 1<<7, // Page Global Enabled: address translations may be shared between address spaces
@@ -251,7 +251,7 @@ namespace mythos {
       PVI = 1<<1, // Protected-mode Virtual Interrupts: enables support for the virtual interrupt flag (VIF) in protected mode
       VME = 1<<0  // Virtual 8086 Mode Extensions: enables support for the virtual interrupt flag (VIF) in virtual-8086 mode
     };
-    
+
     inline size_t getCR4() {
       size_t res;
       asm volatile ("mov %%cr4, %0" : "=r"(res));
@@ -280,12 +280,12 @@ namespace mythos {
       asm volatile("mov %%cr3,%0\n\t" : "=r" (val), "=m" (__force_order));
       return val;
     }
-    
+
     inline void flushTLB() { loadPageTable(getPageTable()); }
 
     inline void flushTLB(void *log_addr) {
       asm volatile("invlpg (%0)" ::"r" (log_addr) : "memory");
     }
   } // namespace cpu
-  
+
 } // namespace mythos
