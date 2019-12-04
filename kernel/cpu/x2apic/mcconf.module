@@ -1,5 +1,5 @@
 # -*- mode:toml; -*-
-[module.lapic]
+[module.local-x2apic]
     incfiles = [ "cpu/LAPIC.hh" ]
     kernelfiles = [ "cpu/LAPIC.cc" ]
-    requires = [ "tag/cpu/xapic" ]
+    requires = [ "tag/cpu/x2apic" ]

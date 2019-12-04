@@ -25,18 +25,19 @@
  */
 #pragma once
 
-#include "boot/memory-layout.h"
-#include "cpu/hwthreadid.hh"
 #include "cpu/LAPICdef.hh"
 
 namespace mythos {
-  class LAPIC;
-  extern LAPIC lapic;
+  class XApic;
+  extern XApic lapic;
 
-  class LAPIC
+  class XApic
     : public LAPICdef
   {
   public:
+    XApic(uintptr_t base)
+      : lapic_base(reinterpret_cast<volatile uint32_t*>(base)) {}
+
     void init();
     bool isEnabled() { return read(REG_SVR).apic_enable; }
     uint32_t getId() { return read(REG_APICID).apic_id;  }
@@ -44,41 +45,32 @@ namespace mythos {
     uint8_t getVersion() { return uint8_t(read(REG_VERSION).version); }
     uint8_t getMaxLVT() { return uint8_t(read(REG_VERSION).max_lvt_entry); }
 
-    // TODO change interface to pass divider (3bit) and timer mode, may leave convenience methods
-    void enablePeriodicTimer(uint8_t irq, uint32_t count);
-    void disableTimer();
+    void startupBroadcast(size_t startIP);
+    void startup(uint32_t apicid, size_t startIP);
+    void sendNMI(uint32_t apicid);
+    void sendIRQ(uint32_t apicid, uint8_t vector);
+    void endOfInterrupt() { write(REG_EOI, 0); }
 
     /** initial count register contains the start value, current count
      * register is decremented until reaching zero. writing the
      * initial count will reset the current count.
+     *
+     * @todo change interface to pass divider (3bit)
      */
-    void setInitialCount(uint32_t count) { write(REG_TIMER_ICR, count); }
-    uint32_t getCurrentCount() { return read(REG_TIMER_CCR).value; }
+    void setTimerCounter(uint32_t count);
+    uint32_t getTimerCounter();
+    void enableTimer(uint8_t irq, bool periodic);
+    void disableTimer();
 
-    bool broadcastInitIPIEdge();
-    bool sendInitIPIEdge(cpu::ApicID apicid);
-    bool broadcastStartupIPI(size_t startIP);
-    bool sendStartupIPI(cpu::ApicID apicid, size_t startIP);
-    bool sendNMI(size_t destination);
-    bool sendIRQ(size_t destination, uint8_t vector);
-    void endOfInterrupt() { write(REG_EOI, 0); }
+  protected:
+    Register edgeIPI(IrcDestinationShorthand dest, IcrDeliveryMode mode, uint8_t vec);
+    Register read(size_t reg) { return lapic_base[reg/4]; }
+    void write(size_t reg, Register value) { lapic_base[reg/4] = value.value; }
+    void writeIPI(size_t destination, Register icrlow);
     void waitForIPI();
 
   protected:
-
-    void initMSR();
-
-    static Register edgeIPI(IrcDestinationShorthand dest, IcrDeliveryMode mode, uint8_t vec);
-
-    static Register read(size_t reg) {
-      return *((volatile uint32_t*)(LAPIC_ADDR + reg));
-    }
-
-    static void write(size_t reg, Register value) {
-      *(volatile uint32_t*)(LAPIC_ADDR + reg) = value.value;
-    }
-
-    void writeIPI(size_t destination, Register icrlow);
+    volatile uint32_t* lapic_base;
   };
 
 } // namespace mythos
