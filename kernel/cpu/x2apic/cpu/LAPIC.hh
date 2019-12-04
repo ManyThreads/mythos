@@ -48,6 +48,17 @@ public: // public methods for mythos
     void sendIRQ(uint32_t apicid, uint8_t vector);
     void endOfInterrupt();
 
+    /** initial count register contains the start value, current count
+     * register is decremented until reaching zero. writing the
+     * initial count will reset the current count.
+     *
+     * @todo change interface to pass divider (3bit)
+     */
+    void setTimerCounter(uint32_t count);
+    uint32_t getTimerCounter();
+    void enableTimer(uint8_t irq, bool periodic);
+    void disableTimer();
+
 public: // plattform specific constants and types
 
     enum RegisterAddr {
@@ -126,6 +137,15 @@ public: // plattform specific constants and types
     RegICR() : value(0) {}
     BITFIELD_END
 
+    BITFIELD_DEF(uint64_t, RegLVT)
+    UIntField<value_t,base_t, 0,8> vector;
+    BoolField<value_t,base_t, 13> pin_polarity;
+    BoolField<value_t,base_t, 14> remote_irr;
+    BoolField<value_t,base_t, 15> trigger_mode;
+    BoolField<value_t,base_t, 16> masked;
+    UIntField<value_t,base_t, 17,2> timer_mode;
+    RegLVT() : value(0) {}
+    BITFIELD_END
 
     BITFIELD_DEF(uint64_t, Register)
     BoolField<value_t,base_t, 24> eio_sup_supported; // REG_VERSION EIO broadcast suppression supported
@@ -134,11 +154,7 @@ public: // plattform specific constants and types
     BoolField<value_t,base_t, 8> apic_enable; // REG_SVR
     BoolField<value_t,base_t, 9> focus_processor_checking; // REG_SVR
     BoolField<value_t,base_t, 12> eio_suppression; // REG_SVR
-    BoolField<value_t,base_t, 13> pin_polarity; // REG_LVT
-    BoolField<value_t,base_t, 14> remote_irr; // REG_LVT
-    BoolField<value_t,base_t, 15> trigger_mode; // REG_LVT
-    BoolField<value_t,base_t, 16> masked; // REG_LVT
-    UIntField<value_t,base_t, 17,2> timer_mode; // REG_LVT
+    UIntField<value_t,base_t, 0,8> vector;
     Register() : value(0) {}
     BITFIELD_END
 
@@ -146,9 +162,6 @@ public: // plattform specific constants and types
       TIMER_DIVIDER  = 16ul,
       FREQUENCY_DIV  = 200ul
     };
-
-    constexpr static uint8_t ENABLE_APIC = 8;
-    constexpr static uint8_t APIC_BSP_FLAG = 8; //  Intel SDM, Vol. 3A, section 10.4.4.
 };
 
 //} // namespace cpu
