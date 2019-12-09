@@ -83,7 +83,7 @@ struct smp_boot_param {
 	 * ihk_smp_boot_param_memory_chunk structures.
 	 */
 	unsigned long start, end;
-	unsigned long status;
+	volatile unsigned long status;
 	/* Size of this structure (including all the postix data) */
 	int param_size;
 
