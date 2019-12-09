@@ -4,8 +4,15 @@
 #include <cstddef>
 #include <cstring>
 
+#ifndef USE_SEQUENTIAL_HEAP
 namespace mythos {
     SequentialHeap<uintptr_t> heap;
+} // namespace mythos
+
+#else
+
+namespace mythos {
+    SequentialHeap<uintptr_t, align4K> heap;
 } // namespace mythos
 
 void* operator new(std::size_t size) NOEXCEPT(true) {
@@ -58,10 +65,11 @@ extern "C" void *realloc(void *ptr, size_t size) {
     if (size == oldsize) return ptr; // size did not change
     void* n = malloc(size);
     if (n == nullptr) {
-        if (size == 0) free(ptr); // should behave like free()
-        return nullptr;
+	if (size == 0) free(ptr); // should behave like free()
+	return nullptr;
     }
     if (size > oldsize) memcpy(n, ptr, oldsize);
     else memcpy(n, ptr, size);
     return n;
 }
+#endif

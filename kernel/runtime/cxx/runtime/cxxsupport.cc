@@ -51,6 +51,7 @@
 #include "runtime/SimpleCapAlloc.hh"
 #include "runtime/tls.hh"
 #include "runtime/futex.hh"
+#include "runtime/umem.hh"
 
 extern mythos::InvocationBuf* msg_ptr asm("msg_ptr");
 extern mythos::Portal portal;
@@ -120,7 +121,7 @@ void clock_gettime(long clk, struct timespec *ts){
     unsigned low,high;
     asm volatile("rdtsc" : "=a" (low), "=d" (high));
     unsigned long tsc = low | uint64_t(high) << 32;	
-        MLOG_DETAIL(mlog::app, "syscall clock_gettime", DVAR(clk), DVARhex(ts), DVAR(tsc), DVAR((tsc * PS_PER_TSC)/1000000000000));
+        //MLOG_DETAIL(mlog::app, "syscall clock_gettime", DVAR(clk), DVARhex(ts), DVAR(tsc), DVAR((tsc * PS_PER_TSC)/1000000000000));
     ts->tv_nsec = (tsc * PS_PER_TSC / 1000)%1000000000;
     ts->tv_sec = (tsc * PS_PER_TSC)/1000000000000;
 }
@@ -134,6 +135,18 @@ extern "C" long mythos_musl_syscall(
     //DVAR(a4), DVAR(a5), DVAR(a6));
     // see http://blog.rchapman.org/posts/Linux_System_Call_Table_for_x86_64/
     switch (num) {
+    case 9:  //mmap
+        MLOG_WARN(mlog::app, "syscall mmap NYI please use stub");
+        return 0;
+    case 10:  //mprotect
+        MLOG_WARN(mlog::app, "syscall mprotect NYI");
+        return 0;
+    case 11:  //munmap
+        MLOG_WARN(mlog::app, "syscall munmap NYI please use stub!");
+        return 0;
+    case 12:  //brk
+        MLOG_WARN(mlog::app, "syscall brk NYI");
+        return -1;
     case 13: // rt_sigaction
         MLOG_WARN(mlog::app, "syscall rt_sigaction NYI");
         return 0;
@@ -148,6 +161,9 @@ extern "C" long mythos_musl_syscall(
         return writev(a1, reinterpret_cast<const struct iovec *>(a2), a3);
     case 24: // sched_yield
         //MLOG_ERROR(mlog::app, "syscall sched_yield NYI");
+        return 0;
+    case 28:  //madvise
+        MLOG_WARN(mlog::app, "syscall madvise NYI");
         return 0;
     case 39: // getpid
         MLOG_WARN(mlog::app, "syscall getpid NYI");
@@ -198,16 +214,20 @@ extern "C" long mythos_musl_syscall(
 extern "C" void * mmap(void *start, size_t len, int prot, int flags, int fd, off_t off)
 {
     // dummy implementation
-    MLOG_DETAIL(mlog::app, "mmap");
-    if (fd == -1) return malloc(len);
-    errno = ENOMEM;
-    return MAP_FAILED;
+    //MLOG_DETAIL(mlog::app, "mmap", DVAR(start), DVAR(len), DVAR(prot), DVAR(prot), DVAR(flags), DVAR(fd), DVAR(off));
+    auto tmp = mythos::heap.alloc(len);
+    if (!tmp){ 
+	    errno = ENOMEM;
+	    return MAP_FAILED;
+    }
+    return reinterpret_cast<void*>(*tmp);
 }
 
 extern "C" int munmap(void *start, size_t len)
 {
     // dummy implementation
-    MLOG_DETAIL(mlog::app, "munmap");
+    //MLOG_DETAIL(mlog::app, "munmap", DVAR(start), DVAR(len));
+    mythos::heap.free(reinterpret_cast<unsigned long>(start));
     return 0;
 }
 
@@ -235,13 +255,14 @@ int myclone(
 {
     MLOG_DETAIL(mlog::app, "myclone");
     ASSERT(tls != nullptr);
+    static int nextThread = 1;
 
     mythos::PortalLock pl(portal); // future access will fail if the portal is in use already
     mythos::ExecutionContext ec(capAlloc());
     if (ptid && (flags&CLONE_PARENT_SETTID)) *ptid = int(ec.cap());
     // @todo store thread-specific ctid pointer, which should set to 0 by the OS on the thread's exit
     // @todo needs interaction with a process internal scheduler or core manager in order to figure out where to schedule the new thread
-    auto res1 = ec.create(kmem).as(myAS).cs(myCS).sched(mythos::init::SCHEDULERS_START + 1)
+    auto res1 = ec.create(kmem).as(myAS).cs(myCS).sched(mythos::init::SCHEDULERS_START + (nextThread++))
         .prepareStack(stack).startFunInt(func, arg, ec.cap())
         .suspended(false).fs(tls)
         .invokeVia(pl).wait();
