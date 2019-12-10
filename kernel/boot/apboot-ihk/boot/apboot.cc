@@ -108,7 +108,7 @@ NORETURN void apboot()
   // read acpi topology, then initialise HWThread objects
   cpu::hwThreadCount = ihk_get_nr_cores();
   ASSERT(cpu::getNumThreads() < MYTHOS_MAX_THREADS);
-  MLOG_INFO(mlog::boot, DVAR(cpu::getNumThreads()), DVAR(ihk_get_nr_cores()));
+  MLOG_WARN(mlog::boot, DVAR(cpu::getNumThreads()), DVAR(ihk_get_nr_cores()));
 
   for (cpu::ThreadID id=0; id<cpu::getNumThreads(); id++) {
     MLOG_INFO(mlog::boot, DVAR(id),
