@@ -32,6 +32,8 @@
 #define KERNEL_CLM      __attribute__((section (".kernel_clm")))
 #define KERNEL_CLM_HOT  __attribute__((section (".kernel_clm.hot")))
 
+extern char CLM_BLOCKEND;
+
 namespace mythos {
 
   class KernelCLM
@@ -40,6 +42,7 @@ namespace mythos {
     static void init(size_t size) {
       blockSize = size;
       offset = 0;
+      memset(&CLM_BLOCKEND, 0, size * (MYTHOS_MAX_THREADS - 1));
     }
     static size_t getBlockSize() { return blockSize; }
     static size_t getOffset(size_t threadID) { return threadID*blockSize; }
