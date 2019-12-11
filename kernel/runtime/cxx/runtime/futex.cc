@@ -35,8 +35,8 @@ struct FutexQueueElem
 {
     mythos::CapPtr ec;
     uint32_t* uaddr;
-    FutexQueueElem* next;
-};
+    FutexQueueElem* next;	
+}; 
 
 FutexQueueElem* queueHead = nullptr;
 FutexQueueElem** queueTail = &queueHead;
@@ -53,7 +53,7 @@ static int futex_wait(
     qe.next = nullptr;
 
     volatile uint32_t* addr = uaddr;
-    { // enqueue self
+    { // enqueue self 
         mythos::Mutex::Lock guard(readLock);
         *queueTail = &qe;
         queueTail = &qe.next;
@@ -61,32 +61,30 @@ static int futex_wait(
 
     if (val == *addr) {
         //MLOG_DETAIL(mlog::app, "going to wait", DVAR(mythos::localEC));
-        auto sysret = mythos::syscall_wait();
+        auto sysret = mythos::syscall_wait();	
     }else{
         //MLOG_DETAIL(mlog::app, "val != *addr");
     }
 
     {
-        // remove the own element from the queue in case it is still there
-        //todo: only lock futex if qe.next != 1ul
+	//todo: only lock futex if qe.next != 1ul
         mythos::Mutex::Lock guard(readLock);
-        if (reinterpret_cast<uint64_t>(qe.next) != 1ul) {
-            //MLOG_DETAIL(mlog::app, "next != 1 -> remove this element from queue");
-            auto curr = &queueHead;
-            while (*curr != nullptr) { // did not reach end of list yet
-                ASSERT(reinterpret_cast<uint64_t>(*curr) != 1ul);
-                if (*curr == &qe) { // found our own element, curr points to it
-                    if (queueTail == &(*curr)->next) { // own element is the tail of list
-                        //MLOG_DETAIL(mlog::app, "last elem in queue");
-                        queueTail = curr; // move tail to the element that points to our element
-                    }
-                    *curr = qe.next; // let's skip our element
-                    break; // it can be on the list just once
-                }
-                curr = &(*curr)->next; // go to next element in the list
-            }
+	    if (reinterpret_cast<uint64_t>(qe.next) != 1ul) {
+		//MLOG_DETAIL(mlog::app, "next != 1 -> remove this element from queue");
+		auto curr = &queueHead;
+		while (*curr) {
+		    if ((*curr)->next == &qe){
+			if (queueTail == &qe.next) {
+				//MLOG_DETAIL(mlog::app, "last elem in queue");
+				queueTail = &(*curr)->next;
+		    	}
+		    	(*curr)->next = qe.next;
+			break;
+		    }
+		    curr = &(*curr)->next;
+		}
 
-        }
+	    }
     }
 
     //MLOG_DETAIL(mlog::app, "Return from futex_wait");
@@ -99,22 +97,22 @@ static int futex_wake(
     //MLOG_DETAIL(mlog::app, "Futex_wake", DVARhex(uaddr), DVAR(*uaddr));
     mythos::Mutex::Lock guard(readLock);
 
-    auto curr = &queueHead;
+    auto curr = &queueHead; 
     for (int i = 0; i < nr_wake; i++) {
         while ((*curr) && (*curr)->uaddr != uaddr) {
-            MLOG_DETAIL(mlog::app, "Skip entry", DVARhex((*curr)->uaddr), DVAR((*curr)->ec), DVAR((*curr)->next), DVARhex(uaddr) );
+            //MLOG_DETAIL(mlog::app, "Skip entry", DVARhex((*curr)->uaddr), DVAR((*curr)->ec), DVAR((*curr)->next), DVARhex(uaddr) );
             curr = &(*curr)->next;
         }
 
-        if (*curr != nullptr) {
+        if (*curr) {
             //MLOG_DETAIL(mlog::app, "Found entry matching" );
-            if (queueTail == &(*curr)->next) {
-                //MLOG_DETAIL(mlog::app, "last elem in queue");
-                queueTail = curr;
-            }
+	    if (queueTail == &(*curr)->next) {
+		//MLOG_DETAIL(mlog::app, "last elem in queue");
+		queueTail = curr;
+	    }
             auto entry = *curr;
             *curr = entry->next;
-            auto ec = entry->ec;
+	    auto ec = entry->ec;
             entry->next = reinterpret_cast<FutexQueueElem*>(1ul);
             //MLOG_DETAIL(mlog::app, "Wake EC", DVAR(ec) );
             mythos::syscall_signal(ec);
@@ -148,7 +146,7 @@ long do_futex(
         //MLOG_DETAIL(mlog::app, "FUTEX_WAIT");
         val3 = FUTEX_BITSET_MATCH_ANY;
         /* fall through */
-    case FUTEX_WAIT_BITSET:
+    case FUTEX_WAIT_BITSET:	
         //MLOG_DETAIL(mlog::app, "FUTEX_WAIT_BITSET");
         return futex_wait(uaddr, flags, val, timeout, val3);
     case FUTEX_WAKE:
