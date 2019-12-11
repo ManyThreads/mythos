@@ -6,7 +6,7 @@
       "tag/cpu/amd64",
       "tag/cpu/delay",
       "tag/cpu/clevict",
-      "tag/cpu/kncapic",
+      "tag/cpu/kncapic", "tag/cpu/xapic",
       "tag/mode/kernel",
       "tag/compiler/gcc",
       "tag/boot/sfi",
@@ -18,4 +18,8 @@
     requires = [
       "boot64.elf",
       "Makefile",
+      ]
+
+    modules = [
+      "lapic", "lapic-kncapic",
       ]

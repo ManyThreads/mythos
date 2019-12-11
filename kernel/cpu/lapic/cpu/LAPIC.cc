@@ -29,28 +29,16 @@
 #include "boot/mlog.hh"
 #include "util/assert.hh"
 
-namespace mythos {
-XApic lapic;
+#include "boot/memory-layout.h"
 
-void XApic::initMSR()
-{
-    using namespace mythos::x86;
-    if (x2ApicSupported()) {
-        MLOG_DETAIL(mlog::boot, "detected x2Apic support");
-        if (isX2ApicEnabled()) {
-            MLOG_INFO(mlog::boot, "x2Apic is enabled, reset LAPIC by disabling");
-            disableApic(); // disables both xAPIC and x2APIC
-            enableApic(); // reenables xAPIC
-            ASSERT(!isX2ApicEnabled());
-        }
-    }
-}
+namespace mythos {
+
+XApic lapic(LAPIC_ADDR);
 
 void XApic::init() {
     MLOG_DETAIL(mlog::boot, "initializing local xAPIC");
+    PANIC(!(x86::x2ApicSupported() && x86::isX2ApicEnabled())); // panic if already x2apic running
     Register value;
-
-    initMSR();
 
     // init the Destination Format Register and the Logical
     // Destination Register Intel recommends to set DFR, LDR and TPR
@@ -123,15 +111,24 @@ void XApic::init() {
     write(REG_ESR, 0); read(REG_ESR); // Due to the Pentium erratum 3AP.
 }
 
-void XApic::enablePeriodicTimer(uint8_t irq, uint32_t count) {
-    MLOG_INFO(mlog::boot, "enable periodic APIC timer", DVAR(irq), DVAR(count));
+void XApic::setTimerCounter(uint32_t count)
+{
     write(REG_TIMER_DCR, 0x0b);  // divide bus clock by 0xa=128 or 0xb=1
-    setInitialCount(count);
-    write(REG_LVT_TIMER, read(REG_LVT_TIMER).timer_mode(PERIODIC).masked(0).vector(irq));
+    write(REG_TIMER_ICR, count);
+}
+
+uint32_t XApic::getTimerCounter()
+{
+    return read(REG_TIMER_CCR).value;
+}
+
+void XApic::enableTimer(uint8_t irq, bool periodic) {
+    MLOG_INFO(mlog::boot, "xapic enable timer", DVAR(irq), DVAR(periodic));
+    write(REG_LVT_TIMER, read(REG_LVT_TIMER).timer_mode(periodic ? PERIODIC : ONESHOT).masked(0).vector(irq));
 }
 
 void XApic::disableTimer() {
-    MLOG_INFO(mlog::boot, "disable APIC timer");
+    MLOG_INFO(mlog::boot, "xapic disable timer");
     write(REG_LVT_TIMER, read(REG_LVT_TIMER).timer_mode(ONESHOT).masked(1).vector(0));
 }
 
@@ -153,11 +150,10 @@ void XApic::startupBroadcast(size_t startIP)
     write(REG_ESR, 0); // Be paranoid about clearing APIC errors.
     read(REG_ESR);
     writeIPI(0, edgeIPI(ICR_DESTSHORT_NOTSELF, MODE_INIT, 0));
-    hwthread_wait(10000);
     // This delay must happen between `broadcastInitIPIEdge` and
     // `broadcastStartupIPI` in order for all hardware threads to
     // start on the real hardware.
-    hwthread_wait(10000); // 10000 us ??
+    hwthread_wait(10000); // 10000us
     auto esr = read(REG_ESR).value;
     MLOG_DETAIL(mlog::boot, "apic broadcasted INIT", DVARhex(esr));
 
@@ -182,11 +178,10 @@ void XApic::startup(uint32_t apicid, size_t startIP)
       .delivery_mode(MODE_INIT).vector(0)
       .delivery_pending(0);
     writeIPI(apicid, assertINIT);
-    waitForIPI();
     // This delay must happen between `broadcastInitIPIEdge` and
     // `broadcastStartupIPI` in order for all hardware threads to
     // start on the real hardware.
-    hwthread_wait(10000); // 10000 us ??
+    hwthread_wait(10000); // 10000us
     auto esr = read(REG_ESR).value;
     MLOG_DETAIL(mlog::boot, "apic sent INIT", DVAR(apicid), DVARhex(esr));
 
@@ -202,12 +197,12 @@ void XApic::startup(uint32_t apicid, size_t startIP)
     esr = read(REG_ESR).value;
     MLOG_DETAIL(mlog::boot, "apic sent SIPI", DVAR(apicid), DVARhex(esr));
 
-    // a second edge might actually be needed
-    hwthread_wait(200); // 200 us ??
-    waitForIPI();
-    writeIPI(apicid, edgeIPI(ICR_DESTSHORT_NO, MODE_SIPI, uint8_t(startIP >> 12)));
-    esr = read(REG_ESR).value;
-    MLOG_DETAIL(mlog::boot, "apic sent SIPI", DVAR(apicid), DVARhex(esr));
+    // a second edge might be needed, fine with a single one for now
+    //hwthread_wait(200); // 200us
+    //waitForIPI();
+    //writeIPI(apicid, edgeIPI(ICR_DESTSHORT_NO, MODE_SIPI, uint8_t(startIP >> 12)));
+    //esr = read(REG_ESR).value;
+    //MLOG_DETAIL(mlog::boot, "apic sent SIPI", DVAR(apicid), DVARhex(esr));
 }
 
 void XApic::sendNMI(uint32_t apicid) {
@@ -231,7 +226,6 @@ void XApic::writeIPI(size_t destination, Register icrlow) {
     MLOG_DETAIL(mlog::boot, "write ICR", DVAR(destination), DVARhex(icrlow.value));
 
     waitForIPI();
-
     write(REG_ICR_HIGH, Register().destination(destination));
     write(REG_ICR_LOW, icrlow);
 }
