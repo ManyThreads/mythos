@@ -169,7 +169,7 @@ void dumpTable(uint64_t* table)
 {
   kputs("\ndumpTable:");
   putHex((uint64_t)table);
-  table = (uint64_t*)((((uint64_t)table) >> 12) << 12);	
+  table = (uint64_t*)((((uint64_t)table) >> 12) << 12);
   if(table) {
     kputs("\n");
     for(int i = 0; i < 512; i++) {
@@ -203,7 +203,7 @@ void _start_ihk_mythos_(
 
   kmsg_buf = (struct ihk_kmsg_buf*)phys_to_virt(boot_param->msg_buffer);
 
-  kputs("Hello from the other side!\n");	
+  kputs("Hello from the other side!\n");
   //putHex(_ap_trampoline);
   //putHex(phys_address);
   //putHex(boot_param->bootstrap_mem_end);
@@ -218,8 +218,8 @@ void _start_ihk_mythos_(
   //putHex(trampo->stack_ptr);
   //putHex(trampo->notify_addr);
 
-  void* rq = alloc_pages(1); 
-  void* wq = alloc_pages(1); 
+  void* rq = alloc_pages(1);
+  void* wq = alloc_pages(1);
 
   boot_param->mikc_queue_recv = virt_to_phys(wq);
   boot_param->mikc_queue_send = virt_to_phys(rq);
@@ -227,7 +227,7 @@ void _start_ihk_mythos_(
   /* get ready */
   boot_param->status = 1; // @todo is this to early? when does IHK expect the trampoline to be free again?
   asm volatile("" ::: "memory");
-  
+
   kputs("ns_per_tsc = ");
   putHex(boot_param->ns_per_tsc);
   kputs("\n");
@@ -274,15 +274,15 @@ void _start_ihk_mythos_(
 
   /* image_pml2 */
   for (unsigned i = 0; i < 1024; i++) image_pml2[i] = INVALID;
-  for (unsigned i = 0; i < 4; i++) 
+  for (unsigned i = 0; i < 4; i++)
     image_pml2[512+0x1f4 + i] = PML2_BASE + i * PML2_PAGESIZE + x86_kernel_phys_base;
 
   /* pml2_tables */
   for (unsigned i = 0; i < 2048; i++) {
     if (phys_address + i * PML2_PAGESIZE < boot_param->bootstrap_mem_end) {
-      pml2_tables[i] = PML2_BASE + x86_kernel_phys_base + i*PML2_PAGESIZE; 
+      pml2_tables[i] = PML2_BASE + x86_kernel_phys_base + i*PML2_PAGESIZE;
     } else {
-      pml2_tables[i] = INVALID; 
+      pml2_tables[i] = INVALID;
     }
   }
 
@@ -345,8 +345,8 @@ class IhkInitLoaderPlugin
 {
 public:
     IhkInitLoaderPlugin() { event::initLoader.add(this); }
-    void processEvent(InitLoader& loader) override {
-      // map arbitrary memory into the init application: 
+    void processEvent(InitLoader& /*loader*/) override {
+      // map arbitrary memory into the init application:
       // virtual addr, size, writable, executable, physical address
       //loader.memMapper.mmapDevice(vaddr, size, true, false, physaddr);
     }
