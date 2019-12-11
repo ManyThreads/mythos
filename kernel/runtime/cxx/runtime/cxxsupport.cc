@@ -60,7 +60,10 @@ extern mythos::PageMap myAS;
 extern mythos::KernelMemory kmem;
 extern mythos::SimpleCapAllocDel capAlloc;
 
-#define NUM_CPUS (3)
+#ifndef NUM_CPUS
+#define NUM_CPUS (2)
+#endif
+
 #define PS_PER_TSC (0x0000000000000181)
 
 extern "C" [[noreturn]] void __assert_fail (const char *expr, const char *file, int line, const char *func)
@@ -145,13 +148,13 @@ extern "C" long mythos_musl_syscall(
         MLOG_WARN(mlog::app, "syscall munmap NYI please use stub!");
         return 0;
     case 12:  //brk
-        MLOG_WARN(mlog::app, "syscall brk NYI");
+        //MLOG_WARN(mlog::app, "syscall brk NYI");
         return -1;
     case 13: // rt_sigaction
-        MLOG_WARN(mlog::app, "syscall rt_sigaction NYI");
+        //MLOG_WARN(mlog::app, "syscall rt_sigaction NYI");
         return 0;
     case 14: // rt_sigprocmask(how, set, oldset, sigsetsize)
-        MLOG_WARN(mlog::app, "syscall rt_sigprocmask NYI");
+        //MLOG_WARN(mlog::app, "syscall rt_sigprocmask NYI");
         return 0;
     case 16: // ioctl
         MLOG_WARN(mlog::app, "syscall ioctl NYI");

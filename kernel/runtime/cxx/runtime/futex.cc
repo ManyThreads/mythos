@@ -102,7 +102,7 @@ static int futex_wake(
     auto curr = &queueHead;
     for (int i = 0; i < nr_wake; i++) {
         while ((*curr) && (*curr)->uaddr != uaddr) {
-            MLOG_DETAIL(mlog::app, "Skip entry", DVARhex((*curr)->uaddr), DVAR((*curr)->ec), DVAR((*curr)->next), DVARhex(uaddr) );
+            //MLOG_DETAIL(mlog::app, "Skip entry", DVARhex((*curr)->uaddr), DVAR((*curr)->ec), DVAR((*curr)->next), DVARhex(uaddr) );
             curr = &(*curr)->next;
         }
 
