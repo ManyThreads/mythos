@@ -145,7 +145,7 @@ extern "C" long mythos_musl_syscall(
         MLOG_WARN(mlog::app, "syscall munmap NYI please use stub!");
         return 0;
     case 12:  //brk
-        //MLOG_WARN(mlog::app, "syscall brk NYI");
+        MLOG_WARN(mlog::app, "syscall brk NYI");
         return -1;
     case 13: // rt_sigaction
         MLOG_WARN(mlog::app, "syscall rt_sigaction NYI");
@@ -253,7 +253,7 @@ int myclone(
     int (*func)(void *), void *stack, int flags, 
     void *arg, int* ptid, void* tls, int* ctid)
 {
-    MLOG_WARN(mlog::app, "myclone");
+    MLOG_DETAIL(mlog::app, "myclone");
     ASSERT(tls != nullptr);
     static int nextThread = 1;
 
