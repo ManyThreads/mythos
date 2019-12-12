@@ -223,6 +223,11 @@ extern "C" void * mmap(void *start, size_t len, int prot, int flags, int fd, off
 	    errno = ENOMEM;
 	    return MAP_FAILED;
     }
+
+    if (flags & MAP_ANONYMOUS)  {
+        memset(reinterpret_cast<void*>(*tmp), 0, len);
+    }
+
     return reinterpret_cast<void*>(*tmp);
 }
 
