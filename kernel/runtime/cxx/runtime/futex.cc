@@ -38,33 +38,37 @@ struct FutexQueueElem
     FutexQueueElem* next;
 };
 
-FutexQueueElem* queueHead = nullptr;
-FutexQueueElem** queueTail = &queueHead;
-mythos::Mutex readLock;
+static FutexQueueElem* queueHead = nullptr;
+static FutexQueueElem** queueTail = &queueHead;
+static mythos::Mutex readLock;
 
 static int futex_wait(
     uint32_t *uaddr, unsigned int flags, uint32_t val,
     uint32_t *abs_time, uint32_t bitset)
 {
-    if(abs_time != nullptr) MLOG_WARN(mlog::app, "futex_wait", DVARhex(abs_time), DVARhex(uaddr), DVAR(*uaddr), DVAR(val));
+    //MLOG_WARN(mlog::app, "futex_wait", DVARhex(abs_time), DVARhex(uaddr), DVAR(*uaddr), DVAR(val));
+    if(abs_time != nullptr) MLOG_WARN(mlog::app, "!!!!TIMEOUT!!!!", DVARhex(abs_time), DVARhex(uaddr), DVAR(*uaddr), DVAR(val));
     FutexQueueElem qe;
     qe.ec = mythos::localEC;
     qe.uaddr = uaddr;
     qe.next = nullptr;
 
-    volatile uint32_t* addr = uaddr;
+    ASSERT(sizeof(std::atomic<uint32_t>) == sizeof(uint32_t));
+    std::atomic<uint32_t>* addr = reinterpret_cast<std::atomic<uint32_t>*>(uaddr);
     { // enqueue self
         mythos::Mutex::Lock guard(readLock);
+
+	if(val != addr->load()){
+		//MLOG_DETAIL(mlog::app, "val != *addr");
+		return -EAGAIN;
+	}
+
         *queueTail = &qe;
         queueTail = &qe.next;
     }
 
-    if (val == *addr) {
-        //MLOG_DETAIL(mlog::app, "going to wait", DVAR(mythos::localEC));
-        auto sysret = mythos::syscall_wait();
-    }else{
-        //MLOG_DETAIL(mlog::app, "val != *addr");
-    }
+	//MLOG_DETAIL(mlog::app, "going to wait", DVAR(mythos::localEC));
+	auto sysret = mythos::syscall_wait();
 
     {
         // remove the own element from the queue in case it is still there
@@ -102,14 +106,14 @@ static int futex_wake(
     auto curr = &queueHead;
     for (int i = 0; i < nr_wake; i++) {
         while ((*curr) && (*curr)->uaddr != uaddr) {
-            //MLOG_DETAIL(mlog::app, "Skip entry", DVARhex((*curr)->uaddr), DVAR((*curr)->ec), DVAR((*curr)->next), DVARhex(uaddr) );
+	    //MLOG_DETAIL(mlog::app, "Skip entry", DVARhex((*curr)->uaddr), DVAR((*curr)->ec), DVAR((*curr)->next), DVARhex(uaddr) );
             curr = &(*curr)->next;
         }
 
         if (*curr != nullptr) {
-            //MLOG_DETAIL(mlog::app, "Found entry matching" );
+	    //MLOG_DETAIL(mlog::app, "Found entry matching" );
             if (queueTail == &(*curr)->next) {
-                //MLOG_DETAIL(mlog::app, "last elem in queue");
+		//MLOG_DETAIL(mlog::app, "last elem in queue");
                 queueTail = curr;
             }
             auto entry = *curr;
@@ -120,9 +124,11 @@ static int futex_wake(
             mythos::syscall_signal(ec);
         } else {
             //MLOG_DETAIL(mlog::app, "Reached end of queue" );
+	    //MLOG_DETAIL(mlog::app, "wake end" );
             return 0;
         }
     }
+    //MLOG_DETAIL(mlog::app, "wake end" );
     return 0;
 }
 
@@ -145,15 +151,15 @@ long do_futex(
 
     switch (cmd) {
     case FUTEX_WAIT:
-        //MLOG_DETAIL(mlog::app, "FUTEX_WAIT");
+	//MLOG_DETAIL(mlog::app, "FUTEX_WAIT");
         val3 = FUTEX_BITSET_MATCH_ANY;
         /* fall through */
         return futex_wait(uaddr, flags, val, timeout, val3);
     case FUTEX_WAIT_BITSET:
-	MLOG_WARN(mlog::app, "FUTEX_WAIT_BITSET");
+	//MLOG_WARN(mlog::app, "FUTEX_WAIT_BITSET");
         return futex_wait(uaddr, flags, val, timeout, val3);
     case FUTEX_WAKE:
-        //MLOG_DETAIL(mlog::app, "FUTEX_WAKE");
+	//MLOG_DETAIL(mlog::app, "FUTEX_WAKE");
         val3 = FUTEX_BITSET_MATCH_ANY;
         /* fall through */
         return futex_wake(uaddr, flags, val, val3);
