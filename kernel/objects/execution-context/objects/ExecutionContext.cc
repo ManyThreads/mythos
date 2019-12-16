@@ -415,8 +415,9 @@ namespace mythos {
 
       case SYSCALL_WAIT: {
         auto prevState = setFlags(IN_WAIT | IS_WAITING);
-        MLOG_INFO(mlog::syscall, "wait", DVARhex(prevState));
+        //MLOG_WARN(mlog::syscall, "wait", DVARhex(prevState));
         if (!notificationQueue.empty() || (prevState & IS_NOTIFIED))
+		//MLOG_WARN(mlog::syscall, "skip wait");
           clearFlags(IS_WAITING); // because of race with notifier
         break;
       }
@@ -447,7 +448,9 @@ namespace mythos {
         mlog::Logger<mlog::FilterAny> user("user");
         // userctx => address in users virtual memory. Yes, we fully trust the user :(
         // portal => string length
-        mlog::sink->write((char const*)userctx, portal);
+	char str[300];
+	memcpy(&str[0], reinterpret_cast<char*>(userctx), portal<300?portal:300);
+        mlog::sink->write((char const*)&str[0], portal);
         code = uint64_t(Error::SUCCESS);
         break;
       }
