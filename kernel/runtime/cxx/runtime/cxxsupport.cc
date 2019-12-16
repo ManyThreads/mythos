@@ -184,9 +184,12 @@ extern "C" long mythos_musl_syscall(
     case 202: // sys_futex
         //MLOG_DETAIL(mlog::app, "syscall futex");
         {
+        //MLOG_ERROR(mlog::app, "Error: syscall futex", DVAR(num), 
+            //DVAR(a1), DVAR(a2), DVAR(a3),
+            //DVAR(a4), DVAR(a5), DVAR(a6));
             uint32_t val2 = 0;
             return do_futex(reinterpret_cast<uint32_t*>(a1) /*uaddr*/, 
-                            a2 /*op*/, a3 /*val*/, nullptr/* timeout*/, 
+                            a2 /*op*/, a3 /*val*/, reinterpret_cast<uint32_t*>(a4)/* timeout*/, 
                             nullptr /*uaddr2*/, val2/*val2*/, a6/*val3*/);
         }
     case 203: // sched_setaffinity

@@ -46,7 +46,7 @@ static int futex_wait(
     uint32_t *uaddr, unsigned int flags, uint32_t val,
     uint32_t *abs_time, uint32_t bitset)
 {
-    //MLOG_DETAIL(mlog::app, "futex_wait", DVARhex(uaddr), DVAR(*uaddr), DVAR(val));
+    if(abs_time != nullptr) MLOG_WARN(mlog::app, "futex_wait", DVARhex(abs_time), DVARhex(uaddr), DVAR(*uaddr), DVAR(val));
     FutexQueueElem qe;
     qe.ec = mythos::localEC;
     qe.uaddr = uaddr;
@@ -148,37 +148,38 @@ long do_futex(
         //MLOG_DETAIL(mlog::app, "FUTEX_WAIT");
         val3 = FUTEX_BITSET_MATCH_ANY;
         /* fall through */
+        return futex_wait(uaddr, flags, val, timeout, val3);
     case FUTEX_WAIT_BITSET:
-        //MLOG_DETAIL(mlog::app, "FUTEX_WAIT_BITSET");
+	MLOG_WARN(mlog::app, "FUTEX_WAIT_BITSET");
         return futex_wait(uaddr, flags, val, timeout, val3);
     case FUTEX_WAKE:
         //MLOG_DETAIL(mlog::app, "FUTEX_WAKE");
         val3 = FUTEX_BITSET_MATCH_ANY;
         /* fall through */
+        return futex_wake(uaddr, flags, val, val3);
     case FUTEX_WAKE_BITSET:
-        //MLOG_DETAIL(mlog::app, "FUTEX_WAKE_BITSET");
+        MLOG_WARN(mlog::app, "FUTEX_WAKE_BITSET");
         return futex_wake(uaddr, flags, val, val3);
     case FUTEX_REQUEUE:
-        MLOG_DETAIL(mlog::app, "FUTEX_REQUEUE");
+        MLOG_WARN(mlog::app, "FUTEX_REQUEUE");
         return -ENOSYS;//futex_requeue(uaddr, flags, uaddr2, val, val2, NULL, 0);
     case FUTEX_CMP_REQUEUE:
-        MLOG_DETAIL(mlog::app, "FUTEX_CMP_REQUEUE");
+        MLOG_WARN(mlog::app, "FUTEX_CMP_REQUEUE");
         return -ENOSYS;//futex_requeue(uaddr, flags, uaddr2, val, val2, &val3, 0);
     case FUTEX_WAKE_OP:
-        MLOG_DETAIL(mlog::app, "FUTEX_WAKE_OP");
+        MLOG_WARN(mlog::app, "FUTEX_WAKE_OP");
         return -ENOSYS;//futex_wake_op(uaddr, flags, uaddr2, val, val2, val3);
     case FUTEX_LOCK_PI:
-        MLOG_DETAIL(mlog::app, "FUTEX_LOCK_PI");
+        MLOG_WARN(mlog::app, "FUTEX_LOCK_PI");
         return -ENOSYS;//futex_lock_pi(uaddr, flags, timeout, 0);
     case FUTEX_UNLOCK_PI:
-        MLOG_DETAIL(mlog::app, "FUTEX_UNLOCK_PI");
+        MLOG_WARN(mlog::app, "FUTEX_UNLOCK_PI");
         return -ENOSYS;//futex_unlock_pi(uaddr, flags);
     case FUTEX_TRYLOCK_PI:
-        MLOG_DETAIL(mlog::app, "FUTEX_TRYLOCK_PI");
+        MLOG_WARN(mlog::app, "FUTEX_TRYLOCK_PI");
         return -ENOSYS;//futex_lock_pi(uaddr, flags, NULL, 1);
     case FUTEX_WAIT_REQUEUE_PI:
-        val3 = FUTEX_BITSET_MATCH_ANY;
-        MLOG_DETAIL(mlog::app, "FUTEX_WAIT_REQUEUE_PI");
+        MLOG_WARN(mlog::app, "FUTEX_WAIT_REQUEUE_PI");
         return -ENOSYS;//futex_wait_requeue_pi(uaddr, flags, val, timeout, val3, uaddr2);
     case FUTEX_CMP_REQUEUE_PI:
         MLOG_DETAIL(mlog::app, "FUTEX_CMP_REQUEUE_PI");
