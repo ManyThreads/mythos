@@ -40,8 +40,6 @@ namespace mythos {
   ExecutionContext::ExecutionContext(IAsyncFree* memory)
     : memory(memory)
   {
-    threadState.clear();
-    fpuState.clear();
   }
 
   void ExecutionContext::setFlagsSuspend(flag_t f)
@@ -113,7 +111,7 @@ namespace mythos {
     if (place != nullptr) {
         // save my state
         place->run(t->set([this, msg, sce](Tasklet*){
-            this->fpuState.save();
+            this->state->fpuState.save();
             TypedCap<IScheduler> obj(sce);
             if (!obj) {
               msg->replyResponse(obj.state());
@@ -151,7 +149,7 @@ namespace mythos {
     RETURN(_cs.set(this, *cse, obj.cap()));
   }
 
-  optional<void> ExecutionContext::setStateFrame(optional<CapEntry*> framecapref, uint32_t offset)
+  optional<void> ExecutionContext::setStateFrame(optional<CapEntry*> framecapref, uint32_t offset, bool initializeState)
   {
     MLOG_INFO(mlog::ec, "setStateFrame", DVAR(this), DVAR(framecapref));
     TypedCap<IFrame> obj(framecapref);
@@ -160,7 +158,13 @@ namespace mythos {
     if (info.device || !info.writable) THROW(Error::INVALID_CAPABILITY);
     size_t size = round_up(sizeof(cpu::ThreadState), alignof(cpu::FpuState)) + cpu::FpuState::size();
     if (offset+size >= info.size) THROW(Error::INSUFFICIENT_RESOURCES);
-    RETURN(_state.set(this, *framecapref, obj.cap(), info.start.logint()+offset));
+    auto stateAddr = info.start.logint() + offset;
+    if (initializeState) {
+      auto state = reinterpret_cast<State*>(stateAddr);
+      state->threadState.clear();
+      state->fpuState.clear();
+    }
+    RETURN(_state.set(this, *framecapref, obj.cap(), stateAddr));
   }
 
   void ExecutionContext::bind(optional<IFrame*>, uint64_t stateAddr)
@@ -173,14 +177,21 @@ namespace mythos {
   void ExecutionContext::unbind(optional<IFrame*>)
   {
     MLOG_INFO(mlog::portal, "Portal::setStateFrame unbind");
-    state = nullptr;
-    setFlagsSuspend(NO_STATE);
+    setFlagsSuspend(NO_STATE); // synchronous, waits until thread has been suspended
+    state = nullptr; // must not happen before the suspend
   }
 
   void ExecutionContext::setEntryPoint(uintptr_t rip)
   {
     MLOG_INFO(mlog::ec, "EC setEntryPoint", DVARhex(rip));
-    threadState.rip = rip;
+    if (!state) return;
+    state->threadState.rip = rip;
+  }
+
+  void ExecutionContext::setRegParams(uint64_t rdi)
+  {
+    if (!state) return;
+    state->threadState.rdi = rdi;
   }
 
   optional<CapEntryRef> ExecutionContext::lookupRef(CapPtr ptr, CapPtrDepth ptrDepth, bool writable)
@@ -208,7 +219,7 @@ namespace mythos {
 
     if (data.state() == delete_cap) { unsetStateFrame(); }
     else if (data.state() != null_cap) {
-      auto err = setStateFrame(msg->lookupEntry(data.state()), data.stateOffset);
+      auto err = setStateFrame(msg->lookupEntry(data.state()), data.stateOffset, data.initializeState);
       if (!err) return err.state();
     }
 
@@ -242,23 +253,25 @@ namespace mythos {
     monitor.response(t,[=](Tasklet*){
         auto data = msg->getMessage()->read<protocol::ExecutionContext::ReadRegisters>();
         auto respData = msg->getMessage()->write<protocol::ExecutionContext::WriteRegisters>(!data.suspend);
-        respData->regs.rax = threadState.rax;
-        respData->regs.rbx = threadState.rbx;
-        respData->regs.rcx = threadState.rcx;
-        respData->regs.rdx = threadState.rdx;
-        respData->regs.rdi = threadState.rdi;
-        respData->regs.rsi = threadState.rsi;
-        respData->regs.r8  = threadState.r8;
-        respData->regs.r9  = threadState.r9;
-        respData->regs.r10 = threadState.r10;
-        respData->regs.r13 = threadState.r13;
-        respData->regs.r14 = threadState.r14;
-        respData->regs.r15 = threadState.r15;
-        respData->regs.rip = threadState.rip;
-        respData->regs.rsp = threadState.rsp;
-        respData->regs.rbp = threadState.rbp;
-        respData->regs.fs_base = threadState.fs_base;
-        respData->regs.gs_base = threadState.gs_base;
+        if (state) {
+          respData->regs.rax = state->threadState.rax;
+          respData->regs.rbx = state->threadState.rbx;
+          respData->regs.rcx = state->threadState.rcx;
+          respData->regs.rdx = state->threadState.rdx;
+          respData->regs.rdi = state->threadState.rdi;
+          respData->regs.rsi = state->threadState.rsi;
+          respData->regs.r8  = state->threadState.r8;
+          respData->regs.r9  = state->threadState.r9;
+          respData->regs.r10 = state->threadState.r10;
+          respData->regs.r13 = state->threadState.r13;
+          respData->regs.r14 = state->threadState.r14;
+          respData->regs.r15 = state->threadState.r15;
+          respData->regs.rip = state->threadState.rip;
+          respData->regs.rsp = state->threadState.rsp;
+          respData->regs.rbp = state->threadState.rbp;
+          respData->regs.fs_base = state->threadState.fs_base;
+          respData->regs.gs_base = state->threadState.gs_base;
+        }
         clearFlagsResume(REGISTER_ACCESS);
         msg->replyResponse(Error::SUCCESS);
         msg = nullptr;
@@ -299,23 +312,25 @@ namespace mythos {
 
   optional<void> ExecutionContext::setRegisters(const mythos::protocol::ExecutionContext::Amd64Registers& regs)
   {
-    threadState.rax = regs.rax;
-    threadState.rbx = regs.rbx;
-    threadState.rcx = regs.rcx;
-    threadState.rdx = regs.rdx;
-    threadState.rdi = regs.rdi;
-    threadState.rsi = regs.rsi;
-    threadState.r8  = regs.r8;
-    threadState.r9  = regs.r9;
-    threadState.r10 = regs.r10;
-    threadState.r11 = regs.r11;
-    threadState.r12 = regs.r12;
-    threadState.r13 = regs.r13;
-    threadState.r14 = regs.r14;
-    threadState.r15 = regs.r15;
-    threadState.rip = regs.rip;
-    threadState.rsp = regs.rsp;
-    threadState.rbp = regs.rbp;
+    if (state) {
+      state->threadState.rax = regs.rax;
+      state->threadState.rbx = regs.rbx;
+      state->threadState.rcx = regs.rcx;
+      state->threadState.rdx = regs.rdx;
+      state->threadState.rdi = regs.rdi;
+      state->threadState.rsi = regs.rsi;
+      state->threadState.r8  = regs.r8;
+      state->threadState.r9  = regs.r9;
+      state->threadState.r10 = regs.r10;
+      state->threadState.r11 = regs.r11;
+      state->threadState.r12 = regs.r12;
+      state->threadState.r13 = regs.r13;
+      state->threadState.r14 = regs.r14;
+      state->threadState.r15 = regs.r15;
+      state->threadState.rip = regs.rip;
+      state->threadState.rsp = regs.rsp;
+      state->threadState.rbp = regs.rbp;
+    }
     return setBaseRegisters(regs.fs_base, regs.gs_base);
   }
 
@@ -324,8 +339,10 @@ namespace mythos {
       // \TODO don't use PhysPtr because the canonical address belong to the logical addresses
     if (!PhysPtr<void>(fs).canonical() || !PhysPtr<void>(gs).canonical())
       THROW(Error::NON_CANONICAL_ADDRESS);
-    threadState.fs_base = fs;
-    threadState.gs_base = gs;
+    if (state) {
+      state->threadState.fs_base = fs;
+      state->threadState.gs_base = gs;
+    }
     MLOG_DETAIL(mlog::ec, "set fs/gs", DVAR(this), DVARhex(fs), DVARhex(gs));
 
     RETURN(Error::SUCCESS);
@@ -394,7 +411,7 @@ namespace mythos {
 
   void ExecutionContext::handleTrap()
   {
-    auto ctx = &threadState;
+    auto ctx = &state->threadState;
     MLOG_ERROR(mlog::ec, "user fault", DVAR(ctx->irq), DVAR(ctx->error),
          DVARhex(ctx->cr2));
     MLOG_ERROR(mlog::ec, "...", DVARhex(ctx->rip), DVARhex(ctx->rflags),
@@ -412,7 +429,8 @@ namespace mythos {
   void ExecutionContext::handleSyscall()
   {
     setFlags(NOT_RUNNING);
-    auto ctx = &threadState;
+    ASSERT(state != nullptr);
+    auto ctx = &state->threadState;
     auto& code = ctx->rdi;
     auto& userctx = ctx->rsi;
     auto portal = ctx->rdx;
@@ -540,19 +558,20 @@ namespace mythos {
             auto e = notificationQueue.pull();
             if (e) {
                 auto ev = e->get()->deliver();
-                threadState.rsi = ev.user;
-                threadState.rdi = ev.state;
+                state->threadState.rsi = ev.user;
+                state->threadState.rdi = ev.state;
             } else {
-                threadState.rsi = 0;
-                threadState.rdi = uint64_t(Error::NO_MESSAGE);
+                state->threadState.rsi = 0;
+                state->threadState.rdi = uint64_t(Error::NO_MESSAGE);
             }
             MLOG_DETAIL(mlog::ec, DVAR(this), "return one notification",
-                        DVARhex(threadState.rsi), DVAR(threadState.rdi));
+                        DVARhex(state->threadState.rsi), DVAR(state->threadState.rdi));
         }
 
         // Reload the address space if it has changed.
         // It might have been revoked concurrently since we checked the blocking flags.
         // In that case we abort the resume. The revoke will update NO_AS for us.
+        // TODO simplify by caching with the new CapRef::set() extra value
         {
             TypedCap<IPageMap> as(_as);
             if (!as) return;
@@ -562,7 +581,7 @@ namespace mythos {
         }
 
         MLOG_DETAIL(mlog::syscall, "resuming", DVAR(this),
-                    DVARhex(threadState.rip), DVARhex(threadState.rsp));
+                    DVARhex(state->threadState.rip), DVARhex(state->threadState.rsp));
         cpu::return_to_user(); // does never return
     }
 
@@ -581,8 +600,9 @@ namespace mythos {
         ASSERT(prev & NOT_LOADED);
         // load registers and fpu, no execution context must be loaded here already
         ASSERT(cpu::thread_state.get() == nullptr);
-        cpu::thread_state = &threadState;
-        fpuState.restore();
+        ASSERT(state != nullptr);
+        cpu::thread_state = &state->threadState;
+        state->fpuState.restore();
         // tell the kernel that this execution context is in charge now
         // and check that no other was loaded.
         ASSERT(current_ec->load() == nullptr);
@@ -600,9 +620,10 @@ namespace mythos {
         auto oldPlace = currentPlace.exchange(nullptr);
         ASSERT(oldPlace == &getLocalPlace());
 
-        ASSERT(cpu::thread_state.get() == &threadState);
+        ASSERT(state != nullptr);
+        ASSERT(cpu::thread_state.get() == &state->threadState);
         cpu::thread_state = nullptr;
-        fpuState.save();
+        state->fpuState.save();
 
         // tell the kernel that nobody is in charge now
         ASSERT(current_ec->load() == this);
@@ -688,7 +709,7 @@ namespace mythos {
           if (!res) RETHROW(res);
         }
         if (data->state()) {
-          auto res = obj->setStateFrame(msg->lookupEntry(data->state()), data->stateOffset);
+          auto res = obj->setStateFrame(msg->lookupEntry(data->state()), data->stateOffset, data->initializeState);
           if (!res) RETHROW(res);
         }
         obj->setEntryPoint(data->regs.rip);
