@@ -40,20 +40,19 @@ namespace mythos {
     auto info = frame.getFrameInfo();
     if (info.device || !info.writable) THROW(Error::INVALID_CAPABILITY);
     if (offset+sizeof(InvocationBuf) >= info.size) THROW(Error::INSUFFICIENT_RESOURCES);
-    ibNew = reinterpret_cast<InvocationBuf*>(info.start.logint()+offset);
-    RETURN(_ib.set(this, *fe, frame.cap()));
+    RETURN(_ib.set(this, *fe, frame.cap(), info.start.logint()+offset));
   }
 
-  void Portal::bind(optional<IFrame*> obj)
+  void Portal::bind(optional<IFrame*>, uint64_t ibAddr)
   {
     MLOG_INFO(mlog::portal, "Portal::setInvocationBuf bind");
-    if (obj) ib = ibNew;
+    ib = reinterpret_cast<InvocationBuf*>(ibAddr);
   }
 
   void Portal::unbind(optional<IFrame*>)
   {
     MLOG_INFO(mlog::portal, "Portal::setInvocationBuf unbind");
-    ib = nullptr; // but do not overwrite ibNew before the bind() method!
+    ib = nullptr;
   }
 
   optional<void> Portal::setOwner(optional<CapEntry*> ece)

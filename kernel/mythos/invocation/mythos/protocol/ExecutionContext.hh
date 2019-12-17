@@ -46,17 +46,20 @@ namespace mythos {
       struct Configure : public InvocationBase {
         typedef InvocationBase response_type;
         constexpr static uint16_t label = (proto<<8) + CONFIGURE;
-        Configure(CapPtr as, CapPtr cs, CapPtr sched)
-          : InvocationBase(label,getLength(this))
+        Configure(CapPtr as, CapPtr cs, CapPtr sched, CapPtr state, uint32_t stateOffset)
+          : InvocationBase(label,getLength(this)), stateOffset(stateOffset)
         {
           addExtraCap(as);
           addExtraCap(cs);
           addExtraCap(sched);
+          addExtraCap(state);
         }
 
         CapPtr as() const { return this->capPtrs[0]; }
         CapPtr cs() const { return this->capPtrs[1]; }
         CapPtr sched() const { return this->capPtrs[2]; }
+        CapPtr state() const { return this->capPtrs[3]; }
+        uint32_t stateOffset;
       };
 
       struct Amd64Registers {
@@ -118,16 +121,22 @@ namespace mythos {
 
       struct Create : public KernelMemory::CreateBase {
         typedef InvocationBase response_type;
-        Create(CapPtr dst, CapPtr factory) 
-          : CreateBase(dst, factory, getLength(this), 3), start(false) { }
+        Create(CapPtr dst, CapPtr factory)
+          : CreateBase(dst, factory, getLength(this), 4)
+        {
+            as(null_cap); cs(null_cap); sched(null_cap); state(null_cap);
+        }
         Amd64Registers regs;
-        bool start;
+        bool start = {false};
+        uint32_t stateOffset = {0};
         CapPtr as() const { return this->capPtrs[2]; }
         CapPtr cs() const { return this->capPtrs[3]; }
         CapPtr sched() const { return this->capPtrs[4]; }
+        CapPtr state() const { return this->capPtrs[5]; }
         void as(CapPtr c) { this->capPtrs[2] = c; }
         void cs(CapPtr c) { this->capPtrs[3] = c; }
-        void sched(CapPtr c) { this->capPtrs[4] =c; }
+        void sched(CapPtr c) { this->capPtrs[4] = c; }
+        void state(CapPtr c) { this->capPtrs[5] = c; }
       };
 
       template<class IMPL, class... ARGS>

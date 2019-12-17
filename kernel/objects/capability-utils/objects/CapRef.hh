@@ -36,7 +36,7 @@ namespace mythos {
   /**
    *
    * Subject is the owner of the CapRef instance.
-   */ 
+   */
   class CapRefBase
     : protected IKernelObject
   {
@@ -56,14 +56,14 @@ namespace mythos {
     Cap cap() const { return Cap(this->orig.load()); }
 
   protected:
-    optional<void> set(void* subject, CapEntry& src, Cap srcCap);
+    optional<void> set(void* subject, CapEntry& src, Cap srcCap, uint64_t extra);
 
     /** called during successful write to the reference.
      *
      * Users should override this method in order to set cached values
      * and state flags. Mutual exclusion is ensured by the @c CapRef.
      */
-    virtual void binding(void* subject, Cap obj) = 0;
+    virtual void binding(void* subject, Cap obj, uint64_t extra) = 0;
 
     /** called during the revocation or reset of the reference.
      *
@@ -86,7 +86,7 @@ namespace mythos {
   {
   public:
     template<class Subject, class Object>
-    static void binding(Subject *s, Object const& o) { s->bind(o); }
+    static void binding(Subject *s, Object const& o, uint64_t extra) { s->bind(o, extra); }
 
     template<class Subject, class Object>
     static void unbinding(Subject *s, Object const& o) { s->unbind(o); }
@@ -102,11 +102,11 @@ namespace mythos {
 
     virtual ~CapRef() {}
 
-    optional<void> set(Subject* subject, CapEntry* src, Cap srcCap)
-    { return CapRefBase::set(subject, *src, srcCap); }
+    optional<void> set(Subject* subject, CapEntry* src, Cap srcCap, uint64_t extra=0)
+    { return CapRefBase::set(subject, *src, srcCap, extra); }
 
-    optional<void> set(Subject* subject, CapEntry& src, Cap srcCap)
-    { return CapRefBase::set(subject, src, srcCap); }
+    optional<void> set(Subject* subject, CapEntry& src, Cap srcCap, uint64_t extra=0)
+    { return CapRefBase::set(subject, src, srcCap, extra); }
 
     optional<Object*> get() const {
       Cap obj = Cap(this->orig.load());
@@ -115,9 +115,9 @@ namespace mythos {
     }
 
   protected:
-    void binding(void* subject, Cap orig) override {
+    void binding(void* subject, Cap orig, uint64_t extra) override {
       ASSERT(orig.isUsable());
-      Revoker::binding(static_cast<Subject*>(subject), orig.getPtr()->cast<Object>());
+      Revoker::binding(static_cast<Subject*>(subject), orig.getPtr()->cast<Object>(), extra);
     }
 
     void unbinding(void* subject, Cap orig) override {

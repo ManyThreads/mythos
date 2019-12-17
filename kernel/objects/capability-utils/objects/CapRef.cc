@@ -34,7 +34,7 @@ namespace mythos {
     cap::resetReference(this->entry);
   }
 
-  optional<void> CapRefBase::set(void* subject, CapEntry& src, Cap srcCap)
+  optional<void> CapRefBase::set(void* subject, CapEntry& src, Cap srcCap, uint64_t extra)
   {
     this->reset();
     RETURN(cap::setReference(
@@ -43,7 +43,7 @@ namespace mythos {
         src, srcCap,
         [=](){
           this->orig.store(srcCap.asReference().value());
-          this->binding(subject, srcCap.asReference());
+          this->binding(subject, srcCap.asReference(), extra);
         }));
   }
 

@@ -36,6 +36,7 @@
 #include "objects/IScheduler.hh"
 #include "objects/IFactory.hh"
 #include "objects/IPageMap.hh"
+#include "objects/IFrame.hh"
 #include "objects/INotifiable.hh"
 #include "objects/ISignalable.hh"
 #include "objects/IPortal.hh"
@@ -61,29 +62,35 @@ namespace mythos {
       IS_TRAPPED = 1<<1, // used by suspend/resume invocations and trap/exception handler
       NO_AS      = 1<<2, // set if address space is missing
       NO_SCHED   = 1<<3, // set if scheduler is missing
+      NO_STATE   = 1<<4, // set if frame for the state data is missing
       IN_WAIT    = 1<<5, // EC is in wait() syscall, next sysret should return a KEvent
       IS_NOTIFIED     = 1<<6, // used by notify() syscall for binary semaphore
       REGISTER_ACCESS = 1<<7, // accessing registers
       NOT_LOADED   = 1<<8, // CPU state is not loaded
       DONT_PREEMPT  = 1<<9, // somebody else will send the preemption
       NOT_RUNNING  = 1<<10, // EC is not running
-      BLOCK_MASK = IS_WAITING | IS_TRAPPED | NO_AS | NO_SCHED | REGISTER_ACCESS,
-      INIT_FLAGS = IS_TRAPPED | NO_AS | NO_SCHED | DONT_PREEMPT | NOT_LOADED | NOT_RUNNING
+      BLOCK_MASK = IS_WAITING | IS_TRAPPED | NO_AS | NO_SCHED /*| NO_STATE */| REGISTER_ACCESS,
+      INIT_FLAGS = IS_TRAPPED | NO_AS | NO_SCHED /*| NO_STATE */| DONT_PREEMPT | NOT_LOADED | NOT_RUNNING
     };
 
     ExecutionContext(IAsyncFree* memory);
     virtual ~ExecutionContext() {}
 
+  public: // only for initial setup
+    optional<void> setSchedulingContext(optional<CapEntry*> sce);
+
+  public:
     optional<void> setAddressSpace(optional<CapEntry*> pagemapref);
     void unsetAddressSpace() { _as.reset(); }
 
-    /// only for initial setup
-    optional<void> setSchedulingContext(optional<CapEntry*> sce);
     optional<void> setSchedulingContext(Tasklet* t, IInvocation* msg, optional<CapEntry*> sce);
-    Error unsetSchedulingContext();
+    void unsetSchedulingContext() { _sched.reset(); }
 
     optional<void> setCapSpace(optional<CapEntry*> capmapref);
     void unsetCapSpace() { _cs.reset(); }
+
+    optional<void> setStateFrame(optional<CapEntry*> framecapref, uint32_t offset);
+    void unsetStateFrame() { _state.reset(); }
 
     void setEntryPoint(uintptr_t rip);
     void setTrapped(bool val);
@@ -141,19 +148,27 @@ namespace mythos {
 
   protected:
     friend class CapRefBind;
-    void bind(optional<IPageMap*>);
-    void bind(optional<ICapMap*>) {}
-    void bind(optional<IScheduler*>);
+    void bind(optional<IPageMap*>, uint64_t);
+    void bind(optional<ICapMap*>, uint64_t) {}
+    void bind(optional<IScheduler*>, uint64_t);
+    void bind(optional<IFrame*>, uint64_t stateAddr);
     void unbind(optional<IPageMap*>);
     void unbind(optional<ICapMap*>) {}
     void unbind(optional<IScheduler*>);
+    void unbind(optional<IFrame*>);
 
     flag_t setFlags(flag_t f) { return flags.fetch_or(f); }
     flag_t clearFlags(flag_t f) { return flags.fetch_and(flag_t(~f)); }
-    void setFlagsSuspend(flag_t f);
-    void clearFlagsResume(flag_t f);
     bool isBlocked(flag_t f) const { return (f & BLOCK_MASK) != 0; }
     bool needPreemption(flag_t f) const { return (f & DONT_PREEMPT) == 0; }
+
+    /** Sets some flags and suspends the thread if a blocking condition is reached.
+     * Returns synchronously after the thread has suspended independent of
+     * the place that changes the flags and the place where the thread currently runs.
+     */
+    void setFlagsSuspend(flag_t f);
+
+    void clearFlagsResume(flag_t f);
 
   private:
     async::NestedMonitorDelegating monitor;
@@ -162,6 +177,7 @@ namespace mythos {
     CapRef<ExecutionContext,IPageMap> _as;
     CapRef<ExecutionContext,ICapMap> _cs;
     CapRef<ExecutionContext,IScheduler> _sched;
+    CapRef<ExecutionContext,IFrame> _state; // will contain threadState and fpuState
     /// @todo reference/link to exception handler (portal/endpoint?)
 
     // the hardware thread where the fpu state is currently loaded
@@ -175,6 +191,12 @@ namespace mythos {
       writeSleepResponse = {this};
     async::MSink<ExecutionContext, void, &ExecutionContext::suspendThread>
       sleepResponse = {this};
+
+    struct State {
+      cpu::ThreadState threadState;
+      cpu::FpuState fpuState;
+    };
+    State* state = {nullptr}; // cached value from _state+offset
 
     cpu::ThreadState threadState;
     cpu::FpuState fpuState;
