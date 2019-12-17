@@ -46,8 +46,8 @@ namespace mythos {
       struct Configure : public InvocationBase {
         typedef InvocationBase response_type;
         constexpr static uint16_t label = (proto<<8) + CONFIGURE;
-        Configure(CapPtr as, CapPtr cs, CapPtr sched, CapPtr state, uint32_t stateOffset)
-          : InvocationBase(label,getLength(this)), stateOffset(stateOffset)
+        Configure(CapPtr as, CapPtr cs, CapPtr sched, CapPtr state, uint32_t stateOffset, bool initializeState)
+          : InvocationBase(label,getLength(this)), stateOffset(stateOffset), initializeState(initializeState)
         {
           addExtraCap(as);
           addExtraCap(cs);
@@ -60,6 +60,7 @@ namespace mythos {
         CapPtr sched() const { return this->capPtrs[2]; }
         CapPtr state() const { return this->capPtrs[3]; }
         uint32_t stateOffset;
+        bool initializeState;
       };
 
       struct Amd64Registers {
@@ -129,6 +130,7 @@ namespace mythos {
         Amd64Registers regs;
         bool start = {false};
         uint32_t stateOffset = {0};
+        bool initializeState = {true};
         CapPtr as() const { return this->capPtrs[2]; }
         CapPtr cs() const { return this->capPtrs[3]; }
         CapPtr sched() const { return this->capPtrs[4]; }

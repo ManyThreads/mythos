@@ -121,8 +121,8 @@ namespace mythos {
         return {this->cap(), kmem.cap(), factory};
     }
 
-    PortalFuture<void> configure(PortalLock pr, PageMap as, CapMap cs, CapPtr sched, CapPtr state, uint32_t stateOffset) {
-      return pr.invoke<protocol::ExecutionContext::Configure>(_cap, as.cap(), cs.cap(), sched, state, stateOffset);
+    PortalFuture<void> configure(PortalLock pr, PageMap as, CapMap cs, CapPtr sched, CapPtr state, uint32_t stateOffset, bool initializeState) {
+      return pr.invoke<protocol::ExecutionContext::Configure>(_cap, as.cap(), cs.cap(), sched, state, stateOffset, initializeState);
     }
 
     struct Registers : register_t {

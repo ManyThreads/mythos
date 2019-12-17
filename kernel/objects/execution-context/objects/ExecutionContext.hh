@@ -69,7 +69,7 @@ namespace mythos {
       NOT_LOADED   = 1<<8, // CPU state is not loaded
       DONT_PREEMPT  = 1<<9, // somebody else will send the preemption
       NOT_RUNNING  = 1<<10, // EC is not running
-      BLOCK_MASK = IS_WAITING | IS_TRAPPED | NO_AS | NO_SCHED /*| NO_STATE */| REGISTER_ACCESS,
+      BLOCK_MASK = IS_WAITING | IS_TRAPPED | NO_AS | NO_SCHED | NO_STATE | REGISTER_ACCESS,
       INIT_FLAGS = IS_TRAPPED | NO_AS | NO_SCHED | NO_STATE | DONT_PREEMPT | NOT_LOADED | NOT_RUNNING
     };
 
@@ -89,13 +89,14 @@ namespace mythos {
     optional<void> setCapSpace(optional<CapEntry*> capmapref);
     void unsetCapSpace() { _cs.reset(); }
 
-    optional<void> setStateFrame(optional<CapEntry*> framecapref, uint32_t offset);
+    optional<void> setStateFrame(optional<CapEntry*> framecapref, uint32_t offset, bool initializeState);
     void unsetStateFrame() { _state.reset(); }
 
     void setEntryPoint(uintptr_t rip);
     void setTrapped(bool val);
 
-    cpu::ThreadState& getThreadState() { return threadState; }
+    //cpu::ThreadState& getThreadState() { return threadState; }
+    void setRegParams(uint64_t rdi);
 
     optional<void> setRegisters(const mythos::protocol::ExecutionContext::Amd64Registers&);
     optional<void> setBaseRegisters(uint64_t fs_base, uint64_t gs_base);
@@ -197,9 +198,6 @@ namespace mythos {
       cpu::FpuState fpuState;
     };
     State* state = {nullptr}; // cached value from _state+offset
-
-    cpu::ThreadState threadState;
-    cpu::FpuState fpuState;
 
     LinkedList<IKernelObject*>::Queueable del_handle = {this};
     IAsyncFree* memory;

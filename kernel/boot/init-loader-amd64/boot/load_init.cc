@@ -281,9 +281,9 @@ optional<void> InitLoader::createEC(uintptr_t ipc_vaddr)
   if (res) res = ec->setCapSpace(capAlloc.get(init::CSPACE));
   if (res) res = ec->setAddressSpace(capAlloc.get(init::PML4));
   if (res) res = ec->setSchedulingContext(capAlloc.get(init::SCHEDULERS_START));
-  if (res) res = ec->setStateFrame(capAlloc.get(init::STATE_FRAME), 0);
+  if (res) res = ec->setStateFrame(capAlloc.get(init::STATE_FRAME), 0, true);
   if (!res) RETHROW(res);
-  ec->getThreadState().rdi = ipc_vaddr;
+  ec->setRegParams(ipc_vaddr); // will be in rdi
   ec->setEntryPoint(_img.header()->entry);
   ec->setTrapped(false);
   RETURN(Error::SUCCESS);
