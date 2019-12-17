@@ -134,8 +134,8 @@ interrupt_common:
         movq $0, TS_MAYSYSRET(%rax)
 
         // might be on the NMI stack, but everything is stored safely
-    // in the ThreadState, thus we can switch to the bigger kernel
-    // stack now
+        // in the ThreadState, thus we can switch to the bigger kernel
+        // stack now
         /// @todo check whether we actually could end up on the NMI stack when coming from user mode!!!
         mov %gs:kernel_stack, %rsp
         mov %rax, %rdi   // 1. argument: pointer to thread_state

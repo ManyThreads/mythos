@@ -74,13 +74,16 @@ namespace mythos {
     MLOG_INFO(mlog::ec, "setAddressSpace", DVAR(this), DVAR(pme));
     TypedCap<IPageMap> obj(pme);
     if (!obj) RETHROW(obj);
-    if (!obj->getPageMapInfo(obj.cap()).isRootMap()) THROW(Error::INVALID_CAPABILITY);
-    RETURN(_as.set(this, *pme, obj.cap()));
+    auto info = obj->getPageMapInfo(obj.cap());
+    if (!info.isRootMap()) THROW(Error::INVALID_CAPABILITY);
+
+    RETURN(_as.set(this, *pme, obj.cap(), info.table.physint()));
   }
 
-  void ExecutionContext::bind(optional<IPageMap*>, uint64_t)
+  void ExecutionContext::bind(optional<IPageMap*>, uint64_t tableAddr)
   {
-    MLOG_INFO(mlog::ec, "setAddressSpace bind", DVAR(this));
+    MLOG_INFO(mlog::ec, "setAddressSpace bind", DVAR(this), DVARhex(tableAddr));
+    page_table = PhysPtr<void>(tableAddr);
     clearFlagsResume(NO_AS);
   }
 
@@ -88,6 +91,7 @@ namespace mythos {
   {
     MLOG_INFO(mlog::ec, "setAddressSpace unbind", DVAR(this));
     setFlagsSuspend(NO_AS);
+    page_table = PhysPtr<void>();
   }
 
   optional<void> ExecutionContext::setSchedulingContext(optional<CapEntry*> sce)
@@ -390,7 +394,8 @@ namespace mythos {
     auto const& data = *msg->getMessage()->cast<protocol::ExecutionContext::SetFSGS>();
     auto res = setBaseRegisters(data.fs, data.gs);
     if (res) { // reschedule the EC in order to load the new values
-      // TODO is FS snd GS saved on suspend? Then async syscall will be overwritten by the suspend code!
+      // luckily FS and GS are not saved on kernel entry,
+      // just restored on kernel exit to user mode
       setFlagsSuspend(IS_TRAPPED);
       clearFlagsResume(IS_TRAPPED);
     }
@@ -568,17 +573,9 @@ namespace mythos {
                         DVARhex(state->threadState.rsi), DVAR(state->threadState.rdi));
         }
 
-        // Reload the address space if it has changed.
-        // It might have been revoked concurrently since we checked the blocking flags.
-        // In that case we abort the resume. The revoke will update NO_AS for us.
-        // TODO simplify by caching with the new CapRef::set() extra value
-        {
-            TypedCap<IPageMap> as(_as);
-            if (!as) return;
-            auto info = as->getPageMapInfo(as.cap());
-            MLOG_DETAIL(mlog::ec, "load addrspace", DVAR(this), DVARhex(info.table.physint()));
-            getLocalPlace().setCR3(info.table); // without reload if not changed
-        }
+        // Reload the address space and thread state address if they have changed
+        getLocalPlace().setCR3(page_table); // without reload if not changed
+        cpu::thread_state = &state->threadState;
 
         MLOG_DETAIL(mlog::syscall, "resuming", DVAR(this),
                     DVARhex(state->threadState.rip), DVARhex(state->threadState.rsp));

@@ -149,7 +149,7 @@ namespace mythos {
 
   protected:
     friend class CapRefBind;
-    void bind(optional<IPageMap*>, uint64_t);
+    void bind(optional<IPageMap*>, uint64_t tableAddr);
     void bind(optional<ICapMap*>, uint64_t) {}
     void bind(optional<IScheduler*>, uint64_t);
     void bind(optional<IFrame*>, uint64_t stateAddr);
@@ -198,6 +198,7 @@ namespace mythos {
       cpu::FpuState fpuState;
     };
     State* state = {nullptr}; // cached value from _state+offset
+    PhysPtr<void> page_table; // cached pml4, address space
 
     LinkedList<IKernelObject*>::Queueable del_handle = {this};
     IAsyncFree* memory;
