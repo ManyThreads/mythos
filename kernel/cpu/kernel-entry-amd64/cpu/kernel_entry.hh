@@ -71,20 +71,18 @@ namespace mythos {
     /** high-level syscall handler, must be defined by another module, used by syscall_entry.S */
     NORETURN void syscall_entry_cxx(ThreadState*) SYMBOL("syscall_entry_cxx");
 
-    /** return from syscall to user, defined in syscall_entry.S, reads state from thread_state */
-    NORETURN void syscall_return(ThreadState*) SYMBOL("syscall_return");
+    namespace internal {
+        /** return from syscall or interrupt to user, defined in syscall_entry.S, reads state from thread_state */
+        NORETURN void return_to_user_asm(ThreadState*) SYMBOL("return_to_user_asm");
+    } // namespace internal
 
     /** high-level irq handler when entering from user mode, must be
      * defined by another module, used by irq_entry.S */
     NORETURN void irq_entry_user(ThreadState*) SYMBOL("irq_entry_user");
 
-    /** return from interrupt to user, defined in irq_entry.S, reads state from thread_state */
-    NORETURN void irq_return_user(ThreadState*) SYMBOL("irq_return_user");
-
     NORETURN inline void return_to_user() {
-      ThreadState* s = thread_state.get();
-      if (s->maySysret && s->rip < 0x7FFFFFFFFFFF) syscall_return(s);
-      else irq_return_user(s);
+        // @todo handle case of nullptr -> sleep ???
+        internal::return_to_user_asm(thread_state.get());
     }
 
     /** Layout of the kernel's execution state on the interrupted kernel's stack.
