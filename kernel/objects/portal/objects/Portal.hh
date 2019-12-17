@@ -130,15 +130,14 @@ namespace mythos {
 
   protected:
     friend class CapRefBind;
-    void bind(optional<IFrame*>);
-    void bind(optional<IPortalUser*>) {}
+    void bind(optional<IFrame*>, uint64_t ibAddr);
+    void bind(optional<IPortalUser*>, uint64_t) {}
     void unbind(optional<IFrame*>);
     void unbind(optional<IPortalUser*>);
 
   private:
     CapRef<Portal, IFrame> _ib;
-    InvocationBuf* ib = nullptr;
-    InvocationBuf* ibNew = nullptr;
+    InvocationBuf* ib = nullptr; // cached value from _ib+offset
     CapRef<Portal, IPortalUser> _owner;
     uintptr_t uctx = 0;
     INotifiable::handle_t notificationHandle = {this};

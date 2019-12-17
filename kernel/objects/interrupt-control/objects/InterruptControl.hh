@@ -44,12 +44,12 @@ public: // IKernelObject interface
     optional<void> deleteCap(CapEntry&, Cap self, IDeleter& del) override;
     void invoke(Tasklet* t, Cap, IInvocation* msg) override;
 public: // for CapRef
-    void bind(optional<ISignalable*>) { }
+    void bind(optional<ISignalable*>, uint64_t) { }
     void unbind(optional<ISignalable*>) {
         // triggered by cap revoke
         // TODO would need to revoke notification if we use INotifiable instead of ISignalable
     }
-public: // protocol 
+public: // protocol
     friend struct protocol::KernelObject;
     Error getDebugInfo(Cap self, IInvocation* msg);
     Error registerForInterrupt(Tasklet *t, Cap self, IInvocation *msg);

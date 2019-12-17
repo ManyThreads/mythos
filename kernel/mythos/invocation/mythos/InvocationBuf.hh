@@ -48,8 +48,12 @@ namespace mythos{
 
     InvocationBase() : tag(0) {}
     InvocationBase(uint16_t label) : tag(0) { tag.label = label; }
-    InvocationBase(uint16_t label, uint8_t length, unsigned extraCaps=0) 
-      : tag(0) { tag = tag.label(label).length(length).extra_caps(extraCaps); }
+    InvocationBase(uint16_t label, uint8_t length, unsigned extraCaps=0)
+      : tag(0)
+    {
+      tag = tag.label(label).length(length).extra_caps(extraCaps);
+      ASSERT(extraCaps <= 6);
+    }
 
     Tag tag;           // 1x 4byte
     CapPtr dstPtr = null_cap;     // 1x 4byte

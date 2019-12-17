@@ -52,7 +52,7 @@ namespace mythos {
     if (needPreemption(prev) && !isReady()) {
         auto place = currentPlace.load();
         ASSERT(place != nullptr);
-        /// @todo is place->preempt() sufficient without waiting?
+        // place->preempt() is insufficient because the synchronous unbind() has to wait until suspending has finished
         if (place) synchronousAt(place) << [this]() {
             MLOG_DETAIL(mlog::ec, "suspended", DVAR(this));
         };
@@ -80,7 +80,7 @@ namespace mythos {
     RETURN(_as.set(this, *pme, obj.cap()));
   }
 
-  void ExecutionContext::bind(optional<IPageMap*>)
+  void ExecutionContext::bind(optional<IPageMap*>, uint64_t)
   {
     MLOG_INFO(mlog::ec, "setAddressSpace bind", DVAR(this));
     clearFlagsResume(NO_AS);
@@ -129,13 +129,7 @@ namespace mythos {
     }
   }
 
-  Error ExecutionContext::unsetSchedulingContext()
-  {
-    _sched.reset();
-    return Error::SUCCESS;
-  }
-
-  void ExecutionContext::bind(optional<IScheduler*>)
+  void ExecutionContext::bind(optional<IScheduler*>, uint64_t)
   {
     MLOG_INFO(mlog::ec, "setScheduler bind", DVAR(this));
     clearFlagsResume(NO_SCHED);
@@ -155,7 +149,31 @@ namespace mythos {
     TypedCap<ICapMap> obj(cse);
     if (!obj) RETHROW(obj);
     RETURN(_cs.set(this, *cse, obj.cap()));
+  }
 
+  optional<void> ExecutionContext::setStateFrame(optional<CapEntry*> framecapref, uint32_t offset)
+  {
+    MLOG_INFO(mlog::ec, "setStateFrame", DVAR(this), DVAR(framecapref));
+    TypedCap<IFrame> obj(framecapref);
+    if (!obj) RETHROW(obj);
+    auto info = obj.getFrameInfo();
+    if (info.device || !info.writable) THROW(Error::INVALID_CAPABILITY);
+    if (offset+sizeof(State) >= info.size) THROW(Error::INSUFFICIENT_RESOURCES);
+    RETURN(_state.set(this, *framecapref, obj.cap(), info.start.logint()+offset));
+  }
+
+  void ExecutionContext::bind(optional<IFrame*>, uint64_t stateAddr)
+  {
+    MLOG_INFO(mlog::portal, "Portal::setStateFrame bind", DVARhex(stateAddr));
+    state = reinterpret_cast<State*>(stateAddr);
+    clearFlagsResume(NO_STATE);
+  }
+
+  void ExecutionContext::unbind(optional<IFrame*>)
+  {
+    MLOG_INFO(mlog::portal, "Portal::setStateFrame unbind");
+    state = nullptr;
+    setFlagsSuspend(NO_STATE);
   }
 
   void ExecutionContext::setEntryPoint(uintptr_t rip)
@@ -184,6 +202,12 @@ namespace mythos {
     if (data.cs() == delete_cap) { unsetCapSpace(); }
     else if (data.cs() != null_cap) {
       auto err = setCapSpace(msg->lookupEntry(data.cs()));
+      if (!err) return err.state();
+    }
+
+    if (data.state() == delete_cap) { unsetStateFrame(); }
+    else if (data.state() != null_cap) {
+      auto err = setStateFrame(msg->lookupEntry(data.state()), data.stateOffset);
       if (!err) return err.state();
     }
 
@@ -444,8 +468,8 @@ namespace mythos {
         mlog::Logger<mlog::FilterAny> user("user");
         // userctx => address in users virtual memory. Yes, we fully trust the user :(
         // portal => string length
-	char str[300];
-	memcpy(str, reinterpret_cast<char*>(userctx), (portal<300) ? portal : 300);
+    char str[300];
+    memcpy(str, reinterpret_cast<char*>(userctx), (portal<300) ? portal : 300);
         mlog::sink->write(str, portal);
         code = uint64_t(Error::SUCCESS);
         break;
@@ -662,6 +686,10 @@ namespace mythos {
           auto res = obj->setSchedulingContext(msg->lookupEntry(data->sched()));
           if (!res) RETHROW(res);
         }
+        if (data->state()) {
+          auto res = obj->setStateFrame(msg->lookupEntry(data->state()), data->stateOffset);
+          if (!res) RETHROW(res);
+        }
         obj->setEntryPoint(data->regs.rip);
         if (data->start) obj->setTrapped(false);
       }
@@ -669,5 +697,3 @@ namespace mythos {
     }
 
 } // namespace mythos
-
-
