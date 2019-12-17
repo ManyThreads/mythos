@@ -47,9 +47,9 @@
 
 
 namespace mythos {
-    
+
 Event<boot::InitLoader&> event::initLoader;
-    
+
 namespace boot {
 
 InitLoader::InitLoader(char* image)
@@ -139,6 +139,10 @@ optional<void> InitLoader::initCSpace()
   MLOG_INFO(mlog::boot, "... create address space in cap", init::PML4);
   res = memMapper.installPML4(init::PML4);
   if (!res) RETHROW(res);
+
+  MLOG_INFO(mlog::boot, "... create state frame for init thread in cap", init::STATE_FRAME);
+  auto stateFrameCap = memMapper.createFrame(init::STATE_FRAME, 4096, 4096);
+  if (!stateFrameCap) RETHROW(stateFrameCap);
 
   MLOG_INFO(mlog::boot, "... create example factory in cap", init::EXAMPLE_FACTORY);
   res = optional<void>(Error::SUCCESS);
@@ -277,6 +281,7 @@ optional<void> InitLoader::createEC(uintptr_t ipc_vaddr)
   if (res) res = ec->setCapSpace(capAlloc.get(init::CSPACE));
   if (res) res = ec->setAddressSpace(capAlloc.get(init::PML4));
   if (res) res = ec->setSchedulingContext(capAlloc.get(init::SCHEDULERS_START));
+  if (res) res = ec->setStateFrame(capAlloc.get(init::STATE_FRAME), 0);
   if (!res) RETHROW(res);
   ec->getThreadState().rdi = ipc_vaddr;
   ec->setEntryPoint(_img.header()->entry);

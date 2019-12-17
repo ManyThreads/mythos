@@ -70,7 +70,7 @@ namespace mythos {
       DONT_PREEMPT  = 1<<9, // somebody else will send the preemption
       NOT_RUNNING  = 1<<10, // EC is not running
       BLOCK_MASK = IS_WAITING | IS_TRAPPED | NO_AS | NO_SCHED /*| NO_STATE */| REGISTER_ACCESS,
-      INIT_FLAGS = IS_TRAPPED | NO_AS | NO_SCHED /*| NO_STATE */| DONT_PREEMPT | NOT_LOADED | NOT_RUNNING
+      INIT_FLAGS = IS_TRAPPED | NO_AS | NO_SCHED | NO_STATE | DONT_PREEMPT | NOT_LOADED | NOT_RUNNING
     };
 
     ExecutionContext(IAsyncFree* memory);

@@ -44,13 +44,14 @@ namespace mythos {
       /** called during bootup on each processor. */
       static void initAP();
 
+      static size_t size();
 
       void clear();
       void save();
       void restore();
 
     public:
-      x86::FpuState state;      
+      x86::FpuState state;
     };
 
   } // namespace cpu

@@ -158,7 +158,8 @@ namespace mythos {
     if (!obj) RETHROW(obj);
     auto info = obj.getFrameInfo();
     if (info.device || !info.writable) THROW(Error::INVALID_CAPABILITY);
-    if (offset+sizeof(State) >= info.size) THROW(Error::INSUFFICIENT_RESOURCES);
+    size_t size = round_up(sizeof(cpu::ThreadState), alignof(cpu::FpuState)) + cpu::FpuState::size();
+    if (offset+size >= info.size) THROW(Error::INSUFFICIENT_RESOURCES);
     RETURN(_state.set(this, *framecapref, obj.cap(), info.start.logint()+offset));
   }
 
