@@ -41,7 +41,7 @@ static uint32_t xstate_sizes[x86::XFeature::MAX];
 static uint32_t xstate_comp_offsets[x86::XFeature::MAX];
 
 enum FpuMode { FSAVE, FXSAVE, XSAVE, XSAVEOPT, XSAVES };
-static char const * const fpuModeNames[] = 
+static char const * const fpuModeNames[] =
   {"FSAVE", "FXSAVE", "XSAVE", "XSAVEOPT", "XSAVES"};
 static FpuMode fpu_mode = FSAVE;
 
@@ -49,7 +49,7 @@ static FpuMode fpu_mode = FSAVE;
 static void fpu_setup_xstate()
 {
   // ask cpuid for supported features
-  xfeatures_mask = x86::getXFeaturesMask(); 
+  xfeatures_mask = x86::getXFeaturesMask();
   mlog::boot.detail("xsave features from cpuid 0xd", DVARhex(xfeatures_mask));
   // and then disable features not supported by the processor
   if (!x86::hasFPU()) xfeatures_mask.fp = false;
@@ -88,7 +88,7 @@ static void fpu_setup_xstate()
   }
   PANIC(fpu_xstate_size <= sizeof(x86::FpuState));
   //do_extra_xstate_size_checks();
-  // for PT: update_regset_xstate_info(fpu_user_xstate_size,	xfeatures_mask & ~XFEATURE_MASK_SUPERVISOR);
+  // for PT: update_regset_xstate_info(fpu_user_xstate_size,    xfeatures_mask & ~XFEATURE_MASK_SUPERVISOR);
 
   // get the offsets and sizes of the state space
   xstate_offsets[0] = 0; // legacy FPU state
@@ -100,7 +100,7 @@ static void fpu_setup_xstate()
   auto last_good_offset = offsetof(x86::XRegs, extended_state_area); // beginnning of the "extended state"
   for (uint8_t idx = 2; idx < x86::XFeature::MAX; idx++) {
     if (!xfeatures_mask.enabled(idx)) continue;
-    xstate_offsets[idx] = (!x86::isXFeatureSupervisor(idx)) ? x86::getXFeatureOffset(idx) : 0; 
+    xstate_offsets[idx] = (!x86::isXFeatureSupervisor(idx)) ? x86::getXFeatureOffset(idx) : 0;
     xstate_sizes[idx] = x86::getXFeatureSize(idx);
     OOPS_MSG(last_good_offset <= xstate_offsets[idx], "cpu has misordered xstate");
     last_good_offset = xstate_offsets[idx];
@@ -132,7 +132,7 @@ static void fpu_setup_xstate()
   char const* names[] = {"x87", "mmx/sse", "ymm", "bndregs", "bndcsr", "opmask", "zmm_hi256", "hi16_zmm", "pt", "pkru"};
   for (uint8_t idx = 0; idx < x86::XFeature::MAX; idx++) {
     if (!xfeatures_mask.enabled(idx)) continue;
-    mlog::boot.detail("we support XSAVE feature", idx, names[idx], 
+    mlog::boot.detail("we support XSAVE feature", idx, names[idx],
       DVARhex(xstate_offsets[idx]), DVAR(xstate_sizes[idx]),
       DVARhex(xstate_comp_offsets[idx]), DVAR(xstate_comp_sizes[idx]));
   }
@@ -144,8 +144,8 @@ void FpuState::initBSP()
 
   mlog::boot.info("has x87 FPU:", DVAR(x86::hasMMX()), DVAR(x86::hasAVX()),
     DVAR(x86::hasAVX()&&x86::hasAVX512F()), DVAR(x86::hasXSAVE()),
-    DVAR(x86::hasXSAVE()&&x86::hasXSAVEC()), 
-    DVAR(x86::hasXSAVE()&&x86::hasXSAVEOPT()), 
+    DVAR(x86::hasXSAVE()&&x86::hasXSAVEC()),
+    DVAR(x86::hasXSAVE()&&x86::hasXSAVEOPT()),
     DVAR(x86::hasXSAVE()&&x86::hasXSAVES()));
 
   // initialise MXCR feature mask for fxsr
@@ -274,6 +274,11 @@ void FpuState::restore()
 void FpuState::clear()
 {
   memcpy(&state, &fpu_init_state, fpu_xstate_size);
+}
+
+size_t FpuState::size()
+{
+    return fpu_xstate_size;
 }
 
 } // namespace cpu
