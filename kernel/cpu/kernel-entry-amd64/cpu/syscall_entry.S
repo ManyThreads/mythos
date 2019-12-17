@@ -24,6 +24,7 @@
  * Copyright 2016 Randolf Rotta, Robert Kuban, Maik Krüger, and contributors, BTU Cottbus-Senftenberg
  */
 #include "cpu/thread-state-layout.h"
+#include "cpu/gdt-layout.h"
 
 .extern thread_state
 .extern kernel_stack
@@ -61,11 +62,14 @@ syscall_entry:
         mov %rax, %rdi   // 1. argument: pointer to thread_state
         xor %rbp, %rbp
         pushq   $0 // fake return address
-        jmp syscall_entry_cxx
+        jmp syscall_entry_cxx   // @todo as a call
+        // @todo call try to return to user via scheduler
+        // @todo call sleep if nothing to return to
 
-.global syscall_return
-.type syscall_return, @function
-syscall_return:
+.global return_to_user_asm
+.type return_to_user_asm, @function
+// RDI: ThreadState*
+return_to_user_asm:
         mov $IA32_FS_BASE, %rcx
         mov TS_FS_BASE(%rdi), %eax
         mov (TS_FS_BASE+4)(%rdi), %edx
@@ -74,24 +78,59 @@ syscall_return:
         mov TS_GS_BASE(%rdi), %eax
         mov (TS_GS_BASE+4)(%rdi), %edx
         wrmsr   // prepare user's GS base for swapgs
-        mov TS_RBP(%rdi), %rbp
-        /// @todo may use xor %reg,%reg to zero the unpreserved registers
-        /// @todo reorder thread-state-layout to reflect reduced register passing
-        //mov TS_RBX(%rdi), %rbx
-        //mov TS_R12(%rdi), %r12
-        //mov TS_R13(%rdi), %r13
-        //mov TS_R14(%rdi), %r14
-        //mov TS_R15(%rdi), %r15
-        // skip rcx (rcx contains user's rip)
-        //mov TS_RAX(%rdi), %rax          // may contain a return value now
-        //mov TS_RDX(%rdi), %rdx
-        mov TS_RSI(%rdi), %rsi
-        //mov TS_R8(%rdi), %r8
-        //mov TS_R9(%rdi), %r9
-        //mov TS_R10(%rdi), %r10
-        mov TS_RFLAGS(%rdi), %r11       // rflags
+
+        // check for save and fast sysret, otherwise do iret
+        // maysysret is nonzero and rip < 0x7FFFFFFFFFFF
+        movabs $0x7ffffffffffe,%rax
         mov TS_RIP(%rdi), %rcx          // instruction pointer
-        mov TS_RSP(%rdi), %rsp          // stack
-        mov TS_RDI(%rdi), %rdi
+        cmp %rax, %rcx
+        setbe %al
+        movzbl %al, %eax
+        test %rax, TS_MAYSYSRET(%rdi)   // flag for "came from syscall"
+        je return_from_irq
+
+        /// @todo reorder thread-state-layout to reflect reduced register passing
+        xor %rbx, %rbx
+        xor %r12, %r12
+        xor %r13, %r13
+        xor %r14, %r14
+        xor %r15, %r15
+        // skip rcx (rcx contains user's rip)
+        xor %rax, %rax
+        xor %rdx, %rdx
+        mov TS_RSI(%rdi), %rsi          // return value: user context
+        xor %r8, %r8
+        xor %r9, %r9
+        xor %r10, %r10
+        mov $0x000200, %r11             // don't trust the user's rflags, enforce interrupt enable flag
+        mov TS_RBP(%rdi), %rbp          // stack frame base pointer
+        mov TS_RSP(%rdi), %rsp          // top of stack
+        mov TS_RDI(%rdi), %rdi          // return value: state or error code
         swapgs                          // restore user's GS base
         sysretq
+
+return_from_irq:
+        // create fake interrupt frame on the kernel stack
+        pushq $(SEGMENT_USER_DS+3)      // SS - user data segment with bottom 2 bits set for ring 3
+        pushq TS_RSP(%rdi)              // RSP - user stack from 2nd parameter
+        pushq $0x000200                 // RFLAGS - don't trust the user's rflags, enforce interrupt enable flag
+        pushq $(SEGMENT_USER_CS+3)      // CS  - user code segment with bottom 2 bits set for ring 3
+        pushq %rcx                      // RIP - Instruction pointer after iretq
+        // restore all other register
+        mov TS_RAX(%rdi), %rax
+        mov TS_RBX(%rdi), %rbx
+        mov TS_RCX(%rdi), %rcx
+        mov TS_RDX(%rdi), %rdx
+        mov TS_RSI(%rdi), %rsi
+        mov TS_RBP(%rdi), %rbp
+        mov TS_R8(%rdi), %r8
+        mov TS_R9(%rdi), %r9
+        mov TS_R10(%rdi), %r10
+        mov TS_R11(%rdi), %r11
+        mov TS_R12(%rdi), %r12
+        mov TS_R13(%rdi), %r13
+        mov TS_R14(%rdi), %r14
+        mov TS_R15(%rdi), %r15
+        mov TS_RDI(%rdi), %rdi
+        swapgs  // restore user's GS base
+        iretq   // return to user mode and enable interrupts via rflags IF field

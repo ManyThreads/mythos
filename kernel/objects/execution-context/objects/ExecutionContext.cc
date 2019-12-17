@@ -38,13 +38,9 @@
 namespace mythos {
 
   ExecutionContext::ExecutionContext(IAsyncFree* memory)
-    : flags(0)
-    , memory(memory)
+    : memory(memory)
   {
-    setFlags(IS_TRAPPED + NO_AS + NO_SCHED
-        + DONT_PREEMPT + NOT_LOADED + NOT_RUNNING);
     threadState.clear();
-    threadState.rflags = x86::FLAG_IF; // ensure that interrupts are enabled in user mode
     fpuState.clear();
   }
 
@@ -306,7 +302,7 @@ namespace mythos {
     threadState.fs_base = fs;
     threadState.gs_base = gs;
     MLOG_DETAIL(mlog::ec, "set fs/gs", DVAR(this), DVARhex(fs), DVARhex(gs));
-    
+
     RETURN(Error::SUCCESS);
   }
 
@@ -415,9 +411,10 @@ namespace mythos {
 
       case SYSCALL_WAIT: {
         auto prevState = setFlags(IN_WAIT | IS_WAITING);
-        MLOG_INFO(mlog::syscall, "wait", DVARhex(prevState));
-        if (!notificationQueue.empty() || (prevState & IS_NOTIFIED))
+        MLOG_DETAIL(mlog::syscall, "wait", DVARhex(prevState));
+        if (!notificationQueue.empty() || (prevState & IS_NOTIFIED)) {
           clearFlags(IS_WAITING); // because of race with notifier
+        }
         break;
       }
 
@@ -447,7 +444,9 @@ namespace mythos {
         mlog::Logger<mlog::FilterAny> user("user");
         // userctx => address in users virtual memory. Yes, we fully trust the user :(
         // portal => string length
-        mlog::sink->write((char const*)userctx, portal);
+	char str[300];
+	memcpy(str, reinterpret_cast<char*>(userctx), (portal<300) ? portal : 300);
+        mlog::sink->write(str, portal);
         code = uint64_t(Error::SUCCESS);
         break;
       }
@@ -510,7 +509,7 @@ namespace mythos {
         if (prevWait & IN_WAIT) {
             // clear IS_NOTIFIED only if the user mode was waiting for it
             // we won't clear it twice without a second wait() system call
-            clearFlags(IS_NOTIFIED); 
+            clearFlags(IS_NOTIFIED);
 
             // return a notification event if any
             auto e = notificationQueue.pull();
@@ -522,7 +521,7 @@ namespace mythos {
                 threadState.rsi = 0;
                 threadState.rdi = uint64_t(Error::NO_MESSAGE);
             }
-            MLOG_DETAIL(mlog::ec, DVAR(this), "return one notification", 
+            MLOG_DETAIL(mlog::ec, DVAR(this), "return one notification",
                         DVARhex(threadState.rsi), DVAR(threadState.rdi));
         }
 

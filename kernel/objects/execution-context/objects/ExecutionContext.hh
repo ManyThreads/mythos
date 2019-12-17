@@ -67,7 +67,8 @@ namespace mythos {
       NOT_LOADED   = 1<<8, // CPU state is not loaded
       DONT_PREEMPT  = 1<<9, // somebody else will send the preemption
       NOT_RUNNING  = 1<<10, // EC is not running
-      BLOCK_MASK = IS_WAITING | IS_TRAPPED | NO_AS | NO_SCHED | REGISTER_ACCESS
+      BLOCK_MASK = IS_WAITING | IS_TRAPPED | NO_AS | NO_SCHED | REGISTER_ACCESS,
+      INIT_FLAGS = IS_TRAPPED | NO_AS | NO_SCHED | DONT_PREEMPT | NOT_LOADED | NOT_RUNNING
     };
 
     ExecutionContext(IAsyncFree* memory);
@@ -157,7 +158,7 @@ namespace mythos {
   private:
     async::NestedMonitorDelegating monitor;
     INotifiable::list_t notificationQueue;
-    std::atomic<flag_t> flags;
+    std::atomic<flag_t> flags = {INIT_FLAGS};
     CapRef<ExecutionContext,IPageMap> _as;
     CapRef<ExecutionContext,ICapMap> _cs;
     CapRef<ExecutionContext,IScheduler> _sched;
