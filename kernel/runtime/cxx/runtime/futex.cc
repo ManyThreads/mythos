@@ -35,12 +35,87 @@ struct FutexQueueElem
 {
     mythos::CapPtr ec;
     uint32_t* uaddr;
-    FutexQueueElem* next;	
+    FutexQueueElem* next;   
 }; 
 
 FutexQueueElem* queueHead = nullptr;
 FutexQueueElem** queueTail = &queueHead;
 mythos::Mutex readLock;
+
+static inline uint32_t rol32(uint32_t word, unsigned int shift)
+{
+    return (word << shift) | (word >> ((-shift) & 31));
+}
+
+#define JHASH_INITVAL       0xdeadbeef
+#define __jhash_final(a, b, c)      \
+{                                   \
+    c ^= b; c -= rol32(b, 14);      \
+    a ^= c; a -= rol32(c, 11);      \
+    b ^= a; b -= rol32(a, 25);      \
+    c ^= b; c -= rol32(b, 16);      \
+    a ^= c; a -= rol32(c, 4);       \
+    b ^= a; b -= rol32(a, 14);      \
+    c ^= b; c -= rol32(b, 24);      \
+}
+
+#define __jhash_mix(a, b, c)            \
+{                                       \
+    a -= c;  a ^= rol32(c, 4);  c += b; \
+    b -= a;  b ^= rol32(a, 6);  a += c; \
+    c -= b;  c ^= rol32(b, 8);  b += a; \
+    a -= c;  a ^= rol32(c, 16); c += b; \
+    b -= a;  b ^= rol32(a, 19); a += c; \
+    c -= b;  c ^= rol32(b, 4);  b += a; \
+}
+
+static inline uint32_t jhash2(const uint32_t *k, uint32_t length, uint32_t initval)
+{
+    uint32_t a, b, c;
+
+    /* Set up the internal state */
+    a = b = c = JHASH_INITVAL + (length<<2) + initval;
+
+    /* Handle most of the key */
+    while (length > 3) {
+        a += k[0];
+        b += k[1];
+        c += k[2];
+        __jhash_mix(a, b, c);
+        length -= 3;
+        k += 3;
+    }
+
+    /* Handle the last 3 u32's: all the case statements fall through */
+    switch (length) {
+        case 3: c += k[2];
+        case 2: b += k[1];
+        case 1: a += k[0];
+        __jhash_final(a, b, c);
+        case 0: /* Nothing left to add */
+        break;
+    }
+
+    return c;
+}
+
+uint32_t reduce(int number)
+{
+    int range = 16;
+
+    while (number > range) 
+        number -= range;
+
+    return number;
+}
+
+
+static int hash_futex(uint32_t *uaddr)
+{
+    uint32_t hash = jhash2(uaddr, sizeof(uaddr), 0);
+    //return &futex_queues[hash & (futex_hashsize - 1)];
+    return hash;
+}
 
 static int futex_wait(
     uint32_t *uaddr, unsigned int flags, uint32_t val,
@@ -61,7 +136,7 @@ static int futex_wait(
 
     if (val == *addr) {
         MLOG_DETAIL(mlog::app, "going to wait");
-        auto sysret = mythos::syscall_wait();	
+        auto sysret = mythos::syscall_wait();   
     }
 
     if (reinterpret_cast<uint64_t>(qe.next) != 1ul) {
@@ -135,7 +210,7 @@ long do_futex(
         MLOG_DETAIL(mlog::app, "FUTEX_WAIT");
         val3 = FUTEX_BITSET_MATCH_ANY;
         /* fall through */
-    case FUTEX_WAIT_BITSET:	
+    case FUTEX_WAIT_BITSET: 
         MLOG_DETAIL(mlog::app, "FUTEX_WAIT_BITSET");
         return futex_wait(uaddr, flags, val, timeout, val3);
     case FUTEX_WAKE:
