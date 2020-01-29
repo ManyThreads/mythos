@@ -101,6 +101,9 @@ In order to run MyThOS on an Intel XeonPhi Knights Corner processor, a recent ve
 * `cd kernel-ihk`
 * `make run`
 
+## Problems and Solutions
+* If make qemu fails with `qemu: could not load PC BIOS 'bios-256k.bin'` on CentOS 7. Fix: `yum install seabios-bin`.
+
 # Acknowledgements
 
 The MyThOS project was funded by the Federal Ministry of Education and Research (BMBF) under Grant No. 01IH13003 from October 2013 to September 2016. The grant was part of the 3rd HPC-Call of the Gauss Allianz.
