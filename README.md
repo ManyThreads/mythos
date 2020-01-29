@@ -102,7 +102,8 @@ In order to run MyThOS on an Intel XeonPhi Knights Corner processor, a recent ve
 * `make run`
 
 ## Problems and Solutions
-* If make qemu fails with `qemu: could not load PC BIOS 'bios-256k.bin'` on CentOS 7. Fix: `yum install seabios-bin`.
+* If `make qemu` fails with `qemu: could not load PC BIOS 'bios-256k.bin'` on CentOS 7. Fix: `yum install seabios-bin`.
+* If `make qemu` fails with `qemu-system-x86_64: Unable to find CPU definition: max`, try to change "-cpu max" into "-cpu SandyBridge" in /mythos/kernel/build/emu-qemu-amd64/mcconf.module
 
 # Acknowledgements
 
