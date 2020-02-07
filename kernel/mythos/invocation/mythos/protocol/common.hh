@@ -45,6 +45,7 @@ namespace mythos {
       EXAMPLE,
       CPUDRIVERKNC,
       INTERRUPT_CONTROL,
+      PERFMON
     };
 
   } // namespace protocol

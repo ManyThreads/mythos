@@ -1,0 +1,3 @@
+[module.plugin-performance-monitoring]
+    incfiles = [  ]
+    kernelfiles = [ "plugins/PerfMonPlugin.cc" ]

@@ -1,0 +1,4 @@
+# -*- mode:toml; -*-
+[module.objects-performance-monitoring]
+    incfiles = [ "objects/PerformanceMonitoring.hh" ]
+    kernelfiles = [ "objects/PerformanceMonitoring.cc" ]
