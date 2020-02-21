@@ -37,10 +37,12 @@ extern "C" int pthread_create(pthread_t *res, const pthread_attr_t *attrp, void 
 }
 #endif
 
+#ifdef use_pthreads_stubs
 extern "C" int pthread_detach(pthread_t){
 	MLOG_ERROR(mlog::app, __PRETTY_FUNCTION__);
 	return 0;
 }
+#endif
 
 #ifdef use_pthreads_stubs
 extern "C" _Noreturn void pthread_exit(void *){
@@ -627,15 +629,19 @@ extern "C" void _pthread_cleanup_pop(struct __ptcb *, int){
 
 
 #ifdef _GNU_SOURCE
+#ifdef use_pthreads_stubs
 extern "C" int pthread_getaffinity_np(pthread_t, size_t, struct cpu_set_t *){
 	MLOG_ERROR(mlog::app, __PRETTY_FUNCTION__);
 	return 0;
 }
+#endif
 
+#ifdef use_pthreads_stubs
 extern "C" int pthread_setaffinity_np(pthread_t, size_t, const struct cpu_set_t *){
 	MLOG_ERROR(mlog::app, __PRETTY_FUNCTION__);
 	return 0;
 }
+#endif
 
 #ifdef use_pthreads_stubs
 extern "C" int pthread_getattr_np(pthread_t, pthread_attr_t *){

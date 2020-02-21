@@ -49,6 +49,8 @@
 #include <pthread.h>
 #include <omp.h>
 
+#include "tbb/tbb.h"
+
 mythos::InvocationBuf* msg_ptr asm("msg_ptr");
 int main() asm("main");
 
@@ -242,7 +244,7 @@ void test_heap() {
   MLOG_INFO(mlog::app, "Test heap");
   mythos::PortalLock pl(portal);
   uintptr_t vaddr = 22*1024*1024; // choose address different from invokation buffer
-  auto size = 4*1024*1024; // 2 MB
+  auto size = 64*1024*1024; // 2 MB
   auto align = 2*1024*1024; // 2 MB
   // allocate a 2MiB frame
   mythos::Frame f(capAlloc());
@@ -434,6 +436,24 @@ void test_InterruptControl() {
   MLOG_INFO(mlog::app, "test_InterruptControl end");
 }
 
+void test_TBB(){
+	class say_hello
+	{
+	   int id;
+	   public:
+	      say_hello(int i) : id(i) { }
+	      void operator( ) ( ) const
+	      {
+		 printf("hello from task %d\n",id);
+	      }
+	};
+
+	tbb::task_group tg;
+	for(int i=0; i<100; i++){
+		tg.run(say_hello(i)); // spawn 1st task and return
+	}
+	tg.wait( );             // wait for tasks to complete
+}
 
 int main()
 {
@@ -441,18 +461,19 @@ int main()
   mythos::syscall_debug(str, sizeof(str)-1);
   MLOG_ERROR(mlog::app, "application is starting :)", DVARhex(msg_ptr), DVARhex(initstack_top));
 
-  test_float();
+  //test_float();
   test_Example();
   test_Portal();
-  test_memory_root();
+  //test_memory_root();
   test_heap(); // heap must be initialized for tls test
   test_tls();
   test_exceptions();
   //test_InterruptControl();
   //test_HostChannel(portal, 24*1024*1024, 2*1024*1024);
-  test_ExecutionContext();
-  test_pthreads();
-  test_omp();
+  //test_ExecutionContext();
+  //test_pthreads();
+  //test_omp();
+  test_TBB();
 
   char const end[] = "bye, cruel world!";
   mythos::syscall_debug(end, sizeof(end)-1);

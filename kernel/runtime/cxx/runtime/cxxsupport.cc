@@ -102,14 +102,14 @@ int prlimit(
     return 0;
 }
 
-int sched_setaffinity(pid_t pid, size_t cpusetsize, cpu_set_t *mask)
+int my_sched_setaffinity(pid_t pid, size_t cpusetsize, cpu_set_t *mask)
 {
     //MLOG_DETAIL(mlog::app, "syscall sched_setaffinity", DVAR(pid), DVAR(cpusetsize), DVARhex(mask));
     if(cpusetsize == NUM_CPUS && mask == NULL) return -EFAULT;
     return 0;
 }
 
-int sched_getaffinity(pid_t pid, size_t cpusetsize, cpu_set_t *mask)
+int my_sched_getaffinity(pid_t pid, size_t cpusetsize, cpu_set_t *mask)
 {
     //MLOG_DETAIL(mlog::app, "syscall sched_getaffinity", DVAR(pid), DVAR(cpusetsize), DVARhex(mask));
     if (mask) {
@@ -165,6 +165,9 @@ extern "C" long mythos_musl_syscall(
     case 24: // sched_yield
         //MLOG_ERROR(mlog::app, "syscall sched_yield NYI");
         return 0;
+    case 25: // mremap
+        //MLOG_ERROR(mlog::app, "syscall sched_yield NYI");
+        return 0;
     case 28:  //madvise
         MLOG_WARN(mlog::app, "syscall madvise NYI");
         return 0;
@@ -193,9 +196,9 @@ extern "C" long mythos_musl_syscall(
                             nullptr /*uaddr2*/, val2/*val2*/, a6/*val3*/);
         }
     case 203: // sched_setaffinity
-        return sched_setaffinity(a1, a2, reinterpret_cast<cpu_set_t*>(a3));
+        return my_sched_setaffinity(a1, a2, reinterpret_cast<cpu_set_t*>(a3));
     case 204: // sched_getaffinity
-        return sched_getaffinity(a1, a2, reinterpret_cast<cpu_set_t*>(a3));
+        return my_sched_getaffinity(a1, a2, reinterpret_cast<cpu_set_t*>(a3));
     case 228: // clock_gettime
         //MLOG_ERROR(mlog::app, "Error: mythos_musl_syscall clock_gettime", DVAR(num), 
             //DVARhex(a1), DVARhex(a2), DVARhex(a3),
@@ -264,7 +267,7 @@ int myclone(
     int (*func)(void *), void *stack, int flags, 
     void *arg, int* ptid, void* tls, int* ctid)
 {
-    //MLOG_DETAIL(mlog::app, "myclone");
+    MLOG_DETAIL(mlog::app, "myclone");
     ASSERT(tls != nullptr);
     static int nextThread = 1;
 
