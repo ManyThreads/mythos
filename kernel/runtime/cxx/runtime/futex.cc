@@ -38,13 +38,13 @@ struct FutexQueueElem
     FutexQueueElem(uint32_t* uaddr) : uaddr(uaddr) {}
     mythos::CapPtr ec = {mythos::localEC};
     uint32_t* uaddr;
-    FutexQueueElem* next = {nullptr};
+    std::atomic<FutexQueueElem*> queueNext = {nullptr};
 };
 
 struct alignas(64) FutexQueue
 {
-    FutexQueueElem* queueHead = {nullptr};
-    FutexQueueElem** queueTail = {&queueHead};
+    std::atomic<FutexQueueElem*> queueHead = {nullptr};
+    std::atomic<FutexQueueElem*>* queueTail = {&queueHead};
     mythos::Mutex readLock;
 };
 
@@ -53,7 +53,7 @@ struct alignas(64) FutexQueue
  *
  * The size of 256 has to match the reduction in \f hash_futex.
  */
-FutexQueue queue[256];
+static FutexQueue queue[256];
 
 static uint32_t hash_futex(uint32_t *uaddr)
 {
@@ -90,8 +90,8 @@ static int futex_wait(
             return -EAGAIN;
         }
 
-        *(queue[hash].queueTail) = &qe;
-        queue[hash].queueTail = &qe.next;
+        queue[hash].queueTail->store(&qe, std::memory_order_relaxed);
+        queue[hash].queueTail = &qe.queueNext;
     }
 
     // suspend until notify or other message
@@ -100,24 +100,24 @@ static int futex_wait(
     mythos::ISysretHandler::handle(mythos::syscall_wait());
 
     // remove the own element from the queue in case it is still there
-    if (reinterpret_cast<uint64_t>(qe.next) != 1ul) {
+    if (qe.queueNext.load() != reinterpret_cast<FutexQueueElem*>(1ul)) {
         mythos::Mutex::Lock guard(queue[hash].readLock);
-        if (reinterpret_cast<uint64_t>(qe.next) != 1ul) {
+        if (qe.queueNext.load(std::memory_order_relaxed) != reinterpret_cast<FutexQueueElem*>(1ul)) {
             MLOG_DETAIL(mlog::app, "next != 1 -> remove this element from queue");
-            ;
+
             for (auto curr = &(queue[hash].queueHead);
-                 *curr != nullptr; // did not reach end of list yet
-                 curr = &(*curr)->next) {
-                ASSERT(reinterpret_cast<uint64_t>(*curr) != 1ul);
-                if (*curr == &qe) { // found our own element, curr points to it
+                 curr->load(std::memory_order_relaxed) != nullptr; // did not reach end of list yet
+                 curr = &curr->load(std::memory_order_relaxed)->queueNext) {
+                ASSERT(qe.queueNext.load(std::memory_order_relaxed) != reinterpret_cast<FutexQueueElem*>(1ul));
+                if (curr->load(std::memory_order_relaxed) == &qe) { // found our own element, curr points to it
                     MLOG_DETAIL(mlog::app, "element found in queue");
-                    if (queue[hash].queueTail == &(*curr)->next) {
+                    if (queue[hash].queueTail == &(curr->load(std::memory_order_relaxed))->queueNext) {
                         // own element is the tail of list:
                         // move tail to the element that points to our element
                         //MLOG_DETAIL(mlog::app, "last elem in queue");
                         queue[hash].queueTail = curr;
                     }
-                    *curr = qe.next; // let's skip our element
+                    curr->store(qe.queueNext,std::memory_order_relaxed); // let's skip our element
                     break; // it can be on the list just once
                 }
             }
@@ -137,32 +137,28 @@ static int futex_wake(
     mythos::Mutex::Lock guard(queue[hash].readLock);
     auto curr = &(queue[hash].queueHead);
     for (int i = 0; i < nr_wake; i++) {
-        while ((*curr) && (*curr)->uaddr != uaddr) {
-            MLOG_DETAIL(mlog::app, "Skip entry", DVARhex((*curr)->uaddr),
-                        DVAR((*curr)->ec), DVAR((*curr)->next), DVARhex(uaddr) );
-            curr = &(*curr)->next;
+        while (curr->load(std::memory_order_relaxed) && curr->load(std::memory_order_relaxed)->uaddr != uaddr) {
+            MLOG_DETAIL(mlog::app, "Skip entry", DVARhex(curr->load(std::memory_order_relaxed)->uaddr),
+                        DVAR(curr->load(std::memory_order_relaxed)->ec), DVAR(curr->load(std::memory_order_relaxed)->queueNext), DVARhex(uaddr) );
+            curr = &curr->load(std::memory_order_relaxed)->queueNext;
         }
 
-        if (*curr != nullptr) {
-            if (queue[hash].queueTail == &(*curr)->next) {
-                // own element is the tail of list:
-                // move tail to the element that points to our element
-                //MLOG_DETAIL(mlog::app, "last elem in queue");
-                queue[hash].queueTail = curr;
-            }
-            //MLOG_DETAIL(mlog::app, uaddr, "Found entry" );
-            auto entry = *curr;
-            *curr = entry->next;
-            auto ec = entry->ec;
-            entry->next = reinterpret_cast<FutexQueueElem*>(1ul); // mark as removed
+        if (curr->load(std::memory_order_relaxed) == nullptr) break;
 
-            MLOG_DETAIL(mlog::app, "Wake EC", DVAR(ec), DVAR(uaddr) );
-            mythos::syscall_signal(ec);
-        } else {
-            MLOG_DETAIL(mlog::app, uaddr, "Reached end of queue" );
-            return 0;
+        if (queue[hash].queueTail == &curr->load(std::memory_order_relaxed)->queueNext) {
+            // own element is the tail of list:
+            // move tail to the element that points to our element
+            //MLOG_DETAIL(mlog::app, "last elem in queue");
+            queue[hash].queueTail = curr;
         }
+        //MLOG_DETAIL(mlog::app, uaddr, "Found entry" );
+        auto entry = curr->load(std::memory_order_relaxed);
+        curr->store(entry->queueNext, std::memory_order_relaxed);
+        auto ec = entry->ec;
+        entry->queueNext.store(reinterpret_cast<FutexQueueElem*>(1ul)); // mark as removed
 
+        MLOG_DETAIL(mlog::app, "Wake EC", DVAR(ec), DVAR(uaddr) );
+        mythos::syscall_signal(ec);
     }
     //MLOG_DETAIL(mlog::app, "wake end" );
     return 0;
