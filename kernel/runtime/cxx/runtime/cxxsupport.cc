@@ -215,11 +215,15 @@ int myclone(
 
     mythos::PortalLock pl(portal); // future access will fail if the portal is in use already
     mythos::ExecutionContext ec(capAlloc());
+    mythos::Frame stateFrame(capAlloc());
+    auto res2 = stateFrame.create(pl, kmem, 4096, 4096).wait();
     if (ptid && (flags&CLONE_PARENT_SETTID)) *ptid = int(ec.cap());
-    // @todo store thread-specific ctid pointer, which should set to 0 by the OS on the thread's exit
+    // @todo store thread-specific ctid pointer, which should be set to 0 by the OS on the thread's exit
     // @todo needs interaction with a process internal scheduler or core manager in order to figure out where to schedule the new thread
     auto res1 = ec.create(kmem).as(myAS).cs(myCS).sched(mythos::init::SCHEDULERS_START + 1)
-        .prepareStack(stack).startFunInt(func, arg, ec.cap())
+        .state(stateFrame.cap(), 0)
+        .prepareStack(stack)
+        .startFunInt(func, arg, ec.cap())
         .suspended(false).fs(tls)
         .invokeVia(pl).wait();
     MLOG_DETAIL(mlog::app, DVAR(ec.cap()));

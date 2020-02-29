@@ -492,8 +492,10 @@ namespace mythos {
         mlog::Logger<mlog::FilterAny> user("user");
         // userctx => address in users virtual memory. Yes, we fully trust the user :(
         // portal => string length
-    char str[300];
-    memcpy(str, reinterpret_cast<char*>(userctx), (portal<300) ? portal : 300);
+        // It is necessary to make a copy because sink->write can delegate itself to another
+        // processor core that is in a differenc address space!
+        char str[300];
+        memcpy(str, reinterpret_cast<char*>(userctx), (portal<300) ? portal : 300);
         mlog::sink->write(str, portal);
         code = uint64_t(Error::SUCCESS);
         break;
@@ -691,14 +693,12 @@ namespace mythos {
       }
       if (data) {// configure according to message
         ASSERT(implies(data, msg));
-        auto regRes = obj->setRegisters(data->regs);
-        if (!regRes) RETHROW(regRes);
-        if (data->as()) {
-          auto res = obj->setAddressSpace(msg->lookupEntry(data->as()));
-          if (!res) RETHROW(res);
-        }
         if (data->cs()) {
           auto res = obj->setCapSpace(msg->lookupEntry(data->cs()));
+          if (!res) RETHROW(res);
+        }
+        if (data->as()) {
+          auto res = obj->setAddressSpace(msg->lookupEntry(data->as()));
           if (!res) RETHROW(res);
         }
         if (data->sched()) {
@@ -709,7 +709,11 @@ namespace mythos {
           auto res = obj->setStateFrame(msg->lookupEntry(data->state()), data->stateOffset, data->initializeState);
           if (!res) RETHROW(res);
         }
-        obj->setEntryPoint(data->regs.rip);
+        // @todo overwriting the registers should be optional!
+        auto regRes = obj->setRegisters(data->regs);
+        if (!regRes) RETHROW(regRes);
+        // @todo %rip should come from the state frame, not the message
+        // obj->setEntryPoint(data->regs.rip); // just writes %rip again, see setRegisters above 
         if (data->start) obj->setTrapped(false);
       }
       return *obj;

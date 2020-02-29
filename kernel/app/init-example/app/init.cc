@@ -225,15 +225,22 @@ void test_tls()
 
   mythos::ExecutionContext ec1(capAlloc());
   auto tls = mythos::setupNewTLS();
+  mythos::Frame stateFrame(capAlloc());
+  auto res2 = stateFrame.create(pl, kmem, 4096, 4096).wait();
+  TEST(res2);
   MLOG_INFO(mlog::app, "test_EC: create ec1 TLS", DVARhex(tls));
   ASSERT(tls != nullptr);
   auto res1 = ec1.create(kmem).as(myAS).cs(myCS).sched(mythos::init::SCHEDULERS_START + 1)
-    .prepareStack(thread1stack_top).startFun(threadFun, nullptr, ec1.cap())
+    .state(stateFrame.cap(),0)
+    .prepareStack(thread1stack_top)
+    .startFun(threadFun, nullptr, ec1.cap())
     .suspended(false).fs(tls)
     .invokeVia(pl).wait();
   TEST(res1);
   TEST(ec1.setFSGS(pl,(uint64_t) tls, 0).wait());
   mythos::syscall_signal(ec1.cap());
+  // @todo should test that EC is/was actually running (via shared variable)
+  // @todo should wait for the EC finish and then clean up
   MLOG_INFO(mlog::app, "End test tls");
 }
 
@@ -331,14 +338,14 @@ void* threadMain(void* arg){
 }
 
 void test_pthreads(){
-  MLOG_INFO(mlog::app, "Test Pthreads");
-	pthread_t p;
- 
-	auto tmp = pthread_create(&p, NULL, &threadMain, NULL);
-  MLOG_INFO(mlog::app, "pthread_create returned", DVAR(tmp));
-	pthread_join(p, NULL);
+    MLOG_INFO(mlog::app, "Test Pthreads");
+    pthread_t p;
 
-  MLOG_INFO(mlog::app, "End Test Pthreads");
+    auto tmp = pthread_create(&p, NULL, &threadMain, NULL);
+    MLOG_INFO(mlog::app, "pthread_create returned", DVAR(tmp));
+    pthread_join(p, NULL);
+
+    MLOG_INFO(mlog::app, "End Test Pthreads");
 }
 
 void test_omp(){
@@ -382,25 +389,32 @@ void test_ExecutionContext()
   MLOG_INFO(mlog::app, "Test ExecutionContext");
   mythos::ExecutionContext ec1(capAlloc());
   mythos::ExecutionContext ec2(capAlloc());
+  mythos::Frame stateFrame(capAlloc());
   {
     MLOG_INFO(mlog::app, "test_EC: create ec1");
     mythos::PortalLock pl(portal); // future access will fail if the portal is in use already
 
+    auto res3 = stateFrame.create(pl, kmem, 2*4096, 4096).wait();
+    TEST(res3);
     auto tls1 = mythos::setupNewTLS();
     ASSERT(tls1 != nullptr);
     auto res1 = ec1.create(kmem).as(myAS).cs(myCS).sched(mythos::init::SCHEDULERS_START)
-    .prepareStack(thread1stack_top).startFun(&thread_main, nullptr, ec1.cap())
-    .suspended(false).fs(tls1)
-    .invokeVia(pl).wait();
+        .state(stateFrame.cap(), 0)
+        .prepareStack(thread1stack_top)
+        .startFun(&thread_main, nullptr, ec1.cap())
+        .suspended(false).fs(tls1)
+        .invokeVia(pl).wait();
     TEST(res1);
 
     MLOG_INFO(mlog::app, "test_EC: create ec2");
     auto tls2 = mythos::setupNewTLS();
     ASSERT(tls2 != nullptr);
     auto res2 = ec2.create(kmem).as(myAS).cs(myCS).sched(mythos::init::SCHEDULERS_START+1)
-    .prepareStack(thread2stack_top).startFun(&thread_main, nullptr, ec2.cap())
-    .suspended(false).fs(tls2)
-    .invokeVia(pl).wait();
+        .state(stateFrame.cap(), 4096)
+        .prepareStack(thread2stack_top)
+        .startFun(&thread_main, nullptr, ec2.cap())
+        .suspended(false).fs(tls2)
+        .invokeVia(pl).wait();
     TEST(res2);
   }
 
@@ -411,6 +425,7 @@ void test_ExecutionContext()
   MLOG_INFO(mlog::app, "sending notifications");
   mythos::syscall_signal(ec1.cap());
   mythos::syscall_signal(ec2.cap());
+  // @todo synchronize on thread exit and clean up
   MLOG_INFO(mlog::app, "End Test ExecutionContext");
 }
 
@@ -421,10 +436,15 @@ void test_InterruptControl() {
   mythos::PortalLock pl(portal); // future access will fail if the portal is in use already
 
   mythos::ExecutionContext ec(capAlloc());
+  mythos::Frame stateFrame(capAlloc());
+  auto res2 = stateFrame.create(pl, kmem, 4096, 4096).wait();
+  TEST(res2);
   auto tls = mythos::setupNewTLS();
   ASSERT(tls != nullptr);
   auto res1 = ec.create(kmem).as(myAS).cs(myCS).sched(mythos::init::SCHEDULERS_START + 2)
-    .prepareStack(thread3stack_top).startFun(&thread_main, nullptr, ec.cap())
+    .state(stateFrame.cap(), 0)
+    .prepareStack(thread3stack_top)
+    .startFun(&thread_main, nullptr, ec.cap())
     .suspended(false).fs(tls)
     .invokeVia(pl).wait();
   TEST(res1);
