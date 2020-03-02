@@ -38,6 +38,7 @@ extern "C" typedef void (*func_t)();
 extern "C" [[noreturn]] void _Exit(int exit_code);
 extern "C" [[noreturn]] void exit(int exit_code=0);
 
+// this stuff is needed when running without musl libc:
 // extern func_t __preinit_array_start[] __attribute__((weak));
 // extern func_t __preinit_array_end[] __attribute__((weak));
 // extern func_t __init_array_start[] __attribute__((weak));
@@ -62,55 +63,42 @@ extern "C" void start_c(long *)
     // init TLS is done by musl libc
     //mythos::setupInitialTLS();
 
-    // TODO make a fake environment structure, which would normally be provided by the process creator
-    // at the bottom of the stack 
-    // see http://dbp-consulting.com/tutorials/debugging/linuxProgramStartup.html
-    // http://articles.manugarg.com/aboutelfauxiliaryvectors.html
-    
-    // when initialising the stack:
-    // push end marker
-    // push environment and command line strings
-    // push padding
-    // push AT_NULL terminator
-    // push AUXV entries
-    // push nullptr for termination of environment variables
-    // push environment variables
-    // push nullptr for command line termination
-    // push command line arguments
-    // push argc
-    
-    // need AT_PHDR, AT_PHNUM, AT_PHENT, 
-    // maybe AT_RANDOM, AT_HWCAP, AT_SYSINFO, AT_PAGESZ, AT_SECURE
-    
-    // can add own entries with id>AUX_CNT and musl/libc will ignore these    
-    // for example, pointer to capability environment information, which can also be placed on the stack 
-    
     struct Auxv 
     {
         Auxv(uint64_t a_type, uint64_t a_val) : a_type(a_type), a_val(a_val) {}
         uint64_t a_type;              /* Entry type */
         uint64_t a_val;           /* Integer value */
     };
-    
-    mythos::elf64::Elf64Image img(&__executable_start);
 
+    // Make a fake environment structure.
+    // This would normally be provided by the process creator
+    // at the bottom of the stack. 
+    // But it can be anywhere, because we pass it by pointer to the musl libc entry point.
+    // see http://dbp-consulting.com/tutorials/debugging/linuxProgramStartup.html
+    // http://articles.manugarg.com/aboutelfauxiliaryvectors.html
+    //
+    // The musl libc needs AT_PHDR, AT_PHNUM, AT_PHENT, 
+    // and maybe also AT_RANDOM, AT_HWCAP, AT_SYSINFO, AT_PAGESZ, AT_SECURE.
+    // We can add own entries with id>AUX_CNT and musl/libc will ignore these    
+    // for example, pointer to capability environment information.
     struct ProgEnv 
     {
         ProgEnv() {}
         long argc = 0;
         // here the pointers to command line arguments would come, terminated by nullptr in addition to argc
-        char* argvEnd = nullptr;
+        char* argvEnd = nullptr; // termination of arg vector
         // here the pointers to environment variables would come, terminated by nullptr
-        char* envEnd = nullptr;
+        char* envEnd = nullptr; // termination of env vector
         // here the AUX vector comes
         Auxv phdr={3, 0};
         Auxv phent={4, 0};
         Auxv phnum={5, 0};
         Auxv pagesize={6, 4096};
         Auxv secure={23, 1};
-        Auxv auxvEnd={0,0};
+        Auxv auxvEnd={0,0}; // AT_NULL termination of the aux vector, would be bottom of stack
     };
     
+    mythos::elf64::Elf64Image img(&__executable_start);
     ProgEnv env;
     long* p = (long*)&env;
     
@@ -118,9 +106,9 @@ extern "C" void start_c(long *)
     env.phnum.a_val = img.phnum();
     env.phent.a_val = img.phent();
     
-    int argc = p[0];
-    char **argv = (char **)(p+1);
-    __libc_start_main(&main, argc, argv);
+    // implemented in musl libc: src/env/__libc_start_main.c
+    // uses char **envp = argv+argc+1;
+    __libc_start_main(&main, env.argc, &env.argvEnd-env.argc);
 }
 
 // see also http://stackoverflow.com/a/28981890 :(

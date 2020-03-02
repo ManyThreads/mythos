@@ -27,9 +27,14 @@
 
 #include <cstdint>
 #include "util/assert.hh"
-
+#include "runtime/ExecutionContext.hh"
+#include "runtime/Frame.hh"
 
 namespace mythos {
+
+extern thread_local mythos::ExecutionContext pthreadExecutionContext;
+extern thread_local mythos::Frame pthreadStateFrame;
+// @todo add a individual thread_local portal for each pthread
 
 void setupInitialTLS();
 
