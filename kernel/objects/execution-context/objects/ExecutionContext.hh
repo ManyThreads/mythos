@@ -67,7 +67,7 @@ namespace mythos {
       IS_NOTIFIED     = 1<<6, // used by notify() syscall for binary semaphore
       REGISTER_ACCESS = 1<<7, // accessing registers
       NOT_LOADED   = 1<<8, // CPU state is not loaded
-      DONT_PREEMPT  = 1<<9, // somebody else will send the preemption
+      DONT_PREEMPT  = 1<<9, // somebody else is sending a preemption already
       NOT_RUNNING  = 1<<10, // EC is not running
       BLOCK_MASK = IS_WAITING | IS_TRAPPED | NO_AS | NO_SCHED | NO_STATE | REGISTER_ACCESS,
       INIT_FLAGS = IS_TRAPPED | NO_AS | NO_SCHED | NO_STATE | DONT_PREEMPT | NOT_LOADED | NOT_RUNNING

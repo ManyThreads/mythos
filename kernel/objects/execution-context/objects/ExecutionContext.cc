@@ -44,14 +44,13 @@ namespace mythos {
 
   void ExecutionContext::setFlagsSuspend(flag_t f)
   {
-    auto prev = setFlags(f | DONT_PREEMPT);
+    auto prev = setFlags(f | DONT_PREEMPT); // cleared by resume()
     MLOG_DETAIL(mlog::ec, "set flag", DVAR(this), DVARhex(f), DVARhex(prev),
                 DVARhex(flags.load()), isReady());
-    if (needPreemption(prev) && !isReady()) {
-        auto place = currentPlace.load();
-        ASSERT(place != nullptr);
+    auto place = currentPlace.load();
+    if (needPreemption(prev) && place != nullptr) {
         // place->preempt() is insufficient because the synchronous unbind() has to wait until suspending has finished
-        if (place) synchronousAt(place) << [this]() {
+        synchronousAt(place) << [this]() {
             MLOG_DETAIL(mlog::ec, "suspended", DVAR(this));
         };
     }
@@ -367,7 +366,7 @@ namespace mythos {
   Error ExecutionContext::invokeSuspend(Tasklet* t, Cap, IInvocation* msg)
   {
     this->msg = msg;
-    setFlags(IS_TRAPPED + DONT_PREEMPT);
+    setFlags(IS_TRAPPED | DONT_PREEMPT);
 
     auto home = currentPlace.load();
     if (home != nullptr) {
