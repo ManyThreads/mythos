@@ -1,0 +1,4 @@
+Current problems:
+Adding the parameters for the graphical memory and executing via SSH lead to:
+'client_loop: send disconnect: Broken pipe'
+and the connection from the Server was cut off.

@@ -95,6 +95,9 @@ struct smp_boot_param {
 	unsigned long msg_buffer_size;
 	unsigned long mikc_queue_recv, mikc_queue_send;
 
+	unsigned long graphic_mem;
+	unsigned long graphic_mem_size;
+
 	unsigned long monitor;
 	unsigned long monitor_size;
 
