@@ -5,7 +5,7 @@
     provides = ["tag/emu-qemu"]
 
     makefile_head = '''
-QEMUFLAGS += -m 4096 -cpu max -smp 4
+QEMUFLAGS += -m 1024 -cpu max -smp 4
 # com1: text output to terminal
 QEMUFLAGS += -serial stdio
 # com2: object channel for remote procedure calls into mythos
