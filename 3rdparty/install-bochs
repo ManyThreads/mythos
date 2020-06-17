@@ -12,7 +12,7 @@ command -v g++ >/dev/null 2>&1 || fail "require g++ but it's not installed"
 pushd `dirname $0` > /dev/null
 
 if test ! -e bochs-2.6.9.tar.gz ; then  
-  curl -O https://kent.dl.sourceforge.net/project/bochs/bochs/2.6.9/bochs-2.6.9.tar.gz || fail
+  curl -LO https://kent.dl.sourceforge.net/project/bochs/bochs/2.6.9/bochs-2.6.9.tar.gz || fail
 fi
 if test ! -e bochs ; then  
   tar -xzf bochs-2.6.9.tar.gz
