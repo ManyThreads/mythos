@@ -47,7 +47,6 @@
 #include <array>
 
 #include <pthread.h>
-#include <omp.h>
 
 mythos::InvocationBuf* msg_ptr asm("msg_ptr");
 int main() asm("main");
@@ -341,30 +340,6 @@ void test_pthreads(){
   MLOG_INFO(mlog::app, "End Test Pthreads");
 }
 
-void test_omp(){
-  MLOG_INFO(mlog::app, "Test Openmp");
-  int nthreads, tid;
-  omp_set_num_threads(2);
-/* Fork a team of threads giving them their own copies of variables */
-#pragma omp parallel private(nthreads, tid)
-  {
-
-  /* Obtain thread number */
-  tid = omp_get_thread_num();
-  MLOG_INFO(mlog::app, "Hello World from thread", DVAR(tid));
-
-  /* Only master thread does this */
-  if (tid == 0) 
-    {
-    nthreads = omp_get_num_threads();
-  MLOG_INFO(mlog::app, "Number of threads", DVAR(nthreads));
-    }
-
-  }
-  MLOG_INFO(mlog::app, "End Test Openmp");
-}
-
-
 mythos::Mutex mutex;
 void* thread_main(void* ctx)
 {
@@ -452,7 +427,6 @@ int main()
   //test_HostChannel(portal, 24*1024*1024, 2*1024*1024);
   test_ExecutionContext();
   test_pthreads();
-  test_omp();
 
   char const end[] = "bye, cruel world!";
   mythos::syscall_debug(end, sizeof(end)-1);
