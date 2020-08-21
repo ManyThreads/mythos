@@ -53,10 +53,10 @@ __dso_handle:
 .skip  8
 .hidden __dso_handle
 
-.section .init
-.global _init
-.type _init,@function
-_init:
+.section .bootlower
+.global _bootlower
+.type _bootlower,@function
+_bootlower:
         push %rbp
         mov %rsp, %rbp
 

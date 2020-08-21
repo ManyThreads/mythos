@@ -31,7 +31,7 @@
 .extern entry_bsp
 .extern entry_ap
 
-.section .init, "awx"  // the following code and data is in the low memory init section
+.section .bootlower, "awx"  // the following code and data is in the low memory init section
 
 // EFER bit 0: SYSCALL instruction enable
 // EFER bit 8: IA-32e mode enable
