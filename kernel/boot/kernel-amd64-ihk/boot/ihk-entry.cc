@@ -226,7 +226,6 @@ void _start_ihk_mythos_(
   /* get ready */
   boot_param->status = 2; // @todo is this to early? when does IHK expect the trampoline to be free again?
   asm volatile("" ::: "memory");
-  while(1);
 
   // @todo this is dangerous with C++ because of stack unwinding and it should not be necessary because IHK provides a stack already. On thwe other hand, we never return...
   kputs("change stack pointer\n");
@@ -340,7 +339,7 @@ class IhkInitLoaderPlugin
    : public EventHook<InitLoader&>
 {
 public:
-    IhkInitLoaderPlugin() { event::initLoader.add(this); }
+    IhkInitLoaderPlugin() { event::InitLoader.add(this); }
     void processEvent(InitLoader& loader) override {
       // map arbitrary memory into the init application: 
       // virtual addr, size, writable, executable, physical address
