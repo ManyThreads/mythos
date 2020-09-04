@@ -84,6 +84,34 @@ namespace mythos {
     inline uint32_t x2ApicThreadsPerPkg() { return 1<<bits(cpuid(11,1).eax,4,0); }
     inline uint32_t x2ApicThreadsEnabled(unsigned level) { return bits(cpuid(11,level).ebx,15,0); }
 
+    /** query the core crystal clock frequency in Hz. */
+    inline uint64_t coreCrystalFrequencyHz() { return cpuid(0x15).ecx; }
+
+    /** query the timestamp counter (TSC) frequency.
+     * Especially useful when having a constant rate TSC.
+     */
+    inline uint64_t tscFrequencyHz() {
+        auto regs = cpuid(0x15);
+        return uint64_t(regs.ecx) * uint64_t(regs.ebx) / uint64_t(regs.eax);
+    }
+
+    /** query the base frequency of the processor. */
+    inline uint64_t coreBaseFrequencyMHz() {
+        return bits(cpuid(0x16).eax, 15, 0);
+    }
+
+    /** query the maximum frequency of the processor. */
+    inline uint64_t coreMaxFrequencyMHz() {
+        return bits(cpuid(0x16).ebx, 15, 0);
+    }
+
+    /** query the bus (reference) frequency in MHz. */
+    inline uint64_t busFrequencyMHz() {
+        return bits(cpuid(0x16).ecx, 15, 0);
+    }
+
+
+
     /** check if the 8-entry page-attribute table (PAT) is
      * supported. When the PAT is supported, three bits in certain
      * paging-structure entries select a memory type (used to
@@ -142,6 +170,30 @@ namespace mythos {
       asm volatile ("wrmsr" : : "a"(uint32_t(value)),
             "d"(uint32_t(value >> 32)), "c"(msr));
     }
+
+    /** query the maximal performance count of P0 state.
+     * The effective frequency is P0freq * APerf / MPerf.
+     * P0freq is the core's base frequency, e.g. from @f coreBaseFrequencyMHz().
+     *
+     * See Section 2.1.2 Effective Frequency of
+     * https://developer.amd.com/wp-content/resources/56255_3_03.PDF
+     */
+    inline uint64_t getMPerf() { return getMSR(0x00E7); }
+
+    /** query the maximal performance count of P0 state.
+     * The effective frequency is P0freq * APerf / MPerf.
+     *
+     * See Section 2.1.2 Effective Frequency of
+     * https://developer.amd.com/wp-content/resources/56255_3_03.PDF
+     */
+    inline uint64_t getAPerf() { return getMSR(0x00E8); }
+
+    /** resets APERF and MPERF MSRs to 0.
+     * See Section 2.1.2 Effective Frequency of
+     * https://developer.amd.com/wp-content/resources/56255_3_03.PDF
+     */
+    void resetMAPerf() { setMSR(0x00E7, 0); setMSR(0x00E8, 0); }
+
 
     inline size_t getApicBase() { return (getMSR(IA32_APIC_BASE_MSR) & 0xFFFFFF000); }
     inline bool isApicBSP() { return getMSR(IA32_APIC_BASE_MSR) & XAPIC_BSP; }
