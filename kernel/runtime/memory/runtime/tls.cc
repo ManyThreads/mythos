@@ -13,6 +13,10 @@ extern char __executable_start; //< provided by the default linker script
 
 namespace mythos {
 
+thread_local mythos::ExecutionContext pthreadExecutionContext;
+thread_local mythos::Frame pthreadStateFrame;
+// @todo add a individual thread_local portal for each pthread
+
 /* Dont change! */
 struct TLSControlBlock
 {

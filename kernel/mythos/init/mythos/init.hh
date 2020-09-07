@@ -39,6 +39,7 @@ namespace init {
     PML4,
     EC,
     PORTAL,
+    STATE_FRAME,
     EXAMPLE_FACTORY,
     MEMORY_REGION_FACTORY,
     EXECUTION_CONTEXT_FACTORY,

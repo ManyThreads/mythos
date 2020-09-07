@@ -134,14 +134,16 @@ interrupt_common:
         movq $0, TS_MAYSYSRET(%rax)
 
         // might be on the NMI stack, but everything is stored safely
-	// in the ThreadState, thus we can switch to the bigger kernel
-	// stack now
+        // in the ThreadState, thus we can switch to the bigger kernel
+        // stack now
         /// @todo check whether we actually could end up on the NMI stack when coming from user mode!!!
         mov %gs:kernel_stack, %rsp
         mov %rax, %rdi   // 1. argument: pointer to thread_state
         xor %rbp, %rbp
         pushq   $0 // fake return address
-        jmp irq_entry_user
+        jmp irq_entry_user   // @todo as a call
+        // @todo call try to return to user via scheduler
+        // @todo call sleep if nothing to return to
 
 interrupt_kernel:
         xchg %bx, %bx
@@ -181,40 +183,3 @@ interrupt_kernel:
         pop %rcx
         add $(2*8), %rsp // pop irqno and error code
         iretq
-
-.global irq_return_user
-.type irq_return_user, @function
-irq_return_user:
-        xchg %bx, %bx
-        mov $IA32_FS_BASE, %rcx
-        mov TS_FS_BASE(%rdi), %eax
-        mov (TS_FS_BASE+4)(%rdi), %edx
-        wrmsr   // restore user's FS base
-        mov $IA32_KERNEL_GS_BASE, %rcx
-        mov TS_GS_BASE(%rdi), %eax
-        mov (TS_GS_BASE+4)(%rdi), %edx
-        wrmsr   // prepare user's GS base for swapgs
-        // create fake interrupt frame on the kernel stack
-        pushq $(SEGMENT_USER_DS+3)        // SS - user data segment with bottom 2 bits set for ring 3
-        pushq TS_RSP(%rdi)               // RSP - user stack from 2nd parameter
-        pushq TS_RFLAGS(%rdi)            // RFLAGS
-        pushq $(SEGMENT_USER_CS+3)        // CS  - user code segment with bottom 2 bits set for ring 3
-        pushq TS_RIP(%rdi)               // RIP - Instruction pointer after iretq
-        // restore all other register
-        mov TS_RAX(%rdi), %rax
-        mov TS_RBX(%rdi), %rbx
-        mov TS_RCX(%rdi), %rcx
-        mov TS_RDX(%rdi), %rdx
-        mov TS_RSI(%rdi), %rsi
-        mov TS_RBP(%rdi), %rbp
-        mov TS_R8(%rdi), %r8
-        mov TS_R9(%rdi), %r9
-        mov TS_R10(%rdi), %r10
-        mov TS_R11(%rdi), %r11
-        mov TS_R12(%rdi), %r12
-        mov TS_R13(%rdi), %r13
-        mov TS_R14(%rdi), %r14
-        mov TS_R15(%rdi), %r15
-        mov TS_RDI(%rdi), %rdi
-        swapgs  // restore user's GS base
-        iretq   // return to user mode and enable interrupts via rflags IF field

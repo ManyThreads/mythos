@@ -33,11 +33,11 @@
 #include "mythos/init.hh"
 
 namespace mythos {
-    
+
     extern thread_local CapPtr localEC;
 
     template<class MSG> class Msg;
-    
+
     template<> class Msg<protocol::ExecutionContext::Create>
     {
     protected:
@@ -46,64 +46,65 @@ namespace mythos {
     public:
         typedef void* (*StartFun)(void*);
         typedef int (*StartFunInt)(void*);
-        
+
         Msg(CapPtr dst, CapPtr kmem, CapPtr factory) : ib(dst, factory), obj(kmem) {}
-        
+
         Msg& as(CapPtr c) { ib.as(c); return *this; }
         Msg& as(PageMap& c) { ib.as(c.cap()); return *this; }
         Msg& cs(CapPtr c) { ib.cs(c); return *this; }
         Msg& cs(CapMap& c) { ib.cs(c.cap()); return *this; }
         Msg& sched(CapPtr c) { ib.sched(c); return *this; }
+        Msg& state(CapPtr c, uint32_t offset) { ib.state(c); ib.stateOffset = offset; return *this; }
         Msg& rawStack(void* ptr) { ib.regs.rsp = uintptr_t(ptr); return *this; }
         Msg& prepareStack(void* ptr) {
             // \TODO assert alignment
             auto tos = reinterpret_cast<uintptr_t*>(ptr);
             *--tos = 0;                                     // dummy return address
-            ib.regs.rsp = uintptr_t(tos); 
-            return *this; 
+            ib.regs.rsp = uintptr_t(tos);
+            return *this;
         }
-        Msg& startFun(StartFun fun, void* userctx, CapPtr ec) { 
+        Msg& startFun(StartFun fun, void* userctx, CapPtr ec) {
             ib.regs.rdi = uintptr_t(fun);                   // arg 1
             ib.regs.rsi = uintptr_t(userctx);               // arg 2
-            ib.regs.rdx = uintptr_t(ec);               	    // arg 3
+            ib.regs.rdx = uintptr_t(ec);                    // arg 3
             ib.regs.rip = uintptr_t(&start);
-            return *this; 
+            return *this;
         }
 
-        Msg& startFunInt(StartFunInt fun, void* userctx, CapPtr ec) { 
+        Msg& startFunInt(StartFunInt fun, void* userctx, CapPtr ec) {
             ib.regs.rdi = uintptr_t(fun);                   // arg 1
             ib.regs.rsi = uintptr_t(userctx);               // arg 2
             ib.regs.rdx = uintptr_t(ec);                    // arg 3
             ib.regs.rip = uintptr_t(&startInt);
-            return *this; 
+            return *this;
         }
 
         Msg& suspended(bool value) { ib.start = !value; return *this; }
         Msg& fs(void* ptr) { ib.regs.fs_base = uintptr_t(ptr); return *this; }
         Msg& gs(void* ptr) { ib.regs.gs_base = uintptr_t(ptr); return *this; }
-        
+
         // inherited from KernelMemory::CreateBase
         Msg& indirectDest(CapPtr dstCSpace, CapPtrDepth dstDepth) {
             ib.setIndirectDest(dstCSpace, dstDepth);
             return *this;
         }
-        
-        PortalFuture<void> invokeVia(PortalLock pl) { 
-            
-            return std::move(pl.invokeWithMsg(obj,  ib)); 
+
+        PortalFuture<void> invokeVia(PortalLock pl) {
+
+            return std::move(pl.invokeWithMsg(obj,  ib));
         }
 
     protected:
-        static void start(StartFun main, void* userctx, CapPtr ec) { 
+        static void start(StartFun main, void* userctx, CapPtr ec) {
             localEC = ec;
             syscall_exit(uintptr_t(main(userctx)));
         }
 
-        static void startInt(StartFunInt main, void* userctx, CapPtr ec) { 
+        static void startInt(StartFunInt main, void* userctx, CapPtr ec) {
             localEC = ec;
             syscall_exit(main(userctx));
         }
-    };    
+    };
 
 
   class ExecutionContext : public KObject
@@ -114,14 +115,14 @@ namespace mythos {
 
     ExecutionContext() {}
     ExecutionContext(CapPtr cap) : KObject(cap) {}
-    
-    Msg<protocol::ExecutionContext::Create> 
+
+    Msg<protocol::ExecutionContext::Create>
     create(KernelMemory kmem, CapPtr factory = init::EXECUTION_CONTEXT_FACTORY) {
         return {this->cap(), kmem.cap(), factory};
     }
 
-    PortalFuture<void> configure(PortalLock pr, PageMap as, CapMap cs, CapPtr sched) {
-      return pr.invoke<protocol::ExecutionContext::Configure>(_cap, as.cap(), cs.cap(), sched);
+    PortalFuture<void> configure(PortalLock pr, PageMap as, CapMap cs, CapPtr sched, CapPtr state, uint32_t stateOffset, bool initializeState) {
+      return pr.invoke<protocol::ExecutionContext::Configure>(_cap, as.cap(), cs.cap(), sched, state, stateOffset, initializeState);
     }
 
     struct Registers : register_t {

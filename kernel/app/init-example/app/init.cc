@@ -207,8 +207,12 @@ void test_tls()
   y = 2*y;
   TEST_EQ(x, 2048);
   TEST_EQ(y, 4096);
+  
+  std::atomic<int> sync(0);
 
   auto threadFun = [] (void *data) -> void* {
+    auto sync = reinterpret_cast<std::atomic<int>*>(data);
+    sync->store(1);
     MLOG_INFO(mlog::app, "main thread TLS:", DVARhex(readFS(0)), DVARhex(readFS(0x28)));
     TEST_EQ(x, 1024);
     TEST_EQ(y, 2048);
@@ -219,20 +223,31 @@ void test_tls()
     y = y*2;
     TEST_EQ(x, 2048);
     TEST_EQ(y, 4096);
+    sync->store(2);
     return nullptr;
   };
 
   mythos::ExecutionContext ec1(capAlloc());
   auto tls = mythos::setupNewTLS();
+  mythos::Frame stateFrame(capAlloc());
+  auto res2 = stateFrame.create(pl, kmem, 4096, 4096).wait();
+  TEST(res2);
   MLOG_INFO(mlog::app, "test_EC: create ec1 TLS", DVARhex(tls));
   ASSERT(tls != nullptr);
   auto res1 = ec1.create(kmem).as(myAS).cs(myCS).sched(mythos::init::SCHEDULERS_START + 1)
-    .prepareStack(thread1stack_top).startFun(threadFun, nullptr, ec1.cap())
+    .state(stateFrame.cap(),0)
+    .prepareStack(thread1stack_top)
+    .startFun(threadFun, &sync, ec1.cap())
     .suspended(false).fs(tls)
     .invokeVia(pl).wait();
   TEST(res1);
   TEST(ec1.setFSGS(pl,(uint64_t) tls, 0).wait());
   mythos::syscall_signal(ec1.cap());
+  MLOG_INFO(mlog::app, "waiting for EC to finish...");
+  while (sync.load() != 2) {} // @todo should call mythos::syscall_yield()
+  // delete ec1, stateFrame; cannot delete the allocated TLS :-/
+  capAlloc.free(stateFrame, pl);
+  capAlloc.free(ec1, pl);
   MLOG_INFO(mlog::app, "End test tls");
 }
 
@@ -330,25 +345,27 @@ void* threadMain(void* arg){
 }
 
 void test_pthreads(){
-  MLOG_INFO(mlog::app, "Test Pthreads");
-	pthread_t p;
- 
-	auto tmp = pthread_create(&p, NULL, &threadMain, NULL);
-  MLOG_INFO(mlog::app, "pthread_create returned", DVAR(tmp));
-	pthread_join(p, NULL);
+    MLOG_INFO(mlog::app, "Test Pthreads");
+    pthread_t p;
 
-  MLOG_INFO(mlog::app, "End Test Pthreads");
+    auto tmp = pthread_create(&p, NULL, &threadMain, NULL);
+    MLOG_INFO(mlog::app, "pthread_create returned", DVAR(tmp));
+    pthread_join(p, NULL);
+
+    MLOG_INFO(mlog::app, "End Test Pthreads");
 }
 
 mythos::Mutex mutex;
 void* thread_main(void* ctx)
 {
+  auto sync = reinterpret_cast<std::atomic<int>*>(ctx);
   MLOG_INFO(mlog::app, "hello thread!", DVAR(ctx));
   mutex << [ctx]() {
     MLOG_INFO(mlog::app, "thread in mutex", DVAR(ctx));
   };
   mythos::ISysretHandler::handle(mythos::syscall_wait());
   MLOG_INFO(mlog::app, "thread resumed from wait", DVAR(ctx));
+  sync->store(2);
   return 0;
 }
 
@@ -357,25 +374,34 @@ void test_ExecutionContext()
   MLOG_INFO(mlog::app, "Test ExecutionContext");
   mythos::ExecutionContext ec1(capAlloc());
   mythos::ExecutionContext ec2(capAlloc());
+  mythos::Frame stateFrame(capAlloc());
+  std::atomic<int> sync1(0);
+  std::atomic<int> sync2(0);
   {
     MLOG_INFO(mlog::app, "test_EC: create ec1");
     mythos::PortalLock pl(portal); // future access will fail if the portal is in use already
 
+    auto res3 = stateFrame.create(pl, kmem, 2*4096, 4096).wait();
+    TEST(res3);
     auto tls1 = mythos::setupNewTLS();
     ASSERT(tls1 != nullptr);
-    auto res1 = ec1.create(kmem).as(myAS).cs(myCS).sched(mythos::init::SCHEDULERS_START)
-    .prepareStack(thread1stack_top).startFun(&thread_main, nullptr, ec1.cap())
-    .suspended(false).fs(tls1)
-    .invokeVia(pl).wait();
+    auto res1 = ec1.create(kmem).as(myAS).cs(myCS).sched(mythos::init::SCHEDULERS_START+1)
+        .state(stateFrame.cap(), 0)
+        .prepareStack(thread1stack_top)
+        .startFun(&thread_main, &sync1, ec1.cap())
+        .suspended(false).fs(tls1)
+        .invokeVia(pl).wait();
     TEST(res1);
 
     MLOG_INFO(mlog::app, "test_EC: create ec2");
     auto tls2 = mythos::setupNewTLS();
     ASSERT(tls2 != nullptr);
     auto res2 = ec2.create(kmem).as(myAS).cs(myCS).sched(mythos::init::SCHEDULERS_START+1)
-    .prepareStack(thread2stack_top).startFun(&thread_main, nullptr, ec2.cap())
-    .suspended(false).fs(tls2)
-    .invokeVia(pl).wait();
+        .state(stateFrame.cap(), 4096)
+        .prepareStack(thread2stack_top)
+        .startFun(&thread_main, &sync2, ec2.cap())
+        .suspended(false).fs(tls2)
+        .invokeVia(pl).wait();
     TEST(res2);
   }
 
@@ -383,9 +409,21 @@ void test_ExecutionContext()
     for (volatile int j=0; j<1000; j++) {}
   }
 
-  MLOG_INFO(mlog::app, "sending notifications");
+  MLOG_INFO(mlog::app, "  sending notifications");
   mythos::syscall_signal(ec1.cap());
   mythos::syscall_signal(ec2.cap());
+  MLOG_INFO(mlog::app, "  waiting for EC1 to finish...");
+  while (sync1.load() != 2) {} // @todo should call mythos::syscall_yield()
+  MLOG_INFO(mlog::app, "  waiting for EC2 to finish...");
+  while (sync2.load() != 2) {} // @todo should call mythos::syscall_yield()
+
+  {
+    MLOG_INFO(mlog::app, "test_EC: delete ECs and state frame");
+    mythos::PortalLock pl(portal); // future access will fail if the portal is in use already
+    capAlloc.free(stateFrame, pl);
+    capAlloc.free(ec1, pl);
+    capAlloc.free(ec2, pl);
+  }
   MLOG_INFO(mlog::app, "End Test ExecutionContext");
 }
 
@@ -396,10 +434,15 @@ void test_InterruptControl() {
   mythos::PortalLock pl(portal); // future access will fail if the portal is in use already
 
   mythos::ExecutionContext ec(capAlloc());
+  mythos::Frame stateFrame(capAlloc());
+  auto res2 = stateFrame.create(pl, kmem, 4096, 4096).wait();
+  TEST(res2);
   auto tls = mythos::setupNewTLS();
   ASSERT(tls != nullptr);
   auto res1 = ec.create(kmem).as(myAS).cs(myCS).sched(mythos::init::SCHEDULERS_START + 2)
-    .prepareStack(thread3stack_top).startFun(&thread_main, nullptr, ec.cap())
+    .state(stateFrame.cap(), 0)
+    .prepareStack(thread3stack_top)
+    .startFun(&thread_main, nullptr, ec.cap())
     .suspended(false).fs(tls)
     .invokeVia(pl).wait();
   TEST(res1);

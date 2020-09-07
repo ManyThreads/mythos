@@ -206,21 +206,34 @@ extern "C" int mprotect(void *addr, size_t len, int prot)
     return 0;
 }
 
-int myclone(
+static int mythos_clone(
     int (*func)(void *), void *stack, int flags, 
     void *arg, int* ptid, void* tls, int* ctid)
 {
-    MLOG_DETAIL(mlog::app, "myclone");
+    MLOG_DETAIL(mlog::app, "mythos_clone");
     ASSERT(tls != nullptr);
 
+    uintptr_t myTLS;
+    asm ("movq %%fs:%1, %0" : "=r" (myTLS) : "m" (*(char*)0));
+    auto& stateFrame = *reinterpret_cast<mythos::Frame*>(
+        uintptr_t(&mythos::pthreadStateFrame) - myTLS + uintptr_t(tls));
+    auto& ec = *reinterpret_cast<mythos::ExecutionContext*>(
+        uintptr_t(&mythos::pthreadExecutionContext) - myTLS + uintptr_t(tls));
+
     mythos::PortalLock pl(portal); // future access will fail if the portal is in use already
-    mythos::ExecutionContext ec(capAlloc());
+    ec.setCap(capAlloc());
+    stateFrame.setCap(capAlloc());
+    auto res2 = stateFrame.create(pl, kmem, 4096, 4096).wait();
     if (ptid && (flags&CLONE_PARENT_SETTID)) *ptid = int(ec.cap());
-    // @todo store thread-specific ctid pointer, which should set to 0 by the OS on the thread's exit
+    // @todo store thread-specific ctid pointer, which should be set to 0 by the OS on the thread's exit
     // @todo needs interaction with a process internal scheduler or core manager in order to figure out where to schedule the new thread
+    
     auto res1 = ec.create(kmem).as(myAS).cs(myCS).sched(mythos::init::SCHEDULERS_START + 1)
-        .prepareStack(stack).startFunInt(func, arg, ec.cap())
-        .suspended(false).fs(tls)
+        .state(stateFrame.cap(), 0)
+        .prepareStack(stack)
+        .startFunInt(func, arg, ec.cap())
+        .suspended(false)
+        .fs(tls)
         .invokeVia(pl).wait();
     MLOG_DETAIL(mlog::app, DVAR(ec.cap()));
     return ec.cap();
@@ -235,7 +248,7 @@ extern "C" int clone(int (*func)(void *), void *stack, int flags, void *arg, ...
     void* tls = va_arg(args, void*);
     int* ctid = va_arg(args, int*);
     va_end(args);
-    return myclone(func, stack, flags, arg, ptid, tls, ctid);
+    return mythos_clone(func, stack, flags, arg, ptid, tls, ctid);
 }
 
 struct dl_phdr_info

@@ -34,10 +34,10 @@
 
 namespace mythos {
 
-    void SchedulingContext::bind(handle_t*) 
+    void SchedulingContext::bind(handle_t*)
     {
     }
-    
+
     void SchedulingContext::unbind(handle_t* ec)
     {
         ASSERT(ec != nullptr);
@@ -51,16 +51,14 @@ namespace mythos {
         ASSERT(ec != nullptr);
         MLOG_INFO(mlog::sched, "ready", DVAR(ec->get()));
 
-        // do nothing if it is the current execution context
-        auto current = current_handle.load();
-        if (current == ec) return; /// @todo can this actually happen? 
-        
         // add to the ready queue
         readyQueue.remove(ec); /// @todo do not need to remove if already on the queue, just do nothing then. This needs additional information in handle_t of LinkedList
         readyQueue.push(ec);
 
         // wake up the hardware thread if it has no execution context running
-        if (current == nullptr) home->preempt();
+        // or if if current ec got ready in case of race with failed ec->resume()
+        auto current = current_handle.load();
+        if (current == nullptr || current == ec) home->preempt();
     }
 
     void SchedulingContext::tryRunUser()
@@ -77,6 +75,7 @@ namespace mythos {
                     current->get()->loadState();
                 }
                 current->get()->resume(); // if it returns, the ec is blocked
+                // note: the ec can become ready again here. Solved in ready()
                 current_handle.store(nullptr);
             }
             MLOG_DETAIL(mlog::sched, "try from ready list");
