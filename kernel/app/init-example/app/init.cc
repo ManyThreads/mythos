@@ -42,6 +42,7 @@
 #include "util/optional.hh"
 #include "runtime/umem.hh"
 #include "runtime/Mutex.hh"
+#include "mythos/protocol/PerfMon.hh"
 
 #include <vector>
 #include <array>
@@ -441,8 +442,13 @@ int main()
   mythos::syscall_debug(str, sizeof(str)-1);
   MLOG_ERROR(mlog::app, "application is starting :)", DVARhex(msg_ptr), DVARhex(initstack_top));
 
+	{
+		mythos::PortalLock pl(portal);
+		pl.invoke<mythos::protocol::PerformanceMonitoring::InitializeCounters>(mythos::init::PERFORMANCE_MONITORING_MODULE);
+	}
+
   test_float();
-  test_Example();
+  /*test_Example();
   test_Portal();
   test_memory_root();
   test_heap(); // heap must be initialized for tls test
@@ -452,7 +458,17 @@ int main()
   //test_HostChannel(portal, 24*1024*1024, 2*1024*1024);
   test_ExecutionContext();
   test_pthreads();
-  test_omp();
+  test_omp();*/
+
+	{
+		mythos::PortalLock pl(portal);
+		pl.invoke<mythos::protocol::PerformanceMonitoring::CollectValues>(mythos::init::PERFORMANCE_MONITORING_MODULE);
+	}
+
+	{
+		mythos::PortalLock pl(portal);
+		pl.invoke<mythos::protocol::PerformanceMonitoring::MeasureCollectLatency>(mythos::init::PERFORMANCE_MONITORING_MODULE);
+	}
 
   char const end[] = "bye, cruel world!";
   mythos::syscall_debug(end, sizeof(end)-1);

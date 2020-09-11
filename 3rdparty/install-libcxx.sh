@@ -37,14 +37,14 @@ ln -s ../musl
 #svn co http://llvm.org/svn/llvm-project/libcxxabi/trunk libcxxabi
 #git clone https://github.com/llvm-mirror/libcxxabi.git
 if test ! -e libcxxabi-9.0.0.src.tar.xz ; then  
-  curl -O http://releases.llvm.org/9.0.0/libcxxabi-9.0.0.src.tar.xz || fail
+  curl -LO http://releases.llvm.org/9.0.0/libcxxabi-9.0.0.src.tar.xz || fail
 fi
 rm -rf libcxxabi
 tar -xJf libcxxabi-9.0.0.src.tar.xz && mv libcxxabi-9.0.0.src libcxxabi || fail
 
 #git clone https://github.com/llvm-mirror/libcxx.git
 if test ! -e libcxx-9.0.0.src.tar.xz ; then  
-  curl -O http://releases.llvm.org/9.0.0/libcxx-9.0.0.src.tar.xz || fail
+  curl -LO http://releases.llvm.org/9.0.0/libcxx-9.0.0.src.tar.xz || fail
 fi
 rm -rf libcxx
 tar -xJf libcxx-9.0.0.src.tar.xz && mv libcxx-9.0.0.src libcxx || fail
@@ -55,20 +55,20 @@ cd ..
 
 #git clone https://github.com/llvm-mirror/llvm.git
 if test ! -e llvm-9.0.0.src.tar.xz ; then  
-  curl -O http://releases.llvm.org/9.0.0/llvm-9.0.0.src.tar.xz || fail
+  curl -LO http://releases.llvm.org/9.0.0/llvm-9.0.0.src.tar.xz || fail
 fi
 rm -rf llvm
 tar -xJf llvm-9.0.0.src.tar.xz && mv llvm-9.0.0.src llvm || fail
 
 if test ! -e libunwind-9.0.0.src.tar.xz ; then  
-  curl -O http://releases.llvm.org/9.0.0/libunwind-9.0.0.src.tar.xz || fail
+  curl -LO http://releases.llvm.org/9.0.0/libunwind-9.0.0.src.tar.xz || fail
 fi
 rm -rf libunwind
 tar -xJf libunwind-9.0.0.src.tar.xz && mv libunwind-9.0.0.src libunwind || fail
 
 #openmp
 if test ! -e openmp-9.0.0.src.tar.xz ; then  
-  curl -O http://releases.llvm.org/9.0.0/openmp-9.0.0.src.tar.xz || fail
+  curl -LO http://releases.llvm.org/9.0.0/openmp-9.0.0.src.tar.xz || fail
 fi
 rm -rf openmp
 tar -xJf openmp-9.0.0.src.tar.xz && mv openmp-9.0.0.src openmp || fail

@@ -47,10 +47,10 @@ class PerformanceMonitoring
 				{
 				}
 				void operator()() const {
-					for(cpu::ThreadID threadID = 0; threadID < cpu::getNumThreads(); threadID+=1) {
+					for(cpu::ThreadID threadID = 0; threadID < cpu::getNumThreads(); ++threadID) {
 						pm.collect(threadID);
 					}
-					for(cpu::ThreadID threadID = 0; threadID < cpu::getNumThreads(); threadID+=1) {
+					for(cpu::ThreadID threadID = 0; threadID < cpu::getNumThreads(); ++threadID) {
 						pm.waitForCollect(threadID);
 					}
 				}
@@ -60,11 +60,6 @@ class PerformanceMonitoring
 
 		PerformanceMonitoring();
 
-		void init(){
-			if(isInitialized) return;
-			mlogpm.info("PerformanceMonitoring isInitialized");
-		}
-
 
 		void setPerfevtsel(size_t index, const IA32_PERFEVTSELxBitfield& perfevtsel) {
 			ASSERT(index < counterNumber.pmcs);
@@ -72,7 +67,7 @@ class PerformanceMonitoring
 		}
 		void setOffcoreRsp(size_t index, uint64_t offcoreRsp) {
 			ASSERT(index < counterNumber.offcoreRspMsrs);
-			configValues[cpu::getThreadID()].msr_offcore_rsp_[index];
+			configValues[cpu::getThreadID()].msr_offcore_rsp_[index] = offcoreRsp;
 		}
 		void setFixedCtrCtrl(size_t index, bool enableOS, bool enableUser, bool anyThread, bool enablePMI);
 
@@ -125,22 +120,17 @@ class PerformanceMonitoring
 
 	public: // IKernelInterface
 		optional<void const*> vcast(TypeId id) const override;
-		optional<void> deleteCap(CapEntry& entry, Cap self, IDeleter& del) override { RETURN(Error::SUCCESS); };
-		void deleteObject(Tasklet* t, IResult<void>* r) override {};
+		optional<void> deleteCap(CapEntry& entry, Cap self, IDeleter& del) override;
 		void invoke(Tasklet* t, Cap self, IInvocation* msg) override;
-		Error invoke_initializeCounters(Tasklet*, Cap, IInvocation* msg);
-		Error invoke_collectValues(Tasklet*, Cap, IInvocation* msg);
-		Error invoke_measureCollectCallDuration(Tasklet*, Cap, IInvocation* msg);
-		Error invoke_measureCollectLatency(Tasklet*, Cap, IInvocation* msg);
+		Error invoke_initializeCounters(Tasklet* t, Cap self, IInvocation* msg);
+		Error invoke_collectValues(Tasklet* t, Cap self, IInvocation* msg);
+		Error invoke_measureCollectLatency(Tasklet* t, Cap self, IInvocation* msg);
 
-	//CoreMap<> cmap;
 	protected:
 		async::NestedMonitorDelegating monitor;
 		IDeleter::handle_t del_handle = {this};
+
 	private:
-
-		bool isInitialized = false;
-
 		enum MSR_Adress {
 			IA32_PMCx_STARTADDRESS = 0x0C1,
 			IA32_PERFEVTSELx_STARTADDRESS = 0x186,
@@ -238,156 +228,5 @@ class PerformanceMonitoring
 		PMCValues collectedValues[MYTHOS_MAX_THREADS];
 		CollectRequests collectRequests;
 };
-
-
-optional<void const*> PerformanceMonitoring::vcast(TypeId id) const
-{
-	mlogpm.info("vcast", DVAR(this), DVAR(id.debug()));
-	if (id == typeId<PerformanceMonitoring>()) return /*static_cast<ExampleObj const*>*/(this);
-	THROW(Error::TYPE_MISMATCH);
-}
-
-void PerformanceMonitoring::invoke(Tasklet* t, Cap self, IInvocation* msg){
-	mlogpm.info("invoke");
-    monitor.request(t, [=](Tasklet* t){
-        Error err = Error::NOT_IMPLEMENTED;
-		switch (msg->getProtocol()) {
-		case protocol::PerformanceMonitoring::proto:
-		  err = protocol::PerformanceMonitoring::dispatchRequest(this, msg->getMethod(), t, self, msg);
-		  break;
-		}
-        if (err != Error::INHIBIT) {
-          msg->replyResponse(err);
-          monitor.requestDone();
-        }
-      } );
-}
-
-Error PerformanceMonitoring::invoke_initializeCounters(Tasklet*, Cap, IInvocation* msg){
-	auto data = msg->getMessage()->cast<protocol::PerformanceMonitoring::InitializeCounters>();
-
-	msg->getMessage()->write<protocol::PerformanceMonitoring::InitializeCountersResponse>();
-
-	auto resp = msg->getMessage()->cast<protocol::PerformanceMonitoring::InitializeCountersResponse>();
-
-	mlogpm.info("invoke_initializeCounters");
-	mlogpm.info(DVAR(readTSC()));
-
-	setFixedCtrCtrl(0, true, true, false, false);
-	setFixedCtrCtrl(1, true, true, false, false);
-	setFixedCtrCtrl(2, true, true, false, false);
-
-	IA32_PERFEVTSELxBitfield evtsel(0);
-	evtsel.userMode = true;
-	evtsel.operatingSystemMode = true;
-	evtsel.enableCounters = true;
-
-	//UnHalted Reference Cycles
-	evtsel.eventSelect = 0x3C;
-	evtsel.unitMask = 0x01;
-	setPerfevtsel(0, evtsel);
-
-	//MEM_LOAD_UOPS_LLC_HIT_RETIRED.XSNP_HITM on sandy bridge
-	//evtsel.eventSelect = 0xD2;
-	//evtsel.unitMask = 0x04;
-	//setPerfevtsel(1, evtsel);
-
-	//LLC misses
-	evtsel.eventSelect = 0x2E;
-	evtsel.unitMask = 0x41;
-	setPerfevtsel(2, evtsel);
-
-	for(cpu::ThreadID threadID = 0; threadID < cpu::getNumThreads(); threadID+=1) {
-		initializeCounters(threadID);
-	}
-
-	mlogpm.info(DVAR(readTSC()));
-	return Error::SUCCESS;
-}
-
-Error PerformanceMonitoring::invoke_collectValues(Tasklet*, Cap, IInvocation* msg){
-	auto data = msg->getMessage()->cast<protocol::PerformanceMonitoring::CollectValues>();
-
-	msg->getMessage()->write<protocol::PerformanceMonitoring::CollectValuesResponse>();
-
-	auto resp = msg->getMessage()->cast<protocol::PerformanceMonitoring::CollectValuesResponse>();
-
-	mlogpm.info("invoke_collectValues");
-	for(cpu::ThreadID threadID = 0; threadID < cpu::getNumThreads(); threadID+=1) {
-		collect(threadID);
-	}
-	for(cpu::ThreadID threadID = 0; threadID < cpu::getNumThreads(); threadID+=1) {
-		waitForCollect(threadID);
-	}
-
-	printCollectedValues();
-	return Error::SUCCESS;
-}
-
-Error PerformanceMonitoring::invoke_measureCollectCallDuration(Tasklet*, Cap, IInvocation* msg){
-	auto data = msg->getMessage()->cast<protocol::PerformanceMonitoring::MeasureCollectCallDuration>();
-
-	msg->getMessage()->write<protocol::PerformanceMonitoring::MeasureCollectCallDuration>();
-
-	auto resp = msg->getMessage()->cast<protocol::PerformanceMonitoring::MeasureCollectCallDuration>();
-
-	mlogpm.info("invoke_measureCollectCallDuration");
-	constexpr cpu::ThreadID first = 1;
-	constexpr cpu::ThreadID behindLast = 2;
-	ASSERT(first<behindLast);
-	ASSERT(behindLast<=cpu::getNumThreads());
-	mlogpm.info("collect requester:", DVAR(cpu::getThreadID()));
-	mlogpm.info("collect range:", DVAR(first), DVAR(behindLast));
-
-	uint64_t timestamp1;
-	uint64_t timestamp2;
-	uint64_t latency;
-
-	timestamp1=readTSC();
-	for(cpu::ThreadID threadID = first; threadID < behindLast; threadID+=1) {
-		collect(threadID);
-	}
-	timestamp2=readTSC();
-
-	latency=timestamp2-timestamp1;
-	mlogpm.info(DVAR(timestamp1),DVAR(timestamp2),DVAR(latency));
-
-	return Error::SUCCESS;
-}
-
-Error PerformanceMonitoring::invoke_measureCollectLatency(Tasklet*, Cap, IInvocation* msg){
-	auto data = msg->getMessage()->cast<protocol::PerformanceMonitoring::MeasureCollectLatency>();
-
-	msg->getMessage()->write<protocol::PerformanceMonitoring::MeasureCollectLatencyResponse>();
-
-	auto resp = msg->getMessage()->cast<protocol::PerformanceMonitoring::MeasureCollectLatencyResponse>();
-
-	mlogpm.info("invoke_measureCollectLatency");
-	constexpr cpu::ThreadID first = 1;
-	constexpr cpu::ThreadID behindLast = 2;
-	ASSERT(first<behindLast);
-	ASSERT(behindLast<=cpu::getNumThreads());
-	mlogpm.info("collect requester:", DVAR(cpu::getThreadID()));
-	mlogpm.info("collect range:", DVAR(first), DVAR(behindLast));
-
-	uint64_t timestamp1;
-	uint64_t timestamp2;
-	uint64_t latency;
-
-	timestamp1=readTSC();
-	for(cpu::ThreadID threadID = first; threadID < behindLast; threadID+=1) {
-		collect(threadID);
-	}
-	for(cpu::ThreadID threadID = first; threadID < behindLast; threadID+=1) {
-		waitForCollect(threadID);
-	}
-	timestamp2=readTSC();
-
-	latency=timestamp2-timestamp1;
-	mlogpm.info(DVAR(timestamp1),DVAR(timestamp2),DVAR(latency));
-
-	//printCollectedValues();
-	return Error::SUCCESS;
-}
 
 } //mythos

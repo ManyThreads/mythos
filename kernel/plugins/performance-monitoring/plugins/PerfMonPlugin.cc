@@ -18,9 +18,7 @@ class PerfMonPlugin
 
 		void processEvent(boot::InitLoader& loader) override {
 			auto res = loader.csSet(init::PERFORMANCE_MONITORING_MODULE, pm);
-    		if (!res) ASSERT(res);
-
-			pm.init();
+			if (!res) ASSERT(res);
 		}
 
 	protected:
