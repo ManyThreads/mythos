@@ -11,30 +11,31 @@ namespace mythos {
 			collectTasklets[threadID].initCollectFunctor(this);
 		}
 
-		mythos::x86::Regs regs = mythos::x86::cpuid(0x00);
-		mlogpm.info("Maximum Input Value for Basic CPUID Information:", DVAR(regs.eax));
-
-		regs = mythos::x86::cpuid(0x01);
-		mlogpm.info("family ID:", DVAR(mythos::bits(regs.eax,11,8)));
-		mlogpm.info("model ID:", DVAR((mythos::bits(regs.eax,19,16)<<4)+mythos::bits(regs.eax,7,4)));
-
 		counterNumber.offcoreRspMsrs = MAX_NUMBER_OFFCORE_RSP_MSRS;
+
+		mythos::x86::Regs regs = mythos::x86::cpuid(0x00);
+		//mlogpm.info("Maximum Input Value for Basic CPUID Information:", DVAR(regs.eax));
+		ASSERT(regs.eax>=0x0A);
 
 		regs = mythos::x86::cpuid(0x0A); //get Architectural Performance Monitoring Information
 
 		counterNumber.pmcs = mythos::bits(regs.eax,15,8);
-		mlogpm.info("number of pmcs supportet by hardware", DVAR(counterNumber.pmcs));
+		//mlogpm.info("number of pmcs supportet by hardware", DVAR(counterNumber.pmcs));
 		counterNumber.fixedCtrs = mythos::bits(regs.edx,5,0);
-		mlogpm.info("number of fixed counters supportet by hardware", DVAR(counterNumber.fixedCtrs));
+		//mlogpm.info("number of fixed counters supportet by hardware", DVAR(counterNumber.fixedCtrs));
 
 		if(counterNumber.pmcs > MAX_NUMBER_PMCS) {
 			counterNumber.pmcs = MAX_NUMBER_PMCS;
-			mlogpm.info("MAX_NUMBER_PMCS", DVAR(counterNumber.pmcs));
+			mlogpm.info("Hardware supports more performance counters than MAX_NUMBER_PMCS.");
 		}
 		if(counterNumber.fixedCtrs > MAX_NUMBER_FIXED_CTRS) {
 			counterNumber.fixedCtrs = MAX_NUMBER_FIXED_CTRS;
-			mlogpm.info("MAX_NUMBER_FIXED_CTRS", DVAR(counterNumber.fixedCtrs));
+			mlogpm.info("Hardware supports more fixed performance counters than MAX_NUMBER_FIXED_CTRS.");
 		}
+
+		//regs = mythos::x86::cpuid(0x01);
+		//mlogpm.info("family ID:", DVAR(mythos::bits(regs.eax,11,8)));
+		//mlogpm.info("model ID:", DVAR((mythos::bits(regs.eax,19,16)<<4)+mythos::bits(regs.eax,7,4)));
 
 		//regs = mythos::x86::cpuid(0x80000007);
 		//mlogpm.info("invariant tsc:", DVAR(mythos::bits(regs.edx,8,8)));
@@ -197,7 +198,7 @@ namespace mythos {
 
 
 	void PerformanceMonitoring::invoke(Tasklet* t, Cap self, IInvocation* msg){
-		mlogpm.info("invoke");
+		//mlogpm.info("invoke");
 		monitor.request(t, [=](Tasklet* t){
 			Error err = Error::NOT_IMPLEMENTED;
 			switch (msg->getProtocol()) {
@@ -214,7 +215,7 @@ namespace mythos {
 
 	Error PerformanceMonitoring::invoke_initializeCounters(Tasklet*, Cap, IInvocation*){
 		mlogpm.info("invoke_initializeCounters");
-		mlogpm.info(DVAR(readTSC()));
+		//mlogpm.info(DVAR(readTSC()));
 
 		setFixedCtrCtrl(0, true, true, false, false);
 		setFixedCtrCtrl(1, true, true, false, false);
@@ -258,7 +259,7 @@ namespace mythos {
 			initializeCounters(threadID);
 		}
 
-		mlogpm.info(DVAR(readTSC()));
+		//mlogpm.info(DVAR(readTSC()));
 		return Error::SUCCESS;
 	}
 
@@ -270,8 +271,12 @@ namespace mythos {
 		for(cpu::ThreadID threadID = 0; threadID < cpu::getNumThreads(); ++threadID) {
 			waitForCollect(threadID);
 		}
+		return Error::SUCCESS;
+	}
 
-		//printCollectedValues();
+	Error PerformanceMonitoring::invoke_printValues(Tasklet*, Cap, IInvocation*){
+		mlogpm.info("invoke_printValues");
+		printCollectedValues();
 		return Error::SUCCESS;
 	}
 
@@ -284,6 +289,11 @@ namespace mythos {
 			ASSERT(last<cpu::getNumThreads());
 			mlogpm.info("collect range:", DVAR(first), DVAR(last));
 			constexpr size_t RUNS = 100;
+			constexpr double TSC_TICS_PER_NSEC = 2.6;
+			constexpr size_t LATENCY_STR_SIZE = RUNS * 20;
+
+			mythos::FixedStreamBuf<LATENCY_STR_SIZE> latencyStr;
+			mythos::ostream_base<mythos::FixedStreamBuf<LATENCY_STR_SIZE>> latencyOStream(&latencyStr);
 
 			uint64_t min = 0xFFFFFFFFFFFFFFFF;
 			uint64_t max = 0;
@@ -315,7 +325,11 @@ namespace mythos {
 					max = latency;
 
 				average += latency;
+				latencyOStream << static_cast<uint64_t>(static_cast<double>(latency)/TSC_TICS_PER_NSEC) << ";";
 			}
+
+			mlogpm.info("latencies in nanoseconds:");
+			mlog::sink->write(latencyStr.c_str(),latencyStr.size());
 
 			average /= RUNS;
 			mlogpm.info(DVAR(min),DVAR(max),DVAR(average));
@@ -329,9 +343,61 @@ namespace mythos {
 		}
 		measure(0,cpu::getNumThreads()-1);
 
-		//printCollectedValues();
 		return Error::SUCCESS;
 	}
+
+	Error PerformanceMonitoring::invoke_measureSpeedup(Tasklet*, Cap, IInvocation*){
+		mlogpm.info("invoke_measureSpeedup");
+
+		size_t threadNumber = cpu::getNumThreads();
+		uint64_t xsnpHitmLatency = 60;
+
+		uint64_t intervalStart = getCollectionTimeStampLocal();
+		uint64_t unhaltedSum = 0;
+		uint64_t xsnpHitmSum = 0;
+
+		for(cpu::ThreadID threadID = 0; threadID < threadNumber; ++threadID) {
+			collect(threadID);
+		}
+		for(cpu::ThreadID threadID = 0; threadID < threadNumber; ++threadID) {
+			waitForCollect(threadID);
+			uint64_t unhalted = getFixedCtr(threadID,2);
+			uint64_t xsnpHitm = getPMC(threadID,0);
+			unhaltedSum+=unhalted;
+			xsnpHitmSum+=xsnpHitm;
+			mlogpm.info(DVAR(threadID),DVAR(unhalted),DVAR(xsnpHitm));
+		}
+
+		if(intervalStart==0) {
+			mlogpm.warn("Unknown start of measurement interval. -> No reliable speedup calculation possible.");
+		}
+
+		uint64_t intervalEnd = getCollectionTimeStampLocal();
+		ASSERT(intervalEnd>intervalStart);
+		uint64_t intervalLength = intervalEnd - intervalStart;
+
+		uint64_t unhalted = unhaltedSum/threadNumber;
+		uint64_t xsnpHitm = xsnpHitmSum/threadNumber;
+		uint64_t haltDuration = 0;
+		if(unhalted<intervalLength){
+			haltDuration = intervalLength-unhalted;
+		}
+		uint64_t xsnpHitmLoadDuration = xsnpHitm*xsnpHitmLatency;
+
+		uint64_t haltProportion = haltDuration*100/intervalLength;
+		uint64_t xsnpHitmLoadProportion = xsnpHitmLoadDuration*100/intervalLength;
+
+		uint64_t efficiency = 100 - haltProportion - xsnpHitmLoadProportion;
+		uint64_t speedUp = efficiency * threadNumber;
+
+		mlogpm.info(DVAR(intervalStart),DVAR(intervalEnd),DVAR(intervalLength),"tsc cycles");
+		mlogpm.info(DVAR(unhalted),"tsc cycles;",DVAR(haltDuration),"tsc cycles;",DVAR(haltProportion),"%");
+		mlogpm.info(DVAR(xsnpHitm),"number;",DVAR(xsnpHitmLoadDuration),"cycles;",DVAR(xsnpHitmLoadProportion),"%");
+		mlogpm.info(DVAR(threadNumber),";",DVAR(efficiency),"%;",DVAR(speedUp),"%");
+
+		return Error::SUCCESS;
+	}
+
 
 
 } // mythos

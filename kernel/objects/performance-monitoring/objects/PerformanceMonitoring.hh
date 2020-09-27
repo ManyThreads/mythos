@@ -124,7 +124,9 @@ class PerformanceMonitoring
 		void invoke(Tasklet* t, Cap self, IInvocation* msg) override;
 		Error invoke_initializeCounters(Tasklet* t, Cap self, IInvocation* msg);
 		Error invoke_collectValues(Tasklet* t, Cap self, IInvocation* msg);
+		Error invoke_printValues(Tasklet* t, Cap self, IInvocation* msg);
 		Error invoke_measureCollectLatency(Tasklet* t, Cap self, IInvocation* msg);
+		Error invoke_measureSpeedup(Tasklet* t, Cap self, IInvocation* msg);
 
 	protected:
 		async::NestedMonitorDelegating monitor;

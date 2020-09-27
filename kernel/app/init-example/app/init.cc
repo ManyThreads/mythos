@@ -46,6 +46,7 @@
 
 #include <vector>
 #include <array>
+#include <cmath>
 
 #include <pthread.h>
 #include <omp.h>
@@ -243,7 +244,7 @@ void test_heap() {
   MLOG_INFO(mlog::app, "Test heap");
   mythos::PortalLock pl(portal);
   uintptr_t vaddr = 22*1024*1024; // choose address different from invokation buffer
-  auto size = 4*1024*1024; // 2 MB
+  auto size = 128*1024*1024;
   auto align = 2*1024*1024; // 2 MB
   // allocate a 2MiB frame
   mythos::Frame f(capAlloc());
@@ -365,6 +366,104 @@ void test_omp(){
   MLOG_INFO(mlog::app, "End Test Openmp");
 }
 
+void primeFactorization_omp(uint64_t number){
+	MLOG_INFO(mlog::app, "do primeFactorization for", DVAR(number), "on", DVAR(omp_get_thread_num()));
+	uint64_t num = number;
+	uint64_t limit = static_cast<uint64_t>(sqrt(num));
+	for(uint64_t factor=2; factor <= limit; ++factor){
+		while((num%factor) == 0){
+			MLOG_INFO(mlog::app,"primeFactor:",DVAR(number),DVAR(factor));
+			num = num / factor;
+			limit = static_cast<uint64_t>(sqrt(num));
+		}
+	}
+	if(num>1){
+		uint64_t factor = num;
+		MLOG_INFO(mlog::app,"primeFactor:",DVAR(number),DVAR(factor));
+	}
+	MLOG_INFO(mlog::app, "primeFactorization for", DVAR(number), "on", DVAR(omp_get_thread_num()), "done");
+}
+
+void primeFactors_omp(){
+	omp_set_num_threads(5);
+	MLOG_INFO(mlog::app, "start primeFactors_omp");
+
+	#pragma omp parallel sections
+	{
+		#pragma omp section
+			primeFactorization_omp(uint64_t(9999991)*uint64_t(10000019));
+		#pragma omp section
+			primeFactorization_omp(uint64_t(1000003)*uint64_t(9999991));
+		/*#pragma omp section
+			primeFactorization_omp(uint64_t(999983)*uint64_t(1000003));
+		#pragma omp section
+			primeFactorization_omp(uint64_t(100003)*uint64_t(999983));
+		#pragma omp section
+			primeFactorization_omp(uint64_t(99991)*uint64_t(100003));
+		#pragma omp section
+			primeFactorization_omp(uint64_t(10007)*uint64_t(99991));
+		#pragma omp section
+			primeFactorization_omp(uint64_t(9973)*uint64_t(10007));
+		#pragma omp section
+			primeFactorization_omp(uint64_t(1009)*uint64_t(9973));
+		#pragma omp section
+			primeFactorization_omp(uint64_t(997)*uint64_t(1009));
+		#pragma omp section
+			primeFactorization_omp(uint64_t(101)*uint64_t(997));*/
+	}
+
+	MLOG_INFO(mlog::app, "end primeFactors_omp");
+}
+
+void producerConsumers_omp(){
+	omp_set_num_threads(2);
+	MLOG_INFO(mlog::app, "start producerConsumers_omp");
+
+	constexpr unsigned NUMBER = 100;
+
+	volatile unsigned unconsumed = 0;
+	volatile unsigned consumed = 0;
+
+	#pragma omp parallel
+	{
+		//produce
+		#pragma omp single nowait
+		{
+			MLOG_INFO(mlog::app, DVAR(omp_get_thread_num()), "start producing ...");
+			for(unsigned i = 0; i<NUMBER; ++i){
+				#pragma omp critical (unconsumed_lock)
+					++unconsumed;
+			}
+			MLOG_INFO(mlog::app, DVAR(omp_get_thread_num()), "That is enough for now.", DVAR(NUMBER));
+		}
+		//consume
+		MLOG_INFO(mlog::app,DVAR(omp_get_thread_num()),"start consuming ...");
+		unsigned consumed_copy = 0;
+		unsigned consumedLocal = 0;
+		do {
+			bool gotSomething = false;
+			#pragma omp critical (unconsumed_lock)
+			{
+				if(unconsumed>0){
+					--unconsumed;
+					gotSomething = true;
+				}
+			}
+			if(gotSomething){
+				++consumedLocal;
+				if(consumedLocal%(NUMBER/10) == 0)
+					MLOG_INFO(mlog::app, DVAR(omp_get_thread_num()), DVAR(consumedLocal));
+				#pragma omp critical (consumed_lock)
+					++consumed;
+			}
+			#pragma omp critical (consumed_lock)
+				consumed_copy = consumed;
+		} while(consumed_copy < NUMBER);
+		MLOG_INFO(mlog::app, DVAR(omp_get_thread_num()), "final count:", DVAR(consumedLocal));
+	}
+
+	MLOG_INFO(mlog::app, "end producerConsumer_omp");
+}
 
 mythos::Mutex mutex;
 void* thread_main(void* ctx)
@@ -447,12 +546,12 @@ int main()
 		pl.invoke<mythos::protocol::PerformanceMonitoring::InitializeCounters>(mythos::init::PERFORMANCE_MONITORING_MODULE);
 	}
 
-  test_float();
-  /*test_Example();
+  /*test_float();
+  test_Example();
   test_Portal();
-  test_memory_root();
+  test_memory_root();*/
   test_heap(); // heap must be initialized for tls test
-  test_tls();
+  /*test_tls();
   test_exceptions();
   //test_InterruptControl();
   //test_HostChannel(portal, 24*1024*1024, 2*1024*1024);
@@ -465,9 +564,22 @@ int main()
 		pl.invoke<mythos::protocol::PerformanceMonitoring::CollectValues>(mythos::init::PERFORMANCE_MONITORING_MODULE);
 	}
 
+	primeFactors_omp();
+	//producerConsumers_omp();
+
 	{
 		mythos::PortalLock pl(portal);
+		pl.invoke<mythos::protocol::PerformanceMonitoring::MeasureSpeedup>(mythos::init::PERFORMANCE_MONITORING_MODULE);
+	}
+
+	/*{
+		mythos::PortalLock pl(portal);
 		pl.invoke<mythos::protocol::PerformanceMonitoring::MeasureCollectLatency>(mythos::init::PERFORMANCE_MONITORING_MODULE);
+	}*/
+
+	{
+		mythos::PortalLock pl(portal);
+		pl.invoke<mythos::protocol::PerformanceMonitoring::PrintValues>(mythos::init::PERFORMANCE_MONITORING_MODULE);
 	}
 
   char const end[] = "bye, cruel world!";
