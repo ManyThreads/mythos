@@ -41,8 +41,8 @@ namespace boot {
   constexpr uint64_t ACCESSED = 1<<5;
   constexpr uint64_t DIRTY    = 1<<6;
   constexpr uint64_t ISPAGE   = 1<<7;
-  //constexpr uint64_t GLOBAL   = 1<<8;
-  constexpr uint64_t GLOBAL   = 0;
+  constexpr uint64_t GLOBAL   = 1<<8;
+  //constexpr uint64_t GLOBAL   = 0;
   //constexpr uint64_t EXECUTEDISABLE = 1ull<<63;
   constexpr uint64_t EXECUTEDISABLE = 0;
 

@@ -154,7 +154,8 @@ namespace mythos {
       .writeThrough(req.write_through).cacheDisabled(req.cache_disabled)
       .withAddr(info.table.physint())
       .pmPtr(pme->pmPtr)
-      .configurable(info.configurable & req.configurable);
+      .configurable(info.configurable & req.configurable)
+      .global(req.global);
 
     // inherit
     auto capData = PageMapData().writable(entry.configurable);
@@ -196,7 +197,8 @@ namespace mythos {
       .cacheDisabled(flags.cache_disabled)
       .withAddr(frameaddr)
       .configurable(frameInfo.writable)
-      .pmPtr(pme->pmPtr);
+      .pmPtr(pme->pmPtr)
+      .global(flags.global);
 
     // inherit
     auto newCap = frame.cap().asReference().withPtr(&mappedFrameHelper);
@@ -224,7 +226,8 @@ namespace mythos {
     auto entry = pme.writeable(flags.writable && pme.configurable)
       //.executeDisabled(!req.executable) // TODO not working on KNC
       .writeThrough(flags.write_through)
-      .cacheDisabled(flags.cache_disabled);
+      .cacheDisabled(flags.cache_disabled)
+      .global(flags.global);
     if (!table[index].replace(pme, entry)) THROW(Error::LOST_RACE); // TODO or simply ignore the lost race?
     RETURN(Error::SUCCESS);
   }

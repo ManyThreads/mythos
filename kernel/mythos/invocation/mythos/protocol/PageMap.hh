@@ -57,6 +57,7 @@ namespace mythos {
       BoolField<value_t,base_t,2> cache_disabled;
       BoolField<value_t,base_t,3> write_through;
       BoolField<value_t,base_t,4> configurable;
+      BoolField<value_t,base_t,5> global;
       MapFlags() : value(0) {}
       BITFIELD_END
 
