@@ -121,6 +121,7 @@ inline bool hasXSAVE() { return bits(cpuid(1,0).ecx,26); }
 inline bool hasXSAVEOPT() { return bits(cpuid(0xd,1).eax,0); }
 inline bool hasXSAVEC() { return bits(cpuid(0xd,1).eax,1); }
 inline bool hasXSAVES() { return bits(cpuid(0xd,1).eax,3); }
+inline bool hasNX() { return bits(cpuid(0x80000001,0).edx,20); }
 
 /** the size (in bytes) required by XSAVES for state components corresponding the features XCR0 | IA32_XSS.
  * includes system state for supervisor operation. */

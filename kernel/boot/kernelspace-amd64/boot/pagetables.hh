@@ -43,8 +43,8 @@ namespace boot {
   constexpr uint64_t ISPAGE   = 1<<7;
   //constexpr uint64_t GLOBAL   = 1<<8;
   constexpr uint64_t GLOBAL   = 0;
-  //constexpr uint64_t EXECUTEDISABLE = 1ull<<63;
-  constexpr uint64_t EXECUTEDISABLE = 0;
+  constexpr uint64_t EXECUTEDISABLE = 1ull<<63;
+  //constexpr uint64_t EXECUTEDISABLE = 0;
 
   constexpr uint64_t PML2_PAGESIZE  = 1ull<<21;
   constexpr uint64_t PAGETABLE_SIZE = 4096;

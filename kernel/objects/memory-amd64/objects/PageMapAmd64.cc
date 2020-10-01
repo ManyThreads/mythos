@@ -191,7 +191,7 @@ namespace mythos {
     auto pme = &_pm_table(index);
     auto entry = PageTableEntry().present(true).userMode(true).page(level() > 1)
       .writeable(flags.writable && frameInfo.writable)
-      //.executeDisabled(!flags.executable) // not working on KNC???
+      .executeDisabled(!flags.executable) // not working on KNC???
       .writeThrough(flags.write_through)
       .cacheDisabled(flags.cache_disabled)
       .withAddr(frameaddr)
@@ -222,7 +222,7 @@ namespace mythos {
     // no assert here because the table could have been modified since the previous check!
     if (!pme.present || !pme.page) THROW(Error::LOST_RACE);
     auto entry = pme.writeable(flags.writable && pme.configurable)
-      //.executeDisabled(!req.executable) // TODO not working on KNC
+      .executeDisabled(!flags.executable) // TODO not working on KNC
       .writeThrough(flags.write_through)
       .cacheDisabled(flags.cache_disabled);
     if (!table[index].replace(pme, entry)) THROW(Error::LOST_RACE); // TODO or simply ignore the lost race?
