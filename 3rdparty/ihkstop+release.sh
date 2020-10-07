@@ -38,6 +38,9 @@ if [[ "$#" -ge "$OPTIND" ]]; then
 	exit 1
 fi
 
+echo "going to kill co-kernel!!!!"
+sudo sync
+
 # No SMP module? Exit.
 if ! grep ihk_smp_x86_64 /proc/modules &>/dev/null; then exit 0; fi
 

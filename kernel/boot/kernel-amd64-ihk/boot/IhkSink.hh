@@ -29,10 +29,11 @@
 #include "util/TidexMutex.hh"
 #include "cpu/hwthreadid.hh"
 #include "boot/ihk-entry.hh"
+#include "util/FixedStreamBuf.hh"
 
 namespace mythos {
 
-class IhkSink 
+class IhkSink
   : public mlog::ISink
 {
 public:
@@ -44,18 +45,19 @@ protected:
 
 inline void IhkSink::write(char const* buf, size_t len)
 {
-  using namespace mythos::boot;
-  mutex << [this,buf,len]() {
-    // TODO: cleanup, output thread id
-
-    if (boot::kmsg_buf == NULL) return;
-
+  if (boot::kmsg_buf == NULL) return;
+  auto id = cpu::getThreadID();
+  mutex << [this,buf,len,id]() {
     // acquire spinlock for the queue
     // @todo is this lock actually acquired from the Linux side? Otherwise we don't need this because of our own mutex here.
     while(__sync_val_compare_and_swap(&boot::kmsg_buf->lock, 0, 1) != 0) asm volatile("pause" ::: "memory");
 
+    FixedStreamBuf<10> idbuf;
+    ostream idstream(&idbuf);
+    idstream << id << ": ";
+    boot::memcpy_ringbuf(idbuf.c_str(), idbuf.size());
     boot::memcpy_ringbuf(buf, len);
-    boot::memcpy_ringbuf("\n", 1);
+    if (buf[len-1] != '\n') boot::memcpy_ringbuf("\n", 1);
 
     // @todo this looks weird. what is the meaning of head, tail and len on the Linux side?
     if (len+1 >= DEBUG_KMSG_MARGIN) { // overflow

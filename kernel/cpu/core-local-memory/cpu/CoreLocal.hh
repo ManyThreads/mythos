@@ -26,6 +26,7 @@
 #pragma once
 
 #include "util/compiler.hh"
+#include "util/mstring.hh"
 #include <cstdint>
 #include <cstddef>
 
@@ -33,13 +34,17 @@
 #define KERNEL_CLM_HOT  __attribute__((section (".kernel_clm.hot")))
 
 namespace mythos {
+  extern "C" char CLM_ADDR;
+  extern "C" char CLM_BLOCKEND;
+  extern "C" char CLM_END;
 
   class KernelCLM
   {
   public:
-    static void init(size_t size) {
-      blockSize = size;
+    static void init() {
+      blockSize = size_t(&CLM_BLOCKEND-&CLM_ADDR);
       offset = 0;
+      memset(&CLM_ADDR + blockSize, 0, &CLM_END-&CLM_ADDR-blockSize);
     }
     static size_t getBlockSize() { return blockSize; }
     static size_t getOffset(size_t threadID) { return threadID*blockSize; }

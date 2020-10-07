@@ -36,6 +36,7 @@
 #include <sys/mman.h>
 #include <sys/time.h>
 #include <sys/resource.h>
+#include <bits/alltypes.h>
 
 #include "mythos/syscall.hh"
 #include "runtime/mlog.hh"
@@ -50,6 +51,7 @@
 #include "runtime/SimpleCapAlloc.hh"
 #include "runtime/tls.hh"
 #include "runtime/futex.hh"
+#include "runtime/umem.hh"
 
 extern mythos::InvocationBuf* msg_ptr asm("msg_ptr");
 extern mythos::Portal portal;
@@ -58,13 +60,21 @@ extern mythos::PageMap myAS;
 extern mythos::KernelMemory kmem;
 extern mythos::SimpleCapAllocDel capAlloc;
 
-#define NUM_CPUS (3)
+#ifndef NUM_CPUS
+#define NUM_CPUS (2)
+#endif
+
+#define PS_PER_TSC (0x0000000000000181)
 
 extern "C" [[noreturn]] void __assert_fail (const char *expr, const char *file, int line, const char *func)
 {
     mlog::Logger<> logassert("assert");
     logassert.error("ASSERT",expr,"failed in",file,":",line,func);
     mythos::syscall_exit(-1); /// @TODO syscall_abort(); to see some stack backtrace etc
+}
+
+void mythosExit(){
+    MLOG_ERROR(mlog::app, "MYTHOS:PLEASE KILL ME!!!!!!1 elf");
 }
 
 struct iovec
@@ -75,7 +85,7 @@ struct iovec
 
 ssize_t writev(int fd, const struct iovec *iov, int iovcnt)
 {
-    MLOG_WARN(mlog::app, "syscall writev");
+    //MLOG_WARN(mlog::app, "syscall writev");
     ssize_t ret = 0;
     for (int i = 0; i < iovcnt; i++) {
         mlog::sink->write(iov[i].io_base, iov[i].iov_len);
@@ -94,19 +104,29 @@ int prlimit(
 
 int sched_setaffinity(pid_t pid, size_t cpusetsize, cpu_set_t *mask)
 {
-    MLOG_ERROR(mlog::app, "syscall sched_setaffinity", DVAR(pid), DVAR(cpusetsize), DVARhex(mask));
+    //MLOG_DETAIL(mlog::app, "syscall sched_setaffinity", DVAR(pid), DVAR(cpusetsize), DVARhex(mask));
     if(cpusetsize == NUM_CPUS && mask == NULL) return -EFAULT;
     return 0;
 }
 
 int sched_getaffinity(pid_t pid, size_t cpusetsize, cpu_set_t *mask)
 {
-    MLOG_ERROR(mlog::app, "syscall sched_getaffinity", DVAR(pid), DVAR(cpusetsize), DVARhex(mask));
+    //MLOG_DETAIL(mlog::app, "syscall sched_getaffinity", DVAR(pid), DVAR(cpusetsize), DVARhex(mask));
     if (mask) {
-        CPU_ZERO(mask);
+        //CPU_ZERO(mask);
+	memset(mask, 0, cpusetsize);
         for(int i = 0; i < NUM_CPUS; i++) CPU_SET(i, mask);
     }
     return NUM_CPUS;
+}
+
+void clock_gettime(long clk, struct timespec *ts){
+    unsigned low,high;
+    asm volatile("rdtsc" : "=a" (low), "=d" (high));
+    unsigned long tsc = low | uint64_t(high) << 32;	
+        //MLOG_DETAIL(mlog::app, "syscall clock_gettime", DVAR(clk), DVARhex(ts), DVAR(tsc), DVAR((tsc * PS_PER_TSC)/1000000000000));
+    ts->tv_nsec = (tsc * PS_PER_TSC / 1000)%1000000000;
+    ts->tv_sec = (tsc * PS_PER_TSC)/1000000000000;
 }
 
 extern "C" long mythos_musl_syscall(
@@ -118,37 +138,58 @@ extern "C" long mythos_musl_syscall(
     //DVAR(a4), DVAR(a5), DVAR(a6));
     // see http://blog.rchapman.org/posts/Linux_System_Call_Table_for_x86_64/
     switch (num) {
+    case 9:  //mmap
+        MLOG_WARN(mlog::app, "syscall mmap NYI please use stub");
+        return 0;
+    case 10:  //mprotect
+        MLOG_WARN(mlog::app, "syscall mprotect NYI");
+        return 0;
+    case 11:  //munmap
+        MLOG_WARN(mlog::app, "syscall munmap NYI please use stub!");
+        return 0;
+    case 12:  //brk
+        //MLOG_WARN(mlog::app, "syscall brk NYI");
+        return -1;
     case 13: // rt_sigaction
-        MLOG_ERROR(mlog::app, "syscall rt_sigaction NYI");
+        //MLOG_WARN(mlog::app, "syscall rt_sigaction NYI");
         return 0;
     case 14: // rt_sigprocmask(how, set, oldset, sigsetsize)
-        MLOG_ERROR(mlog::app, "syscall rt_sigprocmask NYI");
+        //MLOG_WARN(mlog::app, "syscall rt_sigprocmask NYI");
         return 0;
     case 16: // ioctl
-        MLOG_ERROR(mlog::app, "syscall ioctl NYI");
+        //MLOG_WARN(mlog::app, "syscall ioctl NYI");
         return 0;
     case 20: // writev(fd, *iov, iovcnt)
         //MLOG_ERROR(mlog::app, "syscall writev NYI");
         return writev(a1, reinterpret_cast<const struct iovec *>(a2), a3);
     case 24: // sched_yield
-        MLOG_ERROR(mlog::app, "syscall sched_yield NYI");
+        //MLOG_ERROR(mlog::app, "syscall sched_yield NYI");
+        return 0;
+    case 28:  //madvise
+        MLOG_WARN(mlog::app, "syscall madvise NYI");
         return 0;
     case 39: // getpid
-        MLOG_ERROR(mlog::app, "syscall getpid NYI");
+        //MLOG_WARN(mlog::app, "syscall getpid NYI");
         return 0;
     case 60: // exit(exit_code)
-        MLOG_DETAIL(mlog::app, "syscall exit", DVAR(a1));
+        //MLOG_DETAIL(mlog::app, "syscall exit", DVAR(a1));
         asm volatile ("syscall" : : "D"(0), "S"(a1) : "memory");
         return 0;
+    case 186: // gettid
+        //MLOG_WARN(mlog::app, "syscall gettid");
+        return -1;
     case 200: // tkill(pid, sig)
-        MLOG_ERROR(mlog::app, "syscall tkill NYI");
+        MLOG_WARN(mlog::app, "syscall tkill NYI");
         return 0;
     case 202: // sys_futex
-        MLOG_DETAIL(mlog::app, "syscall futex");
+        //MLOG_DETAIL(mlog::app, "syscall futex");
         {
+        //MLOG_ERROR(mlog::app, "Error: syscall futex", DVAR(num), 
+            //DVAR(a1), DVAR(a2), DVAR(a3),
+            //DVAR(a4), DVAR(a5), DVAR(a6));
             uint32_t val2 = 0;
             return do_futex(reinterpret_cast<uint32_t*>(a1) /*uaddr*/, 
-                            a2 /*op*/, a3 /*val*/, nullptr/* timeout*/, 
+                            a2 /*op*/, a3 /*val*/, reinterpret_cast<uint32_t*>(a4)/* timeout*/, 
                             nullptr /*uaddr2*/, val2/*val2*/, a6/*val3*/);
         }
     case 203: // sched_setaffinity
@@ -156,13 +197,17 @@ extern "C" long mythos_musl_syscall(
     case 204: // sched_getaffinity
         return sched_getaffinity(a1, a2, reinterpret_cast<cpu_set_t*>(a3));
     case 228: // clock_gettime
-        MLOG_ERROR(mlog::app, "syscall clock_gettime NYI");
+        //MLOG_ERROR(mlog::app, "Error: mythos_musl_syscall clock_gettime", DVAR(num), 
+            //DVARhex(a1), DVARhex(a2), DVARhex(a3),
+            //DVARhex(a4), DVARhex(a5), DVARhex(a6));
+	clock_gettime(a1, reinterpret_cast<struct timespec *>(a2));
         return 0;
     case 231: // exit_group for all pthreads 
-        MLOG_ERROR(mlog::app, "syscall exit_group NYI");
+        MLOG_WARN(mlog::app, "syscall exit_group NYI");
+	mythosExit();
         return 0;
     case 302: // prlimit64
-        MLOG_ERROR(mlog::app, "syscall prlimit64 NYI", DVAR(a1), DVAR(a2), DVAR(a3), DVAR(a4), DVAR(a5), DVAR(a6));
+        //MLOG_WARN(mlog::app, "syscall prlimit64 NYI", DVAR(a1), DVAR(a2), DVAR(a3), DVAR(a4), DVAR(a5), DVAR(a6));
         return 1;
     default:
         MLOG_ERROR(mlog::app, "Error: mythos_musl_syscall NYI", DVAR(num), 
@@ -175,16 +220,25 @@ extern "C" long mythos_musl_syscall(
 extern "C" void * mmap(void *start, size_t len, int prot, int flags, int fd, off_t off)
 {
     // dummy implementation
-    MLOG_DETAIL(mlog::app, "mmap");
-    if (fd == -1) return malloc(len);
-    errno = ENOMEM;
-    return MAP_FAILED;
+    //MLOG_DETAIL(mlog::app, "mmap", DVAR(start), DVAR(len), DVAR(prot), DVAR(prot), DVAR(flags), DVAR(fd), DVAR(off));
+    auto tmp = mythos::heap.alloc(len);
+    if (!tmp){ 
+	    errno = ENOMEM;
+	    return MAP_FAILED;
+    }
+
+    if (flags & MAP_ANONYMOUS)  {
+        memset(reinterpret_cast<void*>(*tmp), 0, len);
+    }
+
+    return reinterpret_cast<void*>(*tmp);
 }
 
 extern "C" int munmap(void *start, size_t len)
 {
     // dummy implementation
-    MLOG_DETAIL(mlog::app, "munmap");
+    //MLOG_DETAIL(mlog::app, "munmap", DVAR(start), DVAR(len));
+    mythos::heap.free(reinterpret_cast<unsigned long>(start));
     return 0;
 }
 
@@ -199,7 +253,7 @@ extern "C" int unmapself(void *start, size_t len)
 extern "C" int mprotect(void *addr, size_t len, int prot)
 {
     // dummy implementation
-    MLOG_DETAIL(mlog::app, "mprotect");
+    //MLOG_DETAIL(mlog::app, "mprotect");
     //size_t start, end;
     //start = (size_t)addr & -PAGE_SIZE;
     //end = (size_t)((char *)addr + len + PAGE_SIZE-1) & -PAGE_SIZE;
@@ -210,25 +264,26 @@ int myclone(
     int (*func)(void *), void *stack, int flags, 
     void *arg, int* ptid, void* tls, int* ctid)
 {
-    MLOG_DETAIL(mlog::app, "myclone");
+    //MLOG_DETAIL(mlog::app, "myclone");
     ASSERT(tls != nullptr);
+    static int nextThread = 1;
 
     mythos::PortalLock pl(portal); // future access will fail if the portal is in use already
     mythos::ExecutionContext ec(capAlloc());
     if (ptid && (flags&CLONE_PARENT_SETTID)) *ptid = int(ec.cap());
     // @todo store thread-specific ctid pointer, which should set to 0 by the OS on the thread's exit
     // @todo needs interaction with a process internal scheduler or core manager in order to figure out where to schedule the new thread
-    auto res1 = ec.create(kmem).as(myAS).cs(myCS).sched(mythos::init::SCHEDULERS_START + 1)
+    auto res1 = ec.create(kmem).as(myAS).cs(myCS).sched(mythos::init::SCHEDULERS_START + (nextThread++))
         .prepareStack(stack).startFunInt(func, arg, ec.cap())
         .suspended(false).fs(tls)
         .invokeVia(pl).wait();
-    MLOG_DETAIL(mlog::app, DVAR(ec.cap()));
+    //MLOG_DETAIL(mlog::app, DVAR(ec.cap()));
     return ec.cap();
 }
 
 extern "C" int clone(int (*func)(void *), void *stack, int flags, void *arg, ...)
 {
-    MLOG_DETAIL(mlog::app, "clone wrapper");
+    //MLOG_DETAIL(mlog::app, "clone wrapper");
     va_list args;
     va_start(args, arg);
     int* ptid = va_arg(args, int*);

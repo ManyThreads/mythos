@@ -1,0 +1,22 @@
+# -*- mode:toml; -*-
+[module.arch-ihk]
+    # pseudo modules and so on that are assumed as available
+    noauto = true
+    provides = [
+      "tag/cpu/amd64",
+      "tag/cpu/pause",
+      "tag/cpu/clflush",
+      "tag/cpu/x2apic",
+      "tag/cpu/amd64ioapic",
+      "tag/mode/kernel",
+      "tag/platform/pc",
+      "tag/compiler/gcc",
+      "tag/boot/ihk",
+      "tag/boot/multiboot",
+      "tag/cap/spinning",
+      ]
+
+    requires = [
+      "boot64.elf",
+      "Makefile",
+      ]

@@ -53,14 +53,17 @@ namespace mythos {
 
         // do nothing if it is the current execution context
         auto current = current_handle.load();
-        if (current == ec) return; /// @todo can this actually happen? 
+
+	// ATTENTION: RACE CONDITION
+        //if (current == ec) return; /// @todo can this actually happen? 
         
         // add to the ready queue
         readyQueue.remove(ec); /// @todo do not need to remove if already on the queue, just do nothing then. This needs additional information in handle_t of LinkedList
         readyQueue.push(ec);
 
         // wake up the hardware thread if it has no execution context running
-        if (current == nullptr) home->preempt();
+	// or if if current ec got ready in case of race condition
+        if (current == nullptr || current == ec) home->preempt();
     }
 
     void SchedulingContext::tryRunUser()
