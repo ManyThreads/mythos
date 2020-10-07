@@ -45,12 +45,12 @@ PHDRS
 
 SECTIONS
 {
-    /* LOAD_ADDR is begin of the init code and data */
+    /* LOAD_ADDR is begin of the lower half boot code and data */
     /* load the boot code at VMA=LMA LOAD_ADDR */
     .bootlower LOAD_ADDR : AT(LOAD_ADDR)
     {
         KEEP(*(.bootlower))
-    } : bootlower /* put into init segment */
+    } : bootlower /* put into boot segment */
     PROVIDE (LOAD_END = .);
 
     /* the begin of the upper half code and data in physical memory */
