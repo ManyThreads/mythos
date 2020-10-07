@@ -121,58 +121,6 @@ void test_Portal()
   MLOG_ERROR(mlog::app, "test_Portal end");
 }
 
-void test_memory_root()
-{
-  // see example mapping in PluginCpuDriverKNC.cc
-  auto ivt = reinterpret_cast<uint64_t*>(128ull*1024*1024*1024);
-  MLOG_INFO(mlog::app, "test_memory_root: try read from init mapping", DVAR(ivt));
-  auto val = *ivt;
-  MLOG_INFO(mlog::app, "...got", DVARhex(val));
-    
-  uintptr_t paddr = 0xB8000; // text mode CGA screen
-  uintptr_t vaddr = 22*1024*1024; // choose address different from invokation buffer
-
-  MLOG_ERROR(mlog::app, "test_memory_root begin");
-  mythos::PortalLock pl(portal); // future access will fail if the portal is in use already
-
-  MLOG_INFO(mlog::app, "test_memory_root: allocate device memory");
-  mythos::Frame f(capAlloc());
-  auto res1 = f.createDevice(pl, device_memory, paddr, 2*1024*1024, true).wait();
-  TEST(res1);
-  MLOG_INFO(mlog::app, "alloc frame", DVAR(res1.state()));
-
-  MLOG_INFO(mlog::app, "test_memory_root: allocate level 1 page map (4KiB pages)");
-  mythos::PageMap p1(capAlloc());
-  auto res2 = p1.create(pl, kmem, 1);
-  TEST(res2);
-
-  MLOG_INFO(mlog::app, "test_memory_root: map level 1 page map on level 2", DVARhex(vaddr));
-  auto res3 = myAS.installMap(pl, p1, vaddr, 2,
-                              mythos::protocol::PageMap::MapFlags().writable(true).configurable(true)).wait();
-  TEST(res3);
-
-  MLOG_INFO(mlog::app, "test_memory_root: map frame");
-  auto res4 = myAS.mmap(pl, f, vaddr, 4096, mythos::protocol::PageMap::MapFlags().writable(true)).wait();
-  MLOG_INFO(mlog::app, "mmap frame", DVAR(res4.state()),
-            DVARhex(res4->vaddr), DVAR(res4->level));
-  TEST(res4);
-
-  struct CGAChar {
-      CGAChar(uint8_t ch=0, uint8_t fg=15, uint8_t bg=0, uint8_t blink=0) : ch(ch&0xFF), fg(fg&0x0F),bg(bg&0x07),blink(blink&0x01) {} 
-      uint16_t ch:8, fg:4, bg:3, blink:1;
-    };
-  auto screen = reinterpret_cast<CGAChar*>(vaddr);
-
-  auto msg = "Device Memory is working :)";
-  for (size_t i=0; i<strlen(msg); i++) screen[i] = CGAChar(msg[i], 12, 3, 1);
-
-  MLOG_INFO(mlog::app, "test_memory_root: delete page map");
-  TEST(capAlloc.free(p1, pl));
-  MLOG_INFO(mlog::app, "test_memory_root: delete device frame");
-  TEST(capAlloc.free(f, pl));
-  MLOG_ERROR(mlog::app, "test_memory_root end");
-}
-
 void test_float()
 {
   MLOG_INFO(mlog::app, "testing user-mode floating point");
@@ -419,7 +367,6 @@ int main()
   test_float();
   test_Example();
   test_Portal();
-  test_memory_root();
   test_heap(); // heap must be initialized for tls test
   test_tls();
   test_exceptions();
