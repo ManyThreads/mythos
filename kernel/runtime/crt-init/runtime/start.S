@@ -35,13 +35,9 @@
 _start:
         mov initstack_top, %rsp
         xor %rbp, %rbp
-        mov %rdi, msg_ptr       // store first argument to global variable
-/*        fninit                  // initialize the FPU
-        call __libc_init_array*/
+        mov %rdi, msg_ptr       /* store first argument to global variable */
         call start_c
-/*        mov $0, %rdi
-        call exit
-1:      jmp 1b*/
+1:      jmp 1b                  /* should never return from start_c anyway */
 
 /* A handle for __cxa_finalize to manage c++ local destructors.  */
 .global __dso_handle

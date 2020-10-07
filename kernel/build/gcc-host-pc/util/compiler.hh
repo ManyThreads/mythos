@@ -30,8 +30,6 @@
 #define ALIGNED(X)          alignas(X)
 #define ALIGN_4K            alignas(4096)
 #define ALWAYS_INLINE       __attribute__((always_inline))
-#define INIT                __attribute__((section (".init")))
-#define INITDATA            __attribute__((section (".initdata")))
 #define NORETURN            [[noreturn]]
 //__attribute__((noreturn))
 #define NOINLINE            __attribute__((noinline))

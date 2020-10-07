@@ -49,8 +49,8 @@ SECTIONS
     /* load the boot code at VMA=LMA LOAD_ADDR */
     .init LOAD_ADDR : AT(LOAD_ADDR)
     {
-        KEEP(*(.init))
-    } : init /* put into init segment */
+        KEEP(*(.bootlower))
+    } : bootlower /* put into init segment */
     PROVIDE (LOAD_END = .);
 
     /* the begin of the upper half code and data in physical memory */
