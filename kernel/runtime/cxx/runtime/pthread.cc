@@ -197,10 +197,12 @@ extern "C" int pthread_cond_wait(pthread_cond_t *__restrict, pthread_mutex_t *__
 }
 #endif
 
+#ifdef use_pthreads_stubs
 extern "C" int pthread_cond_timedwait(pthread_cond_t *__restrict, pthread_mutex_t *__restrict, const struct timespec *__restrict){
 	MLOG_ERROR(mlog::app, __PRETTY_FUNCTION__);
 	return 0;
 }
+#endif
 
 #ifdef use_pthreads_stubs
 extern "C" int pthread_cond_broadcast(pthread_cond_t *){
@@ -209,10 +211,12 @@ extern "C" int pthread_cond_broadcast(pthread_cond_t *){
 }
 #endif
 
+#ifdef use_pthreads_stubs
 extern "C" int pthread_cond_signal(pthread_cond_t *){
 	MLOG_ERROR(mlog::app, __PRETTY_FUNCTION__);
 	return 0;
 }
+#endif
 
 
 extern "C" int pthread_rwlock_init(pthread_rwlock_t *__restrict, const pthread_rwlockattr_t *__restrict){
@@ -375,12 +379,12 @@ extern "C" int pthread_attr_destroy(pthread_attr_t *){
 	//return 0;
 //}
 
-//#ifdef use_pthreads_stubs
+#ifdef use_pthreads_stubs
 extern "C" int pthread_attr_setstacksize(pthread_attr_t *, size_t size){
 	MLOG_ERROR(mlog::app, __PRETTY_FUNCTION__, DVAR(size));
 	return 0;
 }
-//#endif
+#endif
 
 //extern "C" int pthread_attr_getdetachstate(const pthread_attr_t *, int *){
 	//MLOG_ERROR(mlog::app, __PRETTY_FUNCTION__);

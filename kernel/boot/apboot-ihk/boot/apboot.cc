@@ -108,7 +108,7 @@ NORETURN void apboot()
   // read acpi topology, then initialise HWThread objects
   cpu::hwThreadCount = ihk_get_nr_cores();
   ASSERT(cpu::getNumThreads() < MYTHOS_MAX_THREADS);
-  MLOG_INFO(mlog::boot, DVAR(cpu::getNumThreads()), DVAR(ihk_get_nr_cores()));
+  MLOG_WARN(mlog::boot, DVAR(cpu::getNumThreads()), DVAR(ihk_get_nr_cores()));
 
   for (cpu::ThreadID id=0; id<cpu::getNumThreads(); id++) {
     MLOG_INFO(mlog::boot, DVAR(id),
@@ -177,7 +177,7 @@ NORETURN void apboot()
         uint32_t after = *reinterpret_cast<volatile uint32_t*>(IHK_TRAMPOLINE_ADDR);
         asm volatile ("" ::: "memory");
         if (after != before) {
-          //MLOG_ERROR(mlog::boot, DVARhex(after));
+	  //MLOG_ERROR(mlog::boot, DVARhex(after));
           printDbg();
           before = after;
           if (after == 7) break;
@@ -188,6 +188,11 @@ NORETURN void apboot()
     }
   }
 
+  MLOG_ERROR(mlog::boot, "set status");
+  boot_param->status = 2; // this enables output
+  asm volatile("" ::: "memory");
+  MLOG_ERROR(mlog::boot, "set status done ");
+  
   start_ap64_pregdt(0); // will never return from here!
   while(1);
 }

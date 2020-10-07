@@ -169,7 +169,7 @@ void dumpTable(uint64_t* table)
 {
   kputs("\ndumpTable:");
   putHex((uint64_t)table);
-  table = (uint64_t*)((((uint64_t)table) >> 12) << 12);	
+  table = (uint64_t*)((((uint64_t)table) >> 12) << 12);
   if(table) {
     kputs("\n");
     for(int i = 0; i < 512; i++) {
@@ -203,10 +203,11 @@ void _start_ihk_mythos_(
 
   kmsg_buf = (struct ihk_kmsg_buf*)phys_to_virt(boot_param->msg_buffer);
 
-  kputs("Hello from the other side!\n");	
-  putHex(phys_address);
-  putHex(boot_param->bootstrap_mem_end);
-  putHex(boot_param->bootstrap_mem_end - phys_address);
+  kputs("Hello from the other side!\n");
+  //putHex(_ap_trampoline);
+  //putHex(phys_address);
+  //putHex(boot_param->bootstrap_mem_end);
+  //putHex(boot_param->bootstrap_mem_end - phys_address);
 
   //kputs("Trampoline data...");
   //putHex(_ap_trampoline);
@@ -217,15 +218,19 @@ void _start_ihk_mythos_(
   //putHex(trampo->stack_ptr);
   //putHex(trampo->notify_addr);
 
-  void* rq = alloc_pages(1); 
-  void* wq = alloc_pages(1); 
+  void* rq = alloc_pages(1);
+  void* wq = alloc_pages(1);
 
   boot_param->mikc_queue_recv = virt_to_phys(wq);
   boot_param->mikc_queue_send = virt_to_phys(rq);
 
   /* get ready */
-  boot_param->status = 2; // @todo is this to early? when does IHK expect the trampoline to be free again?
+  boot_param->status = 1; // @todo is this to early? when does IHK expect the trampoline to be free again?
   asm volatile("" ::: "memory");
+
+  kputs("ns_per_tsc = ");
+  putHex(boot_param->ns_per_tsc);
+  kputs("\n");
 
   // @todo this is dangerous with C++ because of stack unwinding and it should not be necessary because IHK provides a stack already. On thwe other hand, we never return...
   kputs("change stack pointer\n");
@@ -239,24 +244,24 @@ void _start_ihk_mythos_(
   pml3_table = static_cast<uint64_t*>(alloc_pages(2));
   pml4_table = static_cast<uint64_t*>(alloc_pages(2));
 
-  kputs("\n devices_pml1: ");
-  putHex(devices_pml1);
-  putHex(virt_to_phys(devices_pml1));
-  kputs("\n devices_pml2: ");
-  putHex(devices_pml2);
-  putHex(virt_to_phys(devices_pml2));
-  kputs("\n image_pml2: ");
-  putHex(image_pml2);
-  putHex(virt_to_phys(image_pml2));
-  kputs("\n pml2_tables: ");
-  putHex(pml2_tables);
-  putHex(virt_to_phys(pml2_tables));
-  kputs("\n pml3_table: ");
-  putHex(pml3_table);
-  putHex(virt_to_phys(pml3_table));
-  kputs("\n pml4_table: ");
-  putHex(pml4_table);
-  putHex(virt_to_phys(pml4_table));
+  //kputs("\n devices_pml1: ");
+  //putHex(devices_pml1);
+  //putHex(virt_to_phys(devices_pml1));
+  //kputs("\n devices_pml2: ");
+  //putHex(devices_pml2);
+  //putHex(virt_to_phys(devices_pml2));
+  //kputs("\n image_pml2: ");
+  //putHex(image_pml2);
+  //putHex(virt_to_phys(image_pml2));
+  //kputs("\n pml2_tables: ");
+  //putHex(pml2_tables);
+  //putHex(virt_to_phys(pml2_tables));
+  //kputs("\n pml3_table: ");
+  //putHex(pml3_table);
+  //putHex(virt_to_phys(pml3_table));
+  //kputs("\n pml4_table: ");
+  //putHex(pml4_table);
+  //putHex(virt_to_phys(pml4_table));
 
   /* devices_pml1 */
   for (unsigned i = 0; i < 3*512; i++) devices_pml1[i] = INVALID;
@@ -269,15 +274,15 @@ void _start_ihk_mythos_(
 
   /* image_pml2 */
   for (unsigned i = 0; i < 1024; i++) image_pml2[i] = INVALID;
-  for (unsigned i = 0; i < 4; i++) 
+  for (unsigned i = 0; i < 4; i++)
     image_pml2[512+0x1f4 + i] = PML2_BASE + i * PML2_PAGESIZE + x86_kernel_phys_base;
 
   /* pml2_tables */
   for (unsigned i = 0; i < 2048; i++) {
     if (phys_address + i * PML2_PAGESIZE < boot_param->bootstrap_mem_end) {
-      pml2_tables[i] = PML2_BASE + x86_kernel_phys_base + i*PML2_PAGESIZE; 
+      pml2_tables[i] = PML2_BASE + x86_kernel_phys_base + i*PML2_PAGESIZE;
     } else {
-      pml2_tables[i] = INVALID; 
+      pml2_tables[i] = INVALID;
     }
   }
 
@@ -318,14 +323,14 @@ void _start_ihk_mythos_(
   for(unsigned i = 771; i < 1023; i++) pml4_table[i] = INVALID;
   pml4_table[1023] = PML4_BASE + table_to_phys_addr(pml3_table,1);
 
-  dumpTable(cr3);
-  dumpTable(pml4_table);
+  //dumpTable(cr3);
+  //dumpTable(pml4_table);
 
-  dumpTable((uint64_t*)cr3[511]);
-  dumpTable((uint64_t*)pml4_table[511]);
+  //dumpTable((uint64_t*)cr3[511]);
+  //dumpTable((uint64_t*)pml4_table[511]);
 
-  dumpTable((uint64_t*)((uint64_t*)(cr3[511] & 0xFFFFFFFFFFFFFF00))[511]);
-  dumpTable((uint64_t*)((uint64_t*)(pml4_table[511] & 0xFFFFFFFFFFFFFF00))[511]);
+  //dumpTable((uint64_t*)((uint64_t*)(cr3[511] & 0xFFFFFFFFFFFFFF00))[511]);
+  //dumpTable((uint64_t*)((uint64_t*)(pml4_table[511] & 0xFFFFFFFFFFFFFF00))[511]);
 
   asm volatile("movq %0, %%cr3" : : "r" (table_to_phys_addr(pml4_table,0)));
 
@@ -339,9 +344,9 @@ class IhkInitLoaderPlugin
    : public EventHook<InitLoader&>
 {
 public:
-    IhkInitLoaderPlugin() { event::InitLoader.add(this); }
-    void processEvent(InitLoader& loader) override {
-      // map arbitrary memory into the init application: 
+    IhkInitLoaderPlugin() { event::initLoader.add(this); }
+    void processEvent(InitLoader& /*loader*/) override {
+      // map arbitrary memory into the init application:
       // virtual addr, size, writable, executable, physical address
       //loader.memMapper.mmapDevice(vaddr, size, true, false, physaddr);
     }

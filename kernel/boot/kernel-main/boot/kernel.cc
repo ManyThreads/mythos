@@ -81,6 +81,7 @@ NORETURN void entry_ap(size_t apicID, size_t reason) SYMBOL("entry_ap");
 void entry_bsp()
 {
   mythos::boot::initKernelSpace();
+  // TODO move this into lapic code, at which point access to the lapic is actually needed?
   mythos::boot::mapLapic(mythos::x86::getApicBase()); // make LAPIC accessible
 
   mythos::GdtAmd64 tempGDT;
@@ -89,7 +90,7 @@ void entry_bsp()
   mythos::IdtAmd64 tempIDT;
   tempIDT.initEarly();
   tempIDT.load();
-  mythos::KernelCLM::init(size_t(&CLM_BLOCKEND-&CLM_ADDR)); // now the core-local variables are working
+  mythos::KernelCLM::init(); // now the core-local variables are working
   mythos::cpu::hwThreadID_.setAt(0, MYTHOS_MAX_THREADS); // now getThreadId() returns an invalid value for the BSP part
   mythos::boot::initMLog();
   MLOG_DETAIL(mlog::boot, "CLM", (void*)&CLM_ADDR, (void*)&CLM_BLOCKEND, (void*)&CLM_END);

@@ -30,6 +30,7 @@
 #include "util/FirstFitHeap.hh"
 #include "runtime/mlog.hh"
 #include "runtime/Mutex.hh"
+#include <sys/time.h>
 
 
 namespace mythos {
@@ -38,11 +39,13 @@ namespace mythos {
  * Wrapper for FirstFitHeap intrusive. Allocates additional meta data.
  */
 template<typename T, size_t HA = alignLine>
+//template<typename T, size_t HA = align4K>
 class SequentialHeap
 {
 public:
     typedef T addr_t;
     constexpr static size_t heapAlign = HA;
+	unsigned long time;
 
     /**
     * Used to store the size of an allocated chunk.
@@ -59,37 +62,74 @@ public:
     
 
     SequentialHeap() {}
-    virtual ~SequentialHeap() {}
+    virtual ~SequentialHeap() {
+	    //printTime();
+    }
 
-    size_t getAlignment() const { return heap.getAlignment(); }
+    void init(){
+    	static bool isInitialized = false;
+	if(!isInitialized){
+		new(heap) (FirstFitHeap<T, HA>);
+		allocated = 0;	
+		time = 0;
+		isInitialized = true;
+	}
+    }
+
+    void printTime(){
+	MLOG_ERROR(mlog::app, "Heap time: ", DVAR(time)); 
+	}
+
+    size_t getAlignment() const { return getHeap().getAlignment(); }
 
     optional<addr_t> alloc(size_t length) { return this->alloc(length, heapAlign); }
 
     optional<addr_t> alloc(size_t length, size_t align) {
+        //timeval tstart, tend;
+	//asm volatile ("":::"memory");
+	//gettimeofday(&tstart, 0);
+	//asm volatile ("":::"memory");
+
         optional<addr_t> res;
         align = round_up(align, heapAlign); // enforce own minimum alignment
         auto headsize = round_up(sizeof(Head), align);
         auto allocSize = round_up(headsize + length, heapAlign);
-        MLOG_DETAIL(mlog::app, "heap: try to allocate", DVAR(length), DVAR(align), 
-            DVAR(allocSize));
+        //MLOG_DETAIL(mlog::app, "heap: try to allocate", DVAR(length), DVAR(align), 
+            //DVAR(allocSize));
         mutex << [&]() {
-            res = heap.alloc(allocSize, align);
+            res = getHeap().alloc(allocSize, align);
         };
-        if (!res) return res;
+        if (!res){ 
+	MLOG_ERROR(mlog::app, "heap: out of memory! allocation request:", DVAR(length), DVAR(align), 
+	    DVAR(allocSize));
+	MLOG_ERROR(mlog::app, "heap: already allocted: ", DVAR(allocated));
+		return res;
+	}
+	allocated += allocSize;
         auto begin = reinterpret_cast<char*>(*res);
         auto addr = begin + headsize;
         auto head = new(addr - sizeof(Head)) Head();
         head->begin = begin;
         head->size = allocSize;
         head->reqSize = length;
-        MLOG_DETAIL(mlog::app, "allocated", DVARhex(begin), DVARhex(addr),
-            DVAR(allocSize), DVAR(align));
+        //MLOG_DETAIL(mlog::app, "allocated", DVARhex(begin), DVARhex(addr),
+            //DVAR(allocSize), DVAR(align));
         ASSERT(is_aligned(addr, align));
         ASSERT(is_aligned(addr, heapAlign));
-        return {reinterpret_cast<addr_t>(addr)};
+	//asm volatile ("":::"memory");
+	//gettimeofday(&tend, 0);
+	//asm volatile ("":::"memory");
+	//time += (tend.tv_sec - tstart.tv_sec)*1000000;
+	//time += tend.tv_usec - tstart.tv_usec;
+	return {reinterpret_cast<addr_t>(addr)};
     }
 
     void free(addr_t start) {
+        //timeval tstart, tend;
+	//asm volatile ("":::"memory");
+	//gettimeofday(&tstart, 0);
+	//asm volatile ("":::"memory");
+
         auto addr = reinterpret_cast<char*>(start);
         auto head = reinterpret_cast<Head*>(addr - sizeof(Head));
         ASSERT(head->isGood());
@@ -97,16 +137,22 @@ public:
         auto allocSize = head->size;
         ASSERT(is_aligned(begin, heapAlign));
         ASSERT(is_aligned(allocSize, heapAlign));
-        MLOG_DETAIL(mlog::app, "freeing ", DVARhex(begin), DVARhex(addr), DVARhex(allocSize));
+        //MLOG_DETAIL(mlog::app, "freeing ", DVARhex(begin), DVARhex(addr), DVARhex(allocSize));
         mutex << [&]() {
-            heap.free(reinterpret_cast<addr_t>(begin), allocSize);
+            getHeap().free(reinterpret_cast<addr_t>(begin), allocSize);
+	    allocated -= allocSize;
         };
+	//asm volatile ("":::"memory");
+	//gettimeofday(&tend, 0);
+	//asm volatile ("":::"memory");
+	//time += (tend.tv_sec - tstart.tv_sec)*1000000;
+	//time += tend.tv_usec - tstart.tv_usec;
     }
 
     void addRange(addr_t start, size_t length) {
         mutex << [&]() {
         MLOG_DETAIL(mlog::app, "Add range", DVARhex(start), DVARhex(length));
-            heap.addRange(start, length);
+            getHeap().addRange(start, length);
         };
     }
     
@@ -118,9 +164,11 @@ public:
     }
 
 private:
-    FirstFitHeap<T, HA> heap;
+    FirstFitHeap<T, HA>& getHeap(){ return *reinterpret_cast<FirstFitHeap<T, HA>* >(&heap[0]); }
+    alignas(FirstFitHeap<T, HA>) char heap[sizeof(FirstFitHeap<T, HA>)];
     Mutex mutex;
 
+    size_t allocated;
 };
 
 } // namespace mythos

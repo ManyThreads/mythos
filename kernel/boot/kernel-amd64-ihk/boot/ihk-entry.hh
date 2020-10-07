@@ -60,7 +60,7 @@ extern uint64_t* pml4_ihk;
 #define IHK_KMSG_SIZE            (8192 << 5)
 
 // @todo this looks soo wrong, not even a constant...
-#define DEBUG_KMSG_MARGIN (kmsg_buf->head == kmsg_buf->tail ? kmsg_buf->len : (((unsigned int)kmsg_buf->head - (unsigned int)kmsg_buf->tail) % (unsigned int)kmsg_buf->len))
+#define DEBUG_KMSG_MARGIN (boot::kmsg_buf->head == boot::kmsg_buf->tail ? boot::kmsg_buf->len : (((unsigned int)boot::kmsg_buf->head - (unsigned int)boot::kmsg_buf->tail) % (unsigned int)boot::kmsg_buf->len))
 
 struct ihk_kmsg_buf {
   int lock; /* Be careful, it's inter-kernel lock */
