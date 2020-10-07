@@ -24,7 +24,7 @@
  * Copyright 2016 Randolf Rotta, Robert Kuban, and contributors, BTU Cottbus-Senftenberg
  */
 
-.section .bootlower
+.section .init
 	pop %rbp
 	ret
 
