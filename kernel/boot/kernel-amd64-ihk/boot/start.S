@@ -62,8 +62,61 @@
 #define CR4_MASK     0xFFFFFFFF
 #define CR4_ENABLE   0x00000020
 
+.section .rodata
+
+.align  8
+//.global _boot_gdt_start
+_boot_gdt_start:
+    .quad   0x0000000000000000      // null descriptor
+    .quad   0x0000000000000000      // 0x08 unused
+    .quad   0x00a09b000000ffff      // 0x10 kernel code
+    .quad   0x00a093000000ffff      // 0x18 kernel data
+_boot_gdt_end:
+    .word   0                       // padding to align ...
+_boot_gdt:
+    .word   _boot_gdt_end - _boot_gdt_start - 1     // limit: length of the GDT
+    .quad   _boot_gdt_start                 // base
+
 
 .section .text
+
+/** \f _start_bsp64_pregdt is called from ihk-entry.cc */
+.code64
+.align 8
+.global _start_bsp64_pregdt
+.type _start_bsp64_pregdt, @function
+_start_bsp64_pregdt:
+    mov $(BOOT_STACK+BOOT_STACK_SIZE), %rsp    // set up boot kernel stack
+    // load our own segment descriptor table, see above in this file
+    // the segments 0x10 and 0x18 match the final GDT of the kernel
+    lgdt    _boot_gdt
+    // switch code segment to 0x10 instead of leftovers from the loader
+    // create a stack frame like from a far call and return
+    push    $0x10 // KERNEL_CS
+    push    $_start_bsp64
+    retfq
+
+_start_bsp64:
+    mov     $0x18, %cx      // kernel data selector
+    mov     %cx, %ss
+    mov     %cx, %ds
+    2mov     %cx, %es
+    mov     %cx, %fs
+    mov     %cx, %gs
+    cld // for gcc code
+
+    mov     $(EFER_MSR), %ecx       // select the EFER MSR
+    rdmsr                           // read EFER
+    and     $(EFER_MASK), %eax
+    or      $(EFER_ENABLE), %eax
+    wrmsr                           // write EFER
+
+    // go to the stage 3 boot code, and never come back
+    xor %rbp, %rbp
+    pushq   $0 // fake return address as first stack frame
+    jmp entry_bsp
+
+
 
 .code16
 .align 8
