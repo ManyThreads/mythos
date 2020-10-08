@@ -64,7 +64,7 @@
 
 .section .rodata
 
-.align  8
+.balign  8
 //.global _boot_gdt_start
 _boot_gdt_start:
     .quad   0x0000000000000000      // null descriptor
@@ -82,7 +82,7 @@ _boot_gdt:
 
 /** \f _start_bsp64_pregdt is called from ihk-entry.cc */
 .code64
-.align 8
+.balign 8
 .global _start_bsp64_pregdt
 .type _start_bsp64_pregdt, @function
 _start_bsp64_pregdt:
@@ -100,7 +100,7 @@ _start_bsp64:
     mov     $0x18, %cx      // kernel data selector
     mov     %cx, %ss
     mov     %cx, %ds
-    2mov     %cx, %es
+    mov     %cx, %es
     mov     %cx, %fs
     mov     %cx, %gs
     cld // for gcc code
@@ -119,12 +119,12 @@ _start_bsp64:
 
 
 .code16
-.align 8
+.balign 8
 .global _dbg_trampoline
 base = .
 _dbg_trampoline:
 
-.align 8
+.balign 8
 jmp _dbg_trampoline_code
 
 .org 8
@@ -138,7 +138,7 @@ _dbg_startap:
   .quad 0x0
 
 dbg_ljmp32: // overwritten in (II)
- .long dbg_32prot - base
+  .long dbg_32prot - base
   .word 0x20
 
 boot_gdtptr:
@@ -199,13 +199,13 @@ test:
 
   ljmpl *(dbg_ljmp32 - base)
 
-.align  4
+.balign  4
 boot_idtptr:
   .short  0
   .long 0
 
 
-  .align  4
+  .balign  4
 boot_gdt32:
   .quad 0
   .quad 0
@@ -283,7 +283,7 @@ _dbg_trampoline_end:
 
 
 .code64
-.align 8
+.balign 8
 
 .global _start_ap64_pregdt
 .type _start_ap64_pregdt, @function
