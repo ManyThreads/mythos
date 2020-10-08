@@ -363,6 +363,7 @@ int main()
   char const str[] = "hello world!";
   mythos::syscall_debug(str, sizeof(str)-1);
   MLOG_ERROR(mlog::app, "application is starting :)", DVARhex(msg_ptr), DVARhex(initstack_top));
+  return 0;
 
   test_float();
   test_Example();
