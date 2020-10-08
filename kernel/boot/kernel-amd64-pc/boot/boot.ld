@@ -38,7 +38,7 @@ ENTRY(_start_bsp)
  */
 PHDRS
 {
-    init PT_LOAD;
+    bootlower PT_LOAD;
     kern PT_LOAD;
     data PT_LOAD;
 }
