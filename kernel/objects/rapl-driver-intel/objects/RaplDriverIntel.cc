@@ -180,6 +180,8 @@ namespace mythos {
       dram_energy_units = cpu_energy_units; 
     }
     MLOG_ERROR(mlog::boot, "dram_energy_units", dram_energy_units);
+    
+    printEnergy();
   }
 
   void RaplDriverIntel::invoke(Tasklet* t, Cap self, IInvocation* msg)
@@ -201,19 +203,22 @@ namespace mythos {
   void RaplDriverIntel::printEnergy(){
     if(!isIntel) return;
 
-    // calc
-
     if(pp0_avail){
-      //auto status = getMSR(MSR_PP0_ENERGY_STATUS);
+      uint64_t pp0_es = x86::getMSR(MSR_PP0_ENERGY_STATUS);
+      MLOG_ERROR(mlog::boot, "Power plane 0 energy status =", pp0_es >> cpu_energy_units);
     }
     if(pp1_avail){
+      uint64_t pp1_es = x86::getMSR(MSR_PP1_ENERGY_STATUS);
+      MLOG_ERROR(mlog::boot, "Power plane 1 energy status =", pp1_es >> cpu_energy_units);
     }
     if(dram_avail){
+      uint64_t dram_es = x86::getMSR(MSR_DRAM_ENERGY_STATUS);
+      MLOG_ERROR(mlog::boot, "DRAM energy status =", dram_es >> dram_energy_units);
     }
     if(psys_avail){
+      uint64_t pl_es = x86::getMSR(MSR_PLATFORM_ENERGY_STATUS);
+      MLOG_ERROR(mlog::boot, "Platform energy status =", pl_es >> cpu_energy_units);
     }
-
-
   }
 
   //Error RaplDriverIntel::invoke_setInitMem(Tasklet*, Cap, IInvocation* msg)
