@@ -42,10 +42,24 @@ public:
 public:
   RaplDriverIntel();
   //Error invoke_setInitMem(Tasklet*, Cap, IInvocation* msg);
+  void printEnergy();
 
 protected:
   /// @todo or one instance per hardware thread with HomeMonitor?
   async::NestedMonitorDelegating monitor;
+private:
+  bool isIntel;
+  uint32_t cpu_fam;
+  uint32_t cpu_model;
+	uint32_t dram_avail;
+	uint32_t pp0_avail;
+	uint32_t pp1_avail;
+	uint32_t psys_avail;
+	uint32_t different_units;
+  double power_units;
+  double time_units;
+  double cpu_energy_units;
+  double dram_energy_units;
 };
 
 } // namespace mythos

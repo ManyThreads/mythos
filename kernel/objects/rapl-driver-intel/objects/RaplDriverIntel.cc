@@ -31,6 +31,8 @@
 #include "mythos/protocol/RaplDriverIntel.hh"
 #include "mythos/HostInfoTable.hh"
 #include "objects/TypedCap.hh"
+#include "cpu/ctrlregs.hh"
+#include "objects/IntelRegs.hh"
 //#include "objects/IFrame.hh"
 
 namespace mythos {
@@ -39,6 +41,139 @@ namespace mythos {
 
   RaplDriverIntel::RaplDriverIntel(){
     MLOG_ERROR(mlog::boot, "RAPL driver startet");
+    // check it is an Intel cpu
+    auto r = x86::cpuid(0);
+    char str[] = "0123456789ab";
+    *reinterpret_cast<uint32_t*>(&str[0]) = r.ebx;
+    *reinterpret_cast<uint32_t*>(&str[4]) = r.edx;
+    *reinterpret_cast<uint32_t*>(&str[8]) = r.ecx;
+    
+    isIntel = true;
+    char intelStr[] = INTEL_STR;
+    for(int i = 0; i < 12; i++){
+      if(str[i] != intelStr[i]){
+        isIntel = false;
+        break;
+      }
+    }
+
+    if(isIntel){
+      MLOG_ERROR(mlog::boot, "Congratulations, you are the proud owner of an Intel CPU.");
+    }else{
+      MLOG_ERROR(mlog::boot, "Unsupported processor manufacturer -> ", str);
+    }
+
+    // check cpu family
+    cpu_fam = bits(x86::cpuid(1).eax, 11, 8);
+    MLOG_ERROR(mlog::boot, "CPU family =", cpu_fam);
+
+    // check extended cpu model 
+    cpu_model = (bits(x86::cpuid(1).eax, 19, 16) << 4) + bits(x86::cpuid(1).eax, 7, 4);
+    MLOG_ERROR(mlog::boot, "CPU extended model =", cpu_model);
+
+    dram_avail = 0;
+    pp0_avail = 0;
+    pp1_avail = 0;
+    psys_avail = 0;
+    different_units = 0;
+
+    power_units = 0;
+    time_units = 0;
+    cpu_energy_units = 0;
+    dram_energy_units = 0;
+    
+    if(!isIntel){
+      return;
+    }
+    
+    if(cpu_fam == 6){
+      switch(cpu_model){
+
+        case CPU_SANDYBRIDGE_EP:
+        case CPU_IVYBRIDGE_EP:
+          pp0_avail=1;
+          pp1_avail=0;
+          dram_avail=1;
+          different_units=0;
+          psys_avail=0;
+          break;
+
+        case CPU_HASWELL_EP:
+        case CPU_BROADWELL_EP:
+        case CPU_SKYLAKE_X:
+          pp0_avail=1;
+          pp1_avail=0;
+          dram_avail=1;
+          different_units=1;
+          psys_avail=0;
+          break;
+
+        case CPU_KNIGHTS_LANDING:
+        case CPU_KNIGHTS_MILL:
+          pp0_avail=0;
+          pp1_avail=0;
+          dram_avail=1;
+          different_units=1;
+          psys_avail=0;
+          break;
+
+        case CPU_SANDYBRIDGE:
+        case CPU_IVYBRIDGE:
+          pp0_avail=1;
+          pp1_avail=1;
+          dram_avail=0;
+          different_units=0;
+          psys_avail=0;
+          break;
+
+        case CPU_HASWELL:
+        case CPU_HASWELL_ULT:
+        case CPU_HASWELL_GT3E:
+        case CPU_BROADWELL:
+        case CPU_BROADWELL_GT3E:
+        case CPU_ATOM_GOLDMONT:
+        case CPU_ATOM_GEMINI_LAKE:
+        case CPU_ATOM_DENVERTON:
+          pp0_avail=1;
+          pp1_avail=1;
+          dram_avail=1;
+          different_units=0;
+          psys_avail=0;
+          break;
+
+        case CPU_SKYLAKE:
+        case CPU_SKYLAKE_HS:
+        case CPU_KABYLAKE:
+        case CPU_KABYLAKE_MOBILE:
+        //case CPU_COFFEELAKE:
+        //case CPU_COFFEELAKE_U:
+          pp0_avail=1;
+          pp1_avail=1;
+          dram_avail=1;
+          different_units=0;
+          psys_avail=1;
+          break;
+        default:
+          MLOG_ERROR(mlog::boot, "Unknown CPU model :(");
+      }
+    
+    }else if(cpu_fam == 11){
+      switch(cpu_model){
+
+        case CPU_KNIGHTS_CORNER:
+          MLOG_ERROR(mlog::boot, "Please find out which RAPL sensors are supported for KNC...");
+          break;
+        default:
+          MLOG_ERROR(mlog::boot, "Unknown CPU model :(");
+      }
+    }else{
+      MLOG_ERROR(mlog::boot, "Unsupported processor family");
+      return;
+    }
+
+    power_units = bits(x86::getMSR(MSR_RAPL_POWER_UNIT),3,0);
+    uint32_t pu = x86::getMSR(MSR_RAPL_POWER_UNIT);
+    MLOG_ERROR(mlog::boot, "power_units", pu);
   }
 
   void RaplDriverIntel::invoke(Tasklet* t, Cap self, IInvocation* msg)
@@ -57,6 +192,23 @@ namespace mythos {
       } );
   }
 
+  void RaplDriverIntel::printEnergy(){
+    if(!isIntel) return;
+
+    // calc
+
+    if(pp0_avail){
+      //auto status = getMSR(MSR_PP0_ENERGY_STATUS);
+    }
+    if(pp1_avail){
+    }
+    if(dram_avail){
+    }
+    if(psys_avail){
+    }
+
+
+  }
 
   //Error RaplDriverIntel::invoke_setInitMem(Tasklet*, Cap, IInvocation* msg)
   //{
