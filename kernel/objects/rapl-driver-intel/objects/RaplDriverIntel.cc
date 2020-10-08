@@ -34,6 +34,7 @@
 #include "cpu/ctrlregs.hh"
 #include "objects/IntelRegs.hh"
 //#include "objects/IFrame.hh"
+//#include <cmath>
 
 namespace mythos {
 
@@ -71,11 +72,11 @@ namespace mythos {
     cpu_model = (bits(x86::cpuid(1).eax, 19, 16) << 4) + bits(x86::cpuid(1).eax, 7, 4);
     MLOG_ERROR(mlog::boot, "CPU extended model =", cpu_model);
 
-    dram_avail = 0;
-    pp0_avail = 0;
-    pp1_avail = 0;
-    psys_avail = 0;
-    different_units = 0;
+    dram_avail = false;
+    pp0_avail = false;
+    pp1_avail = false;
+    psys_avail = false;
+    different_units = false;
 
     power_units = 0;
     time_units = 0;
@@ -91,39 +92,28 @@ namespace mythos {
 
         case CPU_SANDYBRIDGE_EP:
         case CPU_IVYBRIDGE_EP:
-          pp0_avail=1;
-          pp1_avail=0;
-          dram_avail=1;
-          different_units=0;
-          psys_avail=0;
+          pp0_avail=true;
+          dram_avail=true;
           break;
 
         case CPU_HASWELL_EP:
         case CPU_BROADWELL_EP:
         case CPU_SKYLAKE_X:
-          pp0_avail=1;
-          pp1_avail=0;
-          dram_avail=1;
-          different_units=1;
-          psys_avail=0;
+          pp0_avail=true;
+          dram_avail=true;
+          different_units=true;
           break;
 
         case CPU_KNIGHTS_LANDING:
         case CPU_KNIGHTS_MILL:
-          pp0_avail=0;
-          pp1_avail=0;
-          dram_avail=1;
-          different_units=1;
-          psys_avail=0;
+          dram_avail=true;
+          different_units=true;
           break;
 
         case CPU_SANDYBRIDGE:
         case CPU_IVYBRIDGE:
-          pp0_avail=1;
-          pp1_avail=1;
-          dram_avail=0;
-          different_units=0;
-          psys_avail=0;
+          pp0_avail=true;
+          pp1_avail=true;
           break;
 
         case CPU_HASWELL:
@@ -134,11 +124,9 @@ namespace mythos {
         case CPU_ATOM_GOLDMONT:
         case CPU_ATOM_GEMINI_LAKE:
         case CPU_ATOM_DENVERTON:
-          pp0_avail=1;
-          pp1_avail=1;
-          dram_avail=1;
-          different_units=0;
-          psys_avail=0;
+          pp0_avail=true;
+          pp1_avail=true;
+          dram_avail=true;
           break;
 
         case CPU_SKYLAKE:
@@ -147,11 +135,10 @@ namespace mythos {
         case CPU_KABYLAKE_MOBILE:
         //case CPU_COFFEELAKE:
         //case CPU_COFFEELAKE_U:
-          pp0_avail=1;
-          pp1_avail=1;
-          dram_avail=1;
-          different_units=0;
-          psys_avail=1;
+          pp0_avail=true;
+          pp1_avail=true;
+          dram_avail=true;
+          psys_avail=true;
           break;
         default:
           MLOG_ERROR(mlog::boot, "Unknown CPU model :(");
@@ -171,9 +158,28 @@ namespace mythos {
       return;
     }
 
+    //determine power unit
+    //power_units = std::pow(0.5, bits(x86::getMSR(MSR_RAPL_POWER_UNIT),3,0));
     power_units = bits(x86::getMSR(MSR_RAPL_POWER_UNIT),3,0);
-    uint32_t pu = x86::getMSR(MSR_RAPL_POWER_UNIT);
-    MLOG_ERROR(mlog::boot, "power_units", pu);
+    MLOG_ERROR(mlog::boot, "msr_rapl_power_units", power_units);
+
+    //determine time unit
+    //time_units = std::pow(0.5, bits(x86::getMSR(MSR_RAPL_POWER_UNIT),19,16));
+    time_units = bits(x86::getMSR(MSR_RAPL_POWER_UNIT),19,16);
+    MLOG_ERROR(mlog::boot, "time_units", time_units);
+
+    //determine cpu energy unit
+    //cpu_energy_units = std::pow(0.5, bits(x86::getMSR(MSR_RAPL_POWER_UNIT),12,8));
+    cpu_energy_units = bits(x86::getMSR(MSR_RAPL_POWER_UNIT),12,8);
+    MLOG_ERROR(mlog::boot, "cpu_energy_units", cpu_energy_units);
+
+    if(different_units){
+      //dram_energy_units = std::pow(0.5, 16.0);
+      dram_energy_units = 16;
+    }else{
+      dram_energy_units = cpu_energy_units; 
+    }
+    MLOG_ERROR(mlog::boot, "dram_energy_units", dram_energy_units);
   }
 
   void RaplDriverIntel::invoke(Tasklet* t, Cap self, IInvocation* msg)

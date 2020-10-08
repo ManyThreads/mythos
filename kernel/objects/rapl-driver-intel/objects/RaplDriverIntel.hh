@@ -52,14 +52,18 @@ private:
   uint32_t cpu_fam;
   uint32_t cpu_model;
 	uint32_t dram_avail;
-	uint32_t pp0_avail;
-	uint32_t pp1_avail;
-	uint32_t psys_avail;
-	uint32_t different_units;
-  double power_units;
-  double time_units;
-  double cpu_energy_units;
-  double dram_energy_units;
+	bool pp0_avail;
+	bool pp1_avail;
+	bool psys_avail;
+	bool different_units;
+  uint32_t power_units;
+  uint32_t time_units;
+  uint32_t cpu_energy_units;
+  uint32_t dram_energy_units;
+  //double power_units;
+  //double time_units;
+  //double cpu_energy_units;
+  //double dram_energy_units;
 };
 
 } // namespace mythos
