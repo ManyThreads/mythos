@@ -1,0 +1,7 @@
+# -*- mode:toml; -*-
+[module.objects-rapl-driver-intel]
+    incfiles = [ "objects/RaplDriverIntel.hh", "mythos/protocol/RaplDriverIntel.hh" ]
+    kernelfiles = [ "objects/RaplDriverIntel.cc" ]
+
+[module.plugin-rapl-driver-intel]
+    kernelfiles = [ "objects/PluginRaplDriverIntel.cc" ]

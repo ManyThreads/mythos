@@ -1,4 +1,4 @@
-/* -*- mode:C++; -*- */
+/* -*- mode:C++; indent-tabs-mode:nil; -*- */
 /* MIT License -- MyThOS: The Many-Threads Operating System
  *
  * Permission is hereby granted, free of charge, to any person
@@ -21,43 +21,31 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  *
- * Copyright 2016 Randolf Rotta, Robert Kuban, and contributors, BTU Cottbus-Senftenberg
+ * Copyright 2020 Philipp Gypser and contributors, BTU Cottbus-Senftenberg
  */
 #pragma once
 
-#include <cstddef>
-#include "mythos/caps.hh"
-#include "mythos/InvocationBuf.hh"
+#include "async/NestedMonitorDelegating.hh"
+#include "objects/IKernelObject.hh"
 
 namespace mythos {
-namespace init {
 
-  enum CSpaceLayout : CapPtr {
-    NULLCAP = 0,
-    KM,
-    CSPACE,
-    PML4,
-    EC,
-    PORTAL,
-    EXAMPLE_FACTORY,
-    MEMORY_REGION_FACTORY,
-    EXECUTION_CONTEXT_FACTORY,
-    PORTAL_FACTORY,
-    CAPMAP_FACTORY,
-    PAGEMAP_FACTORY,
-    UNTYPED_MEMORY_FACTORY,
-    CAP_ALLOC_START,
-    CAP_ALLOC_END = CAP_ALLOC_START+200,
-    MSG_FRAME,
-    DEVICE_MEM,
-    SCHEDULERS_START,
-    CPUDRIVER = SCHEDULERS_START+256,
-    RAPL_DRIVER_INTEL,
-    INTERRUPT_CONTROL_START,
-    INTERRUPT_CONTROL_END = INTERRUPT_CONTROL_START+256,
-    APP_CAP_START = 1024,
-    SIZE = 4096
-  };
+class RaplDriverIntel
+  : public IKernelObject
+{
+public:
+  optional<void const*> vcast(TypeId) const override { THROW(Error::TYPE_MISMATCH); }
+  optional<void> deleteCap(CapEntry&, Cap, IDeleter&) override { RETURN(Error::SUCCESS); }
+  void deleteObject(Tasklet*, IResult<void>*) override {}
+  void invoke(Tasklet* t, Cap self, IInvocation* msg) override;
 
-} // namespace init
+public:
+  RaplDriverIntel();
+  //Error invoke_setInitMem(Tasklet*, Cap, IInvocation* msg);
+
+protected:
+  /// @todo or one instance per hardware thread with HomeMonitor?
+  async::NestedMonitorDelegating monitor;
+};
+
 } // namespace mythos
