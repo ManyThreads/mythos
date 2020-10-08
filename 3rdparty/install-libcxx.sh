@@ -70,8 +70,8 @@ tar -xJf libunwind-9.0.0.src.tar.xz && mv libunwind-9.0.0.src libunwind || fail
 if test ! -e openmp-9.0.0.src.tar.xz ; then  
   curl -LO http://releases.llvm.org/9.0.0/openmp-9.0.0.src.tar.xz || fail
 fi
-rm -rf openmp
-tar -xJf openmp-9.0.0.src.tar.xz && mv openmp-9.0.0.src openmp || fail
+#rm -rf openmp
+#tar -xJf openmp-9.0.0.src.tar.xz && mv openmp-9.0.0.src openmp || fail
 
 
 

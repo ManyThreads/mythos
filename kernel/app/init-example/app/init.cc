@@ -385,44 +385,42 @@ void primeFactorization_omp(uint64_t number){
 }
 
 void primeFactors_omp(){
-	omp_set_num_threads(5);
 	MLOG_INFO(mlog::app, "start primeFactors_omp");
 
 	#pragma omp parallel sections
 	{
 		#pragma omp section
-			primeFactorization_omp(uint64_t(9999991)*uint64_t(10000019));
+			primeFactorization_omp(uint64_t(30000001)*uint64_t(30000083));
 		#pragma omp section
-			primeFactorization_omp(uint64_t(1000003)*uint64_t(9999991));
-		/*#pragma omp section
-			primeFactorization_omp(uint64_t(999983)*uint64_t(1000003));
+			primeFactorization_omp(uint64_t(22000001)*uint64_t(22000087));
 		#pragma omp section
-			primeFactorization_omp(uint64_t(100003)*uint64_t(999983));
+			primeFactorization_omp(uint64_t(16000057)*uint64_t(16000097));
+                #pragma omp section
+                        primeFactorization_omp(uint64_t(12000017)*uint64_t(12000097));
+                #pragma omp section
+                        primeFactorization_omp(uint64_t(8000009)*uint64_t(8000099));
 		#pragma omp section
-			primeFactorization_omp(uint64_t(99991)*uint64_t(100003));
+			primeFactorization_omp(uint64_t(6000011)*uint64_t(6000073));
+                #pragma omp section
+                        primeFactorization_omp(uint64_t(4000037)*uint64_t(4000093));
 		#pragma omp section
-			primeFactorization_omp(uint64_t(10007)*uint64_t(99991));
+			primeFactorization_omp(uint64_t(3000017)*uint64_t(3000089));
 		#pragma omp section
-			primeFactorization_omp(uint64_t(9973)*uint64_t(10007));
+			primeFactorization_omp(uint64_t(2000003)*uint64_t(2000093));
 		#pragma omp section
-			primeFactorization_omp(uint64_t(1009)*uint64_t(9973));
-		#pragma omp section
-			primeFactorization_omp(uint64_t(997)*uint64_t(1009));
-		#pragma omp section
-			primeFactorization_omp(uint64_t(101)*uint64_t(997));*/
+                        primeFactorization_omp(uint64_t(1000003)*uint64_t(1000099));
 	}
 
 	MLOG_INFO(mlog::app, "end primeFactors_omp");
 }
 
 void producerConsumers_omp(){
-	omp_set_num_threads(2);
 	MLOG_INFO(mlog::app, "start producerConsumers_omp");
 
-	constexpr unsigned NUMBER = 100;
+	constexpr unsigned NUMBER = 100000;
 
-	volatile unsigned unconsumed = 0;
-	volatile unsigned consumed = 0;
+	alignas(64) volatile unsigned unconsumed = 0;
+	alignas(64) volatile unsigned consumed = 0;
 
 	#pragma omp parallel
 	{
@@ -451,8 +449,9 @@ void producerConsumers_omp(){
 			}
 			if(gotSomething){
 				++consumedLocal;
-				if(consumedLocal%(NUMBER/10) == 0)
-					MLOG_INFO(mlog::app, DVAR(omp_get_thread_num()), DVAR(consumedLocal));
+				//if(consumedLocal%(NUMBER/10) == 0)
+					//MLOG_INFO(mlog::app, DVAR(omp_get_thread_num()), DVAR(consumedLocal));
+				//MLOG_INFO(mlog::app, DVAR(omp_get_thread_num()), "Consumed something!", DVAR(consumedLocal), "Is there more?");
 				#pragma omp critical (consumed_lock)
 					++consumed;
 			}
@@ -463,6 +462,70 @@ void producerConsumers_omp(){
 	}
 
 	MLOG_INFO(mlog::app, "end producerConsumer_omp");
+}
+
+void multipleProducers_omp()
+{
+	constexpr unsigned PRODUCTION_TARGET = 10000000;
+	MLOG_INFO(mlog::app, DVAR(PRODUCTION_TARGET));
+
+	struct alignas(64) CacheAlignedUnsigned {
+		unsigned value = 0;
+		char padding[64-sizeof(value)];
+	};
+
+	volatile CacheAlignedUnsigned producedNumber;
+
+	#pragma omp parallel
+	{
+		unsigned prodNrCaptured = 0;
+		unsigned prodNrLocal = 0;
+		unsigned prodNrOtherCores = 0;
+		unsigned prodNrChangedByOtherCores = 0;
+		while(prodNrCaptured<PRODUCTION_TARGET){
+			unsigned oldProdNrCaptured = prodNrCaptured;
+			#pragma omp atomic capture
+				prodNrCaptured = ++producedNumber.value;
+			++prodNrLocal;
+			ASSERT(prodNrCaptured>oldProdNrCaptured);
+			prodNrOtherCores += prodNrCaptured-oldProdNrCaptured-1;
+			prodNrChangedByOtherCores += static_cast<unsigned>((prodNrCaptured-oldProdNrCaptured)>1);
+		}
+		MLOG_INFO(mlog::app, DVAR(omp_get_thread_num()), DVAR(prodNrLocal), DVAR(prodNrOtherCores), DVAR(prodNrChangedByOtherCores));
+	}
+	unsigned producedNumberTotal = producedNumber.value;
+	MLOG_INFO(mlog::app, "target reached: ", DVAR(producedNumberTotal));
+}
+
+void multipleConsumers_omp()
+{
+	MLOG_INFO(mlog::app, "start multipleConsumers_omp");
+
+	volatile unsigned unconsumed = 100;
+
+	#pragma omp parallel
+	{
+		unsigned consumed = 0;
+		unsigned number=0;
+		bool nothingLeft = false;
+
+		for(;;){
+			#pragma omp critical
+			{
+				if(unconsumed > 0)
+					number=unconsumed--;
+				else
+					nothingLeft = true;
+			}
+			if(nothingLeft)
+				break;
+			++consumed;
+			//MLOG_INFO(mlog::app, DVAR(omp_get_thread_num()), DVAR(consumed));
+			(number);
+		}
+	}
+
+	MLOG_INFO(mlog::app, "end multipleConsumers_omp");
 }
 
 mythos::Mutex mutex;
@@ -559,17 +622,20 @@ int main()
   test_pthreads();
   test_omp();*/
 
-	{
-		mythos::PortalLock pl(portal);
-		pl.invoke<mythos::protocol::PerformanceMonitoring::CollectValues>(mythos::init::PERFORMANCE_MONITORING_MODULE);
-	}
+	omp_set_num_threads(6);
+	for(size_t runs=0; runs<25; ++runs){
+		{
+			mythos::PortalLock pl(portal);
+			pl.invoke<mythos::protocol::PerformanceMonitoring::CollectValues>(mythos::init::PERFORMANCE_MONITORING_MODULE);
+		}
 
-	primeFactors_omp();
-	//producerConsumers_omp();
+		//primeFactors_omp();
+		multipleProducers_omp();
 
-	{
-		mythos::PortalLock pl(portal);
-		pl.invoke<mythos::protocol::PerformanceMonitoring::MeasureSpeedup>(mythos::init::PERFORMANCE_MONITORING_MODULE);
+		{
+			mythos::PortalLock pl(portal);
+			pl.invoke<mythos::protocol::PerformanceMonitoring::MeasureSpeedup>(mythos::init::PERFORMANCE_MONITORING_MODULE);
+		}
 	}
 
 	/*{

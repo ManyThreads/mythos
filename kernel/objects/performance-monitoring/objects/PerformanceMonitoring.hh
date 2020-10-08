@@ -229,6 +229,29 @@ class PerformanceMonitoring
 		CollectTasklet collectTasklets[MYTHOS_MAX_THREADS];
 		PMCValues collectedValues[MYTHOS_MAX_THREADS];
 		CollectRequests collectRequests;
+
+
+		class MeasurementLogger
+		{
+			public:
+				static constexpr size_t MAXNUMBER = 100;
+				void log(uint64_t value){
+					ASSERT(number<MAXNUMBER);
+					measurement[number]=value;
+					++number;
+				}
+				uint64_t getValue(size_t index) const{
+					ASSERT(index<number);
+					return measurement[index];
+				}
+				void print() const;
+			private:
+				size_t number = 0;
+				uint64_t measurement[MAXNUMBER];
+		} measurementLog1, measurementLog2;
+
+		uint64_t speedupMaxAbsDiff = 0;
+		size_t measNum = 0;
 };
 
 } //mythos

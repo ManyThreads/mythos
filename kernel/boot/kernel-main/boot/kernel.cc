@@ -111,7 +111,7 @@ NORETURN void runUser();
 void runUser() {
   mythos::async::getLocalPlace().processTasks();
   mythos::boot::getLocalScheduler().tryRunUser();
-//  MLOG_DETAIL(mlog::boot, "going to sleep now");
+  MLOG_DETAIL(mlog::boot, "going to sleep now");
   mythos::idle::sleep(); // resets the kernel stack!
 }
 

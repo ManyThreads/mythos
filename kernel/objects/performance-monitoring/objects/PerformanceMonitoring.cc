@@ -166,16 +166,12 @@ namespace mythos {
 	void PerformanceMonitoring::printCollectedValues() const {
 		mlogpm.info("printCollectedValues start");
 		for (cpu::ThreadID threadID=0; threadID<cpu::getNumThreads(); ++threadID) {
-			mlogpm.info(DVAR(threadID));
-			mlogpm.info(DVAR(collectedValues[threadID].timeStamp));
+			mlogpm.info(DVAR(threadID),DVAR(getCollectionTimeStamp(threadID)));
 			for(size_t index = 0; index<counterNumber.fixedCtrs; ++index) {
-				mlogpm.info("fixedCtr", DVAR(index));
-				mlogpm.info(DVAR(collectedValues[threadID].fixedCtrValues[index]));
+				mlogpm.info(DVAR(threadID),DVAR(index),DVAR(getFixedCtr(threadID,index)));
 			}
-
 			for(size_t index = 0; index<counterNumber.pmcs; ++index) {
-				mlogpm.info("pmc", DVAR(index));
-				mlogpm.info(DVAR(collectedValues[threadID].pmcValues[index]));
+				mlogpm.info(DVAR(threadID),DVAR(index),DVAR(getPMC(threadID,index)));
 			}
 		}
 		mlogpm.info("printCollectedValues end");
@@ -195,7 +191,6 @@ namespace mythos {
 		}
 		RETURN(Error::SUCCESS);
 	}
-
 
 	void PerformanceMonitoring::invoke(Tasklet* t, Cap self, IInvocation* msg){
 		//mlogpm.info("invoke");
@@ -218,13 +213,14 @@ namespace mythos {
 		//mlogpm.info(DVAR(readTSC()));
 
 		setFixedCtrCtrl(0, true, true, false, false);
-		setFixedCtrCtrl(1, true, true, false, false);
+		setFixedCtrCtrl(1, true, false, false, false);
 		setFixedCtrCtrl(2, true, true, false, false);
 
 		IA32_PERFEVTSELxBitfield evtsel(0);
 		evtsel.userMode = true;
 		evtsel.operatingSystemMode = true;
 		evtsel.enableCounters = true;
+		//evtsel.anyThread = true;
 
 		//UnHalted Reference Cycles
 		//evtsel.eventSelect = 0x3C;
@@ -234,26 +230,34 @@ namespace mythos {
 		//MEM_LOAD_UOPS_LLC_HIT_RETIRED.XSNP_HITM on sandy bridge and ivy bridge
 		evtsel.eventSelect = 0xD2;
 		evtsel.unitMask = 0x04;
+		setPerfevtsel(2, evtsel);
+
+		//OFFCORE_RESPONSE_0 on Sandy Bridge and Ivy Bridge
+		setOffcoreRsp(0, 0x10002C0003); //DEMAND_DATA_RD & DEMAND_RFO with supplier LLC_HITM & LLC_HITE & LLC_HITF and HITM
+		evtsel.eventSelect = 0xB7;
+		evtsel.unitMask = 0x01;
 		setPerfevtsel(0, evtsel);
 
 		//LLC misses
-		//evtsel.eventSelect = 0x2E;
-		//evtsel.unitMask = 0x41;
-		//setPerfevtsel(0, evtsel);
+		evtsel.eventSelect = 0x2E;
+		evtsel.unitMask = 0x41;
+		setPerfevtsel(3, evtsel);
 
 		//MEM_LOAD_UOPS_LLC_MISS_RETIRED.LOCAL_DRAM on Ivy Bridge-E
 		evtsel.eventSelect = 0xD3;
 		evtsel.unitMask = 0x03;
 		setPerfevtsel(1, evtsel);
 
-		//off-core on Sandy/Ivy Bridge
-		evtsel.eventSelect = 0xB7;
+		//off-core on Sandy Bridge / Ivy Bridge
+		evtsel.eventSelect = 0xBB;
 		evtsel.unitMask = 0x01;
 		setPerfevtsel(2, evtsel);
-		//setOffcoreRsp(0, 0x10001); //DEMAND_DATA_RD with ANY response type
-		//setOffcoreRsp(0, 0x80400001); //DEMAND_DATA_RD with supplier LOCAL and SNP_NONE
-		//setOffcoreRsp(0, 0x100400001); //DEMAND_DATA_RD with supplier LOCAL and SNP_NOT_NEEDED
-		setOffcoreRsp(0, 0x1000280001); //DEMAND_DATA_RD with supplier LLC_HITE & LLC_HITF and HITM
+		//setOffcoreRsp(1, 0x10001); //DEMAND_DATA_RD with ANY response type
+		//setOffcoreRsp(1, 0x80400001); //DEMAND_DATA_RD with supplier LOCAL and SNP_NONE
+		//setOffcoreRsp(1, 0x100400001); //DEMAND_DATA_RD with supplier LOCAL and SNP_NOT_NEEDED
+		//setOffcoreRsp(1, 0x10002C8FFF); //all request types with supplier LLC_HITM & LLC_HITE & LLC_HITF and HITM
+		//setOffcoreRsp(1, 0x10002C0033); //DEMAND_DATA_RD & DEMAND_RFO & PF_DATA_RD & PF_RFO with supplier LLC_HITM & LLC_HITE & LLC_HITF and HITM
+		setOffcoreRsp(1, 0x10002C0030); //PF_DATA_RD & PF_RFO with supplier LLC_HITM & LLC_HITE & LLC_HITF and HITM
 
 		for(cpu::ThreadID threadID = 0; threadID < cpu::getNumThreads(); ++threadID) {
 			initializeCounters(threadID);
@@ -347,10 +351,11 @@ namespace mythos {
 	}
 
 	Error PerformanceMonitoring::invoke_measureSpeedup(Tasklet*, Cap, IInvocation*){
-		mlogpm.info("invoke_measureSpeedup");
+		//mlogpm.info("invoke_measureSpeedup");
 
-		size_t threadNumber = cpu::getNumThreads();
-		uint64_t xsnpHitmLatency = 60;
+		//size_t threadNumber = cpu::getNumThreads();
+		size_t threadNumber = 6;
+		uint64_t xHitmLatency = 60;
 
 		uint64_t intervalStart = getCollectionTimeStampLocal();
 		uint64_t unhaltedSum = 0;
@@ -373,31 +378,86 @@ namespace mythos {
 		}
 
 		uint64_t intervalEnd = getCollectionTimeStampLocal();
-		ASSERT(intervalEnd>intervalStart);
+		ASSERT(intervalEnd > intervalStart);
 		uint64_t intervalLength = intervalEnd - intervalStart;
 
-		uint64_t unhalted = unhaltedSum/threadNumber;
-		uint64_t xsnpHitm = xsnpHitmSum/threadNumber;
-		uint64_t haltDuration = 0;
-		if(unhalted<intervalLength){
-			haltDuration = intervalLength-unhalted;
+		uint64_t haltDurationSum = intervalLength*threadNumber;
+		if(haltDurationSum > unhaltedSum)
+			haltDurationSum -= unhaltedSum;
+		uint64_t xHitmLoadDurationSum =  xsnpHitmSum*xHitmLatency;
+
+		uint64_t executionDelaySum = haltDurationSum + xHitmLoadDurationSum;
+		uint64_t calculatedSeqRuntime = 0;
+		if(executionDelaySum < intervalLength*threadNumber)
+			calculatedSeqRuntime = intervalLength*threadNumber - executionDelaySum;
+
+		uint64_t speedup = (calculatedSeqRuntime * 10000) / intervalLength;
+		uint64_t efficiency = speedup / threadNumber;
+		speedup = (speedup+5)/10;
+		efficiency = (efficiency+5)/10;
+
+		mlogpm.info("time stamp:",DVAR(intervalStart),"; time stamp:",DVAR(intervalEnd),";",DVAR(intervalLength),"tsc cycles;",DVAR(threadNumber));
+		mlogpm.info(DVAR(haltDurationSum),"tsc cycles;",DVAR(xHitmLoadDurationSum),"tsc cycles (rough estimation);",DVAR(calculatedSeqRuntime),"tsc cycles");
+		mlogpm.info(DVAR(speedup),"*1^(-3);",DVAR(efficiency),"*1^(-3)");
+
+		//uint64_t seqRuntime = intervalLength; //seqRuntime for threadNumber = 1
+		//uint64_t seqRuntime = 2853632468; //seqRuntime for primeFactors_omp
+		uint64_t seqRuntime = 261453731; //seqRuntime for multipleProdurcers_omp
+		uint64_t speedupClassicCalc = ((seqRuntime*10000/intervalLength)+5)/10;
+		uint64_t speedupAbsDiff = speedupClassicCalc - speedup;
+		if(speedupClassicCalc < speedup)
+			speedupAbsDiff = speedup - speedupClassicCalc;
+		if(speedupMaxAbsDiff<speedupAbsDiff)
+			speedupMaxAbsDiff = speedupAbsDiff;
+		mlogpm.info(DVAR(speedupClassicCalc),"*^(-3)");
+
+		//measurement logs for primeFactors_omp:
+		//mlogpm.info("log1:intervalLength log2:speedup");//for threadNumber = 1 to get seqRuntime
+		//measurementLog1.log(intervalLength);
+		//mlogpm.info("log1:speedupClassicCalc with",DVAR(seqRuntime)," log2:speedup");
+		//measurementLog1.log(speedupClassicCalc);
+		//measurementLog2.log(speedup);
+
+		//measurementlogs for multipleProducers_omp:
+		for(cpu::ThreadID threadID = 0; threadID < threadNumber; ++threadID) {
+			uint64_t xsnpHitmPrefetchReads = getPMC(threadID,2);
+			mlogpm.info(DVAR(threadID),DVAR(xsnpHitmPrefetchReads));
 		}
-		uint64_t xsnpHitmLoadDuration = xsnpHitm*xsnpHitmLatency;
+		ASSERT(intervalLength*threadNumber>=seqRuntime);
+		uint64_t executionDelaySumClassicCalc = intervalLength*threadNumber-seqRuntime;
+		//mlogpm.info("log1:intervalLength log2:executionDelaySum");//for threadNumber = 1 to get seqRuntime
+		//measurementLog1.log(intervalLength);
+		mlogpm.info("log1:executionDelaySumClassicCalc log2:executionDelaySum");
+		measurementLog1.log(executionDelaySumClassicCalc);
+		measurementLog2.log(executionDelaySum);
 
-		uint64_t haltProportion = haltDuration*100/intervalLength;
-		uint64_t xsnpHitmLoadProportion = xsnpHitmLoadDuration*100/intervalLength;
+		++measNum;
+		constexpr size_t MEASUREMENT_NUMBER = 25;
+		if(measNum>=MEASUREMENT_NUMBER){
+			constexpr size_t MEASUREMENT_STR_SIZE = MEASUREMENT_NUMBER * 2 * 20;
 
-		uint64_t efficiency = 100 - haltProportion - xsnpHitmLoadProportion;
-		uint64_t speedUp = efficiency * threadNumber;
+			mythos::FixedStreamBuf<MEASUREMENT_STR_SIZE> measurementStr;
+			mythos::ostream_base<mythos::FixedStreamBuf<MEASUREMENT_STR_SIZE>> measurementOStream(&measurementStr);
 
-		mlogpm.info(DVAR(intervalStart),DVAR(intervalEnd),DVAR(intervalLength),"tsc cycles");
-		mlogpm.info(DVAR(unhalted),"tsc cycles;",DVAR(haltDuration),"tsc cycles;",DVAR(haltProportion),"%");
-		mlogpm.info(DVAR(xsnpHitm),"number;",DVAR(xsnpHitmLoadDuration),"cycles;",DVAR(xsnpHitmLoadProportion),"%");
-		mlogpm.info(DVAR(threadNumber),";",DVAR(efficiency),"%;",DVAR(speedUp),"%");
+			uint64_t log1sum=0;
+			uint64_t log2sum=0;
+
+			measurementOStream << "log1:";
+			for(size_t i=0; i<MEASUREMENT_NUMBER; ++i){
+				measurementOStream << measurementLog1.getValue(i) << ";";
+				log1sum += measurementLog1.getValue(i);
+			}
+			measurementOStream << "log2:";
+			for(size_t i=0; i<MEASUREMENT_NUMBER; ++i){
+				measurementOStream << measurementLog2.getValue(i) << ";";
+				log2sum += measurementLog2.getValue(i);
+			}
+			mlogpm.info(DVAR(log1sum),DVAR(log2sum),"logged values:");
+			mlog::sink->write(measurementStr.c_str(),measurementStr.size());
+			mlogpm.info(DVAR(speedupMaxAbsDiff),"*10^(-3)");
+		}
 
 		return Error::SUCCESS;
 	}
-
-
 
 } // mythos
