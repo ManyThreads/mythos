@@ -26,6 +26,7 @@
 #pragma once
 
 #include "mythos/protocol/common.hh"
+#include "mythos/protocol/RaplVal.hh"
 
 namespace mythos {
   namespace protocol {
@@ -34,23 +35,31 @@ namespace mythos {
       constexpr static uint8_t proto = RAPLDRIVERINTEL;
 
       enum Methods : uint8_t {
-        //SETINITMEM
+        GETRAPLVAL,
+        RESULT
       };
 
-      //struct SetInitMem : public InvocationBase {
-        //constexpr static uint16_t label = (proto<<8) + SETINITMEM;
-        //SetInitMem(CapPtr frame) : InvocationBase(label,getLength(this)) {
-          //addExtraCap(frame);
-        //}
-      //};
+      struct GetRaplVal : public InvocationBase {
+        constexpr static uint16_t label = (proto<<8) + GETRAPLVAL;
+        GetRaplVal() : InvocationBase(label,getLength(this)) {
+        }
+      };
+
+      struct Result : public InvocationBase {
+        constexpr static uint16_t label = (proto<<8) + RESULT;
+        Result() : InvocationBase(label,getLength(this)) {
+        }
+        RaplVal val;
+      };
 
       template<class IMPL, class... ARGS>
       static Error dispatchRequest(IMPL* obj, uint8_t m, ARGS const&...args) {
         switch(Methods(m)) {
-          //case SETINITMEM: return obj->invoke_setInitMem(args...);
+          case GETRAPLVAL: return obj->invoke_getRaplVal(args...);
           default: return Error::NOT_IMPLEMENTED;
         }
       }
+
     };
 
   }// namespace protocol

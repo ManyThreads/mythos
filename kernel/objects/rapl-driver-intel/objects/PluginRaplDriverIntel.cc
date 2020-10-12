@@ -37,7 +37,6 @@ namespace mythos {
   {
   public:
     PluginRaplDriverIntel() {
-      MLOG_DETAIL(mlog::boot, "registering init loader event hook");
       event::initLoader.add(this);
     }
     virtual ~PluginRaplDriverIntel() {}

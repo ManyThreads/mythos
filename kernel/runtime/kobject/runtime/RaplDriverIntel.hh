@@ -25,45 +25,40 @@
  */
 #pragma once
 
-#include "async/NestedMonitorDelegating.hh"
-#include "objects/IKernelObject.hh"
+#include "runtime/PortalBase.hh"
+#include "mythos/protocol/RaplDriverIntel.hh"
+#include "mythos/init.hh"
 
 namespace mythos {
 
-class RaplDriverIntel
-  : public IKernelObject
-{
-public:
-  optional<void const*> vcast(TypeId) const override { THROW(Error::TYPE_MISMATCH); }
-  optional<void> deleteCap(CapEntry&, Cap, IDeleter&) override { RETURN(Error::SUCCESS); }
-  void deleteObject(Tasklet*, IResult<void>*) override {}
-  void invoke(Tasklet* t, Cap self, IInvocation* msg) override;
+  class RaplDriverIntel : public KObject
+  {
+  public:
 
-public:
-  RaplDriverIntel();
-  Error invoke_getRaplVal(Tasklet*, Cap, IInvocation* msg);
-  void printEnergy();
+    RaplDriverIntel() {}
+    RaplDriverIntel(CapPtr cap) : KObject(cap) {}
 
-protected:
-  /// @todo or one instance per hardware thread with HomeMonitor?
-  async::NestedMonitorDelegating monitor;
-private:
-  bool isIntel;
-  uint32_t cpu_fam;
-  uint32_t cpu_model;
-	uint32_t dram_avail;
-	bool pp0_avail;
-	bool pp1_avail;
-	bool psys_avail;
-	bool different_units;
-  uint32_t power_units;
-  uint32_t time_units;
-  uint32_t cpu_energy_units;
-  uint32_t dram_energy_units;
-  //double power_units;
-  //double time_units;
-  //double cpu_energy_units;
-  //double dram_energy_units;
-};
+    struct Result : public RaplVal {
+      Result() {}
+      Result(InvocationBuf* ib) {
+        MLOG_INFO(mlog::app, __PRETTY_FUNCTION__);
+        auto val = ib->cast<protocol::RaplDriverIntel::Result>()->val;
+
+        pp0 = val.pp0;
+        pp1 = val.pp1;
+        psys = val.psys;
+        dram = val.dram;
+        cpu_energy_units = val.cpu_energy_units;
+        dram_energy_units = val.dram_energy_units;
+      }
+    };
+
+    PortalFuture<Result>
+    getRaplVal(PortalLock pr) {
+        MLOG_INFO(mlog::app, __PRETTY_FUNCTION__);
+      return pr.invoke<protocol::RaplDriverIntel::GetRaplVal>(_cap);
+    }
+
+  };
 
 } // namespace mythos

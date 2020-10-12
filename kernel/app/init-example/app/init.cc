@@ -31,6 +31,7 @@
 #include "runtime/Portal.hh"
 #include "runtime/ExecutionContext.hh"
 #include "runtime/CapMap.hh"
+#include "runtime/RaplDriverIntel.hh"
 #include "runtime/Example.hh"
 #include "runtime/PageMap.hh"
 #include "runtime/KernelMemory.hh"
@@ -62,6 +63,7 @@ mythos::KernelMemory kmem(mythos::init::KM);
 mythos::KObject device_memory(mythos::init::DEVICE_MEM);
 mythos::SimpleCapAllocDel capAlloc(portal, myCS, mythos::init::APP_CAP_START,
                                   mythos::init::SIZE-mythos::init::APP_CAP_START);
+mythos::RaplDriverIntel rapl(mythos::init::RAPL_DRIVER_INTEL);
 
 char threadstack[stacksize];
 char* thread1stack_top = threadstack+stacksize/2;
@@ -357,13 +359,43 @@ void test_InterruptControl() {
   MLOG_INFO(mlog::app, "test_InterruptControl end");
 }
 
+bool primeTest(unsigned n){
+
+  if(n == 0 | n == 1){
+    return false;
+  }
+
+  for(unsigned i = 2; i <= n / 2; i++){
+    if(n % i == 0) return false;
+  }
+
+  return true;
+}
+
+void test_Rapl(){
+  MLOG_INFO(mlog::app, "Test RAPL");
+  mythos::PortalLock pl(portal); 
+  
+  auto start = rapl.getRaplVal(pl).wait().get();
+
+  bool isPrime = primeTest(uint64_t(30000001)*uint64_t(30000083));
+
+  auto end = rapl.getRaplVal(pl).wait().get();
+
+  MLOG_INFO(mlog::app, "Prime test done. Energy consumption:");
+  MLOG_INFO(mlog::app, "PP0:", end.getEnergyPP0()-start.getEnergyPP0());
+  MLOG_INFO(mlog::app, "PP1:", end.getEnergyPP1()-start.getEnergyPP1());
+  MLOG_INFO(mlog::app, "PSYS:", end.getEnergyPSYS()-start.getEnergyPSYS());
+  MLOG_INFO(mlog::app, "DRAM:", end.getEnergyDRAM()-start.getEnergyDRAM());
+
+  MLOG_INFO(mlog::app, "Test RAPL finished");
+}
 
 int main()
 {
   char const str[] = "hello world!";
   mythos::syscall_debug(str, sizeof(str)-1);
   MLOG_ERROR(mlog::app, "application is starting :)", DVARhex(msg_ptr), DVARhex(initstack_top));
-  return 0;
 
   test_float();
   test_Example();
@@ -375,6 +407,7 @@ int main()
   //test_HostChannel(portal, 24*1024*1024, 2*1024*1024);
   test_ExecutionContext();
   test_pthreads();
+  test_Rapl();
 
   char const end[] = "bye, cruel world!";
   mythos::syscall_debug(end, sizeof(end)-1);

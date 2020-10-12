@@ -36,6 +36,7 @@
 //#include "objects/IFrame.hh"
 //#include <cmath>
 
+
 namespace mythos {
 
   extern PhysPtr<HostInfoTable> hostInfoPtrPhys SYMBOL("_host_info_ptr");
@@ -221,28 +222,33 @@ namespace mythos {
     }
   }
 
-  //Error RaplDriverIntel::invoke_setInitMem(Tasklet*, Cap, IInvocation* msg)
-  //{
-    //auto data = msg->getMessage()->cast<protocol::CpuDriverKNC::SetInitMem>();
+  Error RaplDriverIntel::invoke_getRaplVal(Tasklet*, Cap, IInvocation* msg)
+  {
+    MLOG_DETAIL(mlog::boot, __PRETTY_FUNCTION__);
 
-    ///// @todo should be implemented similar to the CapRef to invocation buffer in Portals
-    //// however: revoking the capability does not prevent the host from continuing access
+    auto ret = msg->getMessage()->cast<protocol::RaplDriverIntel::Result>();
 
-    //TypedCap<IFrame> frame(msg->lookupEntry(data->capPtrs[0]));
-    //if (!frame) return frame;
-    //auto info = frame.getFrameInfo();
-    //if (info.device || !info.writable) return Error::INVALID_CAPABILITY;
+    ret->val.pp0 = 0;
+    ret->val.pp1 = 0;
+    ret->val.psys = 0;
+    ret->val.dram = 0;
+    ret->val.cpu_energy_units = cpu_energy_units;
+    ret->val.dram_energy_units = dram_energy_units;
 
-    //MLOG_INFO(mlog::boot, "invoke setInitMem", DVAR(data->capPtrs[0]),
-              //DVARhex(info.start.physint()), DVAR(info.size));
+    if(pp0_avail){
+      ret->val.pp0 = x86::getMSR(MSR_PP0_ENERGY_STATUS);
+    }
+    if(pp1_avail){
+      ret->val.pp1 = x86::getMSR(MSR_PP1_ENERGY_STATUS);
+    }
+    if(dram_avail){
+      ret->val.dram = x86::getMSR(MSR_DRAM_ENERGY_STATUS);
+    }
+    if(psys_avail){
+      ret->val.psys = x86::getMSR(MSR_PLATFORM_ENERGY_STATUS);
+    }
 
-    //auto hostInfoPtr = PhysPtr<PhysPtr<HostInfoTable>>::fromPhys(&hostInfoPtrPhys);
-    //auto hostInfo = *hostInfoPtr;
-    //if (!hostInfo) return Error::INSUFFICIENT_RESOURCES;
-    //hostInfo->initMem = info.start.physint();
-    //hostInfo->initMemSize = info.size;
-
-    //return Error::SUCCESS;
-  //}
+    return Error::SUCCESS;
+  }
 
 } // namespace mythos

@@ -25,45 +25,37 @@
  */
 #pragma once
 
-#include "async/NestedMonitorDelegating.hh"
-#include "objects/IKernelObject.hh"
-
 namespace mythos {
+  struct RaplVal{
+    RaplVal()
+      : pp0(0)
+      , pp1(0)
+      , psys(0)
+      , dram(0)
+      , cpu_energy_units(0)
+      , dram_energy_units(0)
+    {}
 
-class RaplDriverIntel
-  : public IKernelObject
-{
-public:
-  optional<void const*> vcast(TypeId) const override { THROW(Error::TYPE_MISMATCH); }
-  optional<void> deleteCap(CapEntry&, Cap, IDeleter&) override { RETURN(Error::SUCCESS); }
-  void deleteObject(Tasklet*, IResult<void>*) override {}
-  void invoke(Tasklet* t, Cap self, IInvocation* msg) override;
+    RaplVal(uint64_t pp0, uint64_t pp1, uint64_t psys, uint64_t dram, uint32_t cpu_energy_units, uint32_t dram_energy_units)
+      : pp0(pp0)
+      , pp1(pp1)
+      , psys(psys)
+      , dram(dram)
+      , cpu_energy_units(cpu_energy_units)
+      , dram_energy_units(dram_energy_units)
+    {}
 
-public:
-  RaplDriverIntel();
-  Error invoke_getRaplVal(Tasklet*, Cap, IInvocation* msg);
-  void printEnergy();
+    // rounded (truncated) number in Joule
+    uint64_t getEnergyPP0(){ return pp0 >> cpu_energy_units; } 
+    uint64_t getEnergyPP1(){ return pp1 >> cpu_energy_units; } 
+    uint64_t getEnergyPSYS(){ return psys >> cpu_energy_units; } 
+    uint64_t getEnergyDRAM(){ return dram >> dram_energy_units; } 
 
-protected:
-  /// @todo or one instance per hardware thread with HomeMonitor?
-  async::NestedMonitorDelegating monitor;
-private:
-  bool isIntel;
-  uint32_t cpu_fam;
-  uint32_t cpu_model;
-	uint32_t dram_avail;
-	bool pp0_avail;
-	bool pp1_avail;
-	bool psys_avail;
-	bool different_units;
-  uint32_t power_units;
-  uint32_t time_units;
-  uint32_t cpu_energy_units;
-  uint32_t dram_energy_units;
-  //double power_units;
-  //double time_units;
-  //double cpu_energy_units;
-  //double dram_energy_units;
-};
-
-} // namespace mythos
+    uint64_t pp0;
+    uint64_t pp1;
+    uint64_t psys;
+    uint64_t dram;
+    uint32_t cpu_energy_units;
+    uint32_t dram_energy_units;
+  };
+}// namespace mythos
