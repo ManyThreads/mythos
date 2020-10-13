@@ -382,7 +382,7 @@ void test_Rapl(){
   
   asm volatile ("":::"memory");
   auto start = rapl.getRaplVal(pl).wait().get();
-  gettimeofday(&end_run, 0);
+  gettimeofday(&start_run, 0);
 	asm volatile ("":::"memory");
   
 
@@ -401,15 +401,18 @@ void test_Rapl(){
 
   double seconds =(end_run.tv_usec - start_run.tv_usec)/1000000.0 + end_run.tv_sec - start_run.tv_sec;
 
-  std::cout << "Prime test done in " <<  seconds << " seonds. Energy consumption:" << std::endl;
-  double pp0 = (end.pp0 - start.pp0) * pow(0.5, start.cpu_energy_units);
-  std::cout << "Power plane 0: " << pp0 << " Joule. Average power: " << pp0/seconds << " watts." << std::endl;
+  std::cout << "Prime test done in " <<  seconds << " seonds (" << numPrimes 
+	  << " primes found in Range from 0 to " << max << ")." << std::endl;
+  std::cout << "Energy consumption:" << std::endl;
+  double pp0 = end.pp0 - start.pp0;
+  pp0 *= pow(0.5, start.cpu_energy_units);
+  std::cout << "Power plane 0 (processor cores only): " << pp0 << " Joule. Average power: " << pp0/seconds << " watts." << std::endl;
   double pp1 = (end.pp1 - start.pp1) * pow(0.5, start.cpu_energy_units);
-  std::cout << "Power plane 1: " << pp1 << " Joule. Average power: " << pp1/seconds << " watts." << std::endl;
+  std::cout << "Power plane 1 (a specific device in the uncore): " << pp1 << " Joule. Average power: " << pp1/seconds << " watts." << std::endl;
   double psys = (end.psys - start.psys) * pow(0.5, start.cpu_energy_units);
-  std::cout << "Package: " << psys << " Joule. Average power: " << psys/seconds << " watts." << std::endl;
+  std::cout << "Package (whole cpu): " << psys << " Joule. Average power: " << psys/seconds << " watts." << std::endl;
   double dram = (end.dram - start.dram) * pow(0.5, start.dram_energy_units);
-  std::cout << "DRAM: " << dram << " Joule. Average power: " << dram/seconds << " watts." << std::endl;
+  std::cout << "DRAM (memory controller): " << dram << " Joule. Average power: " << dram/seconds << " watts." << std::endl;
 
   MLOG_INFO(mlog::app, "Test RAPL finished");
 }
