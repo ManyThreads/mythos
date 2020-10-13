@@ -42,7 +42,7 @@ namespace mythos {
   extern PhysPtr<HostInfoTable> hostInfoPtrPhys SYMBOL("_host_info_ptr");
 
   RaplDriverIntel::RaplDriverIntel(){
-    MLOG_ERROR(mlog::boot, "RAPL driver startet");
+    MLOG_INFO(mlog::boot, "RAPL driver startet");
     // check it is an Intel cpu
     auto r = x86::cpuid(0);
     char str[] = "0123456789ab";
@@ -60,18 +60,18 @@ namespace mythos {
     }
 
     if(isIntel){
-      MLOG_ERROR(mlog::boot, "Congratulations, you are the proud owner of an Intel CPU.");
+      MLOG_INFO(mlog::boot, "Congratulations, you are the proud owner of an Intel CPU.");
     }else{
       MLOG_ERROR(mlog::boot, "Unsupported processor manufacturer -> ", str);
     }
 
     // check cpu family
     cpu_fam = bits(x86::cpuid(1).eax, 11, 8);
-    MLOG_ERROR(mlog::boot, "CPU family =", cpu_fam);
+    MLOG_INFO(mlog::boot, "CPU family =", cpu_fam);
 
     // check extended cpu model 
     cpu_model = (bits(x86::cpuid(1).eax, 19, 16) << 4) + bits(x86::cpuid(1).eax, 7, 4);
-    MLOG_ERROR(mlog::boot, "CPU extended model =", cpu_model);
+    MLOG_INFO(mlog::boot, "CPU extended model =", cpu_model);
 
     dram_avail = false;
     pp0_avail = false;
@@ -162,17 +162,17 @@ namespace mythos {
     //determine power unit
     //power_units = std::pow(0.5, bits(x86::getMSR(MSR_RAPL_POWER_UNIT),3,0));
     power_units = bits(x86::getMSR(MSR_RAPL_POWER_UNIT),3,0);
-    MLOG_ERROR(mlog::boot, "msr_rapl_power_units", power_units);
+    MLOG_INFO(mlog::boot, "msr_rapl_power_units", power_units);
 
     //determine time unit
     //time_units = std::pow(0.5, bits(x86::getMSR(MSR_RAPL_POWER_UNIT),19,16));
     time_units = bits(x86::getMSR(MSR_RAPL_POWER_UNIT),19,16);
-    MLOG_ERROR(mlog::boot, "time_units", time_units);
+    MLOG_INFO(mlog::boot, "time_units", time_units);
 
     //determine cpu energy unit
     //cpu_energy_units = std::pow(0.5, bits(x86::getMSR(MSR_RAPL_POWER_UNIT),12,8));
     cpu_energy_units = bits(x86::getMSR(MSR_RAPL_POWER_UNIT),12,8);
-    MLOG_ERROR(mlog::boot, "cpu_energy_units", cpu_energy_units);
+    MLOG_INFO(mlog::boot, "cpu_energy_units", cpu_energy_units);
 
     if(different_units){
       //dram_energy_units = std::pow(0.5, 16.0);
@@ -180,9 +180,9 @@ namespace mythos {
     }else{
       dram_energy_units = cpu_energy_units; 
     }
-    MLOG_ERROR(mlog::boot, "dram_energy_units", dram_energy_units);
+    MLOG_INFO(mlog::boot, "dram_energy_units", dram_energy_units);
     
-    printEnergy();
+    //printEnergy();
   }
 
   void RaplDriverIntel::invoke(Tasklet* t, Cap self, IInvocation* msg)

@@ -112,7 +112,6 @@
 
 namespace mythos {
   namespace IntelRegs {
-    
   
   } //IntelRegs
 } // namespace mythos

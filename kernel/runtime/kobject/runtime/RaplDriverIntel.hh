@@ -41,7 +41,6 @@ namespace mythos {
     struct Result : public RaplVal {
       Result() {}
       Result(InvocationBuf* ib) {
-        MLOG_INFO(mlog::app, __PRETTY_FUNCTION__);
         auto val = ib->cast<protocol::RaplDriverIntel::Result>()->val;
 
         pp0 = val.pp0;
@@ -55,7 +54,6 @@ namespace mythos {
 
     PortalFuture<Result>
     getRaplVal(PortalLock pr) {
-        MLOG_INFO(mlog::app, __PRETTY_FUNCTION__);
       return pr.invoke<protocol::RaplDriverIntel::GetRaplVal>(_cap);
     }
 
