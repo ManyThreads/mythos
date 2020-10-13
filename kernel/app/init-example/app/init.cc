@@ -359,13 +359,13 @@ void test_InterruptControl() {
   MLOG_INFO(mlog::app, "test_InterruptControl end");
 }
 
-bool primeTest(unsigned n){
+bool primeTest(uint64_t n){
 
   if(n == 0 | n == 1){
     return false;
   }
 
-  for(unsigned i = 2; i <= n / 2; i++){
+  for(uint64_t i = 2; i <= n / 2; i++){
     if(n % i == 0) return false;
   }
 
@@ -378,11 +378,14 @@ void test_Rapl(){
   
   auto start = rapl.getRaplVal(pl).wait().get();
 
-  bool isPrime = primeTest(uint64_t(30000001)*uint64_t(30000083));
-
+  MLOG_INFO(mlog::app, "Start prime test");
+  for(uint64_t i = 0; i < 200000; i++){
+	bool isPrime = primeTest(i);
+	if(isPrime)MLOG_INFO(mlog::app, i);
+  }
   auto end = rapl.getRaplVal(pl).wait().get();
 
-  MLOG_INFO(mlog::app, "Prime test done. Energy consumption:");
+  MLOG_INFO(mlog::app, "Prime test done. Energy consumption in Joule:");
   MLOG_INFO(mlog::app, "PP0:", end.getEnergyPP0()-start.getEnergyPP0());
   MLOG_INFO(mlog::app, "PP1:", end.getEnergyPP1()-start.getEnergyPP1());
   MLOG_INFO(mlog::app, "PSYS:", end.getEnergyPSYS()-start.getEnergyPSYS());
@@ -406,7 +409,7 @@ int main()
   //test_InterruptControl();
   //test_HostChannel(portal, 24*1024*1024, 2*1024*1024);
   test_ExecutionContext();
-  test_pthreads();
+  //test_pthreads();
   test_Rapl();
 
   char const end[] = "bye, cruel world!";
