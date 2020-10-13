@@ -38,19 +38,19 @@ ENTRY(_start_bsp)
  */
 PHDRS
 {
-    init PT_LOAD;
+    bootlower PT_LOAD;
     kern PT_LOAD;
     data PT_LOAD;
 }
 
 SECTIONS
 {
-    /* LOAD_ADDR is begin of the init code and data */
+    /* LOAD_ADDR is begin of the lower half boot code and data */
     /* load the boot code at VMA=LMA LOAD_ADDR */
-    .init LOAD_ADDR : AT(LOAD_ADDR)
+    .bootlower LOAD_ADDR : AT(LOAD_ADDR)
     {
-        KEEP(*(.init))
-    } : init /* put into init segment */
+        KEEP(*(.bootlower))
+    } : bootlower /* put into boot segment */
     PROVIDE (LOAD_END = .);
 
     /* the begin of the upper half code and data in physical memory */
