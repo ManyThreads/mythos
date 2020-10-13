@@ -80,41 +80,6 @@ _boot_gdt:
 
 .section .text
 
-/** \f _start_bsp64_pregdt is called from ihk-entry.cc */
-.code64
-.balign 8
-.global _start_bsp64_pregdt
-.type _start_bsp64_pregdt, @function
-_start_bsp64_pregdt:
-    mov $(BOOT_STACK+BOOT_STACK_SIZE), %rsp    // set up boot kernel stack
-    // load our own segment descriptor table, see above in this file
-    // the segments 0x10 and 0x18 match the final GDT of the kernel
-    lgdt    _boot_gdt
-    // switch code segment to 0x10 instead of leftovers from the loader
-    // create a stack frame like from a far call and return
-    push    $0x10 // KERNEL_CS
-    push    $_start_bsp64
-    retfq
-
-_start_bsp64:
-    mov     $0x18, %cx      // kernel data selector
-    mov     %cx, %ss
-    mov     %cx, %ds
-    mov     %cx, %es
-    mov     %cx, %fs
-    mov     %cx, %gs
-    cld // for gcc code
-
-    mov     $(EFER_MSR), %ecx       // select the EFER MSR
-    rdmsr                           // read EFER
-    and     $(EFER_MASK), %eax
-    or      $(EFER_ENABLE), %eax
-    wrmsr                           // write EFER
-
-    // go to the stage 3 boot code, and never come back
-    xor %rbp, %rbp
-    pushq   $0 // fake return address as first stack frame
-    jmp entry_bsp
 
 
 
@@ -281,6 +246,41 @@ dbg_loop:
 .global _dbg_trampoline_end
 _dbg_trampoline_end:
 
+/** \f _start_bsp64_pregdt is called from ihk-entry.cc */
+.code64
+.balign 8
+.global _start_bsp64_pregdt
+.type _start_bsp64_pregdt, @function
+_start_bsp64_pregdt:
+    mov $(BOOT_STACK+BOOT_STACK_SIZE), %rsp    // set up boot kernel stack
+    // load our own segment descriptor table, see above in this file
+    // the segments 0x10 and 0x18 match the final GDT of the kernel
+    lgdt    _boot_gdt
+    // switch code segment to 0x10 instead of leftovers from the loader
+    // create a stack frame like from a far call and return
+    push    $0x10 // KERNEL_CS
+    push    $_start_bsp64
+    retfq
+
+_start_bsp64:
+    mov     $0x18, %cx      // kernel data selector
+    mov     %cx, %ss
+    mov     %cx, %ds
+    mov     %cx, %es
+    mov     %cx, %fs
+    mov     %cx, %gs
+    cld // for gcc code
+
+    mov     $(EFER_MSR), %ecx       // select the EFER MSR
+    rdmsr                           // read EFER
+    and     $(EFER_MASK), %eax
+    or      $(EFER_ENABLE), %eax
+    wrmsr                           // write EFER
+
+    // go to the stage 3 boot code, and never come back
+    xor %rbp, %rbp
+    pushq   $0 // fake return address as first stack frame
+    jmp entry_bsp
 
 .code64
 .balign 8
