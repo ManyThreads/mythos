@@ -46,8 +46,11 @@
 
 #include <vector>
 #include <array>
+#include <math.h> 
+#include <iostream>
 
 #include <pthread.h>
+#include <sys/time.h>
 
 mythos::InvocationBuf* msg_ptr asm("msg_ptr");
 int main() asm("main");
@@ -375,21 +378,38 @@ bool primeTest(uint64_t n){
 void test_Rapl(){
   MLOG_INFO(mlog::app, "Test RAPL");
   mythos::PortalLock pl(portal); 
+  timeval start_run, end_run;
   
+  asm volatile ("":::"memory");
   auto start = rapl.getRaplVal(pl).wait().get();
+  gettimeofday(&end_run, 0);
+	asm volatile ("":::"memory");
+  
 
   MLOG_INFO(mlog::app, "Start prime test");
-  for(uint64_t i = 0; i < 200000; i++){
-	bool isPrime = primeTest(i);
-	if(isPrime)MLOG_INFO(mlog::app, i);
-  }
-  auto end = rapl.getRaplVal(pl).wait().get();
+  unsigned numPrimes = 0;
+  const uint64_t max = 200000;
 
-  MLOG_INFO(mlog::app, "Prime test done. Energy consumption in Joule:");
-  MLOG_INFO(mlog::app, "PP0:", end.getEnergyPP0()-start.getEnergyPP0());
-  MLOG_INFO(mlog::app, "PP1:", end.getEnergyPP1()-start.getEnergyPP1());
-  MLOG_INFO(mlog::app, "PSYS:", end.getEnergyPSYS()-start.getEnergyPSYS());
-  MLOG_INFO(mlog::app, "DRAM:", end.getEnergyDRAM()-start.getEnergyDRAM());
+  for(uint64_t i = 0; i < max; i++){
+    if(primeTest(i)) numPrimes++;
+  }
+
+	asm volatile ("":::"memory");
+  auto end = rapl.getRaplVal(pl).wait().get();
+  gettimeofday(&end_run, 0);
+	asm volatile ("":::"memory");
+
+  double seconds =(end_run.tv_usec - start_run.tv_usec)/1000000.0 + end_run.tv_sec - start_run.tv_sec;
+
+  std::cout << "Prime test done in " <<  seconds << " seonds. Energy consumption:" << std::endl;
+  double pp0 = (end.pp0 - start.pp0) * pow(0.5, start.cpu_energy_units);
+  std::cout << "Power plane 0: " << pp0 << " Joule. Average power: " << pp0/seconds << " watts." << std::endl;
+  double pp1 = (end.pp1 - start.pp1) * pow(0.5, start.cpu_energy_units);
+  std::cout << "Power plane 1: " << pp1 << " Joule. Average power: " << pp1/seconds << " watts." << std::endl;
+  double psys = (end.psys - start.psys) * pow(0.5, start.cpu_energy_units);
+  std::cout << "Package: " << psys << " Joule. Average power: " << psys/seconds << " watts." << std::endl;
+  double dram = (end.dram - start.dram) * pow(0.5, start.dram_energy_units);
+  std::cout << "DRAM: " << dram << " Joule. Average power: " << dram/seconds << " watts." << std::endl;
 
   MLOG_INFO(mlog::app, "Test RAPL finished");
 }
