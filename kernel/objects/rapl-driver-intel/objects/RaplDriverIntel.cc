@@ -26,11 +26,8 @@
 
 #include "objects/RaplDriverIntel.hh"
 #include "mythos/InvocationBuf.hh"
-#include "util/assert.hh"
 #include "boot/mlog.hh"
 #include "mythos/protocol/RaplDriverIntel.hh"
-#include "mythos/HostInfoTable.hh"
-#include "objects/TypedCap.hh"
 #include "cpu/ctrlregs.hh"
 #include "objects/IntelRegs.hh"
 //#include "objects/IFrame.hh"
@@ -38,8 +35,6 @@
 
 
 namespace mythos {
-
-  extern PhysPtr<HostInfoTable> hostInfoPtrPhys SYMBOL("_host_info_ptr");
 
   RaplDriverIntel::RaplDriverIntel(){
     MLOG_INFO(mlog::boot, "RAPL driver startet");
@@ -51,7 +46,7 @@ namespace mythos {
     *reinterpret_cast<uint32_t*>(&str[8]) = r.ecx;
     
     isIntel = true;
-    char intelStr[] = INTEL_STR;
+    char intelStr[] = "GenuineIntel";
     for(int i = 0; i < 12; i++){
       if(str[i] != intelStr[i]){
         isIntel = false;

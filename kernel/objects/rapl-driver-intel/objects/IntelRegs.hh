@@ -25,11 +25,6 @@
  */
 #pragma once
 
-/*
- * Manufacturer String
- */
-#define INTEL_STR "GenuineIntel"
-
 /* 
  * Intel Processor family 11 model number
  */
