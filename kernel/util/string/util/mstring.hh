@@ -63,4 +63,17 @@ namespace mythos {
   template<size_t N>
   inline size_t strlen(const char[N]) { return N; }
 
+  inline int memcmp (const void* ptr1, const void* ptr2, size_t num)
+  {
+    const unsigned char *p1 = (const unsigned char*)ptr1;
+    const unsigned char *p2 = (const unsigned char*)ptr2;
+
+    while (num-- > 0)
+      {
+        if (*p1++ != *p2++)
+      return p1[-1] < p2[-1] ? -1 : 1;
+      }
+    return 0;
+  }
+
 } // namespace mythos
