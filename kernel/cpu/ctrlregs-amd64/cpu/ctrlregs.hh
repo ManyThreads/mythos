@@ -107,17 +107,34 @@ namespace mythos {
     inline bool has1Gpages() { return bits(cpuid(0x80000001).edx,26); }
 
     enum MSR {
-      IA32_APIC_BASE_MSR    = 0x0000001B,
-      MSR_IA32_SYSENTER_CS  = 0x00000174,
-      MSR_IA32_SYSENTER_ESP = 0x00000175,
-      MSR_IA32_SYSENTER_EIP = 0x00000176,
-      MSR_EFER              = 0xc0000080,
-      MSR_IA32_STAR         = 0xc0000081,
-      MSR_IA32_LSTAR        = 0xc0000082,
-      MSR_IA32_FMASK        = 0xc0000084,
-      MSR_FS_BASE           = 0xc0000100,
-      MSR_GS_BASE           = 0xc0000101,
-      MSR_KERNEL_GS_BASE    = 0xc0000102
+      IA32_APIC_BASE_MSR         = 0x0000001B,
+      MSR_IA32_SYSENTER_CS       = 0x00000174,
+      MSR_IA32_SYSENTER_ESP      = 0x00000175,
+      MSR_IA32_SYSENTER_EIP      = 0x00000176,
+      MSR_RAPL_POWER_UNIT        = 0x00000606,
+      MSR_PKG_RAPL_POWER_LIMIT	 = 0x00000610,
+      MSR_PKG_ENERGY_STATUS	     = 0x00000611,
+      MSR_PKG_PERF_STATUS	       = 0x00000613,
+      MSR_PKG_POWER_INFO         = 0x00000614,
+      MSR_PP0_POWER_LIMIT	       = 0x00000638,
+      MSR_PP0_ENERGY_STATUS	     = 0x00000639,
+      MSR_PP0_POLICY             = 0x0000063A,
+      MSR_PP0_PERF_STATUS	       = 0x0000063B,
+      MSR_PP1_POWER_LIMIT	       = 0x00000640,
+      MSR_PP1_ENERGY_STATUS	     = 0x00000641,
+      MSR_PP1_POLICY	           = 0x00000642,
+      MSR_DRAM_POWER_LIMIT	     = 0x00000618,
+      MSR_DRAM_ENERGY_STATUS	   = 0x00000619,
+      MSR_DRAM_PERF_STATUS	     = 0x0000061B,
+      MSR_DRAM_POWER_INFO	       = 0x0000061C,
+      MSR_PLATFORM_ENERGY_STATUS = 0x0000064d,
+      MSR_EFER                   = 0xc0000080,
+      MSR_IA32_STAR              = 0xc0000081,
+      MSR_IA32_LSTAR             = 0xc0000082,
+      MSR_IA32_FMASK             = 0xc0000084,
+      MSR_FS_BASE                = 0xc0000100,
+      MSR_GS_BASE                = 0xc0000101,
+      MSR_KERNEL_GS_BASE         = 0xc0000102,
     };
 
     enum Idx {
@@ -240,7 +257,7 @@ namespace mythos {
       SMXE = 1<<14, // Safer Mode Extensions Enable, see Trusted Execution Technology (TXT)
       VMXE = 1<<13, // Virtual Machine Extensions Enable, see Intel VT-x
       OSXMMEXCPT = 1<<10, // Operating System Support for Unmasked SIMD Floating-Point Exceptions   If set, enables unmasked SSE exception.
-      OSFXSR = 1<<9, // Operating system support for FXSAVE and FXRSTOR instructions: enables SSE instructions and fast FPU save & restore
+      OSFXSR = 1<<9, // Operating system support for FXSAVE and FXRSTOR instructions: enables SSE instructions and fast FPU save & restoreCPU_COFFEELAKE_U
       PCE = 1<<8, // Performance-Monitoring Counter enable: RDPMC can be executed at any privilege level, else RDPMC can only be used in ring 0
       PGE = 1<<7, // Page Global Enabled: address translations may be shared between address spaces
       MCE = 1<<6, // Machine Check Exception: enables machine check interrupts to occur
@@ -260,6 +277,49 @@ namespace mythos {
 
     inline void setCR4(size_t val) { asm volatile ("mov %0, %%cr4" : : "r"(val)); }
 
+    // get CPU family
+    uint32_t getCpuFam() { return bits(cpuid(1).eax, 11, 8); }
+    // get CPU extended model
+    uint32_t getCpuExtModel() { return (bits(cpuid(1).eax, 19, 16) << 4) + bits(cpuid(1).eax, 7, 4); }
+
+    /* 
+     * Intel Processor family 11 model number
+     */
+    enum IntelExtendedModelFamily11 {
+      CPU_KNIGHTS_CORNER = 1
+    };
+
+    /* 
+     * Intel Processor family 6 model number
+     */
+    enum IntelExtendedModelFamily6 {
+      CPU_SANDYBRIDGE	=	42,
+      CPU_SANDYBRIDGE_EP =	45,
+      CPU_IVYBRIDGE	=	58,
+      CPU_IVYBRIDGE_EP	= 62,
+      CPU_HASWELL	=	60,
+      CPU_HASWELL_ULT	= 69,
+      CPU_HASWELL_GT3E	= 70,
+      CPU_HASWELL_EP	=	63,
+      CPU_BROADWELL	=	61,
+      CPU_BROADWELL_GT3E	= 71,
+      CPU_BROADWELL_EP	= 79,
+      CPU_BROADWELL_DE	= 86,
+      CPU_SKYLAKE	=	78,
+      CPU_SKYLAKE_HS	=	94,
+      CPU_SKYLAKE_X	 =	85,
+      CPU_KNIGHTS_LANDING	= 87,
+      CPU_KNIGHTS_MILL	= 133,
+      CPU_KABYLAKE_MOBILE	= 142, // also CPU_COFFEELAKE_U
+      CPU_KABYLAKE	=	158, // also CPU_COFFEELAKE
+      CPU_ATOM_SILVERMONT	= 55,
+      CPU_ATOM_AIRMONT	= 76,
+      CPU_ATOM_MERRIFIELD	= 74,
+      CPU_ATOM_MOOREFIELD	= 90,
+      CPU_ATOM_GOLDMONT	= 92,
+      CPU_ATOM_GEMINI_LAKE	= 122,
+      CPU_ATOM_DENVERTON	= 95
+    };
   } // namespace x86
 
   namespace cpu {

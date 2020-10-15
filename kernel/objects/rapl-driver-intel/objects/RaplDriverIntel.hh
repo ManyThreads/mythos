@@ -60,10 +60,6 @@ private:
   uint32_t time_units;
   uint32_t cpu_energy_units;
   uint32_t dram_energy_units;
-  //double power_units;
-  //double time_units;
-  //double cpu_energy_units;
-  //double dram_energy_units;
 };
 
 } // namespace mythos

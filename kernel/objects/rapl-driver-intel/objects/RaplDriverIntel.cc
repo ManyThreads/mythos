@@ -29,10 +29,10 @@
 #include "boot/mlog.hh"
 #include "mythos/protocol/RaplDriverIntel.hh"
 #include "cpu/ctrlregs.hh"
-#include "objects/IntelRegs.hh"
-//#include "objects/IFrame.hh"
-//#include <cmath>
 
+#include "util/mstring.hh"
+
+using namespace mythos::x86;
 
 namespace mythos {
 
@@ -40,19 +40,9 @@ namespace mythos {
     MLOG_INFO(mlog::boot, "RAPL driver startet");
     // check it is an Intel cpu
     auto r = x86::cpuid(0);
-    char str[] = "0123456789ab";
-    *reinterpret_cast<uint32_t*>(&str[0]) = r.ebx;
-    *reinterpret_cast<uint32_t*>(&str[4]) = r.edx;
-    *reinterpret_cast<uint32_t*>(&str[8]) = r.ecx;
     
-    isIntel = true;
-    char intelStr[] = "GenuineIntel";
-    for(int i = 0; i < 12; i++){
-      if(str[i] != intelStr[i]){
-        isIntel = false;
-        break;
-      }
-    }
+    uint32_t str[] = {r.ebx, r.edx, r.ecx,0};
+    isIntel = memcmp(str, "GenuineIntel", 3*sizeof(uint32_t)) == 0;
 
     if(isIntel){
       MLOG_INFO(mlog::boot, "Congratulations, you are the proud owner of an Intel CPU.");
@@ -61,11 +51,11 @@ namespace mythos {
     }
 
     // check cpu family
-    cpu_fam = bits(x86::cpuid(1).eax, 11, 8);
+    cpu_fam = getCpuFam();
     MLOG_INFO(mlog::boot, "CPU family =", cpu_fam);
 
     // check extended cpu model 
-    cpu_model = (bits(x86::cpuid(1).eax, 19, 16) << 4) + bits(x86::cpuid(1).eax, 7, 4);
+    cpu_model = getCpuExtModel();
     MLOG_INFO(mlog::boot, "CPU extended model =", cpu_model);
 
     dram_avail = false;
@@ -155,22 +145,18 @@ namespace mythos {
     }
 
     //determine power unit
-    //power_units = std::pow(0.5, bits(x86::getMSR(MSR_RAPL_POWER_UNIT),3,0));
     power_units = bits(x86::getMSR(MSR_RAPL_POWER_UNIT),3,0);
     MLOG_INFO(mlog::boot, "msr_rapl_power_units", power_units);
 
     //determine time unit
-    //time_units = std::pow(0.5, bits(x86::getMSR(MSR_RAPL_POWER_UNIT),19,16));
     time_units = bits(x86::getMSR(MSR_RAPL_POWER_UNIT),19,16);
     MLOG_INFO(mlog::boot, "time_units", time_units);
 
     //determine cpu energy unit
-    //cpu_energy_units = std::pow(0.5, bits(x86::getMSR(MSR_RAPL_POWER_UNIT),12,8));
     cpu_energy_units = bits(x86::getMSR(MSR_RAPL_POWER_UNIT),12,8);
     MLOG_INFO(mlog::boot, "cpu_energy_units", cpu_energy_units);
 
     if(different_units){
-      //dram_energy_units = std::pow(0.5, 16.0);
       dram_energy_units = 16;
     }else{
       dram_energy_units = cpu_energy_units; 
@@ -197,7 +183,6 @@ namespace mythos {
   }
 
   void RaplDriverIntel::printEnergy(){
-    if(!isIntel) return;
 
     if(pp0_avail){
       uint64_t pp0_es = x86::getMSR(MSR_PP0_ENERGY_STATUS);
@@ -223,25 +208,13 @@ namespace mythos {
 
     auto ret = msg->getMessage()->cast<protocol::RaplDriverIntel::Result>();
 
-    ret->val.pp0 = 0;
-    ret->val.pp1 = 0;
-    ret->val.psys = 0;
-    ret->val.dram = 0;
     ret->val.cpu_energy_units = cpu_energy_units;
     ret->val.dram_energy_units = dram_energy_units;
 
-    if(pp0_avail){
-      ret->val.pp0 = x86::getMSR(MSR_PP0_ENERGY_STATUS);
-    }
-    if(pp1_avail){
-      ret->val.pp1 = x86::getMSR(MSR_PP1_ENERGY_STATUS);
-    }
-    if(dram_avail){
-      ret->val.dram = x86::getMSR(MSR_DRAM_ENERGY_STATUS);
-    }
-    if(psys_avail){
-      ret->val.psys = x86::getMSR(MSR_PLATFORM_ENERGY_STATUS);
-    }
+    ret->val.pp0 = pp0_avail? x86::getMSR(MSR_PP0_ENERGY_STATUS) : 0;
+    ret->val.pp1 = pp1_avail? x86::getMSR(MSR_PP1_ENERGY_STATUS) : 0;
+    ret->val.psys = psys_avail? x86::getMSR(MSR_PLATFORM_ENERGY_STATUS) : 0;
+    ret->val.dram = dram_avail? x86::getMSR(MSR_DRAM_ENERGY_STATUS) : 0;
 
     return Error::SUCCESS;
   }
