@@ -30,8 +30,8 @@
 namespace mythos {
 
   inline void* memcpy(void* dst, void const* src, size_t count) {
-    char* d = reinterpret_cast<char*>(dst);
-    char const* s = reinterpret_cast<char const*>(src);
+    auto d = reinterpret_cast<char*>(dst);
+    auto s = reinterpret_cast<char const*>(src);
     for(size_t index = 0; index < count; index++){
       d[index] = s[index];
     }
@@ -39,7 +39,7 @@ namespace mythos {
   }
 
   inline void* memset(void* dst, char value, size_t count) {
-    char* d = reinterpret_cast<char*>(dst);
+    auto d = reinterpret_cast<char*>(dst);
     for(size_t index = 0; index < count; index++) d[index] = value;
     return dst;
   }
@@ -65,14 +65,12 @@ namespace mythos {
 
   inline int memcmp (const void* ptr1, const void* ptr2, size_t num)
   {
-    const unsigned char *p1 = (const unsigned char*)ptr1;
-    const unsigned char *p2 = (const unsigned char*)ptr2;
+    auto p1 = reinterpret_cast<const unsigned char*>(ptr1);
+    auto p2 = reinterpret_cast<const unsigned char*>(ptr2);
 
-    while (num-- > 0)
-      {
-        if (*p1++ != *p2++)
-      return p1[-1] < p2[-1] ? -1 : 1;
-      }
+    for (size_t i=0; i<num; i++) {
+      if (p1[i] != p2[i]) return p1[i] < p2[i] ? -1 : 1;
+    }
     return 0;
   }
 
