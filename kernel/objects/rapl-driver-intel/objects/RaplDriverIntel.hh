@@ -44,9 +44,6 @@ public:
   Error invoke_getRaplVal(Tasklet*, Cap, IInvocation* msg);
   void printEnergy();
 
-protected:
-  /// @todo or one instance per hardware thread with HomeMonitor?
-  async::NestedMonitorDelegating monitor;
 private:
   bool isIntel;
   uint32_t cpu_fam;

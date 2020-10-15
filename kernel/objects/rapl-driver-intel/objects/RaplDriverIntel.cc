@@ -168,18 +168,15 @@ namespace mythos {
 
   void RaplDriverIntel::invoke(Tasklet* t, Cap self, IInvocation* msg)
   {
-    monitor.request(t, [=](Tasklet* t){
-        Error err = Error::NOT_IMPLEMENTED;
-        switch (msg->getProtocol()) {
-        case protocol::RaplDriverIntel::proto:
-          err = protocol::RaplDriverIntel::dispatchRequest(this, msg->getMethod(), t, self, msg);
-          break;
-        }
-        if (err != Error::INHIBIT) {
-          msg->replyResponse(err);
-          monitor.requestDone();
-        }
-      } );
+      Error err = Error::NOT_IMPLEMENTED;
+      switch (msg->getProtocol()) {
+      case protocol::RaplDriverIntel::proto:
+        err = protocol::RaplDriverIntel::dispatchRequest(this, msg->getMethod(), t, self, msg);
+        break;
+      }
+      if (err != Error::INHIBIT) {
+        msg->replyResponse(err);
+      }
   }
 
   void RaplDriverIntel::printEnergy(){
