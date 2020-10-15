@@ -1,4 +1,4 @@
-/* -*- mode:C++; -*- */
+/* -*- mode:C++; indent-tabs-mode:nil; -*- */
 /* MIT License -- MyThOS: The Many-Threads Operating System
  *
  * Permission is hereby granted, free of charge, to any person
@@ -21,43 +21,41 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  *
- * Copyright 2016 Randolf Rotta, Robert Kuban, and contributors, BTU Cottbus-Senftenberg
+ * Copyright 2020 Philipp Gypser and contributors, BTU Cottbus-Senftenberg
  */
 #pragma once
 
-#include <cstddef>
-#include "mythos/caps.hh"
-#include "mythos/InvocationBuf.hh"
-
 namespace mythos {
-namespace init {
+  struct RaplVal{
+    RaplVal()
+      : pp0(0)
+      , pp1(0)
+      , psys(0)
+      , dram(0)
+      , cpu_energy_units(0)
+      , dram_energy_units(0)
+    {}
 
-  enum CSpaceLayout : CapPtr {
-    NULLCAP = 0,
-    KM,
-    CSPACE,
-    PML4,
-    EC,
-    PORTAL,
-    EXAMPLE_FACTORY,
-    MEMORY_REGION_FACTORY,
-    EXECUTION_CONTEXT_FACTORY,
-    PORTAL_FACTORY,
-    CAPMAP_FACTORY,
-    PAGEMAP_FACTORY,
-    UNTYPED_MEMORY_FACTORY,
-    CAP_ALLOC_START,
-    CAP_ALLOC_END = CAP_ALLOC_START+200,
-    MSG_FRAME,
-    DEVICE_MEM,
-    SCHEDULERS_START,
-    CPUDRIVER = SCHEDULERS_START+256,
-    RAPL_DRIVER_INTEL,
-    INTERRUPT_CONTROL_START,
-    INTERRUPT_CONTROL_END = INTERRUPT_CONTROL_START+256,
-    APP_CAP_START = 1024,
-    SIZE = 4096
+    RaplVal(uint64_t pp0, uint64_t pp1, uint64_t psys, uint64_t dram, uint32_t cpu_energy_units, uint32_t dram_energy_units)
+      : pp0(pp0)
+      , pp1(pp1)
+      , psys(psys)
+      , dram(dram)
+      , cpu_energy_units(cpu_energy_units)
+      , dram_energy_units(dram_energy_units)
+    {}
+
+    // rounded (truncated) number in Joule
+    uint64_t getEnergyPP0(){ return pp0 >> cpu_energy_units; } 
+    uint64_t getEnergyPP1(){ return pp1 >> cpu_energy_units; } 
+    uint64_t getEnergyPSYS(){ return psys >> cpu_energy_units; } 
+    uint64_t getEnergyDRAM(){ return dram >> dram_energy_units; } 
+
+    uint64_t pp0;
+    uint64_t pp1;
+    uint64_t psys;
+    uint64_t dram;
+    uint32_t cpu_energy_units;
+    uint32_t dram_energy_units;
   };
-
-} // namespace init
-} // namespace mythos
+}// namespace mythos

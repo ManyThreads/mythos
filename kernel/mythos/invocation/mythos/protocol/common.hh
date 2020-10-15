@@ -44,6 +44,7 @@ namespace mythos {
       PORTAL,
       EXAMPLE,
       CPUDRIVERKNC,
+      RAPLDRIVERINTEL,
       INTERRUPT_CONTROL,
     };
 

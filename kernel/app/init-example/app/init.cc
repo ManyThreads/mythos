@@ -31,6 +31,7 @@
 #include "runtime/Portal.hh"
 #include "runtime/ExecutionContext.hh"
 #include "runtime/CapMap.hh"
+#include "runtime/RaplDriverIntel.hh"
 #include "runtime/Example.hh"
 #include "runtime/PageMap.hh"
 #include "runtime/KernelMemory.hh"
@@ -45,8 +46,11 @@
 
 #include <vector>
 #include <array>
+#include <math.h> 
+#include <iostream>
 
 #include <pthread.h>
+#include <sys/time.h>
 
 mythos::InvocationBuf* msg_ptr asm("msg_ptr");
 int main() asm("main");
@@ -62,6 +66,7 @@ mythos::KernelMemory kmem(mythos::init::KM);
 mythos::KObject device_memory(mythos::init::DEVICE_MEM);
 mythos::SimpleCapAllocDel capAlloc(portal, myCS, mythos::init::APP_CAP_START,
                                   mythos::init::SIZE-mythos::init::APP_CAP_START);
+mythos::RaplDriverIntel rapl(mythos::init::RAPL_DRIVER_INTEL);
 
 char threadstack[stacksize];
 char* thread1stack_top = threadstack+stacksize/2;
@@ -357,6 +362,60 @@ void test_InterruptControl() {
   MLOG_INFO(mlog::app, "test_InterruptControl end");
 }
 
+bool primeTest(uint64_t n){
+
+  if(n == 0 | n == 1){
+    return false;
+  }
+
+  for(uint64_t i = 2; i <= n / 2; i++){
+    if(n % i == 0) return false;
+  }
+
+  return true;
+}
+
+void test_Rapl(){
+  MLOG_INFO(mlog::app, "Test RAPL");
+  mythos::PortalLock pl(portal); 
+  timeval start_run, end_run;
+  
+  asm volatile ("":::"memory");
+  auto start = rapl.getRaplVal(pl).wait().get();
+  gettimeofday(&start_run, 0);
+	asm volatile ("":::"memory");
+  
+
+  MLOG_INFO(mlog::app, "Start prime test");
+  unsigned numPrimes = 0;
+  const uint64_t max = 200000;
+
+  for(uint64_t i = 0; i < max; i++){
+    if(primeTest(i)) numPrimes++;
+  }
+
+	asm volatile ("":::"memory");
+  auto end = rapl.getRaplVal(pl).wait().get();
+  gettimeofday(&end_run, 0);
+	asm volatile ("":::"memory");
+
+  double seconds =(end_run.tv_usec - start_run.tv_usec)/1000000.0 + end_run.tv_sec - start_run.tv_sec;
+
+  std::cout << "Prime test done in " <<  seconds << " seonds (" << numPrimes 
+	  << " primes found in Range from 0 to " << max << ")." << std::endl;
+  std::cout << "Energy consumption:" << std::endl;
+  double pp0 = end.pp0 - start.pp0;
+  pp0 *= pow(0.5, start.cpu_energy_units);
+  std::cout << "Power plane 0 (processor cores only): " << pp0 << " Joule. Average power: " << pp0/seconds << " watts." << std::endl;
+  double pp1 = (end.pp1 - start.pp1) * pow(0.5, start.cpu_energy_units);
+  std::cout << "Power plane 1 (a specific device in the uncore): " << pp1 << " Joule. Average power: " << pp1/seconds << " watts." << std::endl;
+  double psys = (end.psys - start.psys) * pow(0.5, start.cpu_energy_units);
+  std::cout << "Package (whole cpu): " << psys << " Joule. Average power: " << psys/seconds << " watts." << std::endl;
+  double dram = (end.dram - start.dram) * pow(0.5, start.dram_energy_units);
+  std::cout << "DRAM (memory controller): " << dram << " Joule. Average power: " << dram/seconds << " watts." << std::endl;
+
+  MLOG_INFO(mlog::app, "Test RAPL finished");
+}
 
 int main()
 {
@@ -366,14 +425,15 @@ int main()
 
   test_float();
   test_Example();
-  test_Portal();
+  //test_Portal();
   test_heap(); // heap must be initialized for tls test
   test_tls();
   test_exceptions();
   //test_InterruptControl();
   //test_HostChannel(portal, 24*1024*1024, 2*1024*1024);
   test_ExecutionContext();
-  test_pthreads();
+  //test_pthreads();
+  test_Rapl();
 
   char const end[] = "bye, cruel world!";
   mythos::syscall_debug(end, sizeof(end)-1);
