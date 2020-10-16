@@ -1,6 +1,6 @@
 # -*- mode:toml; -*-
 [module.app-init-example]
-    appfiles = [ "app/init.cc" ]
+    appfiles = [ "app/init2.cc" ]
     provides = [ "app/init.elf" ]
     requires = [ "crtbegin"]
 
@@ -16,4 +16,3 @@ app/init.elf: $(INITAPPFILES_OBJ) $(APPFILES_OBJ) $(CRTFILES_OBJ)
 	$(OBJDUMP) -dS $@ | c++filt > init.disasm
 	$(STRIP) $@
 '''
-

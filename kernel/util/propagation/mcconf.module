@@ -1,0 +1,5 @@
+# -*- mode:toml; -*-
+[module.propagation]
+incfiles = [
+  "util/SingleLinkedList.hh",
+  "util/Chain.hh"]
