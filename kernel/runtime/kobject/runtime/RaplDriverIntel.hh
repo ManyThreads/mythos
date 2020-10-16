@@ -46,6 +46,7 @@ namespace mythos {
         pp0 = val.pp0;
         pp1 = val.pp1;
         psys = val.psys;
+        pkg = val.pkg;
         dram = val.dram;
         cpu_energy_units = val.cpu_energy_units;
         dram_energy_units = val.dram_energy_units;
