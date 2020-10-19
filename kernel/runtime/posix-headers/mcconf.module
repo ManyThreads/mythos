@@ -1,6 +1,7 @@
 # -*- mode:toml; -*-
 [module.posix-headers-app]
     incfiles = [ "runtime/posix-includes-test.hh" ]
+    requires = [ "tag/libc" ]
 		provides = [
 			"aio.h",
 			"arpa/inet.h",

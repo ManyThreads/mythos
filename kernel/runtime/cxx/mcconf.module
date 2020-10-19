@@ -2,7 +2,10 @@
 [module.cxxabi-app]
     incfiles = [ "runtime/futex.hh" ]
     appfiles = [ "runtime/cxxsupport.cc", "runtime/pthread.cc", "runtime/futex.cc" ]
-    provides = [ "iostream", "vector", "queue", "functional",  "omp.h", "bits/alltypes.h", "endian.h"]
+    provides = [ 
+      "tag/libc", "tag/libcxx",
+      "iostream", "vector", "queue", "functional",  "bits/alltypes.h", "endian.h"
+    ]
     makefile_head = '''
 APP_CPPFLAGS += -nostdinc -nostdinc++ -isystem ${vars.cxx_path}/include/c++/v1 -isystem ${vars.cxx_path}/include 
 APP_LDFLAGS += -Wl,--eh-frame-hdr --sysroot=${vars.cxx_path}/../

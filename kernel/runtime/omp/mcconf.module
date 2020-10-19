@@ -1,0 +1,9 @@
+# -*- mode:toml; -*-
+[module.omp-app]
+    provides = [ "omp.h" ]
+    makefile_head = '''
+    requires = [ "tag/libc" ]
+# WARNING: APP_LIBS is sensitive to order!
+# It should probably be split up into parts that are order independent internally.
+APP_LIBS += ${vars.cxx_path}/lib/libomp.a
+'''
