@@ -52,8 +52,8 @@ namespace mythos {
     uint64_t reserved;
     uint16_t debugTrap; //< raise debug exception on entry if bit 0 is set
     uint16_t ioMapOffset; //< offset to the IO permissions bitmap
-    //uint8_t ioMap[IO_MAP_SIZE / 8];
-    //uint8_t ioMapEnd;
+    uint8_t ioMap[IO_MAP_SIZE / 8];
+    uint8_t ioMapEnd;
   };
 
   class PACKED TSS64Descriptor

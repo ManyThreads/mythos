@@ -43,6 +43,7 @@
 #include "util/optional.hh"
 #include "runtime/umem.hh"
 #include "runtime/Mutex.hh"
+#include "runtime/cgaScreen.hh"
 
 #include <vector>
 #include <array>
@@ -193,7 +194,7 @@ void test_tls()
 void test_heap() {
   MLOG_INFO(mlog::app, "Test heap");
   mythos::PortalLock pl(portal);
-  uintptr_t vaddr = 22*1024*1024; // choose address different from invokation buffer
+  uintptr_t vaddr = 24*1024*1024; // choose address different from invokation buffer
   auto size = 4*1024*1024; // 2 MB
   auto align = 2*1024*1024; // 2 MB
   // allocate a 2MiB frame
@@ -417,6 +418,58 @@ void test_Rapl(){
   MLOG_INFO(mlog::app, "Test RAPL finished");
 }
 
+void test_CgaScreen(){
+  MLOG_INFO(mlog::app, "Test CGA screen");
+
+  uintptr_t paddr = mythos::CgaScreen::VIDEO_RAM;
+  uintptr_t vaddr = 22*1024*1024;
+
+  mythos::PortalLock pl(portal);
+
+  MLOG_INFO(mlog::app, "test_CgaScreen: allocate device memory"); 
+  mythos::Frame f(capAlloc());
+  auto res1 = f.createDevice(pl, device_memory, paddr, 1*1024*1024, true).wait(); 
+  TEST(res1); 
+
+  MLOG_INFO(mlog::app, "test_CgaScreen: allocate level 1 page map (4KiB pages)");
+  mythos::PageMap p1(capAlloc());
+  auto res2 = p1.create(pl, kmem, 1);
+  TEST(res2);
+
+  MLOG_INFO(mlog::app, "test_CgaScreen: map level 1 page map on level 2", DVARhex(vaddr));
+  auto res3 = myAS.installMap(pl, p1, vaddr, 2,
+    mythos::protocol::PageMap::MapFlags().writable(true).configurable(true)).wait();
+  TEST(res3);
+
+  MLOG_INFO(mlog::app, "test_CgaScreen: map frame");
+  auto res4 = myAS.mmap(pl, f, vaddr, 4096, mythos::protocol::PageMap::MapFlags().writable(true)).wait();
+  TEST(res4);
+
+  mythos::CgaScreen screen(vaddr);
+
+  screen.show('H');
+  screen.show('e');
+  screen.show('l');
+  screen.show('l');
+  screen.show('o');
+  screen.show(' ');
+  screen.show('w');
+  screen.show('o');
+  screen.show('r');
+  screen.show('l');
+  screen.show('d');
+  screen.show('!');
+
+  MLOG_INFO(mlog::app, "test_CgaScreen: delete page map");
+  TEST(capAlloc.free(p1, pl));
+  MLOG_INFO(mlog::app, "test_CgaScreen: delete page map");
+  TEST(capAlloc.free(p1, pl));
+  MLOG_INFO(mlog::app, "test_CgaScreen: delete device frame");
+  TEST(capAlloc.free(f, pl));
+
+  MLOG_INFO(mlog::app, "Test CGA finished");
+}
+
 int main()
 {
   char const str[] = "hello world!";
@@ -434,6 +487,7 @@ int main()
   test_ExecutionContext();
   //test_pthreads();
   test_Rapl();
+  test_CgaScreen();
 
   char const end[] = "bye, cruel world!";
   mythos::syscall_debug(end, sizeof(end)-1);

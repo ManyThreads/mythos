@@ -278,9 +278,9 @@ namespace mythos {
     inline void setCR4(size_t val) { asm volatile ("mov %0, %%cr4" : : "r"(val)); }
 
     // get CPU family
-    uint32_t getCpuFam() { return bits(cpuid(1).eax, 11, 8); }
+    inline uint32_t getCpuFam() { return bits(cpuid(1).eax, 11, 8); }
     // get CPU extended model
-    uint32_t getCpuExtModel() { return (bits(cpuid(1).eax, 19, 16) << 4) + bits(cpuid(1).eax, 7, 4); }
+    inline uint32_t getCpuExtModel() { return (bits(cpuid(1).eax, 19, 16) << 4) + bits(cpuid(1).eax, 7, 4); }
 
     /* 
      * Intel Processor family 11 model number
@@ -321,6 +321,46 @@ namespace mythos {
       CPU_ATOM_DENVERTON	= 95
     };
   } // namespace x86
+
+  class IOPort8 {
+    public:
+      IOPort8 (unsigned port)
+      : port(port)
+      {}
+
+      void write(uint8_t val){
+        asm volatile("outb %0, %1" : : "a" (val), "Nd" (port));
+      }
+
+      uint8_t read(){
+        uint8_t ret;
+        asm volatile("inb %1, %0" : "=a" (ret) : "Nd" (port));
+        return ret;
+      }
+
+    private:
+      uint16_t port;
+  };
+
+  class IOPort16 {
+    public:
+      IOPort16 (unsigned port)
+      : port(port)
+      {}
+
+      void write(uint16_t val){
+        asm volatile("outw %0, %1" : : "a" (val), "Nd" (port));
+      }
+
+      uint16_t read(){
+        uint16_t ret;
+        asm volatile("inw %1, %0" : "=a" (ret) : "Nd" (port));
+        return ret;
+      }
+
+    private:
+      uint16_t port;
+  };
 
   namespace cpu {
     /** Volatile isn't enough to prevent the compiler from reordering the
