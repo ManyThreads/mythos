@@ -462,8 +462,6 @@ void test_CgaScreen(){
 
   MLOG_INFO(mlog::app, "test_CgaScreen: delete page map");
   TEST(capAlloc.free(p1, pl));
-  MLOG_INFO(mlog::app, "test_CgaScreen: delete page map");
-  TEST(capAlloc.free(p1, pl));
   MLOG_INFO(mlog::app, "test_CgaScreen: delete device frame");
   TEST(capAlloc.free(f, pl));
 
