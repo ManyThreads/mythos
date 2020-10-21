@@ -52,8 +52,6 @@
 #include <pthread.h>
 #include <sys/time.h>
 
-#include "runtime/posix-includes-test.hh"
-#include "runtime/cxx-includes-test.hh"
 
 mythos::InvocationBuf* msg_ptr asm("msg_ptr");
 int main() asm("main");
