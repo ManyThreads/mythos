@@ -11,7 +11,7 @@
       "tag/mode/kernel",
       "tag/platform/pc",
       "tag/compiler/gcc",
-      "tag/boot/intelmp",
+      "tag/boot/acpi",
       "tag/boot/multiboot",
       "tag/cap/spinning",
       ]

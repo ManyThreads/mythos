@@ -63,8 +63,12 @@ NORETURN void apboot() {
     ap_apic2config[topo.threadID(id)] = &ap_config[id];
   }
 
-  for (int i=0; i<topo.numIOApic(); i++)
-    initIOApicEvent.trigger_before(i, size_t(topo.ioApicBase(i)));
+  //for (int i=0; i<topo.numIOApic(); i++)
+    //initIOApicEvent.trigger_before(i, size_t(topo.ioApicBase(i)));
+
+  // only one ioapic supported yet
+  initIOApicEvent.emit(0, reinterpret_cast<size_t>(topo.ioApicBase()));
+
 
   DeployHWThread::prepareBSP();
 
