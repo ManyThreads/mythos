@@ -1,7 +1,7 @@
 # -*- mode:toml; -*-
 [module.gcc-kernel-pc]
     incfiles = [ "util/compiler.hh" ]
-    requires = [ "tag/platform/pc", "tag/mode/kernel", "tag/compiler/gcc" ]
+    requires = [ "tag/platform/pc", "tag/mode/kernel", "tag/compiler/gcc", "tag/cxxabi-kernel"]
 
     makefile_head = '''
 KERNEL_CXX ?= $(CXX)
