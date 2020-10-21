@@ -459,7 +459,9 @@ void test_CgaScreen(){
   screen.show('l');
   screen.show('d');
   screen.show('!');
+  screen.show('\n');
 
+  screen.log("Hello world, but in another way!");
   MLOG_INFO(mlog::app, "test_CgaScreen: delete page map");
   TEST(capAlloc.free(p1, pl));
   MLOG_INFO(mlog::app, "test_CgaScreen: delete device frame");
@@ -470,7 +472,7 @@ void test_CgaScreen(){
 
 int main()
 {
-  char const str[] = "hello world!";
+  char const str[] = "Hello world!";
   mythos::syscall_debug(str, sizeof(str)-1);
   MLOG_ERROR(mlog::app, "application is starting :)", DVARhex(msg_ptr), DVARhex(initstack_top));
 

@@ -28,11 +28,13 @@
 #include "runtime/cgaAttr.hh"
 #include "runtime/cgaChar.hh"
 #include "cpu/ctrlregs.hh"
+#include "util/ISink.hh"
+#include "util/TextMsg.hh"
 
 namespace mythos {
 
-class CgaScreen{
-private:  
+class CgaScreen : public mlog::ISink {
+private:   
   enum Ports {
     INDEX_PORT = 0x3D4,
     DATA_PORT  = 0x3D5
@@ -81,6 +83,15 @@ public:
     show(ch, attr);
   }
 
+  void write(char const* msg, size_t length) override;
+
+  void flush() override {};
+
+template<typename... ARGS>
+  void log(ARGS&&... args){
+    mlog::TextMsg<400> msg("log:", "", std::forward<ARGS>(args)...);
+    write(msg.getData(), msg.getSize());
+  }
 protected:
 
 
@@ -91,6 +102,5 @@ protected:
   CgaChar* screen;
   unsigned xpos, ypos;
 };
-
 
 } // namespace mythos

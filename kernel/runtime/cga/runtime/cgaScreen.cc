@@ -118,7 +118,7 @@ void mythos::CgaScreen::show(char c, const CgaAttr& att)
 
 	if (c == '\r')
 		xpos = 0;
-	else if ( c == '\n') {
+	else if ( c == '\n' ) {
 		ypos++;
 		xpos=0;
 	} else {
@@ -138,5 +138,16 @@ void mythos::CgaScreen::show(char c, const CgaAttr& att)
 	}
 
 	setCursor(ypos, xpos);
+}
+
+void mythos::CgaScreen::write(char const* msg, size_t length){
+  for(size_t i; i < length; i++){
+    if(msg[i] != '\x1b'){
+      show(msg[i]);
+    }else{
+      show('\n');
+      return;
+    }
+  } 
 }
 
