@@ -2,4 +2,5 @@
 [module.propagation]
 incfiles = [
   "util/SingleLinkedList.hh",
-  "util/Chain.hh"]
+  "util/Chain.hh",
+  "util/US_Broadcast.hh"]

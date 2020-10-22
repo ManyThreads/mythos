@@ -80,6 +80,14 @@ const char* test = "Hallo Welt";
 const size_t MAX_TASK = MYTHOS_MAX_THREADS;
 const size_t TASKQUEUE_DIVISOR = 2;
 
+typedef struct Funparam_t{
+  int idx;
+  void* (*funptr)(void*);
+  void* args;
+
+  Funparam_t(int idx, void* (*funptr)(void*), void* args) : idx(idx), funptr(funptr), args(args){}
+} Funparam_t;
+
 void test_Example()
 {
   char const obj[] = "hello object!";
@@ -422,113 +430,113 @@ void test_InterruptControl() {
   ##############################################################################
  */
 
-#define AMOUNT_THREADS 3
+//#define AMOUNT_THREADS 3
 
-SingleLinkedList<int>* sl;
-Chain<int> chainPool[MAX_TASK];
-std::atomic<int>* running;
-pthread_t threads[AMOUNT_THREADS];
-
-void* run_stress_test(void* arg){
-  int val = *reinterpret_cast<int*>(arg);
-  MLOG_INFO(mlog::app, "Thread running id: ", DVAR(val));
-
-  std::forward_list<Chain<int>*> save;
-  srand(time(NULL));
-
-  MLOG_INFO(mlog::app, "Random Number Generator initialized");
-
-  while(!running->load());
-
-  MLOG_INFO(mlog::app, "Start Test on Thread: ", DVAR(val));
-
-  while(running->load()){
-    int randnr = rand() % 2;
-
-    if(randnr){
-      Chain<int>* chain = sl->pop_front();
-      if(chain){
-        save.push_front(chain);
-      }
-    } else{
-      if(!save.empty()){
-        Chain<int>* chain = save.front();
-        sl->push_front(chain);
-        save.pop_front();
-      }
-    }
-  }
-
-  MLOG_INFO(mlog::app, "Finished Test on Thread: ", DVAR(val));
-
-  while(!save.empty()){
-    Chain<int>* chain = save.front();
-    sl->push_front(chain);
-    save.pop_front();
-  }
-
-  MLOG_INFO(mlog::app, "Thread finished: ", DVAR(val));
-
-  return 0;
-}
-
-void manage_stress_test(){
-  MLOG_INFO(mlog::app, "Main Thread starting execution");
-
-  running->store(1);
-  MLOG_INFO(mlog::app, "Main Thread going to sleep");
-  //sleep(10);
-
-  for(volatile int i = 0; i < 100000; i++){
-    for(volatile int j = 0; j < 100000; j++){
-
-    }
-  }
-
-  MLOG_INFO(mlog::app, "Main Thread just woke up");
-  running->store(0);
-
-  MLOG_INFO(mlog::app, "Main Thread stopped execution");
-
-  //sleep(1);   // Instead of wait(NULL) on linux wait for 1 sec and hope all threads are done
-  for(int i = 0; i < AMOUNT_THREADS; i++){
-    pthread_join(threads[i], NULL);
-  }
-
-  sl->print();
-}
-
-void init_stress_test(){
-  MLOG_INFO(mlog::app, "Start Stress Test");
-
-  // TODO Shared Memory
-  sl = new SingleLinkedList<int>(chainPool);
-  running = new std::atomic<int>();
-
-  running->store(0);
-
-  MLOG_INFO(mlog::app, "Print Initialized List");
-
-  sl->print();
-
-  MLOG_INFO(mlog::app, "Print Adresses");
-
-  for(int i = 0; i < MAX_TASK; i++){
-    MLOG_INFO(mlog::app, "Index | PTR", DVAR(i), DVARhex(&chainPool[i]));
-  }
-
-  MLOG_INFO(mlog::app, "Start Creating Threads");
-
-  pthread_t ids[AMOUNT_THREADS];  // Thread ID's
-  for(int i = 0; i < AMOUNT_THREADS; i++){
-    pthread_t p;
-    ids[i] = i;
-  	int err = pthread_create(&p, NULL, &run_stress_test, &ids[i]);
-    threads[i] = p;
-  }
-
-  manage_stress_test();
-}
+//SingleLinkedList<int>* sl;
+//Chain<int> chainPool[MAX_TASK];
+//std::atomic<int>* running;
+//pthread_t threads[AMOUNT_THREADS];
+//
+//void* run_stress_test(void* arg){
+//  int val = *reinterpret_cast<int*>(arg);
+//  MLOG_INFO(mlog::app, "Thread running id: ", DVAR(val));
+//
+//  std::forward_list<Chain<int>*> save;
+//  srand(time(NULL));
+//
+//  MLOG_INFO(mlog::app, "Random Number Generator initialized");
+//
+//  while(!running->load());
+//
+//  MLOG_INFO(mlog::app, "Start Test on Thread: ", DVAR(val));
+//
+//  while(running->load()){
+//    int randnr = rand() % 2;
+//
+//    if(randnr){
+//      Chain<int>* chain = sl->pop_front();
+//      if(chain){
+//        save.push_front(chain);
+//      }
+//    } else{
+//      if(!save.empty()){
+//        Chain<int>* chain = save.front();
+//        sl->push_front(chain);
+//        save.pop_front();
+//      }
+//    }
+//  }
+//
+//  MLOG_INFO(mlog::app, "Finished Test on Thread: ", DVAR(val));
+//
+//  while(!save.empty()){
+//    Chain<int>* chain = save.front();
+//    sl->push_front(chain);
+//    save.pop_front();
+//  }
+//
+//  MLOG_INFO(mlog::app, "Thread finished: ", DVAR(val));
+//
+//  return 0;
+//}
+//
+//void manage_stress_test(){
+//  MLOG_INFO(mlog::app, "Main Thread starting execution");
+//
+//  running->store(1);
+//  MLOG_INFO(mlog::app, "Main Thread going to sleep");
+//  //sleep(10);
+//
+//  for(volatile int i = 0; i < 100000; i++){
+//    for(volatile int j = 0; j < 100000; j++){
+//
+//    }
+//  }
+//
+//  MLOG_INFO(mlog::app, "Main Thread just woke up");
+//  running->store(0);
+//
+//  MLOG_INFO(mlog::app, "Main Thread stopped execution");
+//
+//  //sleep(1);   // Instead of wait(NULL) on linux wait for 1 sec and hope all threads are done
+//  for(int i = 0; i < AMOUNT_THREADS; i++){
+//    pthread_join(threads[i], NULL);
+//  }
+//
+//  sl->print();
+//}
+//
+//void init_stress_test(){
+//  MLOG_INFO(mlog::app, "Start Stress Test");
+//
+//  // TODO Shared Memory
+//  sl = new SingleLinkedList<int>(chainPool);
+//  running = new std::atomic<int>();
+//
+//  running->store(0);
+//
+//  MLOG_INFO(mlog::app, "Print Initialized List");
+//
+//  sl->print();
+//
+//  MLOG_INFO(mlog::app, "Print Adresses");
+//
+//  for(int i = 0; i < MAX_TASK; i++){
+//    MLOG_INFO(mlog::app, "Index | PTR", DVAR(i), DVARhex(&chainPool[i]));
+//  }
+//
+//  MLOG_INFO(mlog::app, "Start Creating Threads");
+//
+//  pthread_t ids[AMOUNT_THREADS];  // Thread ID's
+//  for(int i = 0; i < AMOUNT_THREADS; i++){
+//    pthread_t p;
+//    ids[i] = i;
+//  	int err = pthread_create(&p, NULL, &run_stress_test, &ids[i]);
+//    threads[i] = p;
+//  }
+//
+//  manage_stress_test();
+//}
 
 //void* create_shared_memory(PortalLock pl, size_t size){
 //  MLOG_ERROR(mlog::app, "test_Portal begin");
@@ -585,6 +593,44 @@ void start_threads(){
   MLOG_INFO(mlog::app, "MAIN THREAD DONE");
 }
 
+SingleLinkedList<int> sll;
+
+void* run_broadcast_thread(void* arg){
+  Funparam_t* a = reinterpret_cast<Funparam_t*>(arg);
+  Chain<int> my_mem;
+  sll.push_front(&my_mem);
+
+  MLOG_INFO(mlog::app, "Chain at:", DVARhex(&my_mem));
+
+  return (*a->funptr)(a->args);
+}
+
+void* say_hello(void* arg){
+  MLOG_INFO(mlog::app, "Hello World from:", DVAR(pthread_self()));
+
+  return 0;
+}
+
+void test_broadcast_threads(){
+  MLOG_INFO(mlog::app, "Test Broadcast Thread");
+
+  pthread_t p;
+  Funparam_t param(0, say_hello, nullptr);
+
+  pthread_create(&p, NULL, &run_broadcast_thread, &param);
+
+  MLOG_INFO(mlog::app, "Thread created");
+
+  pthread_join(p, NULL);
+
+  MLOG_INFO(mlog::app, "Thread finished");
+  
+  Chain<int>* tmp = sll.pop_front();
+  MLOG_INFO(mlog::app, "Thread memory was at:", DVARhex(tmp));
+
+  MLOG_INFO(mlog::app, "Finished Broadcast Thread Test");
+}
+
 int main()
 {
   char const str[] = "hello world!";
@@ -603,7 +649,8 @@ int main()
   //test_ExecutionContext();
   //test_pthreads();
   //init_stress_test();
-  start_threads();
+  //start_threads();
+  test_broadcast_threads();
 
 
   //Chain<int> buffer[10];
