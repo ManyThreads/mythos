@@ -50,7 +50,6 @@
 			"queue",
 			"iterator",
 			"algorithm",
-			"# Numerics library",
 			"cmath",
 			"complex",
 			"valarray",
