@@ -59,9 +59,10 @@ public:
 
   optional<void> deleteEntry(CapEntry& entry) override;
 
-  // @todo use pointer?
   void revokeCap(Tasklet* t, result_t* res, CapEntry& entry, IKernelObject* guarded)
   {
+    ASSERT(t);
+    ASSERT(res);
     monitor.request(t, [=, &entry](Tasklet* t) {
       MLOG_INFO(mlog::cap, "revoke cap called");
       _revoke(t, res, entry, guarded);
@@ -70,6 +71,8 @@ public:
 
   void deleteCap(Tasklet* t, result_t* res, CapEntry& entry, IKernelObject* guarded)
   {
+    ASSERT(t);
+    ASSERT(res);
     monitor.request(t, [=, &entry](Tasklet* t) {
       MLOG_INFO(mlog::cap, "delete cap called");
       _delete(t, res, entry, guarded);
@@ -85,6 +88,7 @@ public:
       });
   }
 
+  // aquire operation to prevent races with the containing Portal
   bool acquire() {
     auto result = !_lock.test_and_set();
     //MLOG_ERROR(mlog::cap, "acquire ops =>", result);
