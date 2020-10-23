@@ -1,9 +1,10 @@
 # -*- mode:toml; -*-
 [module.omp-app]
     provides = [ "omp.h" ]
-    makefile_head = '''
     requires = [ "tag/libc" ]
-# WARNING: APP_LIBS is sensitive to order!
-# It should probably be split up into parts that are order independent internally.
-APP_LIBS += ${vars.cxx_path}/lib/libomp.a
+    makefile_head = '''
+# WARNING: Manual labor required to link OpenMP!
+# Linking is sensitive to order! Therefore we can't just add OMP_LIBS to APP_LIBS.
+# Please add OMP_LIBS *before* APP_LIBS to your init app's make-rule
+OMP_LIBS += ${vars.cxx_path}/lib/libomp.a
 '''
