@@ -386,7 +386,6 @@ void test_Rapl(){
   gettimeofday(&start_run, 0);
 	asm volatile ("":::"memory");
   
-
   MLOG_INFO(mlog::app, "Start prime test");
   unsigned numPrimes = 0;
   const uint64_t max = 200000;
@@ -405,13 +404,19 @@ void test_Rapl(){
   std::cout << "Prime test done in " <<  seconds << " seonds (" << numPrimes 
 	  << " primes found in Range from 0 to " << max << ")." << std::endl;
   std::cout << "Energy consumption:" << std::endl;
-  double pp0 = end.pp0 - start.pp0;
-  pp0 *= pow(0.5, start.cpu_energy_units);
+
+  double pp0 = (end.pp0 - start.pp0) * pow(0.5, start.cpu_energy_units);
   std::cout << "Power plane 0 (processor cores only): " << pp0 << " Joule. Average power: " << pp0/seconds << " watts." << std::endl;
+  
   double pp1 = (end.pp1 - start.pp1) * pow(0.5, start.cpu_energy_units);
   std::cout << "Power plane 1 (a specific device in the uncore): " << pp1 << " Joule. Average power: " << pp1/seconds << " watts." << std::endl;
+  
   double psys = (end.psys - start.psys) * pow(0.5, start.cpu_energy_units);
-  std::cout << "Package (whole cpu): " << psys << " Joule. Average power: " << psys/seconds << " watts." << std::endl;
+  std::cout << "Platform : " << psys << " Joule. Average power: " << psys/seconds << " watts." << std::endl;
+  
+  double pkg = (end.pkg - start.pkg) * pow(0.5, start.cpu_energy_units);
+  std::cout << "Package : " << pkg << " Joule. Average power: " << pkg/seconds << " watts." << std::endl;
+  
   double dram = (end.dram - start.dram) * pow(0.5, start.dram_energy_units);
   std::cout << "DRAM (memory controller): " << dram << " Joule. Average power: " << dram/seconds << " watts." << std::endl;
 

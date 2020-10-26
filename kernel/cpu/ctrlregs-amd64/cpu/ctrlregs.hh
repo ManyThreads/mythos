@@ -127,7 +127,7 @@ namespace mythos {
       MSR_DRAM_ENERGY_STATUS	   = 0x00000619,
       MSR_DRAM_PERF_STATUS	     = 0x0000061B,
       MSR_DRAM_POWER_INFO	       = 0x0000061C,
-      MSR_PLATFORM_ENERGY_STATUS = 0x0000064d,
+      MSR_PLATFORM_ENERGY_STATUS = 0x0000064D,
       MSR_EFER                   = 0xc0000080,
       MSR_IA32_STAR              = 0xc0000081,
       MSR_IA32_LSTAR             = 0xc0000082,
