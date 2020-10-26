@@ -1,0 +1,4 @@
+# -*- mode:toml; -*-
+[module.cga]
+    incfiles = [ "runtime/cgaAttr.hh", "runtime/cgaScreen.hh", "runtime/cgaChar.hh" ]
+    appfiles = [ "runtime/cgaScreen.cc" ]
