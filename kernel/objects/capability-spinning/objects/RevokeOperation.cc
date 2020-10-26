@@ -57,7 +57,9 @@ namespace mythos {
     MLOG_ERROR(mlog::cap, "_delete", DVAR(t), DVAR(res), DVAR(entry.cap()), DVAR(guarded));
     _res = res;
     _guarded = guarded;
-    if (!acquire()) { /// @todo should never fail because of the outer monitored request! ?
+    if (!acquire()) {
+      // aquire might fail due to a concurrent deletion of the containing Portal
+      MLOG_DETAIL(mlog::cap, "RevokeOperation can not be acquired.");
       res->response(t, Error::LOST_RACE);
       monitor.requestDone();
       return;
@@ -65,6 +67,7 @@ namespace mythos {
     if (!entry.kill()) {
       MLOG_DETAIL(mlog::cap, "Can not kill entry", &entry, entry);
       res->response(t, Error::LOST_RACE);
+      release();
       monitor.requestDone();
       return;
     }
@@ -77,6 +80,7 @@ namespace mythos {
     _res = res;
     _guarded = guarded;
     if (!acquire()) {
+      MLOG_DETAIL(mlog::cap, "RevokeOperation can not be acquired.");
       res->response(t, Error::LOST_RACE);
       monitor.requestDone();
       return;
@@ -87,12 +91,13 @@ namespace mythos {
       // this is not the cap you are locking for ...
       entry.unlock();
       res->response(t, Error::LOST_RACE);
+      release();
       monitor.requestDone();
       return;
     }
     // just set the revoke flag to pin it
     // if some other revoke or delete clears the flag or changes the cap values
-    // all children have been deleted in in the mean time and we are done
+    // all children have been deleted in the mean time and we are done
     entry.setRevoking();
     entry.unlock();
     _result = _delete(&entry, rootCap).state();
