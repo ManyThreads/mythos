@@ -122,7 +122,9 @@ namespace mythos {
 
     void unbinding(void* subject, Cap orig) override {
       ASSERT(orig.isUsable());
-      Revoker::unbinding(static_cast<Subject*>(subject), orig.getPtr()->cast<Object>());
+      auto obj = orig.getPtr()->cast<Object>();
+      Revoker::unbinding(static_cast<Subject*>(subject), obj);
+      MLOG_INFO(mlog::cap,"before return");
     }
   };
 

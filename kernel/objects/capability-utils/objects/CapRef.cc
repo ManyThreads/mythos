@@ -39,7 +39,7 @@ namespace mythos {
     this->reset();
     RETURN(cap::setReference(
         this->entry,
-        srcCap.asReference(this, kernel2phys(subject)),
+        srcCap.asReference(this, kernel2offset(subject)),
         src, srcCap,
         [=](){
           this->orig.store(srcCap.asReference().value());
