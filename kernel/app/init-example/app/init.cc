@@ -492,7 +492,7 @@ int main()
   test_ExecutionContext();
   //test_pthreads();
   test_Rapl();
-  test_CgaScreen();
+  //test_CgaScreen();
 
   char const end[] = "bye, cruel world!";
   mythos::syscall_debug(end, sizeof(end)-1);
