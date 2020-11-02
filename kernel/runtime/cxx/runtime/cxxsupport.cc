@@ -169,15 +169,14 @@ extern "C" long mythos_musl_syscall(
         MLOG_WARN(mlog::app, "syscall madvise NYI");
         return 0;
     case 39: // getpid
-        //MLOG_WARN(mlog::app, "syscall getpid NYI");
+        MLOG_WARN(mlog::app, "syscall getpid NYI");
         return 0;
     case 60: // exit(exit_code)
         //MLOG_DETAIL(mlog::app, "syscall exit", DVAR(a1));
         asm volatile ("syscall" : : "D"(0), "S"(a1) : "memory");
         return 0;
     case 186: // gettid
-        //MLOG_WARN(mlog::app, "syscall gettid");
-        return -1;
+        return mythos_get_pthread_tid(pthread_self());
     case 200: // tkill(pid, sig)
         MLOG_WARN(mlog::app, "syscall tkill NYI");
         return 0;
@@ -274,7 +273,7 @@ int myclone(
     // @todo store thread-specific ctid pointer, which should set to 0 by the OS on the thread's exit
     // @todo needs interaction with a process internal scheduler or core manager in order to figure out where to schedule the new thread
     auto res1 = ec.create(kmem).as(myAS).cs(myCS).sched(mythos::init::SCHEDULERS_START + (nextThread++))
-        .prepareStack(stack).startFunInt(func, arg, ec.cap())
+        .rawStack(stack).startFunInt(func, arg, ec.cap())
         .suspended(false).fs(tls)
         .invokeVia(pl).wait();
     //MLOG_DETAIL(mlog::app, DVAR(ec.cap()));

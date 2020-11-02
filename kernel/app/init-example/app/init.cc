@@ -482,18 +482,24 @@ int main()
   mythos::syscall_debug(str, sizeof(str)-1);
   MLOG_ERROR(mlog::app, "application is starting :)", DVARhex(msg_ptr), DVARhex(initstack_top));
 
-  test_float();
-  test_Example();
-  test_Portal();
+  //test_float();
+  //test_Example();
+  //test_Portal();
   test_heap(); // heap must be initialized for tls test
-  test_tls();
-  test_exceptions();
+  //test_tls();
+  //test_exceptions();
   //test_InterruptControl();
   //test_HostChannel(portal, 24*1024*1024, 2*1024*1024);
-  test_ExecutionContext();
-  //test_pthreads();
-  test_Rapl();
+  //test_ExecutionContext();
+  test_pthreads();
+  //test_Rapl();
   //test_CgaScreen();
+  MLOG_ERROR(mlog::app,
+    DVARhex(pthread_self()),
+    DVAR(mythos_get_pthread_tid(pthread_t(pthread_self()))),
+    DVAR(mythos::init::EC)
+    );
+  //*((char*)(nullptr)) = 0;
 
   char const end[] = "bye, cruel world!";
   mythos::syscall_debug(end, sizeof(end)-1);

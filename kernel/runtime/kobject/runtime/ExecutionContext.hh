@@ -54,10 +54,16 @@ namespace mythos {
         Msg& cs(CapPtr c) { ib.cs(c); return *this; }
         Msg& cs(CapMap& c) { ib.cs(c.cap()); return *this; }
         Msg& sched(CapPtr c) { ib.sched(c); return *this; }
-        Msg& rawStack(void* ptr) { ib.regs.rsp = uintptr_t(ptr); return *this; }
+        Msg& rawStack(void* ptr) {
+          auto tos = reinterpret_cast<uintptr_t*>(ptr);
+          MLOG_DETAIL(mlog::app, DVAR(ptr), DVARhex(*tos));
+          ib.regs.rsp = uintptr_t(ptr);
+          return *this;
+        }
         Msg& prepareStack(void* ptr) {
             // \TODO assert alignment
             auto tos = reinterpret_cast<uintptr_t*>(ptr);
+            MLOG_DETAIL(mlog::app, DVAR(ptr), DVAR(sizeof(uintptr_t)));
             *--tos = 0;                                     // dummy return address
             ib.regs.rsp = uintptr_t(tos); 
             return *this; 
