@@ -280,7 +280,7 @@ void test_exceptions() {
 }
 
 void* threadMain(void* arg){
-  MLOG_INFO(mlog::app, "Thread says hello", DVAR(pthread_self()));
+  MLOG_INFO(mlog::app, "Thread says hello", DVAR(arg), DVAR(pthread_self()));
   return 0;
 }
 
@@ -288,7 +288,7 @@ void test_pthreads(){
   MLOG_INFO(mlog::app, "Test Pthreads");
 	pthread_t p;
  
-	auto tmp = pthread_create(&p, NULL, &threadMain, NULL);
+	auto tmp = pthread_create(&p, NULL, &threadMain, (void*) 0xBEEF);
   MLOG_INFO(mlog::app, "pthread_create returned", DVAR(tmp));
 	pthread_join(p, NULL);
 
@@ -490,7 +490,7 @@ int main()
   //test_exceptions();
   //test_InterruptControl();
   //test_HostChannel(portal, 24*1024*1024, 2*1024*1024);
-  //test_ExecutionContext();
+  test_ExecutionContext();
   test_pthreads();
   //test_Rapl();
   //test_CgaScreen();

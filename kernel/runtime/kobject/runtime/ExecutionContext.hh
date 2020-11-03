@@ -34,8 +34,6 @@
 
 namespace mythos {
     
-    extern thread_local CapPtr localEC;
-
     template<class MSG> class Msg;
     
     template<> class Msg<protocol::ExecutionContext::Create>
@@ -54,20 +52,28 @@ namespace mythos {
         Msg& cs(CapPtr c) { ib.cs(c); return *this; }
         Msg& cs(CapMap& c) { ib.cs(c.cap()); return *this; }
         Msg& sched(CapPtr c) { ib.sched(c); return *this; }
-        Msg& rawStack(void* ptr) {
-          auto tos = reinterpret_cast<uintptr_t*>(ptr);
-          MLOG_DETAIL(mlog::app, DVAR(ptr), DVARhex(*tos));
-          ib.regs.rsp = uintptr_t(ptr);
-          return *this;
-        }
+        Msg& rawStack(uintptr_t ptr) { ib.regs.rsp = ptr; return *this; }
+        Msg& rawStack(void* ptr) { return rawStack(uintptr_t(ptr)); }
+
+        // TODO: does this really belong here?
         Msg& prepareStack(void* ptr) {
-            // \TODO assert alignment
-            auto tos = reinterpret_cast<uintptr_t*>(ptr);
-            MLOG_DETAIL(mlog::app, DVAR(ptr), DVAR(sizeof(uintptr_t)));
-            *--tos = 0;                                     // dummy return address
-            ib.regs.rsp = uintptr_t(tos); 
+            // The compiler expect a kinda strange alignment.
+            // -> rsp % 16 must be 8
+            // We do that in clone, so we better do it here too.
+            // You can see this also in musl/src/thread/x86_64/clone.s (rsi is stack)
+            // We will use the same trick for alignment as musl libc
+            ib.regs.rsp = ((uintptr_t(ptr)) & uintptr_t(-16)) - 8; 
+            *(uintptr_t*)(ib.regs.rsp) = 0; // dummy return address
             return *this; 
         }
+
+        Msg& rawFun(StartFunInt fun, void* userctx)
+        {
+            ib.regs.rip = uintptr_t(fun);
+            ib.regs.rdi = uintptr_t(userctx);              // arg 1
+            return *this; 
+        }
+
         Msg& startFun(StartFun fun, void* userctx, CapPtr ec) { 
             ib.regs.rdi = uintptr_t(fun);                   // arg 1
             ib.regs.rsi = uintptr_t(userctx);               // arg 2
@@ -100,13 +106,11 @@ namespace mythos {
         }
 
     protected:
-        static void start(StartFun main, void* userctx, CapPtr ec) { 
-            localEC = ec;
+        static void start(StartFun main, void* userctx, uintptr_t) { 
             syscall_exit(uintptr_t(main(userctx)));
         }
 
-        static void startInt(StartFunInt main, void* userctx, CapPtr ec) { 
-            localEC = ec;
+        static void startInt(StartFunInt main, void* userctx, uintptr_t) { 
             syscall_exit(main(userctx));
         }
     };    

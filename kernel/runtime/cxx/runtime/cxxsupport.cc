@@ -267,15 +267,27 @@ int myclone(
     ASSERT(tls != nullptr);
     static int nextThread = 1;
 
+    // The compiler expect a kinda strange alignment coming from clone:
+    // -> rsp % 16 must be 8
+    // You can see this also in musl/src/thread/x86_64/clone.s (rsi is stack)
+    // We will use the same trick for alignment as musl libc
+    auto rsp = (uintptr_t(stack) & uintptr_t(-16))-8;
+
     mythos::PortalLock pl(portal); // future access will fail if the portal is in use already
     mythos::ExecutionContext ec(capAlloc());
     if (ptid && (flags&CLONE_PARENT_SETTID)) *ptid = int(ec.cap());
     // @todo store thread-specific ctid pointer, which should set to 0 by the OS on the thread's exit
     // @todo needs interaction with a process internal scheduler or core manager in order to figure out where to schedule the new thread
-    auto res1 = ec.create(kmem).as(myAS).cs(myCS).sched(mythos::init::SCHEDULERS_START + (nextThread++))
-        .rawStack(stack).startFunInt(func, arg, ec.cap())
-        .suspended(false).fs(tls)
-        .invokeVia(pl).wait();
+    auto res1 = ec.create(kmem)
+      .as(myAS)
+      .cs(myCS)
+      .sched(mythos::init::SCHEDULERS_START + (nextThread++))
+      .rawStack(rsp)
+      .rawFun(func, arg)
+      .suspended(false)
+      .fs(tls)
+      .invokeVia(pl)
+      .wait();
     //MLOG_DETAIL(mlog::app, DVAR(ec.cap()));
     return ec.cap();
 }

@@ -32,11 +32,14 @@
 
 #include <errno.h>
 #include <atomic>
+#include <pthread.h>
 
 struct FutexQueueElem
 {
-    FutexQueueElem(uint32_t* uaddr) : uaddr(uaddr) {}
-    mythos::CapPtr ec = {mythos::localEC};
+    FutexQueueElem(uint32_t* uaddr)
+      : ec(mythos_get_pthread_tid(pthread_self()))
+      , uaddr(uaddr) {}
+    mythos::CapPtr ec;
     uint32_t* uaddr;
     std::atomic<FutexQueueElem*> queueNext = {nullptr};
 };
@@ -95,8 +98,7 @@ static int futex_wait(
     }
 
     // suspend until notify or other message
-    //MLOG_DETAIL(mlog::app, "going to wait", DVAR(mythos::localEC));
-    // in myhos the wakeup could have some other reason that requires processing
+    // in mythos the wakeup could have some other reason that requires processing
     mythos::ISysretHandler::handle(mythos::syscall_wait());
 
     // remove the own element from the queue in case it is still there
