@@ -51,6 +51,7 @@
 #include <iostream>
 
 #include <pthread.h>
+#include "runtime/thread-extra.hh"
 #include <sys/time.h>
 
 
@@ -167,7 +168,7 @@ void test_tls()
     MLOG_INFO(mlog::app, "main thread TLS:", DVARhex(readFS(0)), DVARhex(readFS(0x28)));
     TEST_EQ(x, 1024);
     TEST_EQ(y, 2048);
-    mythos::syscall_wait();
+    mythos_wait();
     TEST_EQ(x, 1024);
     TEST_EQ(y, 2048);
     x = x*2;
@@ -302,7 +303,7 @@ void* thread_main(void* ctx)
   mutex << [ctx]() {
     MLOG_INFO(mlog::app, "thread in mutex", DVAR(ctx));
   };
-  mythos::ISysretHandler::handle(mythos::syscall_wait());
+  mythos_wait();
   MLOG_INFO(mlog::app, "thread resumed from wait", DVAR(ctx));
   return 0;
 }

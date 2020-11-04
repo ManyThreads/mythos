@@ -33,11 +33,12 @@
 #include <errno.h>
 #include <atomic>
 #include <pthread.h>
+#include "runtime/thread-extra.hh"
 
 struct FutexQueueElem
 {
     FutexQueueElem(uint32_t* uaddr)
-      : ec(mythos_get_pthread_tid(pthread_self()))
+      : ec(mythos_get_pthread_ec_self())
       , uaddr(uaddr) {}
     mythos::CapPtr ec;
     uint32_t* uaddr;
@@ -99,7 +100,7 @@ static int futex_wait(
 
     // suspend until notify or other message
     // in mythos the wakeup could have some other reason that requires processing
-    mythos::ISysretHandler::handle(mythos::syscall_wait());
+    mythos_wait();
 
     // remove the own element from the queue in case it is still there
     if (qe.queueNext.load() != reinterpret_cast<FutexQueueElem*>(1ul)) {
