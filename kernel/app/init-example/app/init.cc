@@ -182,7 +182,7 @@ void test_tls()
   MLOG_INFO(mlog::app, "test_EC: create ec1 TLS", DVARhex(tls));
   ASSERT(tls != nullptr);
   auto res1 = ec1.create(kmem).as(myAS).cs(myCS).sched(mythos::init::SCHEDULERS_START + 1)
-    .prepareStack(thread1stack_top).startFun(threadFun, nullptr, ec1.cap())
+    .prepareStack(thread1stack_top).startFun(threadFun, nullptr)
     .suspended(false).fs(tls)
     .invokeVia(pl).wait();
   TEST(res1);
@@ -319,7 +319,7 @@ void test_ExecutionContext()
     auto tls1 = mythos::setupNewTLS();
     ASSERT(tls1 != nullptr);
     auto res1 = ec1.create(kmem).as(myAS).cs(myCS).sched(mythos::init::SCHEDULERS_START)
-    .prepareStack(thread1stack_top).startFun(&thread_main, nullptr, ec1.cap())
+    .prepareStack(thread1stack_top).startFun(&thread_main, nullptr)
     .suspended(false).fs(tls1)
     .invokeVia(pl).wait();
     TEST(res1);
@@ -328,7 +328,7 @@ void test_ExecutionContext()
     auto tls2 = mythos::setupNewTLS();
     ASSERT(tls2 != nullptr);
     auto res2 = ec2.create(kmem).as(myAS).cs(myCS).sched(mythos::init::SCHEDULERS_START+1)
-    .prepareStack(thread2stack_top).startFun(&thread_main, nullptr, ec2.cap())
+    .prepareStack(thread2stack_top).startFun(&thread_main, nullptr)
     .suspended(false).fs(tls2)
     .invokeVia(pl).wait();
     TEST(res2);
@@ -354,7 +354,7 @@ void test_InterruptControl() {
   auto tls = mythos::setupNewTLS();
   ASSERT(tls != nullptr);
   auto res1 = ec.create(kmem).as(myAS).cs(myCS).sched(mythos::init::SCHEDULERS_START + 2)
-    .prepareStack(thread3stack_top).startFun(&thread_main, nullptr, ec.cap())
+    .prepareStack(thread3stack_top).startFun(&thread_main, nullptr)
     .suspended(false).fs(tls)
     .invokeVia(pl).wait();
   TEST(res1);
@@ -482,24 +482,18 @@ int main()
   mythos::syscall_debug(str, sizeof(str)-1);
   MLOG_ERROR(mlog::app, "application is starting :)", DVARhex(msg_ptr), DVARhex(initstack_top));
 
-  //test_float();
-  //test_Example();
-  //test_Portal();
+  test_float();
+  test_Example();
+  test_Portal();
   test_heap(); // heap must be initialized for tls test
-  //test_tls();
-  //test_exceptions();
+  test_tls();
+  test_exceptions();
   //test_InterruptControl();
   //test_HostChannel(portal, 24*1024*1024, 2*1024*1024);
   test_ExecutionContext();
   test_pthreads();
   //test_Rapl();
   //test_CgaScreen();
-  MLOG_ERROR(mlog::app,
-    DVARhex(pthread_self()),
-    DVAR(mythos_get_pthread_tid(pthread_t(pthread_self()))),
-    DVAR(mythos::init::EC)
-    );
-  //*((char*)(nullptr)) = 0;
 
   char const end[] = "bye, cruel world!";
   mythos::syscall_debug(end, sizeof(end)-1);

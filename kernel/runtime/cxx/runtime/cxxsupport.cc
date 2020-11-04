@@ -281,7 +281,11 @@ int myclone(
     auto res1 = ec.create(kmem)
       .as(myAS)
       .cs(myCS)
+    // WARNING: This will lead to trouble if nextThread >= number of threads.
+    // It's also not thread safe.
+    // @TODO: More sensible thread placement.
       .sched(mythos::init::SCHEDULERS_START + (nextThread++))
+    //                                         ^^^^^^^^^^^^
       .rawStack(rsp)
       .rawFun(func, arg)
       .suspended(false)

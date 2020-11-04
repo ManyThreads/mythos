@@ -63,7 +63,12 @@ namespace mythos {
             // You can see this also in musl/src/thread/x86_64/clone.s (rsi is stack)
             // We will use the same trick for alignment as musl libc
             ib.regs.rsp = ((uintptr_t(ptr)) & uintptr_t(-16)) - 8; 
+
+            // the alignment step also made space for storing a "return address"
+            static_assert(sizeof(uintptr_t) <= 8,
+                "not enough space for fake return address");
             *(uintptr_t*)(ib.regs.rsp) = 0; // dummy return address
+
             return *this; 
         }
 
@@ -74,18 +79,16 @@ namespace mythos {
             return *this; 
         }
 
-        Msg& startFun(StartFun fun, void* userctx, CapPtr ec) { 
+        Msg& startFun(StartFun fun, void* userctx) { 
             ib.regs.rdi = uintptr_t(fun);                   // arg 1
             ib.regs.rsi = uintptr_t(userctx);               // arg 2
-            ib.regs.rdx = uintptr_t(ec);               	    // arg 3
             ib.regs.rip = uintptr_t(&start);
             return *this; 
         }
 
-        Msg& startFunInt(StartFunInt fun, void* userctx, CapPtr ec) { 
+        Msg& startFunInt(StartFunInt fun, void* userctx) { 
             ib.regs.rdi = uintptr_t(fun);                   // arg 1
             ib.regs.rsi = uintptr_t(userctx);               // arg 2
-            ib.regs.rdx = uintptr_t(ec);                    // arg 3
             ib.regs.rip = uintptr_t(&startInt);
             return *this; 
         }
@@ -106,11 +109,11 @@ namespace mythos {
         }
 
     protected:
-        static void start(StartFun main, void* userctx, uintptr_t) { 
+        static void start(StartFun main, void* userctx) { 
             syscall_exit(uintptr_t(main(userctx)));
         }
 
-        static void startInt(StartFunInt main, void* userctx, uintptr_t) { 
+        static void startInt(StartFunInt main, void* userctx) { 
             syscall_exit(main(userctx));
         }
     };    
