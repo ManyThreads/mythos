@@ -51,6 +51,7 @@
 #include <iostream>
 
 #include <pthread.h>
+#include "runtime/thread-extra.hh"
 #include <sys/time.h>
 
 
@@ -167,7 +168,7 @@ void test_tls()
     MLOG_INFO(mlog::app, "main thread TLS:", DVARhex(readFS(0)), DVARhex(readFS(0x28)));
     TEST_EQ(x, 1024);
     TEST_EQ(y, 2048);
-    mythos::syscall_wait();
+    mythos_wait();
     TEST_EQ(x, 1024);
     TEST_EQ(y, 2048);
     x = x*2;
@@ -182,7 +183,7 @@ void test_tls()
   MLOG_INFO(mlog::app, "test_EC: create ec1 TLS", DVARhex(tls));
   ASSERT(tls != nullptr);
   auto res1 = ec1.create(kmem).as(myAS).cs(myCS).sched(mythos::init::SCHEDULERS_START + 1)
-    .prepareStack(thread1stack_top).startFun(threadFun, nullptr, ec1.cap())
+    .prepareStack(thread1stack_top).startFun(threadFun, nullptr)
     .suspended(false).fs(tls)
     .invokeVia(pl).wait();
   TEST(res1);
@@ -280,7 +281,7 @@ void test_exceptions() {
 }
 
 void* threadMain(void* arg){
-  MLOG_INFO(mlog::app, "Thread says hello", DVAR(pthread_self()));
+  MLOG_INFO(mlog::app, "Thread says hello", DVAR(arg), DVAR(pthread_self()));
   return 0;
 }
 
@@ -288,7 +289,7 @@ void test_pthreads(){
   MLOG_INFO(mlog::app, "Test Pthreads");
 	pthread_t p;
  
-	auto tmp = pthread_create(&p, NULL, &threadMain, NULL);
+	auto tmp = pthread_create(&p, NULL, &threadMain, (void*) 0xBEEF);
   MLOG_INFO(mlog::app, "pthread_create returned", DVAR(tmp));
 	pthread_join(p, NULL);
 
@@ -302,7 +303,7 @@ void* thread_main(void* ctx)
   mutex << [ctx]() {
     MLOG_INFO(mlog::app, "thread in mutex", DVAR(ctx));
   };
-  mythos::ISysretHandler::handle(mythos::syscall_wait());
+  mythos_wait();
   MLOG_INFO(mlog::app, "thread resumed from wait", DVAR(ctx));
   return 0;
 }
@@ -319,7 +320,7 @@ void test_ExecutionContext()
     auto tls1 = mythos::setupNewTLS();
     ASSERT(tls1 != nullptr);
     auto res1 = ec1.create(kmem).as(myAS).cs(myCS).sched(mythos::init::SCHEDULERS_START)
-    .prepareStack(thread1stack_top).startFun(&thread_main, nullptr, ec1.cap())
+    .prepareStack(thread1stack_top).startFun(&thread_main, nullptr)
     .suspended(false).fs(tls1)
     .invokeVia(pl).wait();
     TEST(res1);
@@ -328,7 +329,7 @@ void test_ExecutionContext()
     auto tls2 = mythos::setupNewTLS();
     ASSERT(tls2 != nullptr);
     auto res2 = ec2.create(kmem).as(myAS).cs(myCS).sched(mythos::init::SCHEDULERS_START+1)
-    .prepareStack(thread2stack_top).startFun(&thread_main, nullptr, ec2.cap())
+    .prepareStack(thread2stack_top).startFun(&thread_main, nullptr)
     .suspended(false).fs(tls2)
     .invokeVia(pl).wait();
     TEST(res2);
@@ -354,7 +355,7 @@ void test_InterruptControl() {
   auto tls = mythos::setupNewTLS();
   ASSERT(tls != nullptr);
   auto res1 = ec.create(kmem).as(myAS).cs(myCS).sched(mythos::init::SCHEDULERS_START + 2)
-    .prepareStack(thread3stack_top).startFun(&thread_main, nullptr, ec.cap())
+    .prepareStack(thread3stack_top).startFun(&thread_main, nullptr)
     .suspended(false).fs(tls)
     .invokeVia(pl).wait();
   TEST(res1);
@@ -491,8 +492,8 @@ int main()
   //test_InterruptControl();
   //test_HostChannel(portal, 24*1024*1024, 2*1024*1024);
   test_ExecutionContext();
-  //test_pthreads();
-  test_Rapl();
+  test_pthreads();
+  //test_Rapl();
   //test_CgaScreen();
 
   char const end[] = "bye, cruel world!";
