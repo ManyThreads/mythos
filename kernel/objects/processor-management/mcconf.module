@@ -1,0 +1,10 @@
+# -*- mode:toml; -*-
+[module.objects-processor-management]
+    incfiles = [ "objects/ProcessorManagement.hh", "mythos/protocol/ProcessorManagement.hh" ]
+    kernelfiles = [ "objects/ProcessorManagement.cc" ]
+    provides = ["tag/plugin/createScCaps"]
+
+# -*- mode:toml; -*-
+[module.no-processor-management]
+    kernelfiles = [ "objects/PluginWithoutProcessorManagement.cc" ]
+    provides = ["tag/plugin/createScCaps"]
