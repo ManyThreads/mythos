@@ -132,21 +132,22 @@ namespace mythos {
       uintlink_t val() const { return _val; }
       CapEntry* ptr() const { return _toPtr(); }
       bool has(uintlink_t flags) const { return (_val & flags) == flags; }
-      Link with(uintlink_t flags) const { return Link(_val & flags); }
-      Link withFlags(const Link& other) const { return Link(_val).with(other._val & FLAG_MASK); }
+      Link with(uintlink_t flags) const { return Link(ptr(),  flags); }
+      Link withFlags(const Link& other) const { return Link(ptr(), other._val & FLAG_MASK); }
     protected:
 
       static uintlink_t _pack(CapEntry* entry, uintlink_t flags)
       {
+        ASSERT((flags | FLAG_MASK) == FLAG_MASK);
         if (entry) {
           auto offset = kernel2offset(entry);
-          ASSERT_MSG((offset & 7) == 0, "unaligned CapRef)");
+          ASSERT_MSG((offset & FLAG_MASK) == 0, "unaligned CapRef)");
           return offset | flags;
         } else return flags;
       }
 
       CapEntry* _toPtr() const {
-        auto ptr = _val & uintlink_t(~7);
+        auto ptr = _val & uintlink_t(~FLAG_MASK);
         return ptr ? offset2kernel<CapEntry>(ptr) : nullptr;
       }
       const uintlink_t _val;

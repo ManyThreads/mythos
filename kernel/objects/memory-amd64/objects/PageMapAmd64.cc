@@ -202,8 +202,6 @@ namespace mythos {
     auto newCap = frame.cap().asReference().withPtr(&mappedFrameHelper);
     MLOG_DETAIL(mlog::cap, "mapFrame", DVAR(&frameEntry), DVARhex(pme), DVAR(index), DVAR(entry),
       DVARhex(frameInfo.size), DVARhex(frameInfo.start.physint()));
-
-    // this should correctly identify the race condition
     cap::resetReference(_cap_table(index), [&]{ pme->reset(); });
     RETURN(cap::setReference(_cap_table(index), newCap, *frameEntry, frame.cap(), [=,&entry]{ pme->set(entry); }));
   }
