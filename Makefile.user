@@ -4,7 +4,6 @@ CPPFLAGS+= -DMLOG_BOOT=FilterError
 CPPFLAGS+= -DMLOG_CPU=FilterError
 CPPFLAGS+= -DMLOG_CAP=FilterError
 CPPFLAGS+= -DMLOG_EC=FilterError
-#CPPFLAGS+= -DMLOG_ERROR_THROW=FilterWarning
 CPPFLAGS+= -DMLOG_IRQ=FilterError
 CPPFLAGS+= -DMLOG_KM=FilterError
 CPPFLAGS+= -DMLOG_PORTAL=FilterError
@@ -13,3 +12,16 @@ CPPFLAGS+= -DMLOG_SYSCALL=FilterError
 CPPFLAGS+= -DMLOG_TASKLET=FilterError
 #CPPFLAGS+= -DTRACE
 #CPPFLAGS+= -DNDEBUG
+
+# mlog error throw
+#
+# FilterError shows only where the error is thrown
+# FilterWarning shows the error trace, hence, how the error is propagated
+# FilterDetail shows an stacktrace were the error is thrown the first time
+# FilterAny shows everything
+#
+# Default is FilterAny, since this is very helpful for finding errors.
+# If the stacktrace is to verbose, consider FilterWarning.
+# DO NOT COMMIT TO MASTER WITH ERROR TRACE OFF
+#
+#CPPFLAGS+= -DMLOG_ERROR_THROW=FilterWarning

@@ -30,6 +30,7 @@
 #include "objects/PageMapAmd64.hh"
 #include <boot/MemMapper.hh>
 #include "mythos/init.hh"
+#include "boot/mlog.hh"
 
 namespace mythos {
 
@@ -98,7 +99,7 @@ optional<void> MemMapper::mmapDevice(
     if (!dstEntry) RETHROW(dstEntry);
     auto res = mem->deriveFrame(**memEntry, memEntry->cap(), **dstEntry, physaddr, length, false);
     if (!res) RETHROW(res);
-    return mmap(vaddr, length, writable, executable, *dstPtr, 0); // offset 0 of the derived frame
+    RETURN(mmap(vaddr, length, writable, executable, *dstPtr, 0)); // offset 0 of the derived frame
 }
 
 optional<void> MemMapper::mmap(
