@@ -147,7 +147,7 @@ namespace mythos {
       }
 
       CapEntry* _toPtr() const {
-        auto ptr = _val & uintlink_t(~FLAG_MASK);
+        auto ptr = _val & ~FLAG_MASK;
         return ptr ? offset2kernel<CapEntry>(ptr) : nullptr;
       }
       const uintlink_t _val;
