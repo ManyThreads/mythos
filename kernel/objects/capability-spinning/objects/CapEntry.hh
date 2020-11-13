@@ -32,6 +32,7 @@
 #include "objects/Cap.hh"
 #include "cpu/hwthread_pause.hh"
 #include "util/assert.hh"
+#include "util/error-trace.hh"
 
 namespace mythos {
 
@@ -125,31 +126,49 @@ namespace mythos {
     class Link {
     public:
       Link() : _val(0) {}
+
+      explicit Link(uintlink_t value) : _val(value) {}
       Link(CapEntry* ptr, uintlink_t flags = 0) : _val(_pack(ptr, flags)) {}
-      Link(uintlink_t value) : _val(value) {}
-      operator uintlink_t() const { return val(); }
+
+      uintlink_t value() const { return _val; }
       CapEntry* operator->() { ASSERT(ptr()); return ptr(); }
-      uintlink_t val() const { return _val; }
-      CapEntry* ptr() const { return _toPtr(); }
-      bool has(uintlink_t flags) const { return (_val & flags) == flags; }
-      Link with(uintlink_t flags) const { return Link(ptr(),  flags); }
-      Link withFlags(const Link& other) const { return Link(ptr(), other._val & FLAG_MASK); }
+
+      Link withFlags(uintlink_t flags) const { return Link(_offset(),  flags); }
+      Link clearFlags() const { return Link(_offset(), 0); }
+
+      CapEntry* ptr() const
+      {
+        auto offset = _offset();
+        // null-offset is nullptr
+        return offset ? offset2kernel<CapEntry>(offset) : nullptr;
+      }
+
+      uintlink_t flags() const {
+        return _val & FLAG_MASK;
+      }
+
     protected:
+
+      Link(uintlink_t offset, uintlink_t flags) : _val(_pack(offset, flags)) {}
+
+      uintlink_t _offset() const {
+        return _val & ~FLAG_MASK;
+      }
+
+      static uintlink_t _pack(uintlink_t offset, uintlink_t flags)
+      {
+        ASSERT((flags | FLAG_MASK) == FLAG_MASK);
+        ASSERT_MSG((offset & FLAG_MASK) == 0, "unaligned CapRef)");
+        return offset | flags;
+      }
 
       static uintlink_t _pack(CapEntry* entry, uintlink_t flags)
       {
-        ASSERT((flags | FLAG_MASK) == FLAG_MASK);
-        if (entry) {
-          auto offset = kernel2offset(entry);
-          ASSERT_MSG((offset & FLAG_MASK) == 0, "unaligned CapRef)");
-          return offset | flags;
-        } else return flags;
+        // nullptr is null-offset
+        auto offset = entry ? kernel2offset(entry) : 0u;
+        return _pack(offset, flags);
       }
 
-      CapEntry* _toPtr() const {
-        auto ptr = _val & ~FLAG_MASK;
-        return ptr ? offset2kernel<CapEntry>(ptr) : nullptr;
-      }
       const uintlink_t _val;
     };
 
@@ -178,13 +197,13 @@ namespace mythos {
     // exec commit function while parent and child are still locked and the insert was successful
     commit(); 
 
-    auto nextEntry = Link(_next.load()).ptr();
-    nextEntry->setPrevPreserveFlags(&targetEntry);
-    targetEntry._next.store(Link(nextEntry));
+    auto next = Link(_next.load()).clearFlags();
+    next->setPrevPreserveFlags(&targetEntry);
+    targetEntry._next.store(next.value());
     // deleted or revoking can not be set in target._prev
     // as we allocated target for being inserted
-    targetEntry._prev.store(Link(this));
-    this->_next.store(Link(&targetEntry)); // unlocks the parent entry
+    targetEntry._prev.store(Link(this).value());
+    this->_next.store(Link(&targetEntry).value()); // unlocks the parent entry
     targetEntry.commit(targetCap); // release the target entry as usable
     RETURN(Error::SUCCESS);
   }
