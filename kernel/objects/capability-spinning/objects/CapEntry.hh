@@ -136,6 +136,8 @@ namespace mythos {
       Link withFlags(uintlink_t flags) const { return Link(_offset(),  flags); }
       Link clearFlags() const { return Link(_offset(), 0); }
 
+      Link withPtr(CapEntry* ptr) const { return Link(ptr, flags()); }
+
       CapEntry* ptr() const
       {
         auto offset = _offset();

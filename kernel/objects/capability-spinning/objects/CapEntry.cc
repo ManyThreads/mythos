@@ -72,10 +72,10 @@ namespace mythos {
   void CapEntry::setPrevPreserveFlags(CapEntry* ptr)
   {
     auto expected = _prev.load();
-    auto desired = Link(ptr, Link(expected).flags()).value();
-    while (!_prev.compare_exchange_weak(expected, desired)) {
-      desired = Link(ptr, Link(expected).flags()).value();
-    }
+    uintlink_t desired;
+    do {
+      desired = Link(expected).withPtr(ptr).value();
+    } while (!_prev.compare_exchange_weak(expected, desired));
   }
 
   optional<void> CapEntry::moveTo(CapEntry& other)
