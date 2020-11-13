@@ -43,7 +43,7 @@ optional<CapPtr> MemMapper::createFrame(CapPtr frameCap, size_t size, size_t ali
 
     auto frameEntry = caps->get(frameCap);
     if (!frameEntry) RETHROW(frameEntry);
-    if (!frameEntry->acquire()) THROW(Error::LOST_RACE);
+    if (!frameEntry->acquire()) RETHROW(Error::LOST_RACE);
 
     auto frame = MemoryRegionFactory::factory(
         *frameEntry, *kmemEntry, kmem.cap(), *kmem, size, alignment);
@@ -63,7 +63,7 @@ optional<CapEntry*> MemMapper::createPageMap(CapPtr dstCap, int level)
 
     auto dstEntry = caps->get(dstCap);
     if (!dstEntry) RETHROW(dstEntry);
-    if (!dstEntry->acquire()) THROW(Error::LOST_RACE);
+    if (!dstEntry->acquire()) RETHROW(Error::LOST_RACE);
 
     auto pagemap = PageMapFactory::factory(
         *dstEntry, *kmemEntry, kmem.cap(), *kmem, level+1); // PageMap counts 1,2,3,4
