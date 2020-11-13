@@ -100,7 +100,7 @@ void test_Portal()
   MLOG_ERROR(mlog::app, "test_Portal begin");
   mythos::PortalLock pl(portal); // future access will fail if the portal is in use already
   MLOG_INFO(mlog::app, "test_Portal: allocate portal");
-  uintptr_t vaddr = 22*1024*1024; // choose address different from invokation buffer
+  uintptr_t vaddr = mythos::round_up(uintptr_t(msg_ptr) + 1,  mythos::align2M);
   // allocate a portal
   mythos::Portal p2(capAlloc(), (void*)vaddr);
   auto res1 = p2.create(pl, kmem).wait();
@@ -196,9 +196,9 @@ void test_tls()
 void test_heap() {
   MLOG_INFO(mlog::app, "Test heap");
   mythos::PortalLock pl(portal);
-  uintptr_t vaddr = 24*1024*1024; // choose address different from invokation buffer
   auto size = 4*1024*1024; // 2 MB
   auto align = 2*1024*1024; // 2 MB
+  uintptr_t vaddr = mythos::round_up(uintptr_t(msg_ptr) + 1,  align);
   // allocate a 2MiB frame
   mythos::Frame f(capAlloc());
   auto res2 = f.create(pl, kmem, size, align).wait();
