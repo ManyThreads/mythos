@@ -250,9 +250,10 @@ optional<void> InitLoader::loadProgramHeader(
     if (vend-vbegin == 0) RETURN(Error::SUCCESS); // nothing to do
 
     // map the frame into the pages
-    memMapper.mmap(vbegin, vend-vbegin,
+    auto res = memMapper.mmap(vbegin, vend-vbegin,
         ph->flags&elf64::PF_W, ph->flags&elf64::PF_X,
         frameCap, offset);
+    if (!res) RETHROW(res);
 
     // get frame info for its address in the kernel memory area
     TypedCap<IFrame> frame(capAlloc.get(frameCap));
