@@ -1,5 +1,5 @@
 [module.runtime-kobject]
     incfiles = [ "runtime/ExecutionContext.hh", "runtime/CapMap.hh",
-    "runtime/Example.hh", "runtime/Frame.hh", "runtime/PageMap.hh", "runtime/Portal.hh",
+    "runtime/Example.hh", "runtime/Frame.hh", "runtime/PageMap.hh", "runtime/Portal.hh", "runtime/ProcessorManagement.hh",
     "runtime/KernelMemory.hh", "runtime/SimpleCapAlloc.hh", "runtime/InterruptControl.hh", "runtime/RaplDriverIntel.hh" ]
     appfiles = [ "runtime/ExecutionContext.cc" ]

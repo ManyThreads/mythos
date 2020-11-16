@@ -4,7 +4,7 @@
         "boot/CapAlloc.hh" ]
     kernelfiles = [ "boot/init_image.S", "boot/load_init.cc",
         "boot/MemMapper.cc", "boot/load_init_plugin.cc" ]
-    requires = [ "app/init.elf" ]
+    requires = [ "app/init.elf", "tag/plugin/createScCaps" ]
     makefile_body = '''
 boot/init_image.o: app/init.elf
 '''

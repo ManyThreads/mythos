@@ -24,6 +24,7 @@
  * Copyright 2020 Philipp Gypser and contributors, BTU Cottbus-Senftenberg
  */
 
+#include "objects/ProcessorManagement.hh"
 #include "util/events.hh"
 #include "boot/load_init.hh"
 #include "mythos/init.hh"
@@ -31,32 +32,37 @@
 
 namespace mythos {
 
-  class PluginWithoutProcessorManagement
+  class PluginProcessorManagement
     : public EventHook<boot::InitLoader&>
-    : public EventHook<boot::InitLoader&, ExecutionContext&>
+    , public EventHook<boot::InitLoader&, ExecutionContext&>
   {
   public:
-    PluginWithoutProcessorManagement() {
+    PluginProcessorManagement() {
       event::initLoader.add(this);
       event::initEC.add(this);
     }
-    virtual ~PluginWithoutProcessorManagement() {}
+    virtual ~PluginProcessorManagement() {}
 
     void processEvent(boot::InitLoader& loader) override {
-      ASSERT(cpu::getNumThreads() <= init::SCHEDULERS_START - init::APP_CAP_START);
-      MLOG_INFO(mlog::boot, "... create scheduling context caps in caps",
-            init::SCHEDULERS_START, "till", init::SCHEDULERS_START+cpu::getNumThreads()-1);
-      for (cpu::ThreadID id = 0; id < cpu::getNumThreads(); ++id) {
-        OOPS(loader.csSet(init::SCHEDULERS_START+id, boot::getScheduler(id)));
-      }
+      MLOG_ERROR(mlog::boot, "INIT PM");
+      pm.init();
+      MLOG_ERROR(mlog::boot, "CSset PM");
+      OOPS(loader.csSet(init::PROCESSOR_MANAGEMENT, pm));
     }
 
     void processEvent(boot::InitLoader& loader, ExecutionContext& ec) override {
-      ec.setSchedulingContext(loader.capAlloc.get(init::SCHEDULERS_START));
+      MLOG_ERROR(mlog::boot, "... create scheduling context caps in caps");
+      auto id = pm.alloc();
+      if(id){
+        MLOG_ERROR(mlog::boot, "got id", *id);
+        OOPS(loader.csSet(init::SCHEDULERS_START+*id, boot::getScheduler(*id)));
+        ec.setSchedulingContext(loader.capAlloc.get(init::SCHEDULERS_START+*id));
+      }
     }
     
+    ProcessorManagement pm;
   };
 
-PluginWithoutProcessorManagement pluginWithoutProcessorManagement;
+  PluginProcessorManagement pluginProcessorManagement;
 
 } // namespace mythos

@@ -31,6 +31,7 @@
 #include "util/VectorMax.hh"
 #include "objects/CapEntry.hh"
 #include "objects/IPageMap.hh"
+#include "objects/ExecutionContext.hh"
 #include "util/events.hh"
 #include "boot/MemMapper.hh"
 #include "boot/CapAlloc.hh"
@@ -43,6 +44,7 @@ namespace mythos {
   class KernelMemory;
   class CapMap;
   class Portal;
+  class ProcessorManagement;
   class IFrame;
 
   namespace boot {
@@ -72,6 +74,7 @@ namespace mythos {
 
       KernelMemory* _mem;
       CapEntry* _memEntry;
+      ProcessorManagement* procMgmt;
 
       /** allocates capability entries in CAP_ALLOC_START..CAP_ALLOC_END */
       CapAlloc capAlloc;
@@ -84,6 +87,7 @@ namespace mythos {
 
   namespace event {
     extern Event<boot::InitLoader&> initLoader;
+    extern Event<boot::InitLoader&, ExecutionContext&> initEC;
   }
 
 } // namespace mythos

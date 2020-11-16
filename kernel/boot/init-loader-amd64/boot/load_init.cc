@@ -49,6 +49,7 @@
 namespace mythos {
     
 Event<boot::InitLoader&> event::initLoader;
+Event<boot::InitLoader&, ExecutionContext&> event::initEC;
     
 namespace boot {
 
@@ -154,14 +155,6 @@ optional<void> InitLoader::initCSpace()
   MLOG_INFO(mlog::boot, "... create memory regions root in cap", init::DEVICE_MEM);
   {
     auto res = csSet(init::DEVICE_MEM, boot::device_memory_root_entry());
-    if (!res) RETHROW(res);
-  }
-
-  ASSERT(cpu::getNumThreads() <= init::SCHEDULERS_START - init::APP_CAP_START);
-  MLOG_INFO(mlog::boot, "... create scheduling context caps in caps",
-        init::SCHEDULERS_START, "till", init::SCHEDULERS_START+cpu::getNumThreads()-1);
-  for (cpu::ThreadID id = 0; id < cpu::getNumThreads(); ++id) {
-    auto res = csSet(init::SCHEDULERS_START+id, boot::getScheduler(id));
     if (!res) RETHROW(res);
   }
 
@@ -276,7 +269,10 @@ optional<void> InitLoader::createEC(uintptr_t ipc_vaddr)
   optional<void> res(Error::SUCCESS);
   if (res) res = ec->setCapSpace(capAlloc.get(init::CSPACE));
   if (res) res = ec->setAddressSpace(capAlloc.get(init::PML4));
-  if (res) res = ec->setSchedulingContext(capAlloc.get(init::SCHEDULERS_START));
+  //if (res) res = ec->setSchedulingContext(capAlloc.get(init::SCHEDULERS_START));
+
+  event::initEC.emit(*this, **ec);
+  
   if (!res) RETHROW(res);
   ec->getThreadState().rdi = ipc_vaddr;
   ec->setEntryPoint(_img.header()->entry);

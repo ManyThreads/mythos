@@ -21,40 +21,41 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  *
- * Copyright 2016 Randolf Rotta, Robert Kuban, and contributors, BTU Cottbus-Senftenberg
+ * Copyright 2020 Philipp Gypser and contributors, BTU Cottbus-Senftenberg
  */
 #pragma once
 
-#include <cstdint>
-#include "mythos/InvocationBuf.hh"
-#include "mythos/Error.hh"
+#include "runtime/PortalBase.hh"
+#include "mythos/protocol/ProcessorManagement.hh"
+#include "mythos/init.hh"
 
 namespace mythos {
 
-  namespace protocol {
+  class ProcessorManagement : public KObject
+  {
+  public:
 
-    enum CoreProtocols : uint8_t {
-      KERNEL_OBJECT = 1,
-      DEVICE_MEMORY,
-      KERNEL_MEMORY,
-      FRAME,
-      PAGEMAP,
-      CAPMAP,
-      EXECUTION_CONTEXT,
-      PORTAL,
-      EXAMPLE,
-      CPUDRIVERKNC,
-      RAPLDRIVERINTEL,
-      PROCESSORMANAGEMENT,
-      INTERRUPT_CONTROL,
+    ProcessorManagement() {}
+    ProcessorManagement(CapPtr cap) : KObject(cap) {}
+
+    struct AllocCoreResult{
+      AllocCoreResult() {}
+      AllocCoreResult(InvocationBuf* ib) {
+        auto msg = ib->cast<protocol::ProcessorManagement::RetAllocCore>();
+        sc = msg->sc();
+      }
+      
+      CapPtr sc = null_cap;
     };
 
-  } // namespace protocol
+    PortalFuture<AllocCoreResult> allocCore(PortalLock pr){
+      return pr.invoke<protocol::ProcessorManagement::AllocCore>(_cap);
+      
+    }
 
-enum MappingRequest : uint8_t {
-  MAPPING_PROPERTIES,
-  MAP_FRAME,
-  MAP_TABLE,
-};
+    PortalFuture<void> freeCore(PortalLock pr, CapPtr sc){
+      return pr.invoke<protocol::ProcessorManagement::FreeCore>(_cap, sc);
+    }
+  };
 
 } // namespace mythos
