@@ -134,7 +134,7 @@ namespace mythos {
       CapEntry* operator->() { ASSERT(ptr()); return ptr(); }
 
       Link withFlags(uintlink_t flags) const { return Link(_offset(),  flags); }
-      Link clearFlags() const { return Link(_offset(), 0); }
+      Link withoutFlags() const { return Link(_offset(), 0); }
 
       Link withPtr(CapEntry* ptr) const { return Link(ptr, flags()); }
 
@@ -199,7 +199,7 @@ namespace mythos {
     // exec commit function while parent and child are still locked and the insert was successful
     commit(); 
 
-    auto next = Link(_next.load()).clearFlags();
+    auto next = Link(_next.load()).withoutFlags();
     next->setPrevPreserveFlags(&targetEntry);
     targetEntry._next.store(next.value());
     // deleted or revoking can not be set in target._prev

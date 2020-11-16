@@ -95,8 +95,8 @@ namespace mythos {
       THROW(Error::INVALID_CAPABILITY);
     }
 
-    auto next= Link(_next).clearFlags();
-    auto prev= Link(_prev).clearFlags();
+    auto next= Link(_next).withoutFlags();
+    auto prev= Link(_prev).withoutFlags();
 
     next->setPrevPreserveFlags(&other);
     other._next.store(next.value());
@@ -127,8 +127,8 @@ namespace mythos {
 
   optional<void> CapEntry::unlink()
   {
-    auto next = Link(_next).clearFlags();
-    auto prev = Link(_prev).clearFlags();
+    auto next = Link(_next).withoutFlags();
+    auto prev = Link(_prev).withoutFlags();
     next->_prev.store(prev.value());
     prev->_next.store(next.value());
     _prev.store(Link().value());
