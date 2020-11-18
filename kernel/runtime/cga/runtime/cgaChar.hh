@@ -21,15 +21,29 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  *
- * Copyright 2019 Randolf Rotta, Robert Kuban, and contributors, BTU Cottbus-Senftenberg
+ * Copyright 2020 Philipp Gypser and contributors, BTU Cottbus-Senftenberg
  */
-#include "runtime/ExecutionContext.hh"
+#pragma once
 
-thread_local mythos::CapPtr mythos::localEC;
+#include "runtime/cgaAttr.hh"
 
-static void init_localEC() __attribute__((constructor));
+namespace mythos{
 
-void init_localEC()
-{
-    mythos::localEC = mythos::init::EC; //important initialization!!
-}
+class CgaChar {
+
+public:
+  void setChar(char c) { this->value = c; }
+
+  char getChar() { return this->value; }
+
+  void setAttr(const CgaAttr& attr) { this->attr = attr; }
+
+  CgaAttr getAttr() { return this-> attr; }
+
+private:
+  char value;
+  CgaAttr attr;
+};
+
+
+} // namespace mythos

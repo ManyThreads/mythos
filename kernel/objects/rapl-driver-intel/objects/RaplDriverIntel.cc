@@ -145,15 +145,15 @@ namespace mythos {
     }
 
     //determine power unit
-    power_units = bits(x86::getMSR(MSR_RAPL_POWER_UNIT),3,0);
+    power_units = static_cast<uint32_t>(bits(x86::getMSR(MSR_RAPL_POWER_UNIT),3,0));
     MLOG_INFO(mlog::boot, "msr_rapl_power_units", power_units);
 
     //determine time unit
-    time_units = bits(x86::getMSR(MSR_RAPL_POWER_UNIT),19,16);
+    time_units = static_cast<uint32_t>(bits(x86::getMSR(MSR_RAPL_POWER_UNIT),19,16));
     MLOG_INFO(mlog::boot, "time_units", time_units);
 
     //determine cpu energy unit
-    cpu_energy_units = bits(x86::getMSR(MSR_RAPL_POWER_UNIT),12,8);
+    cpu_energy_units = static_cast<uint32_t>(bits(x86::getMSR(MSR_RAPL_POWER_UNIT),12,8));
     MLOG_INFO(mlog::boot, "cpu_energy_units", cpu_energy_units);
 
     if(different_units){
@@ -197,6 +197,9 @@ namespace mythos {
       uint64_t pl_es = x86::getMSR(MSR_PLATFORM_ENERGY_STATUS);
       MLOG_ERROR(mlog::boot, "Platform energy status =", pl_es >> cpu_energy_units);
     }
+
+    uint64_t pkg_es = x86::getMSR(MSR_PKG_ENERGY_STATUS);
+    MLOG_ERROR(mlog::boot, "Package energy status =", pkg_es >> cpu_energy_units);
   }
 
   Error RaplDriverIntel::invoke_getRaplVal(Tasklet*, Cap, IInvocation* msg)
@@ -212,6 +215,7 @@ namespace mythos {
     ret->val.pp1 = pp1_avail? x86::getMSR(MSR_PP1_ENERGY_STATUS) : 0;
     ret->val.psys = psys_avail? x86::getMSR(MSR_PLATFORM_ENERGY_STATUS) : 0;
     ret->val.dram = dram_avail? x86::getMSR(MSR_DRAM_ENERGY_STATUS) : 0;
+    ret->val.pkg = x86::getMSR(MSR_PKG_ENERGY_STATUS);
 
     return Error::SUCCESS;
   }

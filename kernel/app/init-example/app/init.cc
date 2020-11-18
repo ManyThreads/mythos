@@ -43,6 +43,7 @@
 #include "util/optional.hh"
 #include "runtime/umem.hh"
 #include "runtime/Mutex.hh"
+#include "runtime/cgaScreen.hh"
 
 #include <vector>
 #include <array>
@@ -50,7 +51,9 @@
 #include <iostream>
 
 #include <pthread.h>
+#include "runtime/thread-extra.hh"
 #include <sys/time.h>
+
 
 mythos::InvocationBuf* msg_ptr asm("msg_ptr");
 int main() asm("main");
@@ -97,7 +100,7 @@ void test_Portal()
   MLOG_ERROR(mlog::app, "test_Portal begin");
   mythos::PortalLock pl(portal); // future access will fail if the portal is in use already
   MLOG_INFO(mlog::app, "test_Portal: allocate portal");
-  uintptr_t vaddr = 22*1024*1024; // choose address different from invokation buffer
+  uintptr_t vaddr = mythos::round_up(uintptr_t(msg_ptr) + 1,  mythos::align2M);
   // allocate a portal
   mythos::Portal p2(capAlloc(), (void*)vaddr);
   auto res1 = p2.create(pl, kmem).wait();
@@ -165,7 +168,7 @@ void test_tls()
     MLOG_INFO(mlog::app, "main thread TLS:", DVARhex(readFS(0)), DVARhex(readFS(0x28)));
     TEST_EQ(x, 1024);
     TEST_EQ(y, 2048);
-    mythos::syscall_wait();
+    mythos_wait();
     TEST_EQ(x, 1024);
     TEST_EQ(y, 2048);
     x = x*2;
@@ -180,7 +183,7 @@ void test_tls()
   MLOG_INFO(mlog::app, "test_EC: create ec1 TLS", DVARhex(tls));
   ASSERT(tls != nullptr);
   auto res1 = ec1.create(kmem).as(myAS).cs(myCS).sched(mythos::init::SCHEDULERS_START + 1)
-    .prepareStack(thread1stack_top).startFun(threadFun, nullptr, ec1.cap())
+    .prepareStack(thread1stack_top).startFun(threadFun, nullptr)
     .suspended(false).fs(tls)
     .invokeVia(pl).wait();
   TEST(res1);
@@ -193,9 +196,9 @@ void test_tls()
 void test_heap() {
   MLOG_INFO(mlog::app, "Test heap");
   mythos::PortalLock pl(portal);
-  uintptr_t vaddr = 22*1024*1024; // choose address different from invokation buffer
   auto size = 4*1024*1024; // 2 MB
   auto align = 2*1024*1024; // 2 MB
+  uintptr_t vaddr = mythos::round_up(uintptr_t(msg_ptr) + 1,  align);
   // allocate a 2MiB frame
   mythos::Frame f(capAlloc());
   auto res2 = f.create(pl, kmem, size, align).wait();
@@ -278,7 +281,7 @@ void test_exceptions() {
 }
 
 void* threadMain(void* arg){
-  MLOG_INFO(mlog::app, "Thread says hello", DVAR(pthread_self()));
+  MLOG_INFO(mlog::app, "Thread says hello", DVAR(arg), DVAR(pthread_self()));
   return 0;
 }
 
@@ -286,7 +289,7 @@ void test_pthreads(){
   MLOG_INFO(mlog::app, "Test Pthreads");
 	pthread_t p;
  
-	auto tmp = pthread_create(&p, NULL, &threadMain, NULL);
+	auto tmp = pthread_create(&p, NULL, &threadMain, (void*) 0xBEEF);
   MLOG_INFO(mlog::app, "pthread_create returned", DVAR(tmp));
 	pthread_join(p, NULL);
 
@@ -300,7 +303,7 @@ void* thread_main(void* ctx)
   mutex << [ctx]() {
     MLOG_INFO(mlog::app, "thread in mutex", DVAR(ctx));
   };
-  mythos::ISysretHandler::handle(mythos::syscall_wait());
+  mythos_wait();
   MLOG_INFO(mlog::app, "thread resumed from wait", DVAR(ctx));
   return 0;
 }
@@ -317,7 +320,7 @@ void test_ExecutionContext()
     auto tls1 = mythos::setupNewTLS();
     ASSERT(tls1 != nullptr);
     auto res1 = ec1.create(kmem).as(myAS).cs(myCS).sched(mythos::init::SCHEDULERS_START)
-    .prepareStack(thread1stack_top).startFun(&thread_main, nullptr, ec1.cap())
+    .prepareStack(thread1stack_top).startFun(&thread_main, nullptr)
     .suspended(false).fs(tls1)
     .invokeVia(pl).wait();
     TEST(res1);
@@ -326,7 +329,7 @@ void test_ExecutionContext()
     auto tls2 = mythos::setupNewTLS();
     ASSERT(tls2 != nullptr);
     auto res2 = ec2.create(kmem).as(myAS).cs(myCS).sched(mythos::init::SCHEDULERS_START+1)
-    .prepareStack(thread2stack_top).startFun(&thread_main, nullptr, ec2.cap())
+    .prepareStack(thread2stack_top).startFun(&thread_main, nullptr)
     .suspended(false).fs(tls2)
     .invokeVia(pl).wait();
     TEST(res2);
@@ -352,7 +355,7 @@ void test_InterruptControl() {
   auto tls = mythos::setupNewTLS();
   ASSERT(tls != nullptr);
   auto res1 = ec.create(kmem).as(myAS).cs(myCS).sched(mythos::init::SCHEDULERS_START + 2)
-    .prepareStack(thread3stack_top).startFun(&thread_main, nullptr, ec.cap())
+    .prepareStack(thread3stack_top).startFun(&thread_main, nullptr)
     .suspended(false).fs(tls)
     .invokeVia(pl).wait();
   TEST(res1);
@@ -385,7 +388,6 @@ void test_Rapl(){
   gettimeofday(&start_run, 0);
 	asm volatile ("":::"memory");
   
-
   MLOG_INFO(mlog::app, "Start prime test");
   unsigned numPrimes = 0;
   const uint64_t max = 200000;
@@ -404,36 +406,95 @@ void test_Rapl(){
   std::cout << "Prime test done in " <<  seconds << " seonds (" << numPrimes 
 	  << " primes found in Range from 0 to " << max << ")." << std::endl;
   std::cout << "Energy consumption:" << std::endl;
-  double pp0 = end.pp0 - start.pp0;
-  pp0 *= pow(0.5, start.cpu_energy_units);
+
+  double pp0 = (end.pp0 - start.pp0) * pow(0.5, start.cpu_energy_units);
   std::cout << "Power plane 0 (processor cores only): " << pp0 << " Joule. Average power: " << pp0/seconds << " watts." << std::endl;
+  
   double pp1 = (end.pp1 - start.pp1) * pow(0.5, start.cpu_energy_units);
   std::cout << "Power plane 1 (a specific device in the uncore): " << pp1 << " Joule. Average power: " << pp1/seconds << " watts." << std::endl;
+  
   double psys = (end.psys - start.psys) * pow(0.5, start.cpu_energy_units);
-  std::cout << "Package (whole cpu): " << psys << " Joule. Average power: " << psys/seconds << " watts." << std::endl;
+  std::cout << "Platform : " << psys << " Joule. Average power: " << psys/seconds << " watts." << std::endl;
+  
+  double pkg = (end.pkg - start.pkg) * pow(0.5, start.cpu_energy_units);
+  std::cout << "Package : " << pkg << " Joule. Average power: " << pkg/seconds << " watts." << std::endl;
+  
   double dram = (end.dram - start.dram) * pow(0.5, start.dram_energy_units);
   std::cout << "DRAM (memory controller): " << dram << " Joule. Average power: " << dram/seconds << " watts." << std::endl;
 
   MLOG_INFO(mlog::app, "Test RAPL finished");
 }
 
+void test_CgaScreen(){
+  MLOG_INFO(mlog::app, "Test CGA screen");
+
+  uintptr_t paddr = mythos::CgaScreen::VIDEO_RAM;
+  uintptr_t vaddr = 22*1024*1024;
+
+  mythos::PortalLock pl(portal);
+
+  MLOG_INFO(mlog::app, "test_CgaScreen: allocate device memory"); 
+  mythos::Frame f(capAlloc());
+  auto res1 = f.createDevice(pl, device_memory, paddr, 1*1024*1024, true).wait(); 
+  TEST(res1); 
+
+  MLOG_INFO(mlog::app, "test_CgaScreen: allocate level 1 page map (4KiB pages)");
+  mythos::PageMap p1(capAlloc());
+  auto res2 = p1.create(pl, kmem, 1);
+  TEST(res2);
+
+  MLOG_INFO(mlog::app, "test_CgaScreen: map level 1 page map on level 2", DVARhex(vaddr));
+  auto res3 = myAS.installMap(pl, p1, vaddr, 2,
+    mythos::protocol::PageMap::MapFlags().writable(true).configurable(true)).wait();
+  TEST(res3);
+
+  MLOG_INFO(mlog::app, "test_CgaScreen: map frame");
+  auto res4 = myAS.mmap(pl, f, vaddr, 4096, mythos::protocol::PageMap::MapFlags().writable(true)).wait();
+  TEST(res4);
+
+  mythos::CgaScreen screen(vaddr);
+
+  screen.show('H');
+  screen.show('e');
+  screen.show('l');
+  screen.show('l');
+  screen.show('o');
+  screen.show(' ');
+  screen.show('w');
+  screen.show('o');
+  screen.show('r');
+  screen.show('l');
+  screen.show('d');
+  screen.show('!');
+  screen.show('\n');
+
+  screen.log("Hello world, but in another way!");
+  MLOG_INFO(mlog::app, "test_CgaScreen: delete page map");
+  TEST(capAlloc.free(p1, pl));
+  MLOG_INFO(mlog::app, "test_CgaScreen: delete device frame");
+  TEST(capAlloc.free(f, pl));
+
+  MLOG_INFO(mlog::app, "Test CGA finished");
+}
+
 int main()
 {
-  char const str[] = "hello world!";
+  char const str[] = "Hello world!";
   mythos::syscall_debug(str, sizeof(str)-1);
   MLOG_ERROR(mlog::app, "application is starting :)", DVARhex(msg_ptr), DVARhex(initstack_top));
 
   test_float();
   test_Example();
-  //test_Portal();
+  test_Portal();
   test_heap(); // heap must be initialized for tls test
   test_tls();
   test_exceptions();
   //test_InterruptControl();
   //test_HostChannel(portal, 24*1024*1024, 2*1024*1024);
   test_ExecutionContext();
-  //test_pthreads();
-  test_Rapl();
+  test_pthreads();
+  //test_Rapl();
+  //test_CgaScreen();
 
   char const end[] = "bye, cruel world!";
   mythos::syscall_debug(end, sizeof(end)-1);

@@ -169,15 +169,14 @@ extern "C" long mythos_musl_syscall(
         MLOG_WARN(mlog::app, "syscall madvise NYI");
         return 0;
     case 39: // getpid
-        //MLOG_WARN(mlog::app, "syscall getpid NYI");
+        MLOG_WARN(mlog::app, "syscall getpid NYI");
         return 0;
     case 60: // exit(exit_code)
         //MLOG_DETAIL(mlog::app, "syscall exit", DVAR(a1));
         asm volatile ("syscall" : : "D"(0), "S"(a1) : "memory");
         return 0;
     case 186: // gettid
-        //MLOG_WARN(mlog::app, "syscall gettid");
-        return -1;
+        return mythos_get_pthread_tid(pthread_self());
     case 200: // tkill(pid, sig)
         MLOG_WARN(mlog::app, "syscall tkill NYI");
         return 0;
@@ -268,15 +267,31 @@ int myclone(
     ASSERT(tls != nullptr);
     static int nextThread = 1;
 
+    // The compiler expect a kinda strange alignment coming from clone:
+    // -> rsp % 16 must be 8
+    // You can see this also in musl/src/thread/x86_64/clone.s (rsi is stack)
+    // We will use the same trick for alignment as musl libc
+    auto rsp = (uintptr_t(stack) & uintptr_t(-16))-8;
+
     mythos::PortalLock pl(portal); // future access will fail if the portal is in use already
     mythos::ExecutionContext ec(capAlloc());
     if (ptid && (flags&CLONE_PARENT_SETTID)) *ptid = int(ec.cap());
     // @todo store thread-specific ctid pointer, which should set to 0 by the OS on the thread's exit
     // @todo needs interaction with a process internal scheduler or core manager in order to figure out where to schedule the new thread
-    auto res1 = ec.create(kmem).as(myAS).cs(myCS).sched(mythos::init::SCHEDULERS_START + (nextThread++))
-        .prepareStack(stack).startFunInt(func, arg, ec.cap())
-        .suspended(false).fs(tls)
-        .invokeVia(pl).wait();
+    auto res1 = ec.create(kmem)
+      .as(myAS)
+      .cs(myCS)
+    // WARNING: This will lead to trouble if nextThread >= number of threads.
+    // It's also not thread safe.
+    // @TODO: More sensible thread placement.
+      .sched(mythos::init::SCHEDULERS_START + (nextThread++))
+    //                                         ^^^^^^^^^^^^
+      .rawStack(rsp)
+      .rawFun(func, arg)
+      .suspended(false)
+      .fs(tls)
+      .invokeVia(pl)
+      .wait();
     //MLOG_DETAIL(mlog::app, DVAR(ec.cap()));
     return ec.cap();
 }

@@ -25,39 +25,91 @@
  */
 #pragma once
 
-#include "runtime/PortalBase.hh"
-#include "mythos/protocol/RaplDriverIntel.hh"
-#include "mythos/init.hh"
+namespace mythos{
 
-namespace mythos {
+class CgaAttr {
+private:
+  enum AttrMaskAndShifts {
+		FG_MASK = 0xf,
+		BG_MASK = 0x70,
+		BLINK_MASK = 0x80,
+		BG_SHIFT = 4,
+		BLINK_SHIFT = 7
+	};
 
-  class RaplDriverIntel : public KObject
-  {
-  public:
 
-    RaplDriverIntel() {}
-    RaplDriverIntel(CapPtr cap) : KObject(cap) {}
+public:
+	enum Color {
+		BLACK=0,
+		BLUE=1,
+		GREEN=2,
+		CYAN=3,
+		RED=4,
+		MAGENTA=5,
+		BROWN=6,
+		LIGHT_GRAY=7,
+		GRAY=8,
+		LIGHT_BLUE=9,
+		LIGHT_GREEN=10,
+		LIGHT_CYAN=11,
+		LIGHT_RED=12,
+		LIGHT_MAGENTA=13,
+		YELLOW=14,
+		WHITE=15
+	};
 
-    struct Result : public RaplVal {
-      Result() {}
-      Result(InvocationBuf* ib) {
-        auto val = ib->cast<protocol::RaplDriverIntel::Result>()->val;
+	CgaAttr(Color fg=WHITE, Color bg=BLACK, bool blink=false)
+	{
+		attr = (fg & FG_MASK) | ((bg << BG_SHIFT) & BG_MASK);
+		if(blink){
+			attr |= BLINK_MASK;
+		}
+	}
 
-        pp0 = val.pp0;
-        pp1 = val.pp1;
-        psys = val.psys;
-        pkg = val.pkg;
-        dram = val.dram;
-        cpu_energy_units = val.cpu_energy_units;
-        dram_energy_units = val.dram_energy_units;
-      }
-    };
+	void setForeground(Color col)
+	{
+		attr = (attr & ~(FG_MASK)) | (col & FG_MASK);
+	}
 
-    PortalFuture<Result>
-    getRaplVal(PortalLock pr) {
-      return pr.invoke<protocol::RaplDriverIntel::GetRaplVal>(_cap);
-    }
+	void setBackground(Color col)
+	{
+		attr = (attr & ~(BG_MASK)) | ((col << BG_SHIFT) & BG_MASK);
+	}
 
-  };
+	void setBlinkState(bool blink)
+	{
+		if(blink){
+			attr |= BLINK_MASK;
+		}else{
+			attr &= ~BLINK_MASK;
+		}
+	}
+
+	void setAttr(CgaAttr attr)
+	{
+		this->attr = attr.attr;
+	}
+
+	Color getForeground()
+	{
+		return (Color)(attr & FG_MASK);
+	}
+
+	Color getBackground()
+	{
+		return (Color)((attr & BG_MASK) >> BG_SHIFT);
+	}
+
+	bool getBlinkState()
+	{
+		return (Color)(attr >> BLINK_SHIFT);
+	}
+
+private:
+
+	char attr;
+
+};
+
 
 } // namespace mythos

@@ -69,14 +69,14 @@ optional<void> InitLoader::load()
 {
   if (!_img.isValid()) RETURN(Error::GENERIC_ERROR);
 
-  uintptr_t ipc_vaddr = 10ull << 21;
-
   // order matters here
   optional<void> res(Error::SUCCESS);
   if (res) res = initCSpace();
-  if (res) res = createPortal(ipc_vaddr, init::PORTAL);
-  if (res) res = loadImage();
-  if (res) res = createEC(ipc_vaddr);
+  auto ipc_vaddr = loadImage();
+  res = ipc_vaddr;
+  if (res) MLOG_INFO(mlog::boot, "init invokation buffer", DVARhex(*ipc_vaddr));
+  if (res) res = createPortal(*ipc_vaddr, init::PORTAL);
+  if (res) res = createEC(*ipc_vaddr);
   RETURN(res);
 }
 
@@ -198,8 +198,9 @@ optional<void> InitLoader::createPortal(uintptr_t ipc_vaddr, CapPtr dstPortal)
     RETURN(Error::SUCCESS);
 }
 
-optional<void> InitLoader::loadImage()
+optional<uintptr_t> InitLoader::loadImage()
 {
+    uintptr_t ipc_addr = round_up(1u, align2M);
     // 1) figure out how much bytes we need
     size_t size = 0;
     for (size_t i=0; i <_img.phnum(); ++i) {
@@ -208,6 +209,9 @@ optional<void> InitLoader::loadImage()
             auto begin = round_down(ph->vaddr, align2M);
             auto end = round_up(ph->vaddr + ph->memsize, align2M);
             size += end-begin;
+            if (end >= ipc_addr) {
+              ipc_addr = round_up(end + 1u, align2M);
+            }
         }
     }
 
@@ -229,7 +233,7 @@ optional<void> InitLoader::loadImage()
             offset += end-begin;
         }
     }
-    RETURN(Error::SUCCESS);
+    return ipc_addr;
 }
 
 optional<void> InitLoader::loadProgramHeader(
@@ -246,9 +250,10 @@ optional<void> InitLoader::loadProgramHeader(
     if (vend-vbegin == 0) RETURN(Error::SUCCESS); // nothing to do
 
     // map the frame into the pages
-    memMapper.mmap(vbegin, vend-vbegin,
+    auto res = memMapper.mmap(vbegin, vend-vbegin,
         ph->flags&elf64::PF_W, ph->flags&elf64::PF_X,
         frameCap, offset);
+    if (!res) RETHROW(res);
 
     // get frame info for its address in the kernel memory area
     TypedCap<IFrame> frame(capAlloc.get(frameCap));

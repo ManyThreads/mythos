@@ -25,39 +25,82 @@
  */
 #pragma once
 
-#include "runtime/PortalBase.hh"
-#include "mythos/protocol/RaplDriverIntel.hh"
-#include "mythos/init.hh"
+#include "runtime/cgaAttr.hh"
+#include "runtime/cgaChar.hh"
+#include "cpu/ctrlregs.hh"
+#include "util/ISink.hh"
+#include "util/TextMsg.hh"
 
 namespace mythos {
 
-  class RaplDriverIntel : public KObject
-  {
-  public:
-
-    RaplDriverIntel() {}
-    RaplDriverIntel(CapPtr cap) : KObject(cap) {}
-
-    struct Result : public RaplVal {
-      Result() {}
-      Result(InvocationBuf* ib) {
-        auto val = ib->cast<protocol::RaplDriverIntel::Result>()->val;
-
-        pp0 = val.pp0;
-        pp1 = val.pp1;
-        psys = val.psys;
-        pkg = val.pkg;
-        dram = val.dram;
-        cpu_energy_units = val.cpu_energy_units;
-        dram_energy_units = val.dram_energy_units;
-      }
-    };
-
-    PortalFuture<Result>
-    getRaplVal(PortalLock pr) {
-      return pr.invoke<protocol::RaplDriverIntel::GetRaplVal>(_cap);
-    }
-
+class CgaScreen : public mlog::ISink {
+private:   
+  enum Ports {
+    INDEX_PORT = 0x3D4,
+    DATA_PORT  = 0x3D5
   };
+
+  enum Cursor {
+    HIGH = 14,
+    LOW  = 15
+  };
+
+public:
+  enum Video {
+    VIDEO_RAM = 0xB8000
+  };
+
+  enum Screen {
+    ROWS    = 25,
+    COLUMNS = 80
+  };
+
+  CgaScreen(uintptr_t vaddr);
+
+  CgaScreen();
+
+  CgaScreen(CgaAttr attr);
+
+  void clear();
+
+  void scroll();
+
+  void setAttr(CgaAttr& attr){
+    this->attr = attr;
+  }
+
+  void getAttr(CgaAttr attr){
+    attr = this->attr;
+  }
+
+  void setCursor(unsigned row, unsigned column);
+  
+  void getCursor(unsigned& row, unsigned& column);
+
+  void show(char ch, const CgaAttr& attr);
+
+  void show(char ch){
+    show(ch, attr);
+  }
+
+  void write(char const* msg, size_t length) override;
+
+  void flush() override {};
+
+template<typename... ARGS>
+  void log(ARGS&&... args){
+    mlog::TextMsg<400> msg("log:", "", std::forward<ARGS>(args)...);
+    write(msg.getData(), msg.getSize());
+  }
+protected:
+
+
+  //void mapMemory();
+  
+  CgaAttr attr;
+  IOPort8 index, data;
+  CgaChar* screen;
+  unsigned xpos, ypos;
+};
 
 } // namespace mythos
