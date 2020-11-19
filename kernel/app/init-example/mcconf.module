@@ -1,6 +1,6 @@
 # -*- mode:toml; -*-
 [module.app-init-example]
-    appfiles = [ "app/init2.cc" ]
+    appfiles = [ "app/init.cc" ]
     provides = [ "app/init.elf" ]
     requires = [ "crtbegin"]
 

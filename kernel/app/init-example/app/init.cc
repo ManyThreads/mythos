@@ -47,12 +47,16 @@
 
 #include <vector>
 #include <array>
-#include <math.h> 
+#include <math.h>
 #include <iostream>
 
 #include <pthread.h>
 #include "runtime/thread-extra.hh"
 #include <sys/time.h>
+
+#include "util/SingleLinkedList.hh"
+#include "util/Chain.hh"
+#include "util/US_Broadcast.hh"
 
 
 mythos::InvocationBuf* msg_ptr asm("msg_ptr");
@@ -288,7 +292,7 @@ void* threadMain(void* arg){
 void test_pthreads(){
   MLOG_INFO(mlog::app, "Test Pthreads");
 	pthread_t p;
- 
+
 	auto tmp = pthread_create(&p, NULL, &threadMain, (void*) 0xBEEF);
   MLOG_INFO(mlog::app, "pthread_create returned", DVAR(tmp));
 	pthread_join(p, NULL);
@@ -380,14 +384,14 @@ bool primeTest(uint64_t n){
 
 void test_Rapl(){
   MLOG_INFO(mlog::app, "Test RAPL");
-  mythos::PortalLock pl(portal); 
+  mythos::PortalLock pl(portal);
   timeval start_run, end_run;
-  
+
   asm volatile ("":::"memory");
   auto start = rapl.getRaplVal(pl).wait().get();
   gettimeofday(&start_run, 0);
 	asm volatile ("":::"memory");
-  
+
   MLOG_INFO(mlog::app, "Start prime test");
   unsigned numPrimes = 0;
   const uint64_t max = 200000;
@@ -403,22 +407,22 @@ void test_Rapl(){
 
   double seconds =(end_run.tv_usec - start_run.tv_usec)/1000000.0 + end_run.tv_sec - start_run.tv_sec;
 
-  std::cout << "Prime test done in " <<  seconds << " seonds (" << numPrimes 
+  std::cout << "Prime test done in " <<  seconds << " seonds (" << numPrimes
 	  << " primes found in Range from 0 to " << max << ")." << std::endl;
   std::cout << "Energy consumption:" << std::endl;
 
   double pp0 = (end.pp0 - start.pp0) * pow(0.5, start.cpu_energy_units);
   std::cout << "Power plane 0 (processor cores only): " << pp0 << " Joule. Average power: " << pp0/seconds << " watts." << std::endl;
-  
+
   double pp1 = (end.pp1 - start.pp1) * pow(0.5, start.cpu_energy_units);
   std::cout << "Power plane 1 (a specific device in the uncore): " << pp1 << " Joule. Average power: " << pp1/seconds << " watts." << std::endl;
-  
+
   double psys = (end.psys - start.psys) * pow(0.5, start.cpu_energy_units);
   std::cout << "Platform : " << psys << " Joule. Average power: " << psys/seconds << " watts." << std::endl;
-  
+
   double pkg = (end.pkg - start.pkg) * pow(0.5, start.cpu_energy_units);
   std::cout << "Package : " << pkg << " Joule. Average power: " << pkg/seconds << " watts." << std::endl;
-  
+
   double dram = (end.dram - start.dram) * pow(0.5, start.dram_energy_units);
   std::cout << "DRAM (memory controller): " << dram << " Joule. Average power: " << dram/seconds << " watts." << std::endl;
 
@@ -433,10 +437,10 @@ void test_CgaScreen(){
 
   mythos::PortalLock pl(portal);
 
-  MLOG_INFO(mlog::app, "test_CgaScreen: allocate device memory"); 
+  MLOG_INFO(mlog::app, "test_CgaScreen: allocate device memory");
   mythos::Frame f(capAlloc());
-  auto res1 = f.createDevice(pl, device_memory, paddr, 1*1024*1024, true).wait(); 
-  TEST(res1); 
+  auto res1 = f.createDevice(pl, device_memory, paddr, 1*1024*1024, true).wait();
+  TEST(res1);
 
   MLOG_INFO(mlog::app, "test_CgaScreen: allocate level 1 page map (4KiB pages)");
   mythos::PageMap p1(capAlloc());
@@ -477,24 +481,127 @@ void test_CgaScreen(){
   MLOG_INFO(mlog::app, "Test CGA finished");
 }
 
+// #############################################################################
+
+#define AMOUNT_THREADS 7
+const size_t MAX_TASK = 8; //MYTHOS_MAX_THREADS;
+const size_t TASKQUEUE_DIVISOR = 2;
+
+SingleLinkedList jobPool;
+US_Broadcast usbc;
+
+typedef struct Funparam_t{
+  int idx;
+  void* (*funptr)(void*);
+  void* args;
+
+  Funparam_t(int idx, void* (*funptr)(void*), void* args) : idx(idx), funptr(funptr), args(args){}
+} Funparam_t;
+
+void* mythreadmain(void* args){
+  MLOG_INFO(mlog::app, "Hallo von", DVARhex(pthread_self()), "Param:", DVAR(*reinterpret_cast<int*>(args)));
+
+  for(volatile int i = 0; i < 100000; i++){
+    for(volatile int j = 0; j < 100000; j++);
+  }
+
+  MLOG_INFO(mlog::app, "I'm done", DVARhex(pthread_self()));
+
+  return 0;
+}
+
+void start_pthreads(){
+  MLOG_INFO(mlog::app, "TEST PTHREADS");
+
+  pthread_t threads[AMOUNT_THREADS];
+
+  for(int i = 0; i < AMOUNT_THREADS; i++){
+    pthread_create(&threads[i], nullptr, &mythreadmain, nullptr);
+  }
+
+  MLOG_INFO(mlog::app, "Threads gestartet");
+
+  for(int i = 0; i < AMOUNT_THREADS; i++){
+    pthread_join(threads[i], NULL);
+  }
+
+  MLOG_INFO(mlog::app, "TEST PTHREADS DONE");
+}
+
+void* initialize_broadcast_thread(void* arg){
+  Funparam_t* a = reinterpret_cast<Funparam_t*>(arg);
+  Chain local_mem;
+  jobPool.push_front(&local_mem);
+
+  MLOG_INFO(mlog::app, "Chain at:", DVARhex(&local_mem));
+
+  return (*a->funptr)(a->args);
+}
+
+void* say_hello(void* arg){
+  MLOG_INFO(mlog::app, "Hello World from:", DVAR(pthread_self()));
+
+  return 0;
+}
+
+void run_broadcast(){
+  MLOG_INFO("INITIALIZE BROADCAST");
+
+  pthread_t threads[AMOUNT_THREADS];
+  Funparam_t param[AMOUNT_THREADS];
+
+  for(int i = 0; i < AMOUNT_THREADS; i++){
+    Funparam_t tmp(i, &broadcast_thread_main, nullptr);
+    param[i] = tmp;
+    pthread_create(&threads[i], nullptr, &initialize_broadcast_thread, nullptr);
+  }
+
+  MLOG_INFO("Threads created");
+}
+
+void test_broadcast_threads(){
+  MLOG_INFO(mlog::app, "Test Broadcast Thread");
+
+  int test = 42;
+
+  pthread_t p;
+  Funparam_t param(0, mythreadmain, &test);
+
+  pthread_create(&p, NULL, &initialize_broadcast_thread, &param);
+
+  MLOG_INFO(mlog::app, "Thread created");
+
+  pthread_join(p, NULL);
+
+  MLOG_INFO(mlog::app, "Thread finished");
+
+  Chain* tmp = jobPool.pop_front();
+  MLOG_INFO(mlog::app, "Thread memory was at:", DVARhex(tmp));
+
+  MLOG_INFO(mlog::app, "Finished Broadcast Thread Test");
+}
+
 int main()
 {
   char const str[] = "Hello world!";
   mythos::syscall_debug(str, sizeof(str)-1);
   MLOG_ERROR(mlog::app, "application is starting :)", DVARhex(msg_ptr), DVARhex(initstack_top));
 
-  test_float();
-  test_Example();
-  test_Portal();
+  //test_float();
+  //test_Example();
+  //test_Portal();
   test_heap(); // heap must be initialized for tls test
-  test_tls();
-  test_exceptions();
+  //test_tls();
+  //test_exceptions();
   //test_InterruptControl();
   //test_HostChannel(portal, 24*1024*1024, 2*1024*1024);
-  test_ExecutionContext();
-  test_pthreads();
+  //test_ExecutionContext();
+  //test_pthreads();
   //test_Rapl();
   //test_CgaScreen();
+
+  //start_pthreads();
+  test_broadcast_threads();
 
   char const end[] = "bye, cruel world!";
   mythos::syscall_debug(end, sizeof(end)-1);

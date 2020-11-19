@@ -8,7 +8,6 @@
 extern const size_t MAX_TASK;
 extern const size_t TASKQUEUE_DIVISOR;
 
-template <typename T>
 class SingleLinkedList{
 public:
   enum STATE : std::uint8_t{
@@ -17,33 +16,31 @@ public:
   };
 
   SingleLinkedList();
-  SingleLinkedList(Chain<T>* init);
+  SingleLinkedList(Chain* init);
   ~SingleLinkedList() = default;
 
-  void push_front(Chain<T>* chain);
-  Chain<T>* pop_front();
+  void push_front(Chain* chain);
+  Chain* pop_front();
 
   size_t getSize();
 
-  Chain<T>* get_tasks();
+  Chain* get_tasks();
 
   void print();
 
 private:
-  Chain<T>* head;
+  Chain* head;
   size_t size;
   std::atomic<STATE> state;
 };
 
-template <typename T>
-SingleLinkedList<T>::SingleLinkedList(){
+SingleLinkedList::SingleLinkedList(){
   this->head = nullptr;
   this->size = 0;
   this->state = READY;
 }
 
-template <typename T>
-SingleLinkedList<T>::SingleLinkedList(Chain<T>* init){
+SingleLinkedList::SingleLinkedList(Chain* init){
   this->head = nullptr;
   this->size = 0;
   this->state = READY;
@@ -53,8 +50,7 @@ SingleLinkedList<T>::SingleLinkedList(Chain<T>* init){
   }
 }
 
-template <typename T>
-void SingleLinkedList<T>::push_front(Chain<T>* chain){
+void SingleLinkedList::push_front(Chain* chain){
   STATE s = READY;
 
   while(!this->state.compare_exchange_weak(s, BLOCKED)){
@@ -68,9 +64,8 @@ void SingleLinkedList<T>::push_front(Chain<T>* chain){
   this->state.store(READY);
 }
 
-template <typename T>
-Chain<T>* SingleLinkedList<T>::pop_front(){
-  Chain<T>* ret = nullptr;
+Chain* SingleLinkedList::pop_front(){
+  Chain* ret = nullptr;
   STATE s = READY;
 
   while(!this->state.compare_exchange_weak(s, BLOCKED)){
@@ -95,20 +90,18 @@ exit:
   return ret;
 }
 
-template <typename T>
-size_t SingleLinkedList<T>::getSize(){
+size_t SingleLinkedList::getSize(){
   return this->size;
 }
 
-template <typename T>
-Chain<T>* SingleLinkedList<T>::get_tasks(){
+Chain* SingleLinkedList::get_tasks(){
   STATE s = READY;
 
   int amount_tasks;
   int count;
 
-  Chain<T>* start;
-  Chain<T>* end;
+  Chain* start = nullptr;
+  Chain* end;
 
   while(!this->state.compare_exchange_weak(s, BLOCKED)){
     s = READY;
@@ -119,7 +112,7 @@ Chain<T>* SingleLinkedList<T>::get_tasks(){
   }
 
   amount_tasks = this->size / TASKQUEUE_DIVISOR;
-  count = amount_tasks;
+  count = amount_tasks - 1;
 
   start = this->head;
   end = start;
@@ -129,9 +122,15 @@ Chain<T>* SingleLinkedList<T>::get_tasks(){
     count--;
   }
 
-  this->head = end->getNext();
+  if(end){
+    this->head = end->getNext();
+    this->size = this->size - amount_tasks;
+    end->setNext(nullptr);
+  } else{
+    this->size = 0;
+    this->head = nullptr;
+  }
 
-  this->size = this->size - amount_tasks;
 
 exit:
   this->state.store(READY);
@@ -139,9 +138,8 @@ exit:
   return start;
 }
 
-template <typename T>
-void SingleLinkedList<T>::print(){
-  Chain<T>* chain = this->head;
+void SingleLinkedList::print(){
+  Chain* chain = this->head;
   size_t i = 0;
 
   //std::cout << "Size: " << this->size << std::endl;

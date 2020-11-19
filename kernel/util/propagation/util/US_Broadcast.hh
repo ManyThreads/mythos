@@ -3,20 +3,20 @@
 
 #include "util/SingleLinkedList.hh"
 
-template <typename T>
+static void broadcast();
+
+extern SingleLinkedList jobPool;
+
 class US_Broadcast{
 public:
-  US_Broadcast();
-  US_Broadcast(SingleLinkedList<T>* jobs);
-  ~US_BROADCAST();
+  US_Broadcast() = default;
+  ~US_Broadcast() = default;
 
-  void init(SingleLinkedList<T>* jobs);
-  void run(Chain<T>* c);
+  void run(Chain& c);
 private:
-  void init_broadcast()
-  void broadcast(Chain<T>* c, std::atomic<int> res);
+  void init_broadcast(Chain& c);
 
-  SingleLinkedList<T>* jobs;
-}
+  //SingleLinkedList* jobPool;
+};
 
 #endif // US_BROADCAST

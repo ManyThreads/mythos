@@ -3,4 +3,6 @@
 incfiles = [
   "util/SingleLinkedList.hh",
   "util/Chain.hh",
-  "util/US_Broadcast.hh"]
+  "util/US_Broadcast.hh",
+  "util/US_Broadcast.cc",
+  "util/Typedef.hh"]
