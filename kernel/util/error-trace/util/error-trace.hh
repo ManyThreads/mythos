@@ -36,7 +36,6 @@ namespace mlog {
 #define MLOG_ERROR_THROW FilterAny
 #endif
   extern Logger<MLOG_ERROR_THROW> throw_error;
-
 } //  mlog
 
 #define THROW(...) do { return ::mythos::throw_error(PATH, __VA_ARGS__);} while (false)

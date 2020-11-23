@@ -73,6 +73,11 @@ extern "C" void* __mythos_get_tlsmem(unsigned long size)
 }
 
 
+extern "C" int __mythos_get_start_tid(void)
+{
+  return mythos::init::EC;
+}
+
 void setupInitialTLS() {
     // find the TLS program header
     auto ph = findTLSHeader();

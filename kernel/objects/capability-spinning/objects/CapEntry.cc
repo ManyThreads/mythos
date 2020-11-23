@@ -36,8 +36,8 @@ namespace mythos {
     ASSERT(c.isUsable());
     ASSERT(cap().isEmpty());
     Link loopLink(this);
-    _next.store(loopLink);
-    _prev.store(loopLink);
+    _next.store(loopLink.value());
+    _prev.store(loopLink.value());
     _cap.store(c.value());
   }
 
@@ -63,8 +63,8 @@ namespace mythos {
   void CapEntry::reset()
   {
     ASSERT(isUnlinked() || cap().isAllocated());
-    _prev.store(Link());
-    _next.store(Link());
+    _prev.store(Link().value());
+    _next.store(Link().value());
     // mark as empty
     _cap.store(Cap().value());
   }
@@ -72,10 +72,10 @@ namespace mythos {
   void CapEntry::setPrevPreserveFlags(CapEntry* ptr)
   {
     auto expected = _prev.load();
-    auto desired = Link(ptr).withFlags(Link(expected)).val();
-    while (!_prev.compare_exchange_weak(expected, desired)) {
-      desired = Link(ptr).withFlags(Link(expected));
-    }
+    uintlink_t desired;
+    do {
+      desired = Link(expected).withPtr(ptr).value();
+    } while (!_prev.compare_exchange_weak(expected, desired));
   }
 
   optional<void> CapEntry::moveTo(CapEntry& other)
@@ -95,18 +95,18 @@ namespace mythos {
       THROW(Error::INVALID_CAPABILITY);
     }
 
-    auto nextEntry = Link(_next).ptr();
-    auto prevEntry = Link(_prev).ptr();
+    auto next= Link(_next).withoutFlags();
+    auto prev= Link(_prev).withoutFlags();
 
-    nextEntry->setPrevPreserveFlags(&other);
-    other._next.store(Link(nextEntry));
+    next->setPrevPreserveFlags(&other);
+    other._next.store(next.value());
     // deleted or revoking can not be set in other._prev
     // as we allocated other for moving
-    other._prev.store(Link(prevEntry));
-    prevEntry->_next.store(Link(&other));
+    other._prev.store(prev.value());
+    prev->_next.store(Link(&other).value());
     other.commit(thisCap);
-    _prev.store(Link());
-    _next.store(Link());
+    _prev.store(Link().value());
+    _next.store(Link().value());
     _cap.store(Cap().value());
     RETURN(Error::SUCCESS);
   }
@@ -127,12 +127,12 @@ namespace mythos {
 
   optional<void> CapEntry::unlink()
   {
-    auto nextEntry = Link(_next).ptr();
-    auto prevEntry = Link(_prev).ptr();
-    nextEntry->_prev.store(Link(prevEntry));
-    prevEntry->_next.store(Link(nextEntry));
-    _prev.store(Link());
-    _next.store(Link());
+    auto next = Link(_next).withoutFlags();
+    auto prev = Link(_prev).withoutFlags();
+    next->_prev.store(prev.value());
+    prev->_next.store(next.value());
+    _prev.store(Link().value());
+    _next.store(Link().value());
     RETURN(Error::SUCCESS);
   }
 
