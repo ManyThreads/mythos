@@ -28,6 +28,7 @@
 #include "mythos/invocation.hh"
 #include "mythos/protocol/CpuDriverKNC.hh"
 #include "mythos/PciMsgQueueMPSC.hh"
+#include "mythos/ProcessInfoFrame.hh"
 #include "runtime/Portal.hh"
 #include "runtime/ExecutionContext.hh"
 #include "runtime/CapMap.hh"
@@ -44,6 +45,7 @@
 #include "runtime/umem.hh"
 #include "runtime/Mutex.hh"
 #include "runtime/cgaScreen.hh"
+#include "runtime/ProcessorManagement.hh"
 
 #include <vector>
 #include <array>
@@ -55,14 +57,14 @@
 #include <sys/time.h>
 
 
-mythos::InvocationBuf* msg_ptr asm("msg_ptr");
+mythos::ProcessInfoFrame* info_ptr asm("info_ptr");
 int main() asm("main");
 
 constexpr uint64_t stacksize = 4*4096;
 char initstack[stacksize];
 char* initstack_top = initstack+stacksize;
 
-mythos::Portal portal(mythos::init::PORTAL, msg_ptr);
+mythos::Portal portal(mythos::init::PORTAL, info_ptr->getInvocationBuf());
 mythos::CapMap myCS(mythos::init::CSPACE);
 mythos::PageMap myAS(mythos::init::PML4);
 mythos::KernelMemory kmem(mythos::init::KM);
@@ -70,6 +72,7 @@ mythos::KObject device_memory(mythos::init::DEVICE_MEM);
 mythos::SimpleCapAllocDel capAlloc(portal, myCS, mythos::init::APP_CAP_START,
                                   mythos::init::SIZE-mythos::init::APP_CAP_START);
 mythos::RaplDriverIntel rapl(mythos::init::RAPL_DRIVER_INTEL);
+mythos::ProcessorManagement pm(mythos::init::PROCESSOR_MANAGEMENT);
 
 char threadstack[stacksize];
 char* thread1stack_top = threadstack+stacksize/2;
@@ -100,7 +103,7 @@ void test_Portal()
   MLOG_ERROR(mlog::app, "test_Portal begin");
   mythos::PortalLock pl(portal); // future access will fail if the portal is in use already
   MLOG_INFO(mlog::app, "test_Portal: allocate portal");
-  uintptr_t vaddr = mythos::round_up(uintptr_t(msg_ptr) + 1,  mythos::align2M);
+  uintptr_t vaddr = mythos::round_up(info_ptr->getInfoEnd() + mythos::align2M,  mythos::align2M);
   // allocate a portal
   mythos::Portal p2(capAlloc(), (void*)vaddr);
   auto res1 = p2.create(pl, kmem).wait();
@@ -198,7 +201,7 @@ void test_heap() {
   mythos::PortalLock pl(portal);
   auto size = 4*1024*1024; // 2 MB
   auto align = 2*1024*1024; // 2 MB
-  uintptr_t vaddr = mythos::round_up(uintptr_t(msg_ptr) + 1,  align);
+  uintptr_t vaddr = mythos::round_up(info_ptr->getInfoEnd(),  align);
   // allocate a 2MiB frame
   mythos::Frame f(capAlloc());
   auto res2 = f.create(pl, kmem, size, align).wait();
@@ -319,6 +322,9 @@ void test_ExecutionContext()
 
     auto tls1 = mythos::setupNewTLS();
     ASSERT(tls1 != nullptr);
+    //auto sc1 = pm.allocCore(pl).wait();
+    //(*sc1.sc != null_cap);
+    //auto res1 = ec1.create(kmem).as(myAS).cs(myCS).sched(sc1->sc)
     auto res1 = ec1.create(kmem).as(myAS).cs(myCS).sched(mythos::init::SCHEDULERS_START)
     .prepareStack(thread1stack_top).startFun(&thread_main, nullptr)
     .suspended(false).fs(tls1)
@@ -328,6 +334,8 @@ void test_ExecutionContext()
     MLOG_INFO(mlog::app, "test_EC: create ec2");
     auto tls2 = mythos::setupNewTLS();
     ASSERT(tls2 != nullptr);
+    //auto sc2 = pm.allocCore(pl).wait();
+    //auto res2 = ec2.create(kmem).as(myAS).cs(myCS).sched(sc2->sc)
     auto res2 = ec2.create(kmem).as(myAS).cs(myCS).sched(mythos::init::SCHEDULERS_START+1)
     .prepareStack(thread2stack_top).startFun(&thread_main, nullptr)
     .suspended(false).fs(tls2)
@@ -403,7 +411,7 @@ void test_Rapl(){
 
   double seconds =(end_run.tv_usec - start_run.tv_usec)/1000000.0 + end_run.tv_sec - start_run.tv_sec;
 
-  std::cout << "Prime test done in " <<  seconds << " seonds (" << numPrimes 
+  std::cout << "Prime test done in " <<  seconds << " seconds (" << numPrimes 
 	  << " primes found in Range from 0 to " << max << ")." << std::endl;
   std::cout << "Energy consumption:" << std::endl;
 
@@ -481,19 +489,19 @@ int main()
 {
   char const str[] = "Hello world!";
   mythos::syscall_debug(str, sizeof(str)-1);
-  MLOG_ERROR(mlog::app, "application is starting :)", DVARhex(msg_ptr), DVARhex(initstack_top));
+  MLOG_ERROR(mlog::app, "application is starting :)", DVARhex(info_ptr), DVARhex(initstack_top), DVAR(info_ptr->getNumThreads()));
 
-  test_float();
-  test_Example();
+  //test_float();
+  //test_Example();
   test_Portal();
   test_heap(); // heap must be initialized for tls test
-  test_tls();
-  test_exceptions();
+  //test_tls();
+  //test_exceptions();
   //test_InterruptControl();
   //test_HostChannel(portal, 24*1024*1024, 2*1024*1024);
   test_ExecutionContext();
-  test_pthreads();
-  //test_Rapl();
+  //test_pthreads();
+  test_Rapl();
   //test_CgaScreen();
 
   char const end[] = "bye, cruel world!";

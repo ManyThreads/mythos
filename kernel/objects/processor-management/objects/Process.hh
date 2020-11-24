@@ -23,46 +23,55 @@
  *
  * Copyright 2020 Philipp Gypser and contributors, BTU Cottbus-Senftenberg
  */
+#pragma once
 
-#include "objects/ProcessorManagement.hh"
-#include "util/events.hh"
+#include "async/NestedMonitorDelegating.hh"
+#include "objects/IFactory.hh"
+#include "objects/IKernelObject.hh"
+#include "cpu/hwthreadid.hh"
+#include "mythos/protocol/Process.hh"
 #include "boot/load_init.hh"
-#include "mythos/init.hh"
 #include "boot/mlog.hh"
 
 namespace mythos {
 
-  class PluginProcessorManagement
-    : public EventHook<boot::InitLoader&>
-    , public EventHook<boot::InitLoader&, ExecutionContext&>
-  {
-  public:
-    PluginProcessorManagement() {
-      event::initLoader.add(this);
-      event::initEC.add(this);
-    }
-    virtual ~PluginProcessorManagement() {}
+class Process
+  : public IKernelObject
+{
+public:
+  Process(IAsyncFree* mem) : _mem(mem) {}
+  Process(const ExampleObj&) = delete;
 
-    void processEvent(boot::InitLoader& loader) override {
-      MLOG_ERROR(mlog::boot, "INIT PM");
-      pm.init();
-      MLOG_ERROR(mlog::boot, "CSset PM");
-      OOPS(loader.csSet(init::PROCESSOR_MANAGEMENT, pm));
-    }
+  optional<void const*> vcast(TypeId id) const override;
+  optional<void> deleteCap(CapEntry&, Cap self, IDeleter& del) override;
+  void deleteObject(Tasklet* t, IResult<void>* r) override;
+  void invoke(Tasklet* t, Cap self, IInvocation* msg) override;
 
-    void processEvent(boot::InitLoader& loader, ExecutionContext& ec) override {
-      MLOG_ERROR(mlog::boot, "... create scheduling context caps in caps");
-      auto id = pm.pa.alloc();
-      if(id){
-        MLOG_ERROR(mlog::boot, "got id", *id);
-        OOPS(loader.csSet(init::SCHEDULERS_START+*id, boot::getScheduler(*id)));
-        ec.setSchedulingContext(loader.capAlloc.get(init::SCHEDULERS_START+*id));
-      }
-    }
-    
-    ProcessorManagement pm;
-  };
+protected:
+  friend struct protocol::KernelObject;
+  Error getDebugInfo(Cap self, IInvocation* msg);
 
-  PluginProcessorManagement pluginProcessorManagement;
+  friend struct protocol::Example;
+  Error printMessage(Tasklet* t, Cap self, IInvocation* msg);
+
+protected:
+  async::NestedMonitorDelegating monitor;
+  IDeleter::handle_t del_handle = {this};
+  IAsyncFree* _mem;
+  friend class ProcessFactory;
+};
+
+class ProcessFactory : public FactoryBase
+{
+public:
+  static optional<Process*>
+  factory(CapEntry* dstEntry, CapEntry* memEntry, Cap memCap, IAllocator* mem);
+
+  Error factory(CapEntry* dstEntry, CapEntry* memEntry, Cap memCap,
+                IAllocator* mem, IInvocation*) const override {
+    return factory(dstEntry, memEntry, memCap, mem).state();
+  }
+};
+
 
 } // namespace mythos

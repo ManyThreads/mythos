@@ -35,6 +35,41 @@
 
 namespace mythos {
 
+class ProcessorAllocator {
+  public:
+    virtual optional<cpu::ThreadID> alloc() = 0;
+    virtual unsigned getNumFree() = 0;
+    virtual void free(cpu::ThreadID id) = 0;
+};
+
+class LiFoProcessorAllocator : public ProcessorAllocator
+{
+  public:
+    LiFoProcessorAllocator()
+      : numFree(0)
+    {}
+
+    optional<cpu::ThreadID> alloc() override {
+      optional<cpu::ThreadID> ret;
+      if(numFree > 0){
+        numFree--;
+        ret = freeList[numFree];
+      }
+      return ret;
+    }
+    
+    unsigned getNumFree() override { return numFree; }
+
+    void free(cpu::ThreadID id) override {
+        freeList[numFree] = id;
+        numFree++;
+    }
+  private:
+    unsigned numFree;
+    cpu::ThreadID freeList[MYTHOS_MAX_THREADS];
+
+};
+
 class ProcessorManagement
   : public IKernelObject
 {
@@ -46,62 +81,44 @@ public:
 
   void init(){
       MLOG_ERROR(mlog::boot, "PM::init");
-    numFree = 0;
       for (cpu::ThreadID id = 0; id < cpu::getNumThreads(); ++id) {
       MLOG_ERROR(mlog::boot, "SC ", id, &boot::getScheduler(id), image2kernel(&boot::getScheduler(id)), this);
         sc[id].initRoot(Cap(image2kernel(&boot::getScheduler(id))));
-        free[numFree] = id;
-        numFree++;
+        pa.free(id);
       }
   }
 
 public:
   ProcessorManagement()
-  {
-    sc = image2kernel(&mySC[0]);
-    numFree = 0;
-  }
+    : sc(image2kernel(&mySC[0]))
+  {}
 
   Error invoke_allocCore(Tasklet*, Cap, IInvocation* msg);
 
-  optional<cpu::ThreadID> alloc(){
-      optional<cpu::ThreadID> ret;
-      if(numFree > 0){
-        numFree--;
-        ret = free[numFree];
-        MLOG_ERROR(mlog::boot, "alloc", free[numFree]);
-      }
-      return ret;
-  }
-
   Error invoke_freeCore(Tasklet*, Cap, IInvocation* msg);
-protected:
-  async::NestedMonitorDelegating monitor;
 
 private:
-  CapEntry mySC[MYTHOS_MAX_THREADS];
   CapEntry *sc;
-  cpu::ThreadID free[MYTHOS_MAX_THREADS];
-  unsigned numFree;
+  CapEntry mySC[MYTHOS_MAX_THREADS];
 
+protected:
+  async::NestedMonitorDelegating monitor;
+  friend class PluginProcessorManagement;
+  LiFoProcessorAllocator pa;
 };
 
   Error ProcessorManagement::invoke_allocCore(Tasklet*, Cap, IInvocation* msg){
       MLOG_ERROR(mlog::boot, "PM::invoke_allocCore");
-      if(numFree > 0){
-        numFree--;
-        auto id = free[numFree];
-        MLOG_ERROR(mlog::boot, "alloc core id ", id);
+      auto id = pa.alloc();
+      if(id){
+        MLOG_ERROR(mlog::boot, "alloc core id ", *id);
 
-        auto dstEntry = msg->lookupEntry(init::SCHEDULERS_START+id, 32, true);
+        auto dstEntry = msg->lookupEntry(init::SCHEDULERS_START+*id, 32, true);
         if (!dstEntry) return dstEntry.state();
-        MLOG_ERROR(mlog::boot, "bla");
 
         //cap::inherit(sc[id], sc[id].cap(), **dstEntry, (*dstEntry)->cap().asReference());
-        cap::reference(sc[id], **dstEntry, sc[id].cap());
-        
-        MLOG_ERROR(mlog::boot, "blub");
-        msg->getMessage()->write<protocol::ProcessorManagement::RetAllocCore>(init::SCHEDULERS_START+id);
+        cap::reference(sc[*id], **dstEntry, sc[*id].cap());
+        msg->getMessage()->write<protocol::ProcessorManagement::RetAllocCore>(init::SCHEDULERS_START+*id);
       }else{
       msg->getMessage()->write<protocol::ProcessorManagement::RetAllocCore>(null_cap);
       }

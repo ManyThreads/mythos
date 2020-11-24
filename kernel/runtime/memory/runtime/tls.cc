@@ -8,6 +8,7 @@
 #include "mythos/protocol/ExecutionContext.hh"
 #include "mythos/syscall.hh"
 #include "mythos/Error.hh"
+#include "mythos/ProcessInfoFrame.hh"
 
 extern char __executable_start; //< provided by the default linker script
 
@@ -46,7 +47,7 @@ mythos::elf64::PHeader const* findTLSHeader() {
     return nullptr;
 }
 
-extern mythos::InvocationBuf* msg_ptr asm("msg_ptr");
+extern mythos::ProcessInfoFrame* info_ptr asm("info_ptr");
 
 /** make a system call to set the new FS base address.
  * Called from musl __init_tls.
@@ -55,7 +56,7 @@ extern mythos::InvocationBuf* msg_ptr asm("msg_ptr");
  */
 extern "C" int __set_thread_area(void *p)
 {
-    msg_ptr->write<protocol::ExecutionContext::SetFSGS>(reinterpret_cast<uintptr_t>(p), 0);
+    info_ptr->getInvocationBuf()->write<protocol::ExecutionContext::SetFSGS>(reinterpret_cast<uintptr_t>(p), 0);
     auto result = syscall_invoke_wait(mythos::init::PORTAL, mythos::init::EC, (void*)0xDEADBEEF);
     ASSERT(result.user == (uintptr_t)0xDEADBEEF);
     ASSERT(result.state == (uint64_t)Error::SUCCESS);

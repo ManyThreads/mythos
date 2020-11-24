@@ -1,4 +1,4 @@
-/* -*- mode:asm; indent-tabs-mode:nil; -*- */
+/* -*- mode:C++; indent-tabs-mode:nil; -*- */
 /* MIT License -- MyThOS: The Many-Threads Operating System
  *
  * Permission is hereby granted, free of charge, to any person
@@ -21,44 +21,34 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  *
- * Copyright 2016 Randolf Rotta, Robert Kuban, and contributors, BTU Cottbus-Senftenberg
+ * Copyright 2020 Philipp Gypser and contributors, BTU Cottbus-Senftenberg
  */
+#pragma once
 
-.extern initstack_top
-.extern start_c
-.extern info_ptr
-.extern __libc_init_array
-.extern exit
+#include "mythos/protocol/common.hh"
 
-.align 8
-.global _start
-_start:
-        mov initstack_top, %rsp
-        xor %rbp, %rbp
-        mov %rdi, info_ptr       /* store first argument to global variable */
-        call start_c
-1:      jmp 1b                  /* should never return from start_c anyway */
+namespace mythos {
+  namespace protocol {
 
-/* A handle for __cxa_finalize to manage c++ local destructors.  */
-.global __dso_handle
-.type __dso_handle,@object
-.size __dso_handle,8
-.section .bss
-.align 8
-__dso_handle:
-.skip  8
-.hidden __dso_handle
+    struct Process {
+      constexpr static uint8_t proto = PROCESS;
 
-/*.section .init
-.global _init
-.type _init,@function
-_init:
-        push %rbp
-        mov %rsp, %rbp*/
+      enum Methods : uint8_t {
+      };
 
-.section .fini
-.global _fini
-.type _fini,@function
-_fini:
-        push %rbp
-        mov %rsp, %rbp
+      struct Create : public KernelMemory::CreateBase {
+        Create(CapPtr dst, CapPtr factory) : CreateBase(dst, factory, getLength(this), 0) {}
+      };
+
+      template<class IMPL, class... ARGS>
+      static Error dispatchRequest(IMPL* obj, uint8_t m, ARGS const&...args) {
+        switch(Methods(m)) {
+          //case PRINT_MESSAGE: return obj->printMessage(args...);
+          default: return Error::NOT_IMPLEMENTED;
+        }
+      }
+
+    };
+
+  }// namespace protocol
+}// namespace mythos

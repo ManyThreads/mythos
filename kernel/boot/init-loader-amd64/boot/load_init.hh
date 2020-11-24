@@ -57,7 +57,8 @@ namespace mythos {
       optional<void> load();
 
       optional<void> initCSpace();
-      optional<void> createPortal(uintptr_t ipc_vaddr, CapPtr dstPortal);
+      optional<CapPtr> createInfoFrame(uintptr_t ipc_vaddr);
+      optional<void> createPortal(CapPtr infoFrame, CapPtr dstPortal);
       optional<uintptr_t> loadImage();
       optional<void> createEC(uintptr_t ipc_vaddr);
 
