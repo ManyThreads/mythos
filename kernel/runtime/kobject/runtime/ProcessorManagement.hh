@@ -28,6 +28,7 @@
 #include "runtime/PortalBase.hh"
 #include "mythos/protocol/ProcessorManagement.hh"
 #include "mythos/init.hh"
+#include "mythos/ProcessInfoFrame.hh"
 
 namespace mythos {
 
@@ -35,8 +36,13 @@ namespace mythos {
   {
   public:
 
-    ProcessorManagement() {}
-    ProcessorManagement(CapPtr cap) : KObject(cap) {}
+    ProcessorManagement(ProcessorManagerInfo* pmi)
+      : pmi(pmi) 
+    {}
+    ProcessorManagement(CapPtr cap, ProcessorManagerInfo* pmi) 
+      : KObject(cap) 
+      , pmi(pmi)
+    {}
 
     struct AllocCoreResult{
       AllocCoreResult() {}
@@ -44,7 +50,7 @@ namespace mythos {
         auto msg = ib->cast<protocol::ProcessorManagement::RetAllocCore>();
         sc = msg->sc();
       }
-      
+     
       CapPtr sc = null_cap;
     };
 
@@ -56,6 +62,9 @@ namespace mythos {
     PortalFuture<void> freeCore(PortalLock pr, CapPtr sc){
       return pr.invoke<protocol::ProcessorManagement::FreeCore>(_cap, sc);
     }
+
+  private:
+    ProcessorManagerInfo* pmi;
   };
 
 } // namespace mythos

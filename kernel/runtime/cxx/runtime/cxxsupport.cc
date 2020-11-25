@@ -53,6 +53,7 @@
 #include "runtime/futex.hh"
 #include "runtime/umem.hh"
 #include "mythos/ProcessInfoFrame.hh"
+#include "runtime/ProcessorManagement.hh"
 
 extern mythos::ProcessInfoFrame* info_ptr asm("info_ptr");
 extern mythos::Portal portal;
@@ -60,6 +61,7 @@ extern mythos::CapMap myCS;
 extern mythos::PageMap myAS;
 extern mythos::KernelMemory kmem;
 extern mythos::SimpleCapAllocDel capAlloc;
+extern mythos::ProcessorManagement pm;
 
 extern "C" [[noreturn]] void __assert_fail (const char *expr, const char *file, int line, const char *func)
 {
@@ -269,6 +271,11 @@ int myclone(
     auto rsp = (uintptr_t(stack) & uintptr_t(-16))-8;
 
     mythos::PortalLock pl(portal); // future access will fail if the portal is in use already
+    auto sc = pm.allocCore(pl).wait();
+    if(!sc){
+      return -1; 
+    }
+
     mythos::ExecutionContext ec(capAlloc());
     if (ptid && (flags&CLONE_PARENT_SETTID)) *ptid = int(ec.cap());
     // @todo store thread-specific ctid pointer, which should set to 0 by the OS on the thread's exit
@@ -279,7 +286,8 @@ int myclone(
     // WARNING: This will lead to trouble if nextThread >= number of threads.
     // It's also not thread safe.
     // @TODO: More sensible thread placement.
-      .sched(mythos::init::SCHEDULERS_START + (nextThread++))
+      //.sched(mythos::init::SCHEDULERS_START + (nextThread++))
+      .sched(sc->sc)
     //                                         ^^^^^^^^^^^^
       .rawStack(rsp)
       .rawFun(func, arg)
