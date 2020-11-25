@@ -72,7 +72,7 @@ mythos::KObject device_memory(mythos::init::DEVICE_MEM);
 mythos::SimpleCapAllocDel capAlloc(portal, myCS, mythos::init::APP_CAP_START,
                                   mythos::init::SIZE-mythos::init::APP_CAP_START);
 mythos::RaplDriverIntel rapl(mythos::init::RAPL_DRIVER_INTEL);
-mythos::ProcessorManagement pm(mythos::init::PROCESSOR_MANAGEMENT);
+mythos::ProcessorManagement pm(mythos::init::PROCESSOR_MANAGEMENT, info_ptr->getProcessorManagerInfo());
 
 char threadstack[stacksize];
 char* thread1stack_top = threadstack+stacksize/2;
@@ -500,7 +500,7 @@ int main()
   //test_InterruptControl();
   //test_HostChannel(portal, 24*1024*1024, 2*1024*1024);
   test_ExecutionContext();
-  //test_pthreads();
+  test_pthreads();
   test_Rapl();
   //test_CgaScreen();
 
