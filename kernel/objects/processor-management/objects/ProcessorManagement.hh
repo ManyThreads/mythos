@@ -108,10 +108,10 @@ protected:
 };
 
   Error ProcessorManagement::invoke_allocCore(Tasklet*, Cap, IInvocation* msg){
-      MLOG_ERROR(mlog::boot, "PM::invoke_allocCore");
+      //MLOG_ERROR(mlog::boot, "PM::invoke_allocCore");
       auto id = pa.alloc();
       if(id){
-        MLOG_ERROR(mlog::boot, "alloc core id ", *id);
+        //MLOG_ERROR(mlog::boot, "alloc core id ", *id);
 
         auto dstEntry = msg->lookupEntry(init::SCHEDULERS_START+*id, 32, true);
         if (!dstEntry) return dstEntry.state();
