@@ -23,8 +23,47 @@
  *
  * Copyright 2020 Philipp Gypser and contributors, BTU Cottbus-Senftenberg
  */
+#pragma once
 
-#include "objects/PluginProcessorManagement.hh"
+#include "objects/ProcessorManagement.hh"
+#include "util/events.hh"
+#include "boot/load_init.hh"
+#include "mythos/init.hh"
+#include "boot/mlog.hh"
 
-mythos::PluginProcessorManagement pluginProcessorManagement;
+namespace mythos {
 
+  class PluginProcessorManagement
+    : public EventHook<boot::InitLoader&>
+    , public EventHook<boot::InitLoader&, ExecutionContext&>
+  {
+  public:
+    PluginProcessorManagement() {
+      event::initLoader.add(this);
+      event::initEC.add(this);
+    }
+    virtual ~PluginProcessorManagement() {}
+
+    void processEvent(boot::InitLoader& loader) override {
+      MLOG_INFO(mlog::pm, "INIT PM");
+      pm.init();
+      MLOG_INFO(mlog::pm, "CSset PM");
+      OOPS(loader.csSet(init::PROCESSOR_MANAGEMENT, pm));
+    }
+
+    void processEvent(boot::InitLoader& loader, ExecutionContext& ec) override {
+      MLOG_INFO(mlog::pm, "... create scheduling context caps in caps");
+      auto id = pm.pa.alloc();
+      if(id){
+        MLOG_INFO(mlog::pm, "got id", *id);
+        OOPS(loader.csSet(init::SCHEDULERS_START+*id, boot::getScheduler(*id)));
+        ec.setSchedulingContext(loader.capAlloc.get(init::SCHEDULERS_START+*id));
+      }
+    }
+    
+    ProcessorManagement pm;
+  };
+
+} // namespace mythos
+
+extern mythos::PluginProcessorManagement pluginProcessorManagement;

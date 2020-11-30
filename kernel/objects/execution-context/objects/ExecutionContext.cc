@@ -34,6 +34,9 @@
 #include "objects/DebugMessage.hh"
 #include "objects/IPageMap.hh"
 #include "util/error-trace.hh"
+#include "objects/PluginProcessorManagement.hh"
+#include "objects/ProcessorManagement.hh"
+#include "cpu/hwthreadid.hh"
 
 namespace mythos {
 
@@ -405,7 +408,11 @@ namespace mythos {
 
       case SYSCALL_EXIT:
         MLOG_INFO(mlog::syscall, "exit");
-        setFlags(IS_TRAPPED);
+        {
+          setFlags(IS_TRAPPED);
+          auto cid = cpu::getThreadID();
+          pluginProcessorManagement.pm.freeCore(cid);
+        }
         break;
 
       case SYSCALL_POLL:

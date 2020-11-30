@@ -80,15 +80,13 @@ public:
   void invoke(Tasklet* t, Cap self, IInvocation* msg) override;
 
   void init(){
-      MLOG_ERROR(mlog::boot, "PM::init");
+      MLOG_INFO(mlog::pm, "PM::init");
       for (cpu::ThreadID id = 0; id < cpu::getNumThreads(); ++id) {
-      MLOG_ERROR(mlog::boot, "SC ", id, &boot::getScheduler(id), image2kernel(&boot::getScheduler(id)), this);
         sc[id].initRoot(Cap(image2kernel(&boot::getScheduler(id))));
         pa.free(id);
       }
   }
 
-public:
   ProcessorManagement()
     : sc(image2kernel(&mySC[0]))
   {}
@@ -97,6 +95,10 @@ public:
 
   Error invoke_freeCore(Tasklet*, Cap, IInvocation* msg);
 
+  void freeCore(cpu::ThreadID id){
+    MLOG_DETAIL(mlog::pm, "PM::freeCore", DVAR(id));
+    pa.free(id);
+  }
 private:
   CapEntry *sc;
   CapEntry mySC[MYTHOS_MAX_THREADS];
@@ -108,10 +110,8 @@ protected:
 };
 
   Error ProcessorManagement::invoke_allocCore(Tasklet*, Cap, IInvocation* msg){
-      //MLOG_ERROR(mlog::boot, "PM::invoke_allocCore");
       auto id = pa.alloc();
       if(id){
-        //MLOG_ERROR(mlog::boot, "alloc core id ", *id);
 
         auto dstEntry = msg->lookupEntry(init::SCHEDULERS_START+*id, 32, true);
         if (!dstEntry) return dstEntry.state();
@@ -126,7 +126,9 @@ protected:
   }
 
   Error ProcessorManagement::invoke_freeCore(Tasklet*, Cap, IInvocation* msg){
+    MLOG_DETAIL(mlog::pm, "PM::invoke_freeCore");
     auto data = msg->getMessage()->cast<protocol::ProcessorManagement::FreeCore>();
     return Error::SUCCESS;
   }
+
 } // namespace mythos
