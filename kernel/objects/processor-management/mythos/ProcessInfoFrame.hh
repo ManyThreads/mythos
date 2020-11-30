@@ -25,7 +25,7 @@
  */
 #pragma once
 
-#include "cpu/hwthreadid.hh"
+//#include "cpu/hwthreadid.hh"
 #include "mythos/InvocationBuf.hh"
 
 #define PS_PER_TSC_DEFAULT (0x180)
@@ -42,7 +42,7 @@ class ProcessInfoFrame{
       , psPerTsc(PS_PER_TSC_DEFAULT)
     {}
 
-    cpu::ThreadID getNumThreads(){ return numThreads; }
+    size_t getNumThreads(){ return numThreads; }
     uint64_t getPsPerTSC() { return psPerTsc; }
     InvocationBuf* getInvocationBuf() {return &ib;}
     ProcessorManagerInfo* getProcessorManagerInfo() {return &pmi; }
@@ -50,7 +50,7 @@ class ProcessInfoFrame{
 
   //protected: //todo manage access
     InvocationBuf ib; // needs to be the first member (see Initloader::createPortal)
-    cpu::ThreadID numThreads; //number of available HW-threads
+    size_t numThreads; //number of available HW-threads
     uint64_t psPerTsc; // picoseconds per time stamp counter
     ProcessorManagerInfo pmi;  
 };
