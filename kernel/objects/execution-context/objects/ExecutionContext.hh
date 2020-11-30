@@ -180,6 +180,8 @@ namespace mythos {
 
     LinkedList<IKernelObject*>::Queueable del_handle = {this};
     IAsyncFree* memory;
+
+    Tasklet exitTask; 
   };
 
   class ExecutionContextFactory : public FactoryBase

@@ -102,6 +102,7 @@ public:
 
 private:
 
+  friend class ProcessorManagement; //needs to be called inside an already acquired monitor
   void _revoke(Tasklet* t, result_t* res, CapEntry& entry, IKernelObject* guarded);
   void _delete(Tasklet* t, result_t* res, CapEntry& entry, IKernelObject* guarded);
   void _deleteObject(Tasklet* t);

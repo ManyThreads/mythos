@@ -411,7 +411,7 @@ namespace mythos {
         {
           setFlags(IS_TRAPPED);
           auto cid = cpu::getThreadID();
-          pluginProcessorManagement.pm.freeCore(cid);
+          pluginProcessorManagement.pm.freeCore(&exitTask, cid);
         }
         break;
 

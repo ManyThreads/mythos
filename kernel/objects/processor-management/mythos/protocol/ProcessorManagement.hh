@@ -73,8 +73,8 @@ namespace mythos {
       template<class IMPL, class... ARGS>
       static Error dispatchRequest(IMPL* obj, uint8_t m, ARGS const&...args) {
         switch(Methods(m)) {
-          case ALLOCCORE: return obj->invoke_allocCore(args...);
-          case FREECORE: return obj->invoke_freeCore(args...);
+          case ALLOCCORE: return obj->allocCore(args...);
+          case FREECORE: return obj->freeCore(args...);
           default: return Error::NOT_IMPLEMENTED;
         }
       }

@@ -32,6 +32,8 @@
 #include "mythos/protocol/ProcessorManagement.hh"
 #include "boot/load_init.hh"
 #include "boot/mlog.hh"
+#include "objects/RevokeOperation.hh"
+#include "async/IResult.hh"
 
 namespace mythos {
 
@@ -72,12 +74,17 @@ class LiFoProcessorAllocator : public ProcessorAllocator
 
 class ProcessorManagement
   : public IKernelObject
+  , public IResult<void>
 {
 public:
   optional<void const*> vcast(TypeId) const override { THROW(Error::TYPE_MISMATCH); }
   optional<void> deleteCap(CapEntry&, Cap, IDeleter&) override { RETURN(Error::SUCCESS); }
   void deleteObject(Tasklet*, IResult<void>*) override {}
   void invoke(Tasklet* t, Cap self, IInvocation* msg) override;
+
+  virtual void response(Tasklet* t, optional<void> res) override{
+    MLOG_INFO(mlog::pm, "revoke response:", res.state());
+  }
 
   void init(){
       MLOG_INFO(mlog::pm, "PM::init");
@@ -91,13 +98,19 @@ public:
     : sc(image2kernel(&mySC[0]))
   {}
 
-  Error invoke_allocCore(Tasklet*, Cap, IInvocation* msg);
+  Error allocCore(Tasklet*, Cap, IInvocation* msg);
 
-  Error invoke_freeCore(Tasklet*, Cap, IInvocation* msg);
+  Error freeCore(Tasklet*, Cap, IInvocation* msg);
 
-  void freeCore(cpu::ThreadID id){
-    MLOG_DETAIL(mlog::pm, "PM::freeCore", DVAR(id));
-    pa.free(id);
+  void freeCore(Tasklet* t, cpu::ThreadID id){
+      MLOG_DETAIL(mlog::pm, "PM::freeCore", DVAR(id));
+      monitor.request(t, [=](Tasklet* t){
+        MLOG_DETAIL(mlog::pm, "monitor freeCore", DVAR(id));
+        //revokeOp.revokeCap(t, this, sc[id], this);
+        revokeOp._revoke(t, this, sc[id], this);
+        pa.free(id);
+      }
+    );
   }
 private:
   CapEntry *sc;
@@ -105,11 +118,13 @@ private:
 
 protected:
   async::NestedMonitorDelegating monitor;
+  RevokeOperation revokeOp = {monitor};
   friend class PluginProcessorManagement;
   LiFoProcessorAllocator pa;
 };
 
-  Error ProcessorManagement::invoke_allocCore(Tasklet*, Cap, IInvocation* msg){
+  Error ProcessorManagement::allocCore(Tasklet*, Cap, IInvocation* msg){
+    MLOG_DETAIL(mlog::pm, "PM::allocCore");
       auto id = pa.alloc();
       if(id){
 
@@ -125,8 +140,8 @@ protected:
       return Error::SUCCESS;
   }
 
-  Error ProcessorManagement::invoke_freeCore(Tasklet*, Cap, IInvocation* msg){
-    MLOG_DETAIL(mlog::pm, "PM::invoke_freeCore");
+  Error ProcessorManagement::freeCore(Tasklet*, Cap, IInvocation* msg){
+    MLOG_DETAIL(mlog::pm, "PM::freeCore");
     auto data = msg->getMessage()->cast<protocol::ProcessorManagement::FreeCore>();
     return Error::SUCCESS;
   }
