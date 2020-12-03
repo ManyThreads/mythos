@@ -41,6 +41,9 @@ void init_broadcast(Chain& c){
     if(!tasks){
       MLOG_INFO(mlog::app, "Main trying to get new Tasks");
       tasks = jobPool.get_tasks();
+      if(!tasks){
+        MLOG_INFO(mlog::app, "Main cannot get more tasks");
+      }
     }
   }
 
@@ -62,7 +65,6 @@ void* broadcast(void* args){
   std::atomic<int> res(0);  // response counter
   Chain* tasks = jobPool.get_tasks();  // get an amount of tasks
   int num_tasks = 0;  // counter to determine how many tasks were assigned
-  MLOG_INFO(mlog::app, "TEST");
   Chain c(*c_old);
   HandlerArg_t new_handler_args(&c, &res);
   MLOG_INFO(mlog::app, "Threads propagation initialization complete", DVARhex(pthread_self()));
@@ -70,6 +72,10 @@ void* broadcast(void* args){
   // Set acknowledgement-counter as argument
   // for acknowledgement handling function to access it
   c.setHandlerArgs(&new_handler_args);
+
+  if(!tasks){
+    MLOG_INFO(mlog::app, "Nothing to do", DVARhex(pthread_self()));
+  }
 
   while(tasks){
     MLOG_INFO(mlog::app, "Thread propagate to Thread with Chain:", DVARhex(tasks), DVARhex(pthread_self()));
@@ -82,6 +88,9 @@ void* broadcast(void* args){
     if(!tasks){
       MLOG_INFO(mlog::app, "Thread trying to get new Tasks", DVARhex(pthread_self()));
       tasks = jobPool.get_tasks();
+      if(!tasks){
+        MLOG_INFO(mlog::app, "Cannot get more Tasks", DVARhex(pthread_self()));
+      }
     }
   }
 
@@ -91,12 +100,12 @@ void* broadcast(void* args){
   // Weiterer Evaluationsfall: An dieser Stelle schlafen legen
   while(res < num_tasks);
 
-  MLOG_INFO(mlog::app, "All acks received going to ack by myself", DVARhex(pthread_self()), DVARhex(parents_ack_count));
+  MLOG_INFO(mlog::app, "All acks received going to ack by myself", DVARhex(pthread_self()), DVAR(*parents_ack_count), DVARhex(parents_ack_count));
 
   // Acknowledge successful propagation
-  *parents_ack_count++;
+  (*parents_ack_count)++;
 
-  MLOG_INFO(mlog::app, "Thread will now return from propagation", DVARhex(pthread_self()));
+  MLOG_INFO(mlog::app, "Thread will now return from propagation", DVARhex(pthread_self()), DVAR(*parents_ack_count), DVARhex(parents_ack_count));
 
   return nullptr;
 }
