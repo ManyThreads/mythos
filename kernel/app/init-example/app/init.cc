@@ -487,6 +487,7 @@ void test_CgaScreen(){
 #define AMOUNT_THREADS 3  // Should currently not be higher then #CPU's - 1
 const size_t MAX_TASK = 4; // in Release will be set to MYTHOS_MAX_THREADS = 244;
 const size_t TASKQUEUE_DIVISOR = 2; // Tuning how large Tasklists for propagation will be
+std::atomic<int> init_marker[AMOUNT_THREADS]; // Marker to indicate when Threads are done initializing
 
 SingleLinkedList jobPool; // List with all Threads which are registered for broadcast
 
@@ -531,6 +532,8 @@ void start_pthreads(){
 void* initialize_broadcast_thread(void* arg){
   Funparam_t* a = reinterpret_cast<Funparam_t*>(arg);
   MLOG_INFO(mlog::app, "Initialize Thread:", DVAR(a->idx), DVARhex(a->funptr), DVARhex(a->args));
+
+  // Create Chain element and register for receiving propagation events
   Chain local_mem;
   jobPool.push_front(&local_mem);
 
@@ -539,14 +542,20 @@ void* initialize_broadcast_thread(void* arg){
   // Propably will be extended to a struct later for further Tests
   //a->broadcast_args = &args;
 
-  MLOG_INFO(mlog::app, "Chain at:", DVARhex(&local_mem));
+  MLOG_INFO(mlog::app, "Chain at:", DVARhex(&local_mem), DVARhex(pthread_self()), DVAR(a->idx));
+
+  init_marker[a->idx].store(1); // Mark initialization as done
 
   return (*a->funptr)(reinterpret_cast<void*>(&t_args));
 }
 
-// Dummy Function to make threads do something
+/*
+  Dummy Function to make threads do something as task.
+  Will be replaced with a function that idles some time for some threads
+  to simulate high reaction latency for some threads
+*/
 void* say_hello(void* arg){
-  MLOG_INFO(mlog::app, "Hello World from:", DVAR(pthread_self()));
+  MLOG_INFO(mlog::app, "Hello World from:", DVARhex(pthread_self()));
 
   return 0;
 }
@@ -560,12 +569,13 @@ void* say_hello(void* arg){
 void* broadcast_thread_main(void* args){
   ThreadArg_t* t_args = reinterpret_cast<ThreadArg_t*>(args);
 
-  MLOG_INFO(mlog::app, "Thread will now wait for the barrier to release");
+  MLOG_INFO(mlog::app, "Thread will now wait for the barrier to release", DVARhex(pthread_self()));
 
-  while(!t_args->local_mem->getBarrierState());
+  while(!t_args->local_mem->getBarrierState()); // Poll for incoming signal of broadcast
 
-  MLOG_INFO(mlog::app, "Barrier was released now running given Task");
+  MLOG_INFO(mlog::app, "Barrier was released now running given Task", DVARhex(pthread_self()));
 
+  // Run given Task first (e. g. invalidate data)
   Funptr_t task = t_args->local_mem->getFunptr();
   void* task_args = t_args->local_mem->getFunArgs();
 
@@ -573,12 +583,13 @@ void* broadcast_thread_main(void* args){
 
   MLOG_INFO(mlog::app, "Thread will now execute further Propagation");
 
+  // Participate in further Propagation
   Funptr_t handler = t_args->local_mem->getHandler();
   void* handler_args = t_args->local_mem->getHandlerArgs();
 
   void* handler_results = (*handler)(handler_args);
 
-  MLOG_INFO(mlog::app, "Thread is done");
+  MLOG_INFO(mlog::app, "Thread is done and shuts down", DVARhex(pthread_self()));
 
   return nullptr;
 }
@@ -596,27 +607,34 @@ void run_broadcast(){
   for(int i = 0; i < AMOUNT_THREADS; i++){
     Funparam_t tmp(i, &broadcast_thread_main, nullptr);
     param[i] = tmp;
+    init_marker[i].store(0);
     pthread_create(&threads[i], nullptr, &initialize_broadcast_thread, &param[i]);
   }
 
   MLOG_INFO(mlog::app, "Threads created");
 
-  // Initialize Tasks for threads and run broadcast
+  // Initialize Task for threads to run when receiving broadcast signal
   Chain c;
   c.init(&say_hello, nullptr, &broadcast, &c);
 
-  // Wait some time to let Threads run into their Barrier before starting broadcast
+  // Wait until all threads are done initializing before starting the broadcast
   MLOG_INFO(mlog::app, "Main initial break");
-  for(volatile int i = 0; i < 100000; i++){
-    for(volatile int j = 0; j < 10000; j++);
+  for(int i = 0; i < AMOUNT_THREADS; i++){
+      while(!init_marker[i]);
   }
+  //for(volatile int i = 0; i < 100000; i++){
+  //  for(volatile int j = 0; j < 10000; j++);
+  //}
 
   MLOG_INFO(mlog::app, "Start Broadcast");
-  run(c);
+  run(c); // start broadcasting using Chain c as task
 
+  // Clean finalization
   for(int i = 0; i < AMOUNT_THREADS; i++){
     pthread_join(threads[i], nullptr);
   }
+
+  MLOG_INFO(mlog::app, "Main Thread exiting Testcase 1");
 }
 
 /*

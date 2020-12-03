@@ -8,11 +8,19 @@
 class Chain{
 public:
   Chain();
+
+  /**
+   * Copies function pointers and their arguments,
+   * sets next to nullptr and locks the barrier
+   */
   Chain(const Chain& c);
   ~Chain() = default;
 
   void init(Funptr_t task, void* fun_args, Funptr_t handler, void* handler_args);
 
+  /*
+    Getters and setters working as one would expect them to work like
+  */
   Funptr_t getFunptr();
   void setFunptr(Funptr_t funptr);
   void* getFunArgs();
@@ -26,19 +34,35 @@ public:
   Chain* getNext();
   void setNext(Chain* next);
 
-  void setTask(Chain& c);
-  void setTask(Chain* c);
-  void unlock();
-  void lock();
   int getBarrierState();
 
+  /**
+   * Sets function pointers and arguments of this to those of c
+   */
+  void setTask(Chain& c);
+
+  /**
+   * Sets function pointers and arguments of this to those of c
+   */
+  void setTask(Chain* c);
+
+  /**
+   * Unlocks the barrier variable by setting it to 1
+   */
+  void unlock();
+
+  /**
+   * Locks the barrier variable by setting it to 0
+   */
+  void lock();
+
 private:
-  Chain* next;
-  Funptr_t funptr;
-  Funptr_t handlerptr;
-  void* fun_args;
-  void* handler_args;
-  std::atomic<int> barrier;
+  Chain* next;              // Next Chain element in List
+  Funptr_t funptr;          // Pointer to the function that shall be executed before further Propagation
+  Funptr_t handlerptr;      // Pointer to propagation function that will be executed after the given task in funptr was executed
+  void* fun_args;           // Arguments for funptr
+  void* handler_args;       // Arguments for handlerptr
+  std::atomic<int> barrier; // Barrier for initial Thread synchronization in Testcases
 };
 
 Chain::Chain(){
@@ -47,17 +71,11 @@ Chain::Chain(){
 }
 
 Chain::Chain(const Chain& c){
-  MLOG_INFO(mlog::app,"MIAU");
   this->next = nullptr;
-  MLOG_INFO(mlog::app,"MIAU1");
   this->funptr = c.funptr;
-  MLOG_INFO(mlog::app,"MIAU2");
   this->handlerptr = c.handlerptr;
-  MLOG_INFO(mlog::app,"MIAU3");
   this->fun_args = c.fun_args;
-  MLOG_INFO(mlog::app,"MIAU4");
   this->barrier.store(0);
-  MLOG_INFO(mlog::app,"MIAU5");
 }
 
 void Chain::init(Funptr_t task, void* fun_args, Funptr_t handler, void* handler_args){

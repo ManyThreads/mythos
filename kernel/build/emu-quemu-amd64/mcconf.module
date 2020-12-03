@@ -12,7 +12,7 @@ QEMUFLAGS += -serial stdio
 QEMUFLAGS += -serial unix:h2p,server,nowait
 # com3: binary trace output into an file
 QEMUFLAGS += -serial file:mythos.trace
-QEMUFLAGS += -d pcall,int,unimp,guest_errors -no-reboot
+#QEMUFLAGS += -d pcall,int,unimp,guest_errors -no-reboot
 '''
 
     makefile_body = '''
