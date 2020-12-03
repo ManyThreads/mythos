@@ -3,12 +3,15 @@
 
 #include "util/Typedef.hh"
 
-#include <atomic>
+//#include <atomic>
 
 class Chain{
 public:
   Chain();
+  Chain(const Chain& c);
   ~Chain() = default;
+
+  void init(Funptr_t task, void* fun_args, Funptr_t handler, void* handler_args);
 
   Funptr_t getFunptr();
   void setFunptr(Funptr_t funptr);
@@ -24,13 +27,15 @@ public:
   void setNext(Chain* next);
 
   void setTask(Chain& c);
+  void setTask(Chain* c);
   void unlock();
   void lock();
+  int getBarrierState();
 
 private:
   Chain* next;
   Funptr_t funptr;
-  Handlerptr_t handlerptr;
+  Funptr_t handlerptr;
   void* fun_args;
   void* handler_args;
   std::atomic<int> barrier;
@@ -38,6 +43,29 @@ private:
 
 Chain::Chain(){
   this->next = nullptr;
+  this->barrier.store(0);
+}
+
+Chain::Chain(const Chain& c){
+  MLOG_INFO(mlog::app,"MIAU");
+  this->next = nullptr;
+  MLOG_INFO(mlog::app,"MIAU1");
+  this->funptr = c.funptr;
+  MLOG_INFO(mlog::app,"MIAU2");
+  this->handlerptr = c.handlerptr;
+  MLOG_INFO(mlog::app,"MIAU3");
+  this->fun_args = c.fun_args;
+  MLOG_INFO(mlog::app,"MIAU4");
+  this->barrier.store(0);
+  MLOG_INFO(mlog::app,"MIAU5");
+}
+
+void Chain::init(Funptr_t task, void* fun_args, Funptr_t handler, void* handler_args){
+  this->next = nullptr;
+  this->funptr = task;
+  this->fun_args = fun_args;
+  this->handlerptr = handler;
+  this->handler_args = handler_args;
   this->barrier.store(0);
 }
 
@@ -57,11 +85,11 @@ void Chain::setFunArgs(void* args){
   this->fun_args = args;
 }
 
-Handlerptr_t Chain::getHandler(){
+Funptr_t Chain::getHandler(){
   return this->handlerptr;
 }
 
-void Chain::setHandler(Handlerptr_t handler){
+void Chain::setHandler(Funptr_t handler){
   this->handlerptr = handler;
 }
 
@@ -88,12 +116,23 @@ void Chain::setTask(Chain& c){
   this->handler_args = c.handler_args;
 }
 
-void unlock(){
+void Chain::setTask(Chain* c){
+  this->funptr = c->funptr;
+  this->handlerptr = c->handlerptr;
+  this->fun_args = c->fun_args;
+  this->handler_args = c->handler_args;
+}
+
+void Chain::unlock(){
   this->barrier.store(1);
 }
 
-void lock(){
+void Chain::lock(){
   this->barrier.store(0);
+}
+
+int Chain::getBarrierState(){
+  return this->barrier;
 }
 
 #endif // CHAIN_HH

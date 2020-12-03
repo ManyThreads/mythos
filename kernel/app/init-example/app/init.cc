@@ -57,6 +57,7 @@
 #include "util/SingleLinkedList.hh"
 #include "util/Chain.hh"
 #include "util/US_Broadcast.hh"
+#include "util/Structs.hh"
 
 
 mythos::InvocationBuf* msg_ptr asm("msg_ptr");
@@ -483,20 +484,11 @@ void test_CgaScreen(){
 
 // #############################################################################
 
-#define AMOUNT_THREADS 7
-const size_t MAX_TASK = 8; //MYTHOS_MAX_THREADS;
-const size_t TASKQUEUE_DIVISOR = 2;
+#define AMOUNT_THREADS 3  // Should currently not be higher then #CPU's - 1
+const size_t MAX_TASK = 4; // in Release will be set to MYTHOS_MAX_THREADS = 244;
+const size_t TASKQUEUE_DIVISOR = 2; // Tuning how large Tasklists for propagation will be
 
-SingleLinkedList jobPool;
-US_Broadcast usbc;
-
-typedef struct Funparam_t{
-  int idx;
-  void* (*funptr)(void*);
-  void* args;
-
-  Funparam_t(int idx, void* (*funptr)(void*), void* args) : idx(idx), funptr(funptr), args(args){}
-} Funparam_t;
+SingleLinkedList jobPool; // List with all Threads which are registered for broadcast
 
 void* mythreadmain(void* args){
   MLOG_INFO(mlog::app, "Hallo von", DVARhex(pthread_self()), "Param:", DVAR(*reinterpret_cast<int*>(args)));
@@ -528,24 +520,75 @@ void start_pthreads(){
   MLOG_INFO(mlog::app, "TEST PTHREADS DONE");
 }
 
+/*
+  This Function is used to initialize needed data structures for
+  broadcast testing threads.
+  A Chain element is created on local stack and pushed into the joblist
+  to register this thread as propagation target.
+  The parameters which where given on creation are passed through using
+  Funparam_t struct.
+*/
 void* initialize_broadcast_thread(void* arg){
   Funparam_t* a = reinterpret_cast<Funparam_t*>(arg);
+  MLOG_INFO(mlog::app, "Initialize Thread:", DVAR(a->idx), DVARhex(a->funptr), DVARhex(a->args));
   Chain local_mem;
   jobPool.push_front(&local_mem);
 
+  ThreadArg_t t_args(&local_mem, a->args, a->idx);
+  // Threads Chain will be passed so thread can access it's barrier variable
+  // Propably will be extended to a struct later for further Tests
+  //a->broadcast_args = &args;
+
   MLOG_INFO(mlog::app, "Chain at:", DVARhex(&local_mem));
 
-  return (*a->funptr)(a->args);
+  return (*a->funptr)(reinterpret_cast<void*>(&t_args));
 }
 
+// Dummy Function to make threads do something
 void* say_hello(void* arg){
   MLOG_INFO(mlog::app, "Hello World from:", DVAR(pthread_self()));
 
   return 0;
 }
 
+/*
+  This is the main functions that is run by Threads who test userspace propagation.
+  This is the first testcase.
+  The Threads poll for a barrier variable to release when a task is enqueded for them.
+  They will then solve the task and further help in propagation of the task
+*/
+void* broadcast_thread_main(void* args){
+  ThreadArg_t* t_args = reinterpret_cast<ThreadArg_t*>(args);
+
+  MLOG_INFO(mlog::app, "Thread will now wait for the barrier to release");
+
+  while(!t_args->local_mem->getBarrierState());
+
+  MLOG_INFO(mlog::app, "Barrier was released now running given Task");
+
+  Funptr_t task = t_args->local_mem->getFunptr();
+  void* task_args = t_args->local_mem->getFunArgs();
+
+  void* task_results = (*task)(task_args);
+
+  MLOG_INFO(mlog::app, "Thread will now execute further Propagation");
+
+  Funptr_t handler = t_args->local_mem->getHandler();
+  void* handler_args = t_args->local_mem->getHandlerArgs();
+
+  void* handler_results = (*handler)(handler_args);
+
+  MLOG_INFO(mlog::app, "Thread is done");
+
+  return nullptr;
+}
+
+/*
+  This is the Function that is run by the initiator Thread.
+  It handles basic Thread initialisation and will then start the propagation
+*/
 void run_broadcast(){
-  MLOG_INFO("INITIALIZE BROADCAST");
+  MLOG_INFO(mlog::app, "INITIALIZE BROADCAST");
 
   pthread_t threads[AMOUNT_THREADS];
   Funparam_t param[AMOUNT_THREADS];
@@ -553,12 +596,32 @@ void run_broadcast(){
   for(int i = 0; i < AMOUNT_THREADS; i++){
     Funparam_t tmp(i, &broadcast_thread_main, nullptr);
     param[i] = tmp;
-    pthread_create(&threads[i], nullptr, &initialize_broadcast_thread, nullptr);
+    pthread_create(&threads[i], nullptr, &initialize_broadcast_thread, &param[i]);
   }
 
-  MLOG_INFO("Threads created");
+  MLOG_INFO(mlog::app, "Threads created");
+
+  // Initialize Tasks for threads and run broadcast
+  Chain c;
+  c.init(&say_hello, nullptr, &broadcast, &c);
+
+  // Wait some time to let Threads run into their Barrier before starting broadcast
+  MLOG_INFO(mlog::app, "Main initial break");
+  for(volatile int i = 0; i < 100000; i++){
+    for(volatile int j = 0; j < 10000; j++);
+  }
+
+  MLOG_INFO(mlog::app, "Start Broadcast");
+  run(c);
+
+  for(int i = 0; i < AMOUNT_THREADS; i++){
+    pthread_join(threads[i], nullptr);
+  }
 }
 
+/*
+  Testing basic Thread initialization
+*/
 void test_broadcast_threads(){
   MLOG_INFO(mlog::app, "Test Broadcast Thread");
 
@@ -590,7 +653,7 @@ int main()
   //test_float();
   //test_Example();
   //test_Portal();
-  test_heap(); // heap must be initialized for tls test
+  test_heap(); // heap must be initialized for tls // and for pthreads in general :D
   //test_tls();
   //test_exceptions();
   //test_InterruptControl();
@@ -601,7 +664,8 @@ int main()
   //test_CgaScreen();
 
   //start_pthreads();
-  test_broadcast_threads();
+  //test_broadcast_threads();
+  run_broadcast();
 
   char const end[] = "bye, cruel world!";
   mythos::syscall_debug(end, sizeof(end)-1);
