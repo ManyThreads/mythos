@@ -37,13 +37,13 @@ template<typename... Args>
 class EventHook
 {
 public:
-  EventHook() {}
+  constexpr EventHook() noexcept : next(nullptr) {}
   virtual ~EventHook() {}
   virtual int priority() const { return 0; }
   virtual void processEvent(Args...) = 0;
 private:
   friend class Event<Args...>;
-  EventHook<Args...>* next = {nullptr};
+  EventHook<Args...>* next;
 };
 
 /** Typed registry for hooks into a certain event.
@@ -59,7 +59,7 @@ class Event
 public:
   typedef EventHook<Args...> hook_t;
 
-  Event() {}
+  constexpr Event() noexcept : hooks(nullptr) {}
 
   /** insert after this object but before the next object with
    * lower priority. */
@@ -68,7 +68,7 @@ public:
   void emit(Args... args);
 
 private:
-  hook_t* hooks = {nullptr};
+  hook_t* hooks;
 };
 
 template<typename... Args>
