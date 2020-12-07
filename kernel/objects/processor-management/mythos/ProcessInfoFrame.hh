@@ -28,31 +28,86 @@
 //#include "cpu/hwthreadid.hh"
 #include "mythos/InvocationBuf.hh"
 
-#define PS_PER_TSC_DEFAULT (0x180)
+#define PS_PER_TSC_DEFAULT (0x181)
 
 namespace mythos {
 
 class ProcessorManagerInfo{
+  public:
+    //ProcessorManagerInfo(){}
+
+    virtual void setIdle(size_t id) = 0;
+    virtual void setRunning(size_t id) = 0;
+    
+};
+
+template<size_t NUMTHREADS>
+class FixedSizedProcessorManagerInfo 
+  : public ProcessorManagerInfo
+{ 
+  public:
+    FixedSizedProcessorManagerInfo(){
+      for(int i = 0; i < NUMTHREADS; i++){
+        states[i] = UNALLOCATED;
+      }
+    }
+
+    enum ProzessorState{
+      INVALID,
+      UNALLOCATED,
+      IDLE,
+      RUNNING     
+    };
+
+    void setIdle(size_t id){
+      states[id].store(IDLE);
+    }
+
+    void setRunning(size_t id){
+      states[id].store(RUNNING);
+    }
+    
+    optional<size_t> reuseIdle(){
+      for(size_t i = 0; i < NUMTHREADS; i++){
+        if(states[i].compare_exchange_weak(IDLE, RUNNING)) return i;
+      }
+      return optional<size_t>();
+    }
+  private:
+    std::atomic<ProzessorState> states[NUMTHREADS];
 };
 
 class ProcessInfoFrame{
   public:
     ProcessInfoFrame()
-      : numThreads(0)
-      , psPerTsc(PS_PER_TSC_DEFAULT)
+      : psPerTsc(PS_PER_TSC_DEFAULT)
     {}
 
-    size_t getNumThreads(){ return numThreads; }
     uint64_t getPsPerTSC() { return psPerTsc; }
-    InvocationBuf* getInvocationBuf() {return &ib;}
-    ProcessorManagerInfo* getProcessorManagerInfo() {return &pmi; }
-    uintptr_t getInfoEnd () { return reinterpret_cast<uintptr_t>(this) + sizeof(ProcessInfoFrame); }
+    InvocationBuf* getInvocationBuf() {return &ib; }
+    virtual size_t getNumThreads() = 0;
+    virtual ProcessorManagerInfo* getProcessorManagerInfo() = 0;
+    virtual uintptr_t getInfoEnd () = 0;
 
   //protected: //todo manage access
+    //friend class boot::Initloader;
     InvocationBuf ib; // needs to be the first member (see Initloader::createPortal)
-    size_t numThreads; //number of available HW-threads
     uint64_t psPerTsc; // picoseconds per time stamp counter
-    ProcessorManagerInfo pmi;  
+};
+template<size_t NUMTHREADS>
+class FixedSizedProcessInfoFrame
+  : public ProcessInfoFrame
+{
+  public:
+    FixedSizedProcessInfoFrame(){}
+
+    size_t getNumThreads() override { return NUMTHREADS; }
+    ProcessorManagerInfo* getProcessorManagerInfo() override { return &pmi; }
+    uintptr_t getInfoEnd () override { return reinterpret_cast<uintptr_t>(this) + sizeof(ProcessInfoFrame); }
+
+  //protected: //todo manage access
+    //friend class boot::Initloader;
+    FixedSizedProcessorManagerInfo<NUMTHREADS> pmi;  
 };
 
 }// namespace mythos
