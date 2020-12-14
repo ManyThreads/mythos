@@ -217,7 +217,7 @@ extern "C" void * mmap(void *start, size_t len, int prot, int flags, int fd, off
 {
     // dummy implementation
     //MLOG_DETAIL(mlog::app, "mmap", DVAR(start), DVAR(len), DVAR(prot), DVAR(prot), DVAR(flags), DVAR(fd), DVAR(off));
-    auto tmp = mythos::heap.alloc(len);
+    auto tmp = mythos::heap.alloc(len, mythos::align4K);
     if (!tmp){ 
 	    errno = ENOMEM;
 	    return MAP_FAILED;
