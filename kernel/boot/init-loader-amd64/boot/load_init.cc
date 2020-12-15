@@ -51,6 +51,7 @@ namespace mythos {
     
 Event<boot::InitLoader&> event::initLoader;
 Event<boot::InitLoader&, ExecutionContext&> event::initEC;
+Event<ProcessInfoFrame*> event::initPIF;
     
 namespace boot {
 
@@ -177,7 +178,8 @@ optional<void> InitLoader::initCSpace()
 
 optional<CapPtr> InitLoader::createInfoFrame(uintptr_t ipc_vaddr)
 {
-    auto size = round_up(sizeof(ProcessInfoFrame), align2M);
+    auto numThreads = cpu::getNumThreads();
+    auto size = round_up(sizeof(ProcessInfoFrame::getInfoSize(numThreads)), align2M);
     MLOG_INFO(mlog::boot, "... create info frame");
     auto frameCap = memMapper.createFrame(init::INFO_FRAME, size, 2*1024*1024);
     if (!frameCap) RETHROW(frameCap);
@@ -189,8 +191,8 @@ optional<CapPtr> InitLoader::createInfoFrame(uintptr_t ipc_vaddr)
     if (!frameEntry) RETHROW(frameEntry);
     TypedCap<IFrame> frame(frameEntry);
     if (!frame) RETHROW(frame);
-    auto pif = new(reinterpret_cast<ProcessInfoFrame*>(frame.getFrameInfo().start.logint())) ProcessInfoFrame();
-    pif->numThreads = cpu::getNumThreads();
+    auto pif = new(reinterpret_cast<ProcessInfoFrame*>(frame.getFrameInfo().start.logint())) ProcessInfoFrame(numThreads);
+    event::initPIF.emit(pif);
 
     return frameCap;
 }

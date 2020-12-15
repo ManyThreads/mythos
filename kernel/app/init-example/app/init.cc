@@ -72,7 +72,7 @@ mythos::KObject device_memory(mythos::init::DEVICE_MEM);
 mythos::SimpleCapAllocDel capAlloc(portal, myCS, mythos::init::APP_CAP_START,
                                   mythos::init::SIZE-mythos::init::APP_CAP_START);
 mythos::RaplDriverIntel rapl(mythos::init::RAPL_DRIVER_INTEL);
-mythos::ProcessorManagement pm(mythos::init::PROCESSOR_MANAGEMENT, info_ptr->getProcessorManagerInfo());
+mythos::ProcessorManagement pm(mythos::init::PROCESSOR_MANAGEMENT);
 
 char threadstack[stacksize];
 char* thread1stack_top = threadstack+stacksize/2;

@@ -34,6 +34,9 @@
 #include "boot/mlog.hh"
 #include "objects/RevokeOperation.hh"
 #include "async/IResult.hh"
+#include "mythos/ProcessInfoFrame.hh"
+
+#define PM_CACHE_SC
 
 namespace mythos {
 
@@ -103,15 +106,22 @@ public:
   Error freeCore(Tasklet*, Cap, IInvocation* msg);
 
   void freeCore(Tasklet* t, cpu::ThreadID id){
-      MLOG_DETAIL(mlog::pm, "PM::freeCore", DVAR(id));
+      MLOG_ERROR(mlog::pm, "PM::freeCore", DVAR(id));
+#ifdef PM_CACHE_SC
+      asm volatile ("":::"memory");
+      pmi->setIdle(id);
+#else
       monitor.request(t, [=](Tasklet* t){
         MLOG_DETAIL(mlog::pm, "monitor freeCore", DVAR(id));
-        //revokeOp.revokeCap(t, this, sc[id], this);
+        pmi->setFree(id);
         revokeOp._revoke(t, this, sc[id], this);
         pa.free(id);
       }
-    );
+      );
+#endif
   }
+
+  void setPIF(ProcessInfoFrame* pif) { pmi = pif->getProcessorManagerInfo(); }
 private:
   CapEntry *sc;
   CapEntry mySC[MYTHOS_MAX_THREADS];
@@ -119,12 +129,21 @@ private:
 protected:
   async::NestedMonitorDelegating monitor;
   RevokeOperation revokeOp = {monitor};
+  ProcessorManagerInfo* pmi;
   friend class PluginProcessorManagement;
   LiFoProcessorAllocator pa;
 };
 
   Error ProcessorManagement::allocCore(Tasklet*, Cap, IInvocation* msg){
     MLOG_DETAIL(mlog::pm, "PM::allocCore");
+#ifdef PM_CACHE_SC
+      auto reuse = pmi->reuseIdle();
+      if(reuse){
+          MLOG_DETAIL(mlog::pm, "reuse sc ", DVAR(*reuse));
+        msg->getMessage()->write<protocol::ProcessorManagement::RetAllocCore>(init::SCHEDULERS_START+*reuse);
+        return Error::SUCCESS;
+      }
+#endif
       auto id = pa.alloc();
       if(id){
 
@@ -134,6 +153,11 @@ protected:
         //cap::inherit(sc[id], sc[id].cap(), **dstEntry, (*dstEntry)->cap().asReference());
         cap::reference(sc[*id], **dstEntry, sc[*id].cap());
         msg->getMessage()->write<protocol::ProcessorManagement::RetAllocCore>(init::SCHEDULERS_START+*id);
+        MLOG_DETAIL(mlog::pm, "map new sc ", DVAR(*id));
+
+#ifdef PM_CACHE_SC
+        pmi->setRunning(*id);
+#endif
       }else{
       msg->getMessage()->write<protocol::ProcessorManagement::RetAllocCore>(null_cap);
       }
@@ -141,7 +165,7 @@ protected:
   }
 
   Error ProcessorManagement::freeCore(Tasklet*, Cap, IInvocation* msg){
-    MLOG_DETAIL(mlog::pm, "PM::freeCore");
+    MLOG_ERROR(mlog::pm, "PM::freeCore NYI!!!!");
     auto data = msg->getMessage()->cast<protocol::ProcessorManagement::FreeCore>();
     return Error::SUCCESS;
   }

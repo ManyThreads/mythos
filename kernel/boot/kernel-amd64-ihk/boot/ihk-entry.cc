@@ -342,13 +342,26 @@ void _start_ihk_mythos_(
 
 class IhkInitLoaderPlugin
    : public EventHook<InitLoader&>
+   , public EventHook<ProcessInfoFrame*>
 {
 public:
-    IhkInitLoaderPlugin() { event::initLoader.add(this); }
+    IhkInitLoaderPlugin() { 
+      MLOG_DETAIL(mlog::boot, "IHK Plugin ctor");
+      event::initLoader.add(this); 
+      event::initPIF.add(this);
+    }
+    
     void processEvent(InitLoader& /*loader*/) override {
+      MLOG_DETAIL(mlog::boot, "IHK Plugin initloader");
       // map arbitrary memory into the init application:
       // virtual addr, size, writable, executable, physical address
       //loader.memMapper.mmapDevice(vaddr, size, true, false, physaddr);
+    }
+
+    void processEvent(ProcessInfoFrame* pif) override {
+      //kputs("set ps_per_tsc");
+      MLOG_DETAIL(mlog::boot, "IHK Plugin processinfoframe");
+      pif->psPerTsc = boot_param->ns_per_tsc;
     }
 };
 

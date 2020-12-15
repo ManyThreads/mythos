@@ -27,37 +27,29 @@
 
 //#include "cpu/hwthreadid.hh"
 #include "mythos/InvocationBuf.hh"
+#include "util/align.hh"
 
-#define PS_PER_TSC_DEFAULT (0x181)
+#define PS_PER_TSC_DEFAULT (0x180)
 
 namespace mythos {
 
-class ProcessorManagerInfo{
-  public:
-    //ProcessorManagerInfo(){}
-
-    virtual void setIdle(size_t id) = 0;
-    virtual void setRunning(size_t id) = 0;
-    
-};
-
-template<size_t NUMTHREADS>
-class FixedSizedProcessorManagerInfo 
-  : public ProcessorManagerInfo
+class ProcessorManagerInfo 
 { 
   public:
-    FixedSizedProcessorManagerInfo(){
-      for(int i = 0; i < NUMTHREADS; i++){
-        states[i] = UNALLOCATED;
-      }
-    }
-
-    enum ProzessorState{
+    enum ProcessorState{
       INVALID,
-      UNALLOCATED,
+      FREE, //unallocated
       IDLE,
       RUNNING     
     };
+
+    ProcessorManagerInfo(size_t numThreads)
+      : numThreads(numThreads)
+      , states(reinterpret_cast<std::atomic<ProcessorState>* >(round_up(reinterpret_cast<uintptr_t>(this) + sizeof(this), alignLine)))
+    {
+      states = new(states) std::atomic<ProcessorState>[numThreads]();
+      for(size_t i = 0; i < numThreads; i++) states[i].store(FREE);
+    }
 
     void setIdle(size_t id){
       states[id].store(IDLE);
@@ -67,47 +59,48 @@ class FixedSizedProcessorManagerInfo
       states[id].store(RUNNING);
     }
     
+    void setFree(size_t id){
+      states[id].store(FREE);
+    }
+
     optional<size_t> reuseIdle(){
-      for(size_t i = 0; i < NUMTHREADS; i++){
-        if(states[i].compare_exchange_weak(IDLE, RUNNING)) return i;
+      for(size_t i = 0; i < numThreads; i++){
+        auto state = IDLE;
+        if(states[i].compare_exchange_weak(state, RUNNING)){
+          return i;
+        }
       }
       return optional<size_t>();
     }
+
+    size_t getNumThreads() { return numThreads; } 
+    static size_t getThreadArraySize(size_t numThreads){ return sizeof(std::atomic<ProcessorState>) * numThreads + alignLine; }
   private:
-    std::atomic<ProzessorState> states[NUMTHREADS];
+    size_t numThreads;
+    std::atomic<ProcessorState> *states;
 };
 
 class ProcessInfoFrame{
   public:
-    ProcessInfoFrame()
+    ProcessInfoFrame(size_t numThreads)
       : psPerTsc(PS_PER_TSC_DEFAULT)
+      , pmi(numThreads)
     {}
 
     uint64_t getPsPerTSC() { return psPerTsc; }
     InvocationBuf* getInvocationBuf() {return &ib; }
-    virtual size_t getNumThreads() = 0;
-    virtual ProcessorManagerInfo* getProcessorManagerInfo() = 0;
-    virtual uintptr_t getInfoEnd () = 0;
+    size_t getNumThreads() { return pmi.getNumThreads(); }
+    ProcessorManagerInfo* getProcessorManagerInfo() { return &pmi; }
+    uintptr_t getInfoEnd () { return reinterpret_cast<uintptr_t>(this) + sizeof(ProcessInfoFrame); }
+
+    static size_t getInfoSize(size_t numThreads){ return sizeof(ProcessInfoFrame) + ProcessorManagerInfo::getThreadArraySize(numThreads); }
 
   //protected: //todo manage access
     //friend class boot::Initloader;
     InvocationBuf ib; // needs to be the first member (see Initloader::createPortal)
     uint64_t psPerTsc; // picoseconds per time stamp counter
-};
-template<size_t NUMTHREADS>
-class FixedSizedProcessInfoFrame
-  : public ProcessInfoFrame
-{
-  public:
-    FixedSizedProcessInfoFrame(){}
-
-    size_t getNumThreads() override { return NUMTHREADS; }
-    ProcessorManagerInfo* getProcessorManagerInfo() override { return &pmi; }
-    uintptr_t getInfoEnd () override { return reinterpret_cast<uintptr_t>(this) + sizeof(ProcessInfoFrame); }
-
-  //protected: //todo manage access
-    //friend class boot::Initloader;
-    FixedSizedProcessorManagerInfo<NUMTHREADS> pmi;  
+    ProcessorManagerInfo pmi; // needs to be last member, because the HW Thread-State Array is following
+    // ATTENTION: ProcessorManagementInfo creates an array for HW-Threads behind it's own object (please use getInfoEnd/getInfoSize function)
 };
 
 }// namespace mythos

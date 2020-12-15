@@ -38,6 +38,7 @@
 
 #include "boot/CapAlloc.hh"
 #include "boot/MemMapper.hh"
+#include "mythos/ProcessInfoFrame.hh"
 
 namespace mythos {
 
@@ -89,6 +90,7 @@ namespace mythos {
   namespace event {
     extern Event<boot::InitLoader&> initLoader;
     extern Event<boot::InitLoader&, ExecutionContext&> initEC;
+    extern Event<ProcessInfoFrame*> initPIF;
   }
 
 } // namespace mythos

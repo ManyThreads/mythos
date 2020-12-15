@@ -30,18 +30,21 @@
 #include "mythos/init.hh"
 #include "mythos/ProcessInfoFrame.hh"
 
+extern mythos::ProcessInfoFrame* info_ptr asm("info_ptr");
+
 namespace mythos {
 
   class ProcessorManagement : public KObject
   {
   public:
 
-    ProcessorManagement(ProcessorManagerInfo* pmi)
-      : pmi(pmi) 
+    ProcessorManagement() 
+      : pmi(info_ptr->getProcessorManagerInfo())
     {}
-    ProcessorManagement(CapPtr cap, ProcessorManagerInfo* pmi) 
+
+    ProcessorManagement(CapPtr cap) 
       : KObject(cap) 
-      , pmi(pmi)
+      , pmi(info_ptr->getProcessorManagerInfo())
     {}
 
     struct AllocCoreResult{
@@ -55,16 +58,25 @@ namespace mythos {
     };
 
     PortalFuture<AllocCoreResult> allocCore(PortalLock pr){
+      //auto reuse = pmi->reuseIdle();
+      //if(reuse){
+        //return (init::SCHEDULERS_START + *reuse)
+      //}
       return pr.invoke<protocol::ProcessorManagement::AllocCore>(_cap);
       
     }
 
-    PortalFuture<void> freeCore(PortalLock pr, CapPtr sc){
-      return pr.invoke<protocol::ProcessorManagement::FreeCore>(_cap, sc);
-    }
+    //PortalFuture<void> freeCore(PortalLock pr, CapPtr sc){
+      //return pr.invoke<protocol::ProcessorManagement::FreeCore>(_cap, sc);
+    //}
+
+    //void markFree(CapPtr cs){
+      //pmi->setIdle(sc - init::SCHEDULERS_START);
+    //}
 
   private:
     ProcessorManagerInfo* pmi;
+
   };
 
 } // namespace mythos
