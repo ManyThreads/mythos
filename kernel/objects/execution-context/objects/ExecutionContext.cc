@@ -408,11 +408,7 @@ namespace mythos {
 
       case SYSCALL_EXIT:
         MLOG_INFO(mlog::syscall, "exit");
-        {
-          setFlags(IS_TRAPPED);
-          auto cid = cpu::getThreadID();
-          pluginProcessorManagement.pm.freeCore(&exitTask, cid);
-        }
+        setFlags(IS_TRAPPED);
         break;
 
       case SYSCALL_POLL:

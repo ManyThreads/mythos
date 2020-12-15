@@ -97,6 +97,8 @@ namespace mythos {
     async::Place* home = nullptr;
     list_t readyQueue; //< the ready list of waiting execution contexts
     std::atomic<handle_t*> current_handle = {nullptr}; //< the currently selected execution context
+
+    Tasklet pmTask; 
   };
 
 } // namespace mythos

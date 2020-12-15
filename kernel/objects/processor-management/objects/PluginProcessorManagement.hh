@@ -36,11 +36,13 @@ namespace mythos {
   class PluginProcessorManagement
     : public EventHook<boot::InitLoader&>
     , public EventHook<boot::InitLoader&, ExecutionContext&>
+    , public EventHook<ProcessInfoFrame*>
   {
   public:
     PluginProcessorManagement() {
       event::initLoader.add(this);
       event::initEC.add(this);
+      event::initPIF.add(this);
     }
     virtual ~PluginProcessorManagement() {}
 
@@ -52,7 +54,7 @@ namespace mythos {
     }
 
     void processEvent(boot::InitLoader& loader, ExecutionContext& ec) override {
-      MLOG_INFO(mlog::pm, "... create scheduling context caps in caps");
+      MLOG_INFO(mlog::pm, "... allocate scheduling context for init app");
       auto id = pm.pa.alloc();
       if(id){
         MLOG_INFO(mlog::pm, "got id", *id);
@@ -61,6 +63,11 @@ namespace mythos {
       }
     }
     
+    void processEvent(ProcessInfoFrame* pif) override {
+      MLOG_INFO(mlog::pm, "register PIF");
+      pm.setPIF(pif);
+    }
+
     ProcessorManagement pm;
   };
 

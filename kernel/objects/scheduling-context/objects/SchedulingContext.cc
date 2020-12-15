@@ -44,6 +44,9 @@ namespace mythos {
         MLOG_DETAIL(mlog::sched, "unbind", DVAR(ec->get()));
         readyQueue.remove(ec);
         current_handle.store(nullptr);
+        if(readyQueue.empty()){
+          pluginProcessorManagement.pm.freeCore(&pmTask, home->getThreadID());
+        }
     }
 
     void SchedulingContext::ready(handle_t* ec)

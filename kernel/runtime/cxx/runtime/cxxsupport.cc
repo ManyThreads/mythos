@@ -54,6 +54,7 @@
 #include "runtime/umem.hh"
 #include "mythos/ProcessInfoFrame.hh"
 #include "runtime/ProcessorManagement.hh"
+#include "runtime/thread-extra.hh"
 
 extern mythos::ProcessInfoFrame* info_ptr asm("info_ptr");
 extern mythos::Portal portal;
@@ -222,6 +223,7 @@ extern "C" void * mmap(void *start, size_t len, int prot, int flags, int fd, off
 	    errno = ENOMEM;
 	    return MAP_FAILED;
     }
+    MLOG_ERROR(mlog::app, "mmap", DVARhex(*tmp));
 
     if (flags & MAP_ANONYMOUS)  {
         memset(reinterpret_cast<void*>(*tmp), 0, len);
@@ -241,7 +243,7 @@ extern "C" int munmap(void *start, size_t len)
 extern "C" int unmapself(void *start, size_t len)
 {
     // dummy implementation
-    MLOG_DETAIL(mlog::app, "unmapself");
+    MLOG_ERROR(mlog::app, "unmapself NYI");
     while(1);
     return 0;
 }
@@ -260,7 +262,7 @@ int myclone(
     int (*func)(void *), void *stack, int flags, 
     void *arg, int* ptid, void* tls, int* ctid)
 {
-    //MLOG_DETAIL(mlog::app, "myclone");
+    //MLOG_ERROR(mlog::app, "myclone", DVARhex(tls));
     ASSERT(tls != nullptr);
     static int nextThread = 1;
 
@@ -309,6 +311,15 @@ extern "C" int clone(int (*func)(void *), void *stack, int flags, void *arg, ...
     int* ctid = va_arg(args, int*);
     va_end(args);
     return myclone(func, stack, flags, arg, ptid, tls, ctid);
+}
+
+extern "C" void mythos_pthread_cleanup(pthread_t t){
+    //MLOG_DETAIL(mlog::app, "mythos_pthread_cleanup", mythos_get_pthread_ec(t));
+    auto cap = mythos_get_pthread_ec(t);
+    mythos::PortalLock pl(portal); 
+    mythos::ExecutionContext ec(cap);
+    ec.suspend(pl).wait();
+    capAlloc.free(cap, pl);
 }
 
 struct dl_phdr_info
