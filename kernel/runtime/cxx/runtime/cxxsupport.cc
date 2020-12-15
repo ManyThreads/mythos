@@ -64,6 +64,46 @@ extern mythos::KernelMemory kmem;
 extern mythos::SimpleCapAllocDel capAlloc;
 extern mythos::ProcessorManagement pm;
 
+struct PthreadCleanerSemaphore{
+  PthreadCleanerSemaphore()
+    : flag(FREE)
+  {
+    MLOG_ERROR(mlog::app, "PthreadCleaner");
+  }
+
+  enum state{
+    UNKNOWN = 0,
+    FREE = 1,
+    EXITED = 2
+  };
+
+  void exit(){
+    //MLOG_ERROR(mlog::app, "PthreadCleaner exit", DVARhex(this), DVARhex(pthread_self()));
+    auto ec = flag.exchange(EXITED);
+    if(ec != FREE){
+      ASSERT(ec!=UNKNOWN);
+      mythos::syscall_signal(ec);
+    }
+  }
+
+  void wait(pthread_t t){
+    auto pcs = reinterpret_cast<PthreadCleanerSemaphore* >(t - (pthread_self() - reinterpret_cast<uintptr_t>(this)));
+    //MLOG_ERROR(mlog::app, "PthreadCleaner wait", DVARhex(pcs), DVARhex(this), DVARhex(pthread_self()), DVARhex(t));
+    while(pcs->flag.load() != EXITED){
+      mythos::CapPtr exp = FREE;
+      if(pcs->flag.compare_exchange_weak(exp, mythos_get_pthread_ec_self())){
+        //MLOG_ERROR(mlog::app, "PthreadCleaner going to wait");
+        mythos_wait();
+      }
+    }
+    //MLOG_ERROR(mlog::app, "PthreadCleaner return from wait");
+  }
+  
+  std::atomic<mythos::CapPtr> flag;
+};
+
+static thread_local PthreadCleanerSemaphore pthreadCleanerSemphore;
+
 extern "C" [[noreturn]] void __assert_fail (const char *expr, const char *file, int line, const char *func)
 {
     mlog::Logger<> logassert("assert");
@@ -171,6 +211,8 @@ extern "C" long mythos_musl_syscall(
         return 0;
     case 60: // exit(exit_code)
         //MLOG_DETAIL(mlog::app, "syscall exit", DVAR(a1));
+
+        pthreadCleanerSemphore.exit();
         asm volatile ("syscall" : : "D"(0), "S"(a1) : "memory");
         return 0;
     case 186: // gettid
@@ -223,7 +265,7 @@ extern "C" void * mmap(void *start, size_t len, int prot, int flags, int fd, off
 	    errno = ENOMEM;
 	    return MAP_FAILED;
     }
-    MLOG_ERROR(mlog::app, "mmap", DVARhex(*tmp));
+    //MLOG_DETAIL(mlog::app, "mmap", DVARhex(*tmp));
 
     if (flags & MAP_ANONYMOUS)  {
         memset(reinterpret_cast<void*>(*tmp), 0, len);
@@ -262,7 +304,7 @@ int myclone(
     int (*func)(void *), void *stack, int flags, 
     void *arg, int* ptid, void* tls, int* ctid)
 {
-    //MLOG_ERROR(mlog::app, "myclone", DVARhex(tls));
+    MLOG_ERROR(mlog::app, "myclone", DVARhex(tls));
     ASSERT(tls != nullptr);
     static int nextThread = 1;
 
@@ -297,7 +339,7 @@ int myclone(
       .fs(tls)
       .invokeVia(pl)
       .wait();
-    //MLOG_DETAIL(mlog::app, DVAR(ec.cap()));
+    MLOG_DETAIL(mlog::app, DVAR(ec.cap()));
     return ec.cap();
 }
 
@@ -314,11 +356,12 @@ extern "C" int clone(int (*func)(void *), void *stack, int flags, void *arg, ...
 }
 
 extern "C" void mythos_pthread_cleanup(pthread_t t){
-    //MLOG_DETAIL(mlog::app, "mythos_pthread_cleanup", mythos_get_pthread_ec(t));
+    MLOG_ERROR(mlog::app, "mythos_pthread_cleanup", mythos_get_pthread_ec(t));
+    pthreadCleanerSemphore.wait(t);
     auto cap = mythos_get_pthread_ec(t);
     mythos::PortalLock pl(portal); 
-    mythos::ExecutionContext ec(cap);
-    ec.suspend(pl).wait();
+    //mythos::ExecutionContext ec(cap);
+    //ec.suspend(pl).wait();
     capAlloc.free(cap, pl);
 }
 
