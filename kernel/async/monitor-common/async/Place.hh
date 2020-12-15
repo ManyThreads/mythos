@@ -113,6 +113,9 @@ public:
   /** true if the hardware thread is currently in kernel mode and processing tasks. */
   bool isActive() const { return nestingMonitor.load(std::memory_order_relaxed); }
 
+
+  cpu::ThreadID getThreadID(){ return threadID; }
+
 protected:
   void pushPrivate(TaskletBase* msg) {
     ASSERT(isLocal());
