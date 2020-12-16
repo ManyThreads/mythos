@@ -57,7 +57,7 @@
 #include "boot/memory-root.hh"
 #include "boot/kernel.hh"
 
-#define SC_DO_NOT_SLEEP
+//#define SC_DO_NOT_SLEEP
 
 mythos::Event<> mythos::event::bootBSP;
 mythos::Event<mythos::cpu::ThreadID, bool, size_t> mythos::event::bootAP;
@@ -112,16 +112,11 @@ NORETURN void runUser();
 void runUser() {
 #ifdef SC_DO_NOT_SLEEP
   while(1){
-    int loop = 0;
 #endif
     mythos::async::getLocalPlace().processTasks();
     mythos::boot::getLocalScheduler().tryRunUser();
 #ifdef SC_DO_NOT_SLEEP
-    if(++loop == 1000){
-      loop = 0;
-      MLOG_ERROR(mlog::boot, "loop");
-
-    }
+    asm volatile("pause");
   }
 #endif
 //  MLOG_DETAIL(mlog::boot, "going to sleep now");

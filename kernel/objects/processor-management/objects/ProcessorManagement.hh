@@ -36,7 +36,7 @@
 #include "async/IResult.hh"
 #include "mythos/ProcessInfoFrame.hh"
 
-#define PM_CACHE_SC
+//#define PM_CACHE_SC
 
 namespace mythos {
 
@@ -106,13 +106,13 @@ public:
   Error freeCore(Tasklet*, Cap, IInvocation* msg);
 
   void freeCore(Tasklet* t, cpu::ThreadID id){
-      MLOG_ERROR(mlog::pm, "PM::freeCore", DVAR(id));
+      MLOG_INFO(mlog::pm, "PM::freeCore", DVAR(id));
 #ifdef PM_CACHE_SC
       asm volatile ("":::"memory");
       pmi->setIdle(id);
 #else
       monitor.request(t, [=](Tasklet* t){
-        MLOG_DETAIL(mlog::pm, "monitor freeCore", DVAR(id));
+        MLOG_INFO(mlog::pm, "monitor freeCore", DVAR(id));
         pmi->setFree(id);
         revokeOp._revoke(t, this, sc[id], this);
         pa.free(id);

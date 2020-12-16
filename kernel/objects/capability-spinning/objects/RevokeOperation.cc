@@ -54,7 +54,7 @@ namespace mythos {
 
   void RevokeOperation::_delete(Tasklet* t, result_t* res, CapEntry& entry, IKernelObject* guarded)
   {
-    MLOG_ERROR(mlog::cap, "_delete", DVAR(t), DVAR(res), DVAR(entry.cap()), DVAR(guarded));
+    MLOG_DETAIL(mlog::cap, "_delete", DVAR(t), DVAR(res), DVAR(entry.cap()), DVAR(guarded));
     _res = res;
     _guarded = guarded;
     if (!acquire()) {

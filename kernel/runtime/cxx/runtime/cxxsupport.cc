@@ -68,7 +68,7 @@ struct PthreadCleanerSemaphore{
   PthreadCleanerSemaphore()
     : flag(FREE)
   {
-    MLOG_ERROR(mlog::app, "PthreadCleaner");
+    //MLOG_ERROR(mlog::app, "PthreadCleaner");
   }
 
   enum state{
@@ -304,7 +304,7 @@ int myclone(
     int (*func)(void *), void *stack, int flags, 
     void *arg, int* ptid, void* tls, int* ctid)
 {
-    MLOG_ERROR(mlog::app, "myclone", DVARhex(tls));
+    //MLOG_ERROR(mlog::app, "myclone", DVARhex(tls));
     ASSERT(tls != nullptr);
     static int nextThread = 1;
 
@@ -356,7 +356,7 @@ extern "C" int clone(int (*func)(void *), void *stack, int flags, void *arg, ...
 }
 
 extern "C" void mythos_pthread_cleanup(pthread_t t){
-    MLOG_ERROR(mlog::app, "mythos_pthread_cleanup", mythos_get_pthread_ec(t));
+    //MLOG_ERROR(mlog::app, "mythos_pthread_cleanup", mythos_get_pthread_ec(t));
     pthreadCleanerSemphore.wait(t);
     auto cap = mythos_get_pthread_ec(t);
     mythos::PortalLock pl(portal); 
