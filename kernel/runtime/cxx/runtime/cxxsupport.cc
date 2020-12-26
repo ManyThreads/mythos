@@ -58,7 +58,8 @@ extern mythos::Portal portal;
 extern mythos::CapMap myCS;
 extern mythos::PageMap myAS;
 extern mythos::KernelMemory kmem;
-extern mythos::SimpleCapAllocDel capAlloc;
+extern mythos::SimpleCapAlloc< mythos::init::APP_CAP_START
+  , mythos::init::SIZE-mythos::init::APP_CAP_START> capAlloc;
 
 #ifndef NUM_CPUS
 #define NUM_CPUS (2)

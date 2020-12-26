@@ -21,70 +21,81 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  *
- * Copyright 2016 Randolf Rotta, Robert Kuban, and contributors, BTU Cottbus-Senftenberg
+ * Copyright 2020 Philipp Gypser and contributors, BTU Cottbus-Senftenberg
  */
 #pragma once
 
 #include "runtime/CapMap.hh"
 #include "runtime/Portal.hh"
 #include "util/optional.hh"
-#include <atomic>
+#include "runtime/Mutex.hh"
 
 namespace mythos {
 
+  template<uint32_t START, uint32_t COUNT>
   class SimpleCapAlloc
   {
   public:
-    SimpleCapAlloc(uint32_t start, uint32_t count)
-      : start(start), end(uint64_t(start)+count), mark(start) {}
+    SimpleCapAlloc(Portal& portal, CapMap cs)
+      : next(START) 
+      , top(0)
+      , portal(&portal)
+      , cs(cs)
+    {}
 
     CapPtr alloc() {
-      uint64_t o = mark;
-      do {
-        if (o>=end) return mythos::init::NULLCAP;
-      } while (!mark.compare_exchange_weak(o, o+1));
-      return CapPtr(o);
+      Mutex::Lock guard(m);
+
+      // try taking cap from stack
+      if(top){
+        top--;
+        MLOG_DETAIL(mlog::app, __func__, "return cap from stack", caps[top]);
+        return caps[top];
+      }
+      // else try taking cap from range
+      else if(next < START + COUNT){
+        ASSERT(next >= START);
+        auto ret = next;
+        next++;
+        MLOG_DETAIL(mlog::app, __func__, "return cap from range", ret);
+        return ret;
+      }
+      // fail: no free cap
+      else{
+        MLOG_ERROR(mlog::app, __func__, "Out of Caps!");
+        return null_cap;
+      }
+
     }
 
     CapPtr operator() () { return alloc(); }
 
-  protected:
-    uint64_t start;
-    uint64_t end;
-    std::atomic<uint64_t> mark;
-  };
+    void freeEmpty(CapPtr p){
+      MLOG_DETAIL(mlog::app, __func__, DVAR(p));
+      Mutex::Lock guard(m);
+      ASSERT(top < COUNT);
+      caps[top] = p;
+      top++;
+    }
 
-  class SimpleCapAllocDel : public SimpleCapAlloc
-  {
-  public:
-    SimpleCapAllocDel(Portal& portal, CapMap cs, uint32_t start, uint32_t count)
-      : SimpleCapAlloc(start, count), portal(&portal), cs(cs) {}
+    optional<void> free(CapPtr p, PortalLock& pl) {
+      MLOG_DETAIL(mlog::app, __func__, DVAR(p));
+      ASSERT(START <= p && p < START + COUNT);
+      auto res = cs.deleteCap(pl, p).wait();
+      if(res) freeEmpty(p);
+      else MLOG_ERROR(mlog::app, __func__, "deleteCap failed!");
+      return res;
+    }
 
     optional<void> free(KObject p, PortalLock& pl) { return free(p.cap(), pl); }
-    optional<void> free(CapPtr p, PortalLock& pl) {
-      ASSERT(start <= p && p < mark);
-      return optional<void>(cs.deleteCap(pl, p).wait().state());
-    }
-    void freeAll(PortalLock& pl) {
-      for (uint32_t i=start; i < mark; i++) {
-        cs.deleteCap(pl, CapPtr(i)).wait();
-      }
-      mark = start;
-    }
-
-    optional<void> free(KObject p) { return free(p.cap()); }
-    optional<void> free(CapPtr p) {
-      mythos::PortalLock pl(*portal);
-      return free(p, pl);
-    }
-    void freeAll() {
-      mythos::PortalLock pl(*portal);
-      freeAll(pl);
-    }
 
   protected:
+    uint32_t next;
+    uint32_t top;
     Portal* portal;
     CapMap cs;
+    CapPtr caps[COUNT];
+    Mutex m; 
   };
 
 } // namespace mythos
