@@ -68,7 +68,7 @@ mythos::PageMap myAS(mythos::init::PML4);
 mythos::KernelMemory kmem(mythos::init::KM);
 mythos::KObject device_memory(mythos::init::DEVICE_MEM);
 mythos::SimpleCapAlloc< mythos::init::APP_CAP_START
-  , mythos::init::SIZE-mythos::init::APP_CAP_START> capAlloc(portal, myCS);
+  , mythos::init::SIZE-mythos::init::APP_CAP_START> capAlloc(myCS);
 mythos::RaplDriverIntel rapl(mythos::init::RAPL_DRIVER_INTEL);
 
 char threadstack[stacksize];

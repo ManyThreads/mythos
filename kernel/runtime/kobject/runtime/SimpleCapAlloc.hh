@@ -36,10 +36,9 @@ namespace mythos {
   class SimpleCapAlloc
   {
   public:
-    SimpleCapAlloc(Portal& portal, CapMap cs)
+    SimpleCapAlloc(CapMap cs)
       : next(START) 
       , top(0)
-      , portal(&portal)
       , cs(cs)
     {}
 
@@ -92,7 +91,6 @@ namespace mythos {
   protected:
     uint32_t next;
     uint32_t top;
-    Portal* portal;
     CapMap cs;
     CapPtr caps[COUNT];
     Mutex m; 
