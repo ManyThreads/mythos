@@ -324,7 +324,7 @@ namespace mythos {
 
   class IOPort8 {
     public:
-      IOPort8 (unsigned port)
+      IOPort8 (uint16_t port)
       : port(port)
       {}
 
@@ -344,7 +344,7 @@ namespace mythos {
 
   class IOPort16 {
     public:
-      IOPort16 (unsigned port)
+      IOPort16 (uint16_t port)
       : port(port)
       {}
 
