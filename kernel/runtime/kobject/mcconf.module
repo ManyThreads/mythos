@@ -9,5 +9,6 @@ incfiles = [
   "runtime/KernelMemory.hh",
   "runtime/SimpleCapAlloc.hh",
   "runtime/InterruptControl.hh",
-  "runtime/RaplDriverIntel.hh"
+  "runtime/RaplDriverIntel.hh",
+  "runtime/ProcessorAllocator.hh"
   ]

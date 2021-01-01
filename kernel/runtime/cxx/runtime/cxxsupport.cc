@@ -49,9 +49,11 @@
 #include "runtime/PageMap.hh"
 #include "runtime/KernelMemory.hh"
 #include "runtime/SimpleCapAlloc.hh"
+#include "runtime/ProcessorAllocator.hh"
 #include "runtime/tls.hh"
 #include "runtime/futex.hh"
 #include "runtime/umem.hh"
+#include "runtime/thread-extra.hh"
 
 extern mythos::InvocationBuf* msg_ptr asm("msg_ptr");
 extern mythos::Portal portal;
@@ -60,12 +62,52 @@ extern mythos::PageMap myAS;
 extern mythos::KernelMemory kmem;
 extern mythos::SimpleCapAlloc< mythos::init::APP_CAP_START
   , mythos::init::SIZE-mythos::init::APP_CAP_START> capAlloc;
+extern mythos::ProcessorAllocator pa;
 
 #ifndef NUM_CPUS
 #define NUM_CPUS (2)
 #endif
 
 #define PS_PER_TSC (0x0000000000000181)
+
+struct PthreadCleanerSemaphore{
+  PthreadCleanerSemaphore()
+    : flag(FREE)
+  {
+    //MLOG_ERROR(mlog::app, "PthreadCleaner");
+  }
+
+  enum state{
+    UNKNOWN = 0,
+    FREE = 1,
+    EXITED = 2
+  };
+
+  void exit(){
+    //MLOG_DETAIL(mlog::app, "PthreadCleaner exit", DVARhex(this), DVARhex(pthread_self()));
+    auto ec = flag.exchange(EXITED);
+    if(ec != FREE){
+      ASSERT(ec!=UNKNOWN);
+      mythos::syscall_signal(ec);
+    }
+  }
+
+  void wait(pthread_t t){
+    auto pcs = reinterpret_cast<PthreadCleanerSemaphore* >(t - (pthread_self() - reinterpret_cast<uintptr_t>(this)));
+    //MLOG_DETAIL(mlog::app, "PthreadCleaner wait", DVARhex(pcs), DVARhex(this), DVARhex(pthread_self()), DVARhex(t));
+    while(pcs->flag.load() != EXITED){
+      mythos::CapPtr exp = FREE;
+      if(pcs->flag.compare_exchange_weak(exp, mythos_get_pthread_ec_self())){
+        //MLOG_DETAIL(mlog::app, "PthreadCleaner going to wait");
+        mythos_wait();
+      }
+    }
+  }
+  
+  std::atomic<mythos::CapPtr> flag;
+};
+
+static thread_local PthreadCleanerSemaphore pthreadCleanerSemphore;
 
 extern "C" [[noreturn]] void __assert_fail (const char *expr, const char *file, int line, const char *func)
 {
@@ -173,7 +215,8 @@ extern "C" long mythos_musl_syscall(
         MLOG_WARN(mlog::app, "syscall getpid NYI");
         return 0;
     case 60: // exit(exit_code)
-        //MLOG_DETAIL(mlog::app, "syscall exit", DVAR(a1));
+        MLOG_ERROR(mlog::app, "syscall exit", DVAR(a1));
+        pthreadCleanerSemphore.exit();        
         asm volatile ("syscall" : : "D"(0), "S"(a1) : "memory");
         return 0;
     case 186: // gettid
@@ -266,7 +309,6 @@ int myclone(
 {
     //MLOG_DETAIL(mlog::app, "myclone");
     ASSERT(tls != nullptr);
-    static int nextThread = 1;
 
     // The compiler expect a kinda strange alignment coming from clone:
     // -> rsp % 16 must be 8
@@ -278,15 +320,19 @@ int myclone(
     mythos::ExecutionContext ec(capAlloc());
     if (ptid && (flags&CLONE_PARENT_SETTID)) *ptid = int(ec.cap());
     // @todo store thread-specific ctid pointer, which should set to 0 by the OS on the thread's exit
-    // @todo needs interaction with a process internal scheduler or core manager in order to figure out where to schedule the new thread
+
+    auto sc = pa.alloc(pl).wait();
+    ASSERT(sc);
+    if(sc->cap == mythos::null_cap){
+      MLOG_WARN(mlog::app, "Processor allocation failed!");
+      //todo: set errno = EAGAIN
+      return (-1);
+    }
+
     auto res1 = ec.create(kmem)
       .as(myAS)
       .cs(myCS)
-    // WARNING: This will lead to trouble if nextThread >= number of threads.
-    // It's also not thread safe.
-    // @TODO: More sensible thread placement.
-      .sched(mythos::init::SCHEDULERS_START + (nextThread++))
-    //                                         ^^^^^^^^^^^^
+      .sched(sc->cap)
       .rawStack(rsp)
       .rawFun(func, arg)
       .suspended(false)
@@ -307,6 +353,16 @@ extern "C" int clone(int (*func)(void *), void *stack, int flags, void *arg, ...
     int* ctid = va_arg(args, int*);
     va_end(args);
     return myclone(func, stack, flags, arg, ptid, tls, ctid);
+}
+
+extern "C" void mythos_pthread_cleanup(pthread_t t){
+    MLOG_ERROR(mlog::app, "mythos_pthread_cleanup", mythos_get_pthread_ec(t));
+    pthreadCleanerSemphore.wait(t);
+    auto cap = mythos_get_pthread_ec(t);
+    mythos::PortalLock pl(portal); 
+    //mythos::ExecutionContext ec(cap);
+    //ec.suspend(pl).wait();
+    capAlloc.free(cap, pl);
 }
 
 struct dl_phdr_info

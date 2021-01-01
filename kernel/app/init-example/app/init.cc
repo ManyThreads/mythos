@@ -36,6 +36,7 @@
 #include "runtime/PageMap.hh"
 #include "runtime/KernelMemory.hh"
 #include "runtime/SimpleCapAlloc.hh"
+#include "runtime/ProcessorAllocator.hh"
 #include "runtime/tls.hh"
 #include "runtime/mlog.hh"
 #include "runtime/InterruptControl.hh"
@@ -73,6 +74,7 @@ mythos::KObject device_memory(mythos::init::DEVICE_MEM);
 mythos::SimpleCapAlloc< mythos::init::APP_CAP_START
   , mythos::init::SIZE-mythos::init::APP_CAP_START> capAlloc(myCS);
 mythos::RaplDriverIntel rapl(mythos::init::RAPL_DRIVER_INTEL);
+mythos::ProcessorAllocator pa(mythos::init::PROCESSOR_ALLOCATOR);
 
 char threadstack[stacksize];
 char* thread1stack_top = threadstack+stacksize/2;
@@ -185,7 +187,9 @@ void test_tls()
   auto tls = mythos::setupNewTLS();
   MLOG_INFO(mlog::app, "test_EC: create ec1 TLS", DVARhex(tls));
   ASSERT(tls != nullptr);
-  auto res1 = ec1.create(kmem).as(myAS).cs(myCS).sched(mythos::init::SCHEDULERS_START + 1)
+  auto sc = pa.alloc(pl).wait();
+  TEST(sc);
+  auto res1 = ec1.create(kmem).as(myAS).cs(myCS).sched(sc->cap)
     .prepareStack(thread1stack_top).startFun(threadFun, nullptr)
     .suspended(false).fs(tls)
     .invokeVia(pl).wait();
@@ -193,6 +197,7 @@ void test_tls()
   TEST(ec1.setFSGS(pl,(uint64_t) tls, 0).wait());
   mythos::syscall_signal(ec1.cap());
   MLOG_INFO(mlog::app, "End test tls");
+  capAlloc.free(ec1.cap(), pl);
 }
 
 
@@ -322,7 +327,9 @@ void test_ExecutionContext()
 
     auto tls1 = mythos::setupNewTLS();
     ASSERT(tls1 != nullptr);
-    auto res1 = ec1.create(kmem).as(myAS).cs(myCS).sched(mythos::init::SCHEDULERS_START)
+    auto sc1 = pa.alloc(pl).wait();
+    TEST(sc1);
+    auto res1 = ec1.create(kmem).as(myAS).cs(myCS).sched(sc1->cap)
     .prepareStack(thread1stack_top).startFun(&thread_main, nullptr)
     .suspended(false).fs(tls1)
     .invokeVia(pl).wait();
@@ -331,7 +338,9 @@ void test_ExecutionContext()
     MLOG_INFO(mlog::app, "test_EC: create ec2");
     auto tls2 = mythos::setupNewTLS();
     ASSERT(tls2 != nullptr);
-    auto res2 = ec2.create(kmem).as(myAS).cs(myCS).sched(mythos::init::SCHEDULERS_START+1)
+    auto sc2 = pa.alloc(pl).wait();
+    TEST(sc2);
+    auto res2 = ec2.create(kmem).as(myAS).cs(myCS).sched(sc2->cap)
     .prepareStack(thread2stack_top).startFun(&thread_main, nullptr)
     .suspended(false).fs(tls2)
     .invokeVia(pl).wait();
@@ -345,6 +354,11 @@ void test_ExecutionContext()
   MLOG_INFO(mlog::app, "sending notifications");
   mythos::syscall_signal(ec1.cap());
   mythos::syscall_signal(ec2.cap());
+  {
+    mythos::PortalLock pl(portal); 
+    TEST(capAlloc.free(ec1, pl));
+    TEST(capAlloc.free(ec2, pl));
+  }
   MLOG_INFO(mlog::app, "End Test ExecutionContext");
 }
 
@@ -357,7 +371,9 @@ void test_InterruptControl() {
   mythos::ExecutionContext ec(capAlloc());
   auto tls = mythos::setupNewTLS();
   ASSERT(tls != nullptr);
-  auto res1 = ec.create(kmem).as(myAS).cs(myCS).sched(mythos::init::SCHEDULERS_START + 2)
+  auto sc = pa.alloc(pl).wait();
+  TEST(sc);
+  auto res1 = ec.create(kmem).as(myAS).cs(myCS).sched(sc->cap)
     .prepareStack(thread3stack_top).startFun(&thread_main, nullptr)
     .suspended(false).fs(tls)
     .invokeVia(pl).wait();
@@ -484,6 +500,11 @@ void test_process(){
   MLOG_INFO(mlog::app, "Test process");
 
   mythos::PortalLock pl(portal);
+  //auto sc = pa.alloc(pl).wait();
+  //TEST(sc);
+  //auto res = pa.free(pl, sc->cap).wait();
+  //TEST(res);
+
   Process p(&process_test_image_start);
   p.createProcess(pl); 
 
@@ -509,6 +530,8 @@ int main()
   //test_Rapl();
   test_process();
   //test_CgaScreen();
+
+#warning event test cases
 
   char const end[] = "bye, cruel world!";
   mythos::syscall_debug(end, sizeof(end)-1);

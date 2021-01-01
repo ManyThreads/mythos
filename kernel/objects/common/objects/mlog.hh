@@ -59,4 +59,9 @@ namespace mlog {
 #endif
   extern Logger<MLOG_IRQ> irq;
 
+#ifndef MLOG_PM
+#define MLOG_PM FilterWarning
+#endif
+  extern Logger<MLOG_PROCESSORMGMT> pm; //processor management
+
 } // namespace mlog
