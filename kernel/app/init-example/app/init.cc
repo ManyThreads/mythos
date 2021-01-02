@@ -496,14 +496,20 @@ void test_CgaScreen(){
   MLOG_INFO(mlog::app, "Test CGA finished");
 }
 
+void test_processor_allocator(){
+  MLOG_INFO(mlog::app, "Test processor allocator");
+  mythos::PortalLock pl(portal);
+  auto sc = pa.alloc(pl).wait();
+  TEST(sc);
+  auto res = pa.free(pl, sc->cap).wait();
+  TEST(res);
+  MLOG_INFO(mlog::app, "Test processor allocator finished");
+}
+
 void test_process(){
   MLOG_INFO(mlog::app, "Test process");
 
   mythos::PortalLock pl(portal);
-  //auto sc = pa.alloc(pl).wait();
-  //TEST(sc);
-  //auto res = pa.free(pl, sc->cap).wait();
-  //TEST(res);
 
   Process p(&process_test_image_start);
   p.createProcess(pl); 
@@ -527,11 +533,10 @@ int main()
   //test_HostChannel(portal, 24*1024*1024, 2*1024*1024);
   test_ExecutionContext();
   test_pthreads();
-  //test_Rapl();
+  //test_Rapl()
+  test_processor_allocator();
   test_process();
   //test_CgaScreen();
-
-#warning event test cases
 
   char const end[] = "bye, cruel world!";
   mythos::syscall_debug(end, sizeof(end)-1);

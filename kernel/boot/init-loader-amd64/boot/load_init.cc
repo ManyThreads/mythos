@@ -61,7 +61,7 @@ InitLoader::InitLoader(char* image)
         init::CAP_ALLOC_END-init::CAP_ALLOC_START)
   , memMapper(&capAlloc, mythos::init::KM)
   // default: no processor allocator present
-  , setSchedulingContexts(true)
+  , processorAllocatorPresent(false)
   , initSC(init::SCHEDULERS_START)
 {
   MLOG_INFO(mlog::boot, "found init application image at", (void*)image);
@@ -163,7 +163,7 @@ optional<void> InitLoader::initCSpace()
     if (!res) RETHROW(res);
   }
 
-  if(setSchedulingContexts){
+  if(!processorAllocatorPresent){
     ASSERT(cpu::getNumThreads() <= init::SCHEDULERS_START - init::APP_CAP_START);
     MLOG_INFO(mlog::boot, "... create scheduling context caps in caps",
           init::SCHEDULERS_START, "till", init::SCHEDULERS_START+cpu::getNumThreads()-1);

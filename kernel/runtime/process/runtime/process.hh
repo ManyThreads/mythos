@@ -168,8 +168,8 @@ class Process{
     TEST(res);
 
     MLOG_DETAIL(mlog::app, "   Interrupt control");
+    MLOG_WARN(mlog::app, "SKIP: Interrupt control caps!");
     //todo: how to check whether cap is existing?
-#warning Process:createProcess do not copy Interrupt Controls
     //for(CapPtr ptr = init::INTERRUPT_CONTROL_START; ptr < init::INTERRUPT_CONTROL_END; ptr++){
       //res = myCS.reference(pl, ptr, max_cap_depth, cs.cap(), ptr, max_cap_depth, 0).wait();
       //TEST(res);

@@ -215,7 +215,7 @@ extern "C" long mythos_musl_syscall(
         MLOG_WARN(mlog::app, "syscall getpid NYI");
         return 0;
     case 60: // exit(exit_code)
-        MLOG_ERROR(mlog::app, "syscall exit", DVAR(a1));
+        //MLOG_ERROR(mlog::app, "syscall exit", DVAR(a1));
         pthreadCleanerSemphore.exit();        
         asm volatile ("syscall" : : "D"(0), "S"(a1) : "memory");
         return 0;
@@ -288,7 +288,8 @@ extern "C" int munmap(void *start, size_t len)
 extern "C" int unmapself(void *start, size_t len)
 {
     // dummy implementation
-    MLOG_DETAIL(mlog::app, "unmapself");
+    MLOG_ERROR(mlog::app, "unmapself: NYI!");
+    ASSERT(0);
     while(1);
     return 0;
 }
@@ -356,12 +357,10 @@ extern "C" int clone(int (*func)(void *), void *stack, int flags, void *arg, ...
 }
 
 extern "C" void mythos_pthread_cleanup(pthread_t t){
-    MLOG_ERROR(mlog::app, "mythos_pthread_cleanup", mythos_get_pthread_ec(t));
+    MLOG_DETAIL(mlog::app, "mythos_pthread_cleanup", mythos_get_pthread_ec(t));
     pthreadCleanerSemphore.wait(t);
     auto cap = mythos_get_pthread_ec(t);
     mythos::PortalLock pl(portal); 
-    //mythos::ExecutionContext ec(cap);
-    //ec.suspend(pl).wait();
     capAlloc.free(cap, pl);
 }
 

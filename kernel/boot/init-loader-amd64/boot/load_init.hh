@@ -80,7 +80,7 @@ namespace mythos {
       Portal* _portal;
 
       /* to be manipulated by optional processor allocator */
-      bool setSchedulingContexts;
+      bool processorAllocatorPresent;
       CapPtr initSC;
     };
 

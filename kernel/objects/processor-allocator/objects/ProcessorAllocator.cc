@@ -62,4 +62,120 @@ namespace mythos {
       } );
   }
 
+/* IResult<void> */
+  void ProcessorAllocator::response(Tasklet* /*t*/, optional<void> res){
+    MLOG_DETAIL(mlog::pm, "revoke response:", res.state());
+  }
+
+/* ProcessorAllocator */
+  ProcessorAllocator::ProcessorAllocator()
+      : sc(image2kernel(&mySC[0]))
+    {}
+
+  void ProcessorAllocator::init(){
+    MLOG_DETAIL(mlog::pm, "PM::init");
+    for (cpu::ThreadID id = 0; id < cpu::getNumThreads(); ++id) {
+      sc[id].initRoot(Cap(image2kernel(&boot::getScheduler(id))));
+      free(id);
+    }
+  }
+
+  Error ProcessorAllocator::invokeAlloc(Tasklet*, Cap, IInvocation* msg){
+    MLOG_DETAIL(mlog::pm, __func__);
+    auto id = alloc();
+
+    if(id){
+      MLOG_DETAIL(mlog::pm, "allocated ", DVAR(*id));
+
+      auto data = msg->getMessage()->read<protocol::ProcessorAllocator::Alloc>();
+
+      optional<CapEntry*> dstEntry;
+      if(data.dstSpace() == null_cap){ // direct access
+        //dstEntry = msg->lookupEntry(data.dstPtr, 32, true); // lookup for write access
+        dstEntry = msg->lookupEntry(init::SCHEDULERS_START+*id, 32, true); // lookup for write access
+        if (!dstEntry){ 
+          MLOG_WARN(mlog::pm, "Warning: cannot find dstEntry!");
+          free(*id);
+          return dstEntry.state();
+        }
+      
+      }else{ // indirect access
+        TypedCap<ICapMap> dstSpace(msg->lookupEntry(data.dstSpace()));
+        if (!dstSpace){ 
+          MLOG_WARN(mlog::pm, "Warning: cannot find dstSpace!");
+          free(*id);
+          return dstSpace.state();
+        }
+
+        //auto dstEntryRef = dstSpace.lookup(data.dstPtr, data.dstDepth, true); // lookup for write
+        auto dstEntryRef = dstSpace.lookup(init::SCHEDULERS_START+*id, 32, true); // lookup for write
+        if (!dstEntryRef){ 
+          MLOG_WARN(mlog::pm, "Warning: cannot find dstEntryRef!");
+          free(*id);
+          return dstEntryRef.state();
+        }
+
+        dstEntry = dstEntryRef->entry;
+      }
+
+      auto res = cap::reference(sc[*id], **dstEntry, sc[*id].cap());
+      if(res){
+        msg->getMessage()->write<protocol::ProcessorAllocator::RetAlloc>(init::SCHEDULERS_START+*id);
+        MLOG_DETAIL(mlog::pm, "map new sc ", DVAR(*id));
+      }else{
+        MLOG_WARN(mlog::pm, "Warning: cannot create SC entry!");
+        free(*id);
+        msg->getMessage()->write<protocol::ProcessorAllocator::RetAlloc>(null_cap);
+      }
+
+    }else{
+      MLOG_WARN(mlog::pm, "allocation failed: no free cores available!");
+      msg->getMessage()->write<protocol::ProcessorAllocator::RetAlloc>(null_cap);
+    }
+    return Error::SUCCESS;
+  }
+
+  Error ProcessorAllocator::invokeFree(Tasklet* t, Cap, IInvocation* msg){
+    MLOG_ERROR(mlog::pm, __func__, ": NYI!");  
+    //auto data = msg->getMessage()->cast<protocol::ProcessorAllocator::Free>();
+    //ASSERT(data->sc() >= init::SCHEDULERS_START);
+    //cpu::ThreadID id = data->sc() - init::SCHEDULERS_START;
+    //ASSERT(id < cpu::getNumThreads());
+    //MLOG_ERROR(mlog::pm, "free SC", DVAR(data->sc()), DVAR(id));
+    //revokeOp._revoke(t, this, sc[id], this);
+    //MLOG_ERROR(mlog::pm, "free", DVAR(data->sc()), DVAR(id));
+    //free(id);
+    //return Error::SUCCESS;
+    return Error::NOT_IMPLEMENTED;
+  }
+
+  void ProcessorAllocator::freeSC(Tasklet* t, cpu::ThreadID id){
+    MLOG_DETAIL(mlog::pm, "freeSC", DVAR(id));
+    monitor.request(t, [=](Tasklet* t){
+      MLOG_DETAIL(mlog::pm, "monitor free", DVAR(id));
+      //todo: use IResult to call free(id) after cap is revoked
+      revokeOp._revoke(t, this, sc[id], this);
+      free(id);
+    }
+    );
+  }
+
+/* LiFoProcessorAllocator */
+  LiFoProcessorAllocator::LiFoProcessorAllocator()
+      : nFree(0)
+    {}
+
+  optional<cpu::ThreadID> LiFoProcessorAllocator::alloc(){
+    optional<cpu::ThreadID> ret;
+    if(nFree > 0){
+      nFree--;
+      ret = freeList[nFree];
+    }
+    return ret;
+  }
+
+  void LiFoProcessorAllocator::free(cpu::ThreadID id) {
+      freeList[nFree] = id;
+      nFree++;
+  }
 } // namespace mythos

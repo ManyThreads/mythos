@@ -44,7 +44,7 @@ namespace mythos {
 
     void processEvent(boot::InitLoader& loader) override {
       MLOG_DETAIL(mlog::pm, "prevent mapping of all scheduling contexts into CSpace");
-      loader.setSchedulingContexts = false;
+      loader.processorAllocatorPresent = true;
     }
   };
 
