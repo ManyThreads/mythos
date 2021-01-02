@@ -135,7 +135,7 @@ namespace mythos {
     return Error::SUCCESS;
   }
 
-  Error ProcessorAllocator::invokeFree(Tasklet* t, Cap, IInvocation* msg){
+  Error ProcessorAllocator::invokeFree(Tasklet* /*t*/, Cap, IInvocation* /*msg*/){
     MLOG_ERROR(mlog::pm, __func__, ": NYI!");  
     //auto data = msg->getMessage()->cast<protocol::ProcessorAllocator::Free>();
     //ASSERT(data->sc() >= init::SCHEDULERS_START);
