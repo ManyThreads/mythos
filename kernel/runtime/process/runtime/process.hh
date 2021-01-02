@@ -7,7 +7,9 @@
 #include "util/optional.hh"
 #include "util/elf64.hh"
 #include "util/align.hh"
+#include "mythos/InfoFrame.hh"
 
+extern mythos::InfoFrame* info_ptr asm("info_ptr");
 extern mythos::CapMap myCS;
 extern mythos::PageMap myAS;
 extern mythos::KernelMemory kmem;
@@ -241,6 +243,55 @@ class Process{
     auto ipc_vaddr = loadImage(pl, pm4);
     TEST(ipc_vaddr);
 
+    /* create InfoFrame */
+    MLOG_DETAIL(mlog::app, "create InfoFrame ...");
+    auto size = round_up(sizeof(InfoFrame), align2M);
+    MLOG_DETAIL(mlog::app, "   create frame", DVAR(size));
+    Frame infoFrame(capAlloc());
+    res = infoFrame.create(pl, kmem, size, align2M).wait();
+    TEST(res);
+    MLOG_DETAIL(mlog::app, "   map frame to target page map", DVARhex(size), DVARhex(*ipc_vaddr));
+    res = pm4.mmap(pl, infoFrame, *ipc_vaddr, align2M, 0x1).wait();
+    TEST(res);
+    
+    uintptr_t tmp_vaddr_if = 11*align512G;
+    MLOG_DETAIL(mlog::app, "   temporally map frame to own page map", DVARhex(tmp_vaddr_if));
+    PageMap pm3if(capAlloc());
+    res = pm3if.create(pl, kmem, 3).wait();
+    TEST(res);
+    PageMap pm2if(capAlloc());
+    res = pm2if.create(pl, kmem, 2).wait();
+    TEST(res);
+    MLOG_DETAIL(mlog::app, "   installMap");
+    res = myAS.installMap(pl, pm3if, ((tmp_vaddr_if >> 39) & 0x1FF)<< 39, 4,
+      protocol::PageMap::MapFlags().writable(true).configurable(true)).wait();
+    TEST(res);
+    res = pm3if.installMap(pl, pm2if, ((tmp_vaddr_if >> 30) & 0x1FF) << 30, 3,
+      protocol::PageMap::MapFlags().writable(true).configurable(true)).wait();
+    TEST(res);
+
+    MLOG_DETAIL(mlog::app, "   mmap");
+    res = myAS.mmap(pl, infoFrame, tmp_vaddr_if, size, 0x1).wait();
+    TEST(res);
+    
+    MLOG_DETAIL(mlog::app, "   copy info frame content");
+    mythos::memcpy(reinterpret_cast<void*>(tmp_vaddr_if), info_ptr, sizeof(InfoFrame));
+
+    MLOG_DETAIL(mlog::app, "   unmap");
+    res = myAS.munmap(pl, tmp_vaddr_if, size).wait();
+    TEST(res);
+
+    MLOG_DETAIL(mlog::app, "   remove maps");
+    res = myAS.removeMap(pl, tmp_vaddr_if, 2).wait();
+    TEST(res);
+    res = myAS.removeMap(pl, tmp_vaddr_if, 3).wait();
+    TEST(res);
+
+    MLOG_DETAIL(mlog::app, "   delete tables");
+    capAlloc.free(pm3if, pl);
+    capAlloc.free(pm2if, pl);
+
+
     /* create EC */
     MLOG_DETAIL(mlog::app, "create EC ...", DVARhex(img.header()->entry));
     auto sc = pa.alloc(pl).wait();
@@ -259,23 +310,23 @@ class Process{
     /* create portal */
     MLOG_DETAIL(mlog::app, "create Portal ...");
     MLOG_DETAIL(mlog::app, "   map frame at ", DVARhex(*ipc_vaddr));
-    Frame fp(capAlloc());
-    res = fp.create(pl, kmem, 2*1024*1024, align2M).wait();
-    TEST(res);
-    res = pm4.mmap(pl, fp, *ipc_vaddr, 2*1024*1024, 0x1).wait();
-    TEST(res);
 
     MLOG_DETAIL(mlog::app, "   create");
     Portal port(capAlloc(), reinterpret_cast<void*>(*ipc_vaddr));
     res = port.create(pl, kmem).wait();
     TEST(res);
-    res = port.bind(pl, fp, 0, ec.cap()).wait();
+    res = port.bind(pl, infoFrame, 0, ec.cap()).wait();
     TEST(res);
 
     MLOG_DETAIL(mlog::app, "   move Portal");
     res = myCS.move(pl, port.cap(), max_cap_depth, cs.cap(), init::PORTAL, max_cap_depth).wait();
     TEST(res);
     capAlloc.freeEmpty(port.cap());
+    
+    MLOG_DETAIL(mlog::app, "   move info frame");
+    res = myCS.move(pl, infoFrame.cap(), max_cap_depth, cs.cap(), init::INFO_FRAME, max_cap_depth).wait();
+    TEST(res);
+    capAlloc.freeEmpty(infoFrame.cap());
 
     /* move tables */
     MLOG_DETAIL(mlog::app, "move tables ...");

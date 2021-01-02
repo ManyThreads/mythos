@@ -37,7 +37,7 @@ template<typename... Args>
 class EventHook
 {
 public:
-  EventHook() {}
+  constexpr EventHook() {}
   virtual ~EventHook() {}
   virtual int priority() const { return 0; }
   virtual void processEvent(Args...) = 0;
@@ -59,7 +59,7 @@ class Event
 public:
   typedef EventHook<Args...> hook_t;
 
-  Event() {}
+  constexpr Event() {}
 
   /** insert after this object but before the next object with
    * lower priority. */

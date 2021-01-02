@@ -54,8 +54,9 @@
 #include "runtime/futex.hh"
 #include "runtime/umem.hh"
 #include "runtime/thread-extra.hh"
+#include "mythos/InfoFrame.hh"
 
-extern mythos::InvocationBuf* msg_ptr asm("msg_ptr");
+extern mythos::InfoFrame* info_ptr asm("info_ptr");
 extern mythos::Portal portal;
 extern mythos::CapMap myCS;
 extern mythos::PageMap myAS;
@@ -63,12 +64,6 @@ extern mythos::KernelMemory kmem;
 extern mythos::SimpleCapAlloc< mythos::init::APP_CAP_START
   , mythos::init::SIZE-mythos::init::APP_CAP_START> capAlloc;
 extern mythos::ProcessorAllocator pa;
-
-#ifndef NUM_CPUS
-#define NUM_CPUS (2)
-#endif
-
-#define PS_PER_TSC (0x0000000000000181)
 
 struct PthreadCleanerSemaphore{
   PthreadCleanerSemaphore()
@@ -148,7 +143,7 @@ int prlimit(
 int sched_setaffinity(pid_t pid, size_t cpusetsize, cpu_set_t *mask)
 {
     //MLOG_DETAIL(mlog::app, "syscall sched_setaffinity", DVAR(pid), DVAR(cpusetsize), DVARhex(mask));
-    if(cpusetsize == NUM_CPUS && mask == NULL) return -EFAULT;
+    if(cpusetsize == info_ptr->getNumThreads() && mask == NULL) return -EFAULT;
     return 0;
 }
 
@@ -158,9 +153,9 @@ int sched_getaffinity(pid_t pid, size_t cpusetsize, cpu_set_t *mask)
     if (mask) {
         //CPU_ZERO(mask);
 	memset(mask, 0, cpusetsize);
-        for(int i = 0; i < NUM_CPUS; i++) CPU_SET(i, mask);
+        for(int i = 0; i < info_ptr->getNumThreads(); i++) CPU_SET(i, mask);
     }
-    return NUM_CPUS;
+    return info_ptr->getNumThreads();
 }
 
 void clock_gettime(long clk, struct timespec *ts){
@@ -168,8 +163,9 @@ void clock_gettime(long clk, struct timespec *ts){
     asm volatile("rdtsc" : "=a" (low), "=d" (high));
     unsigned long tsc = low | uint64_t(high) << 32;	
         //MLOG_DETAIL(mlog::app, "syscall clock_gettime", DVAR(clk), DVARhex(ts), DVAR(tsc), DVAR((tsc * PS_PER_TSC)/1000000000000));
-    ts->tv_nsec = (tsc * PS_PER_TSC / 1000)%1000000000;
-    ts->tv_sec = (tsc * PS_PER_TSC)/1000000000000;
+        MLOG_ERROR(mlog::app, "syscall clock_gettime", DVARhex(info_ptr->getPsPerTSC()));
+    ts->tv_nsec = (tsc * info_ptr->getPsPerTSC() / 1000)%1000000000;
+    ts->tv_sec = (tsc * info_ptr->getPsPerTSC())/1000000000000;
 }
 
 extern "C" long mythos_musl_syscall(
