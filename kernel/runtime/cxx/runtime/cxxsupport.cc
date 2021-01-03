@@ -163,7 +163,6 @@ void clock_gettime(long clk, struct timespec *ts){
     asm volatile("rdtsc" : "=a" (low), "=d" (high));
     unsigned long tsc = low | uint64_t(high) << 32;	
         //MLOG_DETAIL(mlog::app, "syscall clock_gettime", DVAR(clk), DVARhex(ts), DVAR(tsc), DVAR((tsc * PS_PER_TSC)/1000000000000));
-        MLOG_ERROR(mlog::app, "syscall clock_gettime", DVARhex(info_ptr->getPsPerTSC()));
     ts->tv_nsec = (tsc * info_ptr->getPsPerTSC() / 1000)%1000000000;
     ts->tv_sec = (tsc * info_ptr->getPsPerTSC())/1000000000000;
 }
