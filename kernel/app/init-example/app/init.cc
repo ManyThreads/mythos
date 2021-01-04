@@ -35,7 +35,7 @@
 #include "runtime/Example.hh"
 #include "runtime/PageMap.hh"
 #include "runtime/KernelMemory.hh"
-#include "runtime/SimpleCapAlloc.hh"
+#include "runtime/CapAlloc.hh"
 #include "runtime/tls.hh"
 #include "runtime/mlog.hh"
 #include "runtime/InterruptControl.hh"
@@ -70,8 +70,7 @@ mythos::CapMap myCS(mythos::init::CSPACE);
 mythos::PageMap myAS(mythos::init::PML4);
 mythos::KernelMemory kmem(mythos::init::KM);
 mythos::KObject device_memory(mythos::init::DEVICE_MEM);
-mythos::SimpleCapAlloc< mythos::init::APP_CAP_START
-  , mythos::init::SIZE-mythos::init::APP_CAP_START> capAlloc(myCS);
+cap_alloc_t capAlloc(myCS);
 mythos::RaplDriverIntel rapl(mythos::init::RAPL_DRIVER_INTEL);
 
 char threadstack[stacksize];
