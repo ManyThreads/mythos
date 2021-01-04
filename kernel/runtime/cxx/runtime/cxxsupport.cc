@@ -48,7 +48,7 @@
 #include "runtime/Example.hh"
 #include "runtime/PageMap.hh"
 #include "runtime/KernelMemory.hh"
-#include "runtime/SimpleCapAlloc.hh"
+#include "runtime/CapAlloc.hh"
 #include "runtime/tls.hh"
 #include "runtime/futex.hh"
 #include "runtime/umem.hh"
@@ -58,7 +58,6 @@ extern mythos::Portal portal;
 extern mythos::CapMap myCS;
 extern mythos::PageMap myAS;
 extern mythos::KernelMemory kmem;
-extern mythos::SimpleCapAllocDel capAlloc;
 
 #ifndef NUM_CPUS
 #define NUM_CPUS (2)

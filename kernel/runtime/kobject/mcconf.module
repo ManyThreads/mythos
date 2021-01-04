@@ -8,6 +8,7 @@ incfiles = [
   "runtime/Portal.hh",
   "runtime/KernelMemory.hh",
   "runtime/SimpleCapAlloc.hh",
+  "runtime/CapAlloc.hh",
   "runtime/InterruptControl.hh",
   "runtime/RaplDriverIntel.hh"
   ]
