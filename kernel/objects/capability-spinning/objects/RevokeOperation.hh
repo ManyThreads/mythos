@@ -101,7 +101,7 @@ public:
   };
 
 private:
-
+  friend class ProcessorAllocator; //need to directly access _revoke in deallocation sequence (todo: do it better!)
   void _revoke(Tasklet* t, result_t* res, CapEntry& entry, IKernelObject* guarded);
   void _delete(Tasklet* t, result_t* res, CapEntry& entry, IKernelObject* guarded);
   void _deleteObject(Tasklet* t);

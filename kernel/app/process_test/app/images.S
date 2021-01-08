@@ -1,4 +1,4 @@
-/* -*- mode:C++; indent-tabs-mode:nil; -*- */
+/* -*- mode:asm; indent-tabs-mode:nil -*- */
 /* MIT License -- MyThOS: The Many-Threads Operating System
  *
  * Permission is hereby granted, free of charge, to any person
@@ -21,40 +21,13 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  *
- * Copyright 2016 Randolf Rotta, Robert Kuban, and contributors, BTU Cottbus-Senftenberg
+ * Copyright 2020 Philipp Gypser and contributors, BTU Cottbus-Senftenberg
  */
-#pragma once
 
-#include <cstdint>
-#include "mythos/InvocationBuf.hh"
-#include "mythos/Error.hh"
+// copy this section for each elf image 
+.global process_test_image_start
+process_test_image_start:
+	.incbin "process_test/process_test.elf"
 
-namespace mythos {
-
-  namespace protocol {
-
-    enum CoreProtocols : uint8_t {
-      KERNEL_OBJECT = 1,
-      DEVICE_MEMORY,
-      KERNEL_MEMORY,
-      FRAME,
-      PAGEMAP,
-      CAPMAP,
-      EXECUTION_CONTEXT,
-      PORTAL,
-      EXAMPLE,
-      CPUDRIVERKNC,
-      RAPLDRIVERINTEL,
-      PROCESSORALLOCATOR,
-      INTERRUPT_CONTROL,
-    };
-
-  } // namespace protocol
-
-enum MappingRequest : uint8_t {
-  MAPPING_PROPERTIES,
-  MAP_FRAME,
-  MAP_TABLE,
-};
-
-} // namespace mythos
+.global process_test_image_end
+process_test_image_end:

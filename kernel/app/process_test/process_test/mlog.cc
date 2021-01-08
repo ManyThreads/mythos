@@ -1,4 +1,4 @@
-/* -*- mode:C++; indent-tabs-mode:nil; -*- */
+/* -*- mode:C++; -*- */
 /* MIT License -- MyThOS: The Many-Threads Operating System
  *
  * Permission is hereby granted, free of charge, to any person
@@ -21,40 +21,14 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  *
- * Copyright 2016 Randolf Rotta, Robert Kuban, and contributors, BTU Cottbus-Senftenberg
+ * Copyright 2020 Philipp Gypser, Randolf Rotta, Maik Krüger, and contributors, BTU Cottbus-Senftenberg
  */
-#pragma once
 
-#include <cstdint>
-#include "mythos/InvocationBuf.hh"
-#include "mythos/Error.hh"
+#include "runtime/mlog.hh"
+#include "util/error-trace.hh"
 
-namespace mythos {
-
-  namespace protocol {
-
-    enum CoreProtocols : uint8_t {
-      KERNEL_OBJECT = 1,
-      DEVICE_MEMORY,
-      KERNEL_MEMORY,
-      FRAME,
-      PAGEMAP,
-      CAPMAP,
-      EXECUTION_CONTEXT,
-      PORTAL,
-      EXAMPLE,
-      CPUDRIVERKNC,
-      RAPLDRIVERINTEL,
-      PROCESSORALLOCATOR,
-      INTERRUPT_CONTROL,
-    };
-
-  } // namespace protocol
-
-enum MappingRequest : uint8_t {
-  MAPPING_PROPERTIES,
-  MAP_FRAME,
-  MAP_TABLE,
-};
-
-} // namespace mythos
+namespace mlog {
+  Logger<MLOG_APP> app("process-test");
+  Logger<MLOG_ERROR_THROW> throw_error("throw");
+  Logger<FilterAny> testLog("Test");
+} // namespace mlog

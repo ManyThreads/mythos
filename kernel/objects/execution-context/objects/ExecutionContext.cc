@@ -55,7 +55,7 @@ namespace mythos {
                 DVARhex(flags.load()), isReady());
     if (needPreemption(prev) && !isReady()) {
         auto place = currentPlace.load();
-        ASSERT(place != nullptr);
+        //ASSERT(place != nullptr);
         /// @todo is place->preempt() sufficient without waiting?
         if (place) synchronousAt(place) << [this]() {
             MLOG_DETAIL(mlog::ec, "suspended", DVAR(this));
@@ -597,6 +597,7 @@ namespace mythos {
             auto place = currentPlace.load();
             if (place) synchronousAt(place) << [this]() {
                 this->saveState();
+                this->_sched.reset();
                 MLOG_DETAIL(mlog::ec, "preempted and unloaded state", DVAR(this));
             };
             _as.reset();

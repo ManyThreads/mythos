@@ -21,40 +21,11 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  *
- * Copyright 2016 Randolf Rotta, Robert Kuban, and contributors, BTU Cottbus-Senftenberg
+ * Copyright 2020 Philipp Gypser and contributors, BTU Cottbus-Senftenberg
  */
-#pragma once
 
-#include <cstdint>
-#include "mythos/InvocationBuf.hh"
-#include "mythos/Error.hh"
+#include "objects/PluginProcessorAllocator.hh"
 
-namespace mythos {
+mythos::PluginProcessorAllocator pluginProcessorAllocator;
+mythos::PluginProcessorAllocatorActivator pluginProcessorAllocatorActivator;
 
-  namespace protocol {
-
-    enum CoreProtocols : uint8_t {
-      KERNEL_OBJECT = 1,
-      DEVICE_MEMORY,
-      KERNEL_MEMORY,
-      FRAME,
-      PAGEMAP,
-      CAPMAP,
-      EXECUTION_CONTEXT,
-      PORTAL,
-      EXAMPLE,
-      CPUDRIVERKNC,
-      RAPLDRIVERINTEL,
-      PROCESSORALLOCATOR,
-      INTERRUPT_CONTROL,
-    };
-
-  } // namespace protocol
-
-enum MappingRequest : uint8_t {
-  MAPPING_PROPERTIES,
-  MAP_FRAME,
-  MAP_TABLE,
-};
-
-} // namespace mythos
