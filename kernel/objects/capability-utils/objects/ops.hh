@@ -51,7 +51,7 @@ namespace mythos {
     inline optional<void> inherit(CapEntry& parentEntry, Cap parentCap,
                            CapEntry& targetEntry, Cap targetCap)
     {
-        return inherit(parentEntry, parentCap, targetEntry, targetCap, [](){});
+        RETURN(inherit(parentEntry, parentCap, targetEntry, targetCap, [](){}));
     }
 
     optional<void> derive(CapEntry& parentEntry, CapEntry& targetEntry,
@@ -64,7 +64,7 @@ namespace mythos {
     optional<void> setReference(CapEntry& dst, Cap dstCap, CapEntry& src, Cap srcCap, const COMMITFUN& fun)
     {
       ASSERT(dstCap.isReference());
-      if (!dst.acquire()) THROW(Error::LOST_RACE);
+      if (!dst.acquire()) RETHROW(Error::LOST_RACE);
       RETURN(inherit(src, srcCap, dst, dstCap, [=](){ fun(); }));
     }
 

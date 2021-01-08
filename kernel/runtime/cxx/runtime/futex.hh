@@ -62,9 +62,6 @@
 
 #define FLAGS_CLOCKRT		0x02
 #define FLAGS_HAS_TIMEOUT	0x04
- 
-#define FUTEX_QUEUE_SIZE	256
-#define JHASH_INITVAL		0xdeadbeef
 
 long do_futex(uint32_t  *uaddr, int op, uint32_t val, uint32_t *timeout,
     uint32_t  *uaddr2, uint32_t val2, uint32_t val3);

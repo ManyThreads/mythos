@@ -113,7 +113,7 @@ namespace mythos {
       for (size_t i = 0; i < num_caps(); ++i) {
         auto res = del.deleteEntry(_cap_table(i));
         ASSERT_MSG(res, "Mapped entries must be deletable.");
-        if (!res) return res;
+        if (!res) RETHROW(res);
       }
       del.deleteObject(del_handle);
     }
@@ -161,7 +161,7 @@ namespace mythos {
     auto newCap = table.cap().asReference().withPtr(&mappedPageMapHelper).withData(capData);
     MLOG_DETAIL(mlog::cap, "mapTable", DVARhex(&tableEntry), DVARhex(pme), DVAR(index), DVAR(entry));
     cap::resetReference(_cap_table(index), [&]{ pme->reset(); });
-    return cap::setReference(_cap_table(index), newCap, *tableEntry, table.cap(), [=,&entry]{ pme->set(entry); });
+    RETURN(cap::setReference(_cap_table(index), newCap, *tableEntry, table.cap(), [=,&entry]{ pme->set(entry); }));
   }
 
   optional<Cap> PageMap::mint(CapEntry&, Cap self, CapRequest request, bool)
@@ -203,7 +203,7 @@ namespace mythos {
     MLOG_DETAIL(mlog::cap, "mapFrame", DVAR(&frameEntry), DVARhex(pme), DVAR(index), DVAR(entry),
       DVARhex(frameInfo.size), DVARhex(frameInfo.start.physint()));
     cap::resetReference(_cap_table(index), [&]{ pme->reset(); });
-    return cap::setReference(_cap_table(index), newCap, *frameEntry, frame.cap(), [=,&entry]{ pme->set(entry); });
+    RETURN(cap::setReference(_cap_table(index), newCap, *frameEntry, frame.cap(), [=,&entry]{ pme->set(entry); }));
   }
 
   optional<void> PageMap::unmapEntry(size_t index)

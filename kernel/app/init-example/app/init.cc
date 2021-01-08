@@ -31,10 +31,11 @@
 #include "runtime/Portal.hh"
 #include "runtime/ExecutionContext.hh"
 #include "runtime/CapMap.hh"
+#include "runtime/RaplDriverIntel.hh"
 #include "runtime/Example.hh"
 #include "runtime/PageMap.hh"
 #include "runtime/KernelMemory.hh"
-#include "runtime/SimpleCapAlloc.hh"
+#include "runtime/CapAlloc.hh"
 #include "runtime/tls.hh"
 #include "runtime/mlog.hh"
 #include "runtime/InterruptControl.hh"
@@ -42,12 +43,17 @@
 #include "util/optional.hh"
 #include "runtime/umem.hh"
 #include "runtime/Mutex.hh"
+#include "runtime/cgaScreen.hh"
 
 #include <vector>
 #include <array>
+#include <math.h> 
+#include <iostream>
 
 #include <pthread.h>
-#include <omp.h>
+#include "runtime/thread-extra.hh"
+#include <sys/time.h>
+
 
 #include "tbb/tbb.h"
 
@@ -63,8 +69,8 @@ mythos::CapMap myCS(mythos::init::CSPACE);
 mythos::PageMap myAS(mythos::init::PML4);
 mythos::KernelMemory kmem(mythos::init::KM);
 mythos::KObject device_memory(mythos::init::DEVICE_MEM);
-mythos::SimpleCapAllocDel capAlloc(portal, myCS, mythos::init::APP_CAP_START,
-                                  mythos::init::SIZE-mythos::init::APP_CAP_START);
+cap_alloc_t capAlloc(myCS);
+mythos::RaplDriverIntel rapl(mythos::init::RAPL_DRIVER_INTEL);
 
 char threadstack[stacksize];
 char* thread1stack_top = threadstack+stacksize/2;
@@ -95,7 +101,7 @@ void test_Portal()
   MLOG_ERROR(mlog::app, "test_Portal begin");
   mythos::PortalLock pl(portal); // future access will fail if the portal is in use already
   MLOG_INFO(mlog::app, "test_Portal: allocate portal");
-  uintptr_t vaddr = 22*1024*1024; // choose address different from invokation buffer
+  uintptr_t vaddr = mythos::round_up(uintptr_t(msg_ptr) + 1,  mythos::align2M);
   // allocate a portal
   mythos::Portal p2(capAlloc(), (void*)vaddr);
   auto res1 = p2.create(pl, kmem).wait();
@@ -122,58 +128,6 @@ void test_Portal()
   MLOG_INFO(mlog::app, "test_Portal: delete portal");
   TEST(capAlloc.free(p2, pl));
   MLOG_ERROR(mlog::app, "test_Portal end");
-}
-
-void test_memory_root()
-{
-  // see example mapping in PluginCpuDriverKNC.cc
-  auto ivt = reinterpret_cast<uint64_t*>(128ull*1024*1024*1024);
-  MLOG_INFO(mlog::app, "test_memory_root: try read from init mapping", DVAR(ivt));
-  auto val = *ivt;
-  MLOG_INFO(mlog::app, "...got", DVARhex(val));
-    
-  uintptr_t paddr = 0xB8000; // text mode CGA screen
-  uintptr_t vaddr = 22*1024*1024; // choose address different from invokation buffer
-
-  MLOG_ERROR(mlog::app, "test_memory_root begin");
-  mythos::PortalLock pl(portal); // future access will fail if the portal is in use already
-
-  MLOG_INFO(mlog::app, "test_memory_root: allocate device memory");
-  mythos::Frame f(capAlloc());
-  auto res1 = f.createDevice(pl, device_memory, paddr, 2*1024*1024, true).wait();
-  TEST(res1);
-  MLOG_INFO(mlog::app, "alloc frame", DVAR(res1.state()));
-
-  MLOG_INFO(mlog::app, "test_memory_root: allocate level 1 page map (4KiB pages)");
-  mythos::PageMap p1(capAlloc());
-  auto res2 = p1.create(pl, kmem, 1);
-  TEST(res2);
-
-  MLOG_INFO(mlog::app, "test_memory_root: map level 1 page map on level 2", DVARhex(vaddr));
-  auto res3 = myAS.installMap(pl, p1, vaddr, 2,
-                              mythos::protocol::PageMap::MapFlags().writable(true).configurable(true)).wait();
-  TEST(res3);
-
-  MLOG_INFO(mlog::app, "test_memory_root: map frame");
-  auto res4 = myAS.mmap(pl, f, vaddr, 4096, mythos::protocol::PageMap::MapFlags().writable(true)).wait();
-  MLOG_INFO(mlog::app, "mmap frame", DVAR(res4.state()),
-            DVARhex(res4->vaddr), DVAR(res4->level));
-  TEST(res4);
-
-  struct CGAChar {
-      CGAChar(uint8_t ch=0, uint8_t fg=15, uint8_t bg=0, uint8_t blink=0) : ch(ch&0xFF), fg(fg&0x0F),bg(bg&0x07),blink(blink&0x01) {} 
-      uint16_t ch:8, fg:4, bg:3, blink:1;
-    };
-  auto screen = reinterpret_cast<CGAChar*>(vaddr);
-
-  auto msg = "Device Memory is working :)";
-  for (size_t i=0; i<strlen(msg); i++) screen[i] = CGAChar(msg[i], 12, 3, 1);
-
-  MLOG_INFO(mlog::app, "test_memory_root: delete page map");
-  TEST(capAlloc.free(p1, pl));
-  MLOG_INFO(mlog::app, "test_memory_root: delete device frame");
-  TEST(capAlloc.free(f, pl));
-  MLOG_ERROR(mlog::app, "test_memory_root end");
 }
 
 void test_float()
@@ -215,7 +169,7 @@ void test_tls()
     MLOG_INFO(mlog::app, "main thread TLS:", DVARhex(readFS(0)), DVARhex(readFS(0x28)));
     TEST_EQ(x, 1024);
     TEST_EQ(y, 2048);
-    mythos::syscall_wait();
+    mythos_wait();
     TEST_EQ(x, 1024);
     TEST_EQ(y, 2048);
     x = x*2;
@@ -230,7 +184,7 @@ void test_tls()
   MLOG_INFO(mlog::app, "test_EC: create ec1 TLS", DVARhex(tls));
   ASSERT(tls != nullptr);
   auto res1 = ec1.create(kmem).as(myAS).cs(myCS).sched(mythos::init::SCHEDULERS_START + 1)
-    .prepareStack(thread1stack_top).startFun(threadFun, nullptr, ec1.cap())
+    .prepareStack(thread1stack_top).startFun(threadFun, nullptr)
     .suspended(false).fs(tls)
     .invokeVia(pl).wait();
   TEST(res1);
@@ -243,9 +197,9 @@ void test_tls()
 void test_heap() {
   MLOG_INFO(mlog::app, "Test heap");
   mythos::PortalLock pl(portal);
-  uintptr_t vaddr = 22*1024*1024; // choose address different from invokation buffer
-  auto size = 64*1024*1024; // 2 MB
+  auto size = 4*1024*1024; // 2 MB
   auto align = 2*1024*1024; // 2 MB
+  uintptr_t vaddr = mythos::round_up(uintptr_t(msg_ptr) + 1,  align);
   // allocate a 2MiB frame
   mythos::Frame f(capAlloc());
   auto res2 = f.create(pl, kmem, size, align).wait();
@@ -328,7 +282,7 @@ void test_exceptions() {
 }
 
 void* threadMain(void* arg){
-  MLOG_INFO(mlog::app, "Thread says hello", DVAR(pthread_self()));
+  MLOG_INFO(mlog::app, "Thread says hello", DVAR(arg), DVAR(pthread_self()));
   return 0;
 }
 
@@ -336,36 +290,12 @@ void test_pthreads(){
   MLOG_INFO(mlog::app, "Test Pthreads");
 	pthread_t p;
  
-	auto tmp = pthread_create(&p, NULL, &threadMain, NULL);
+	auto tmp = pthread_create(&p, NULL, &threadMain, (void*) 0xBEEF);
   MLOG_INFO(mlog::app, "pthread_create returned", DVAR(tmp));
 	pthread_join(p, NULL);
 
   MLOG_INFO(mlog::app, "End Test Pthreads");
 }
-
-void test_omp(){
-  MLOG_INFO(mlog::app, "Test Openmp");
-  int nthreads, tid;
-  omp_set_num_threads(2);
-/* Fork a team of threads giving them their own copies of variables */
-#pragma omp parallel private(nthreads, tid)
-  {
-
-  /* Obtain thread number */
-  tid = omp_get_thread_num();
-  MLOG_INFO(mlog::app, "Hello World from thread", DVAR(tid));
-
-  /* Only master thread does this */
-  if (tid == 0) 
-    {
-    nthreads = omp_get_num_threads();
-  MLOG_INFO(mlog::app, "Number of threads", DVAR(nthreads));
-    }
-
-  }
-  MLOG_INFO(mlog::app, "End Test Openmp");
-}
-
 
 mythos::Mutex mutex;
 void* thread_main(void* ctx)
@@ -374,7 +304,7 @@ void* thread_main(void* ctx)
   mutex << [ctx]() {
     MLOG_INFO(mlog::app, "thread in mutex", DVAR(ctx));
   };
-  mythos::ISysretHandler::handle(mythos::syscall_wait());
+  mythos_wait();
   MLOG_INFO(mlog::app, "thread resumed from wait", DVAR(ctx));
   return 0;
 }
@@ -391,7 +321,7 @@ void test_ExecutionContext()
     auto tls1 = mythos::setupNewTLS();
     ASSERT(tls1 != nullptr);
     auto res1 = ec1.create(kmem).as(myAS).cs(myCS).sched(mythos::init::SCHEDULERS_START)
-    .prepareStack(thread1stack_top).startFun(&thread_main, nullptr, ec1.cap())
+    .prepareStack(thread1stack_top).startFun(&thread_main, nullptr)
     .suspended(false).fs(tls1)
     .invokeVia(pl).wait();
     TEST(res1);
@@ -400,7 +330,7 @@ void test_ExecutionContext()
     auto tls2 = mythos::setupNewTLS();
     ASSERT(tls2 != nullptr);
     auto res2 = ec2.create(kmem).as(myAS).cs(myCS).sched(mythos::init::SCHEDULERS_START+1)
-    .prepareStack(thread2stack_top).startFun(&thread_main, nullptr, ec2.cap())
+    .prepareStack(thread2stack_top).startFun(&thread_main, nullptr)
     .suspended(false).fs(tls2)
     .invokeVia(pl).wait();
     TEST(res2);
@@ -426,7 +356,7 @@ void test_InterruptControl() {
   auto tls = mythos::setupNewTLS();
   ASSERT(tls != nullptr);
   auto res1 = ec.create(kmem).as(myAS).cs(myCS).sched(mythos::init::SCHEDULERS_START + 2)
-    .prepareStack(thread3stack_top).startFun(&thread_main, nullptr, ec.cap())
+    .prepareStack(thread3stack_top).startFun(&thread_main, nullptr)
     .suspended(false).fs(tls)
     .invokeVia(pl).wait();
   TEST(res1);
@@ -455,24 +385,136 @@ void test_TBB(){
 	tg.wait( );             // wait for tasks to complete
 }
 
+bool primeTest(uint64_t n){
+
+  if(n == 0 | n == 1){
+    return false;
+  }
+
+  for(uint64_t i = 2; i <= n / 2; i++){
+    if(n % i == 0) return false;
+  }
+
+  return true;
+}
+
+void test_Rapl(){
+  MLOG_INFO(mlog::app, "Test RAPL");
+  mythos::PortalLock pl(portal); 
+  timeval start_run, end_run;
+  
+  asm volatile ("":::"memory");
+  auto start = rapl.getRaplVal(pl).wait().get();
+  gettimeofday(&start_run, 0);
+	asm volatile ("":::"memory");
+  
+  MLOG_INFO(mlog::app, "Start prime test");
+  unsigned numPrimes = 0;
+  const uint64_t max = 200000;
+
+  for(uint64_t i = 0; i < max; i++){
+    if(primeTest(i)) numPrimes++;
+  }
+
+	asm volatile ("":::"memory");
+  auto end = rapl.getRaplVal(pl).wait().get();
+  gettimeofday(&end_run, 0);
+	asm volatile ("":::"memory");
+
+  double seconds =(end_run.tv_usec - start_run.tv_usec)/1000000.0 + end_run.tv_sec - start_run.tv_sec;
+
+  std::cout << "Prime test done in " <<  seconds << " seonds (" << numPrimes 
+	  << " primes found in Range from 0 to " << max << ")." << std::endl;
+  std::cout << "Energy consumption:" << std::endl;
+
+  double pp0 = (end.pp0 - start.pp0) * pow(0.5, start.cpu_energy_units);
+  std::cout << "Power plane 0 (processor cores only): " << pp0 << " Joule. Average power: " << pp0/seconds << " watts." << std::endl;
+  
+  double pp1 = (end.pp1 - start.pp1) * pow(0.5, start.cpu_energy_units);
+  std::cout << "Power plane 1 (a specific device in the uncore): " << pp1 << " Joule. Average power: " << pp1/seconds << " watts." << std::endl;
+  
+  double psys = (end.psys - start.psys) * pow(0.5, start.cpu_energy_units);
+  std::cout << "Platform : " << psys << " Joule. Average power: " << psys/seconds << " watts." << std::endl;
+  
+  double pkg = (end.pkg - start.pkg) * pow(0.5, start.cpu_energy_units);
+  std::cout << "Package : " << pkg << " Joule. Average power: " << pkg/seconds << " watts." << std::endl;
+  
+  double dram = (end.dram - start.dram) * pow(0.5, start.dram_energy_units);
+  std::cout << "DRAM (memory controller): " << dram << " Joule. Average power: " << dram/seconds << " watts." << std::endl;
+
+  MLOG_INFO(mlog::app, "Test RAPL finished");
+}
+
+void test_CgaScreen(){
+  MLOG_INFO(mlog::app, "Test CGA screen");
+
+  uintptr_t paddr = mythos::CgaScreen::VIDEO_RAM;
+  uintptr_t vaddr = 22*1024*1024;
+
+  mythos::PortalLock pl(portal);
+
+  MLOG_INFO(mlog::app, "test_CgaScreen: allocate device memory"); 
+  mythos::Frame f(capAlloc());
+  auto res1 = f.createDevice(pl, device_memory, paddr, 1*1024*1024, true).wait(); 
+  TEST(res1); 
+
+  MLOG_INFO(mlog::app, "test_CgaScreen: allocate level 1 page map (4KiB pages)");
+  mythos::PageMap p1(capAlloc());
+  auto res2 = p1.create(pl, kmem, 1);
+  TEST(res2);
+
+  MLOG_INFO(mlog::app, "test_CgaScreen: map level 1 page map on level 2", DVARhex(vaddr));
+  auto res3 = myAS.installMap(pl, p1, vaddr, 2,
+    mythos::protocol::PageMap::MapFlags().writable(true).configurable(true)).wait();
+  TEST(res3);
+
+  MLOG_INFO(mlog::app, "test_CgaScreen: map frame");
+  auto res4 = myAS.mmap(pl, f, vaddr, 4096, mythos::protocol::PageMap::MapFlags().writable(true)).wait();
+  TEST(res4);
+
+  mythos::CgaScreen screen(vaddr);
+
+  screen.show('H');
+  screen.show('e');
+  screen.show('l');
+  screen.show('l');
+  screen.show('o');
+  screen.show(' ');
+  screen.show('w');
+  screen.show('o');
+  screen.show('r');
+  screen.show('l');
+  screen.show('d');
+  screen.show('!');
+  screen.show('\n');
+
+  screen.log("Hello world, but in another way!");
+  MLOG_INFO(mlog::app, "test_CgaScreen: delete page map");
+  TEST(capAlloc.free(p1, pl));
+  MLOG_INFO(mlog::app, "test_CgaScreen: delete device frame");
+  TEST(capAlloc.free(f, pl));
+
+  MLOG_INFO(mlog::app, "Test CGA finished");
+}
+
 int main()
 {
-  char const str[] = "hello world!";
+  char const str[] = "Hello world!";
   mythos::syscall_debug(str, sizeof(str)-1);
   MLOG_ERROR(mlog::app, "application is starting :)", DVARhex(msg_ptr), DVARhex(initstack_top));
 
   //test_float();
   test_Example();
   test_Portal();
-  //test_memory_root();
   test_heap(); // heap must be initialized for tls test
   test_tls();
   test_exceptions();
   //test_InterruptControl();
   //test_HostChannel(portal, 24*1024*1024, 2*1024*1024);
-  //test_ExecutionContext();
-  //test_pthreads();
-  //test_omp();
+  test_ExecutionContext();
+  test_pthreads();
+  //test_Rapl();
+  //test_CgaScreen();
   test_TBB();
 
   char const end[] = "bye, cruel world!";

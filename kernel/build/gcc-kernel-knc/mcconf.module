@@ -1,7 +1,7 @@
 # -*- mode:toml; -*-
 [module.gcc-kernel-knc]
     incfiles = [ "util/compiler.hh" ]
-    requires = [ "tag/platform/knc", "tag/mode/kernel", "tag/compiler/gcc", "micrun-knc" ]
+    requires = [ "tag/platform/knc", "tag/mode/kernel", "tag/compiler/gcc", "tag/cxxabi-kernel", "micrun-knc" ]
 
     makefile_head = '''
 ifneq (, $(shell which k1om-mpss-linux-g++))

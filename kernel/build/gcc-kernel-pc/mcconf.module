@@ -1,7 +1,7 @@
 # -*- mode:toml; -*-
 [module.gcc-kernel-pc]
     incfiles = [ "util/compiler.hh" ]
-    requires = [ "tag/platform/pc", "tag/mode/kernel", "tag/compiler/gcc" ]
+    requires = [ "tag/platform/pc", "tag/mode/kernel", "tag/compiler/gcc", "tag/cxxabi-kernel"]
 
     makefile_head = '''
 KERNEL_CXX ?= $(CXX)
@@ -51,10 +51,17 @@ APP_CXX = $(CXX)
 APP_AS = $(KERNEL_AS)
 APP_CPPFLAGS += $(CPPFLAGS)
 APP_CPPFLAGS += -I.
+
 APP_CXXFLAGS += $(CXXFLAGS)
 APP_CXXFLAGS += -std=c++11
 #APP_CXXFLAGS += -O2 -g3 -ggdb -gdwarf-2
 APP_CXXFLAGS += -O2 -ggdb3
+
+APP_CC = $(CC) 
+APP_CFLAGS += $(CFLAGS)
+APP_CFLAGS += -std=c11
+APP_CFLAGS += -O2 -ggdb3
+
 APP_LD = $(LD)
 APP_LDFLAGS += -static
 APP_ASFLAGS += -ggdb3

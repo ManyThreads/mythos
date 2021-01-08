@@ -21,15 +21,43 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  *
- * Copyright 2019 Randolf Rotta, Robert Kuban, and contributors, BTU Cottbus-Senftenberg
+ * Copyright 2020 Philipp Gypser and contributors, BTU Cottbus-Senftenberg
  */
-#include "runtime/ExecutionContext.hh"
+#pragma once
 
-thread_local mythos::CapPtr mythos::localEC;
+#include "runtime/PortalBase.hh"
+#include "mythos/protocol/RaplDriverIntel.hh"
+#include "mythos/init.hh"
 
-static void init_localEC() __attribute__((constructor));
+namespace mythos {
 
-void init_localEC()
-{
-    mythos::localEC = mythos::init::EC; //important initialization!!
-}
+  class RaplDriverIntel : public KObject
+  {
+  public:
+
+    RaplDriverIntel() {}
+    RaplDriverIntel(CapPtr cap) : KObject(cap) {}
+
+    struct Result : public RaplVal {
+      Result() {}
+      Result(InvocationBuf* ib) {
+        auto val = ib->cast<protocol::RaplDriverIntel::Result>()->val;
+
+        pp0 = val.pp0;
+        pp1 = val.pp1;
+        psys = val.psys;
+        pkg = val.pkg;
+        dram = val.dram;
+        cpu_energy_units = val.cpu_energy_units;
+        dram_energy_units = val.dram_energy_units;
+      }
+    };
+
+    PortalFuture<Result>
+    getRaplVal(PortalLock pr) {
+      return pr.invoke<protocol::RaplDriverIntel::GetRaplVal>(_cap);
+    }
+
+  };
+
+} // namespace mythos

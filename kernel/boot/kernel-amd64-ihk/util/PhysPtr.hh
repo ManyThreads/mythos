@@ -57,6 +57,8 @@ namespace mythos {
   public:
     PhysPtr() : ptr(0) {}
 
+    PhysPtr(const PhysPtr<T>&) = default;
+
     explicit PhysPtr(uint64_t ptr) : ptr(ptr) {}
 
     static PhysPtr fromImage(T* vp) {
@@ -134,6 +136,9 @@ namespace mythos {
   {
   public:
     PhysPtr32() : ptr(0) {}
+
+    PhysPtr32(const PhysPtr32<T>&) = default;
+    
     explicit PhysPtr32(uint32_t ptr) : ptr(ptr) {}
     explicit PhysPtr32(uint64_t ptr) : ptr(uint32_t(ptr)) {
       ASSERT(ptr <= 0xFFFFFFFF);
