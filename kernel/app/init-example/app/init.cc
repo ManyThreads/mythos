@@ -44,6 +44,7 @@
 #include "runtime/umem.hh"
 #include "runtime/Mutex.hh"
 #include "runtime/cgaScreen.hh"
+#include "runtime/process.hh"
 
 #include <vector>
 #include <array>
@@ -57,6 +58,8 @@
 
 mythos::InvocationBuf* msg_ptr asm("msg_ptr");
 int main() asm("main");
+
+extern char process_test_image_start SYMBOL("process_test_image_start");
 
 constexpr uint64_t stacksize = 4*4096;
 char initstack[stacksize];
@@ -476,6 +479,16 @@ void test_CgaScreen(){
   MLOG_INFO(mlog::app, "Test CGA finished");
 }
 
+void test_process(){
+  MLOG_INFO(mlog::app, "Test process");
+
+  mythos::PortalLock pl(portal);
+  Process p(&process_test_image_start);
+  p.createProcess(pl); 
+
+  MLOG_INFO(mlog::app, "Test process finished");
+}
+
 int main()
 {
   char const str[] = "Hello world!";
@@ -493,6 +506,7 @@ int main()
   test_ExecutionContext();
   test_pthreads();
   //test_Rapl();
+  test_process();
   //test_CgaScreen();
 
   char const end[] = "bye, cruel world!";

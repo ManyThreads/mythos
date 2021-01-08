@@ -1,8 +1,8 @@
 # -*- mode:toml; -*-
 [module.app-init-example]
-    appfiles = [ "app/init.cc" ]
+    initappfiles = [ "app/init.cc" ]
     provides = [ "app/init.elf" ]
-    requires = [ "crtbegin"]
+    requires = [ "crtbegin", "app-process-test"]
 
     makefile_head = '''
 TARGETS += app/init.elf
