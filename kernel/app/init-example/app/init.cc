@@ -28,6 +28,7 @@
 #include "mythos/invocation.hh"
 #include "mythos/protocol/CpuDriverKNC.hh"
 #include "mythos/PciMsgQueueMPSC.hh"
+#include "mythos/InfoFrame.hh"
 #include "runtime/Portal.hh"
 #include "runtime/ExecutionContext.hh"
 #include "runtime/CapMap.hh"
@@ -46,6 +47,7 @@
 #include "runtime/Mutex.hh"
 #include "runtime/cgaScreen.hh"
 #include "runtime/process.hh"
+#include "tbb/tbb.h"
 
 #include <vector>
 #include <array>
@@ -57,9 +59,7 @@
 #include <sys/time.h>
 
 
-#include "tbb/tbb.h"
-
-mythos::InvocationBuf* msg_ptr asm("msg_ptr");
+mythos::InfoFrame* info_ptr asm("info_ptr");
 int main() asm("main");
 
 extern char process_test_image_start SYMBOL("process_test_image_start");
@@ -68,7 +68,7 @@ constexpr uint64_t stacksize = 4*4096;
 char initstack[stacksize];
 char* initstack_top = initstack+stacksize;
 
-mythos::Portal portal(mythos::init::PORTAL, msg_ptr);
+mythos::Portal portal(mythos::init::PORTAL, info_ptr->getInvocationBuf());
 mythos::CapMap myCS(mythos::init::CSPACE);
 mythos::PageMap myAS(mythos::init::PML4);
 mythos::KernelMemory kmem(mythos::init::KM);
@@ -106,7 +106,7 @@ void test_Portal()
   MLOG_ERROR(mlog::app, "test_Portal begin");
   mythos::PortalLock pl(portal); // future access will fail if the portal is in use already
   MLOG_INFO(mlog::app, "test_Portal: allocate portal");
-  uintptr_t vaddr = mythos::round_up(uintptr_t(msg_ptr) + 1,  mythos::align2M);
+  uintptr_t vaddr = mythos::round_up(info_ptr->getInfoEnd(),  mythos::align2M);
   // allocate a portal
   mythos::Portal p2(capAlloc(), (void*)vaddr);
   auto res1 = p2.create(pl, kmem).wait();
@@ -207,7 +207,7 @@ void test_heap() {
   mythos::PortalLock pl(portal);
   auto size = 64*1024*1024; // 2 MB
   auto align = 2*1024*1024; // 2 MB
-  uintptr_t vaddr = mythos::round_up(uintptr_t(msg_ptr) + 1,  align);
+  uintptr_t vaddr = mythos::round_up(info_ptr->getInfoEnd() + align2M,  align2M);
   // allocate a 2MiB frame
   mythos::Frame f(capAlloc());
   auto res2 = f.create(pl, kmem, size, align).wait();
@@ -544,7 +544,7 @@ int main()
 {
   char const str[] = "Hello world!";
   mythos::syscall_debug(str, sizeof(str)-1);
-  MLOG_ERROR(mlog::app, "application is starting :)", DVARhex(msg_ptr), DVARhex(initstack_top));
+  MLOG_ERROR(mlog::app, "application is starting :)", DVARhex(info_ptr), DVARhex(initstack_top));
 
   //test_float();
   test_Example();
@@ -556,7 +556,7 @@ int main()
   //test_HostChannel(portal, 24*1024*1024, 2*1024*1024);
   test_ExecutionContext();
   test_pthreads();
-  //test_Rapl()
+  test_Rapl();
   test_processor_allocator();
   test_TBB();
   test_process();
