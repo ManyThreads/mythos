@@ -60,6 +60,7 @@ extern mythos::Portal portal;
 extern mythos::CapMap myCS;
 extern mythos::PageMap myAS;
 extern mythos::KernelMemory kmem;
+extern mythos::ProcessorAllocator pa;
 
 #ifndef NUM_CPUS
 #define NUM_CPUS (2)
@@ -144,20 +145,24 @@ int prlimit(
 
 int my_sched_setaffinity(pid_t pid, size_t cpusetsize, cpu_set_t *mask)
 {
-    //MLOG_DETAIL(mlog::app, "syscall sched_setaffinity", DVAR(pid), DVAR(cpusetsize), DVARhex(mask));
+    MLOG_DETAIL(mlog::app, "syscall sched_setaffinity", DVAR(pid), DVAR(cpusetsize), DVARhex(mask));
     if(cpusetsize == NUM_CPUS && mask == NULL) return -EFAULT;
     return 0;
 }
 
 int my_sched_getaffinity(pid_t pid, size_t cpusetsize, cpu_set_t *mask)
 {
-    //MLOG_DETAIL(mlog::app, "syscall sched_getaffinity", DVAR(pid), DVAR(cpusetsize), DVARhex(mask));
+    MLOG_DETAIL(mlog::app, "syscall sched_getaffinity", DVAR(pid), DVAR(cpusetsize), DVARhex(mask));
     if (mask) {
         //CPU_ZERO(mask);
 	memset(mask, 0, cpusetsize);
         for(int i = 0; i < NUM_CPUS; i++) CPU_SET(i, mask);
     }
-    return NUM_CPUS;
+    if(cpusetsize > NUM_CPUS){
+      return NUM_CPUS;
+    }else{
+      return (-EINVAL);
+    }
 }
 
 void clock_gettime(long clk, struct timespec *ts){
@@ -213,7 +218,7 @@ extern "C" long mythos_musl_syscall(
         return 0;
     case 39: // getpid
         MLOG_WARN(mlog::app, "syscall getpid NYI");
-        return 0;
+        return mythos_get_pthread_ec_self();
     case 60: // exit(exit_code)
         //MLOG_ERROR(mlog::app, "syscall exit", DVAR(a1));
         pthreadCleanerSemphore.exit();        
@@ -287,10 +292,10 @@ extern "C" int munmap(void *start, size_t len)
 
 extern "C" int unmapself(void *start, size_t len)
 {
-    // dummy implementation
-    MLOG_ERROR(mlog::app, "unmapself: NYI!");
-    ASSERT(0);
-    while(1);
+    // see pthread_exit: another pthread might reuse the memory before unmapped  thread exited
+    MLOG_WARN(mlog::app, "unmapself: possible race condition! ");
+    MLOG_WARN(mlog::app, "unmapself: who's gonna free the EC and SC?! ");
+    mythos::heap.free(reinterpret_cast<unsigned long>(start));
     return 0;
 }
 

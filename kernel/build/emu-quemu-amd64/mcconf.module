@@ -5,7 +5,7 @@
     provides = ["tag/emu-qemu"]
 
     makefile_head = '''
-QEMUFLAGS += -m 1024 -cpu SandyBridge -smp 4
+QEMUFLAGS += -m 1024 -cpu Skylake-Client-v1 -smp 4
 # com1: text output to terminal
 QEMUFLAGS += -serial stdio
 # com2: object channel for remote procedure calls into mythos
@@ -22,7 +22,7 @@ qemu: boot32.elf
 	qemu-system-x86_64 $(QEMUFLAGS) -kernel boot32.elf
 
 qemu-text: boot32.elf
-	qemu-system-x86_64 -m 1024 -cpu SandyBridge -smp 4 -curses -kernel boot32.elf
+	qemu-system-x86_64 -m 1024 -cpu Skylake-Client-v1 -smp 4 -curses -kernel boot32.elf
 
 qemuidbg: boot32.elf
 	qemu-system-x86_64 $(QEMUFLAGS) -kernel boot32.elf -qmp stdio

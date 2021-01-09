@@ -205,7 +205,7 @@ void test_tls()
 void test_heap() {
   MLOG_INFO(mlog::app, "Test heap");
   mythos::PortalLock pl(portal);
-  auto size = 4*1024*1024; // 2 MB
+  auto size = 64*1024*1024; // 2 MB
   auto align = 2*1024*1024; // 2 MB
   uintptr_t vaddr = mythos::round_up(uintptr_t(msg_ptr) + 1,  align);
   // allocate a 2MiB frame
@@ -386,6 +386,8 @@ void test_InterruptControl() {
 }
 
 void test_TBB(){
+  MLOG_INFO(mlog::app, "Test TBB");
+
 	class say_hello
 	{
 	   int id;
@@ -398,10 +400,11 @@ void test_TBB(){
 	};
 
 	tbb::task_group tg;
-	for(int i=0; i<100; i++){
+	for(int i=0; i<10; i++){
 		tg.run(say_hello(i)); // spawn 1st task and return
 	}
 	tg.wait( );             // wait for tasks to complete
+  MLOG_INFO(mlog::app, "Test finished");
 }
 
 bool primeTest(uint64_t n){
@@ -555,9 +558,9 @@ int main()
   test_pthreads();
   //test_Rapl()
   test_processor_allocator();
+  test_TBB();
   test_process();
   //test_CgaScreen();
-  test_TBB();
 
   char const end[] = "bye, cruel world!";
   mythos::syscall_debug(end, sizeof(end)-1);
