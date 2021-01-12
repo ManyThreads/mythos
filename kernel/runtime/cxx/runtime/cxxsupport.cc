@@ -296,10 +296,7 @@ extern "C" int munmap(void *start, size_t len)
 
 extern "C" int unmapself(void *start, size_t len)
 {
-    // dummy implementation
-    MLOG_ERROR(mlog::app, "unmapself: NYI!");
-    ASSERT(0);
-    while(1);
+    PANIC_MSG(false, "unmapself: NYI!");
     return 0;
 }
 
