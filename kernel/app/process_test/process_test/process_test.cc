@@ -34,6 +34,7 @@
 #include "runtime/PageMap.hh"
 #include "runtime/KernelMemory.hh"
 #include "runtime/SimpleCapAlloc.hh"
+#include "runtime/ProcessorAllocator.hh"
 #include "runtime/tls.hh"
 #include "runtime/mlog.hh"
 #include "runtime/InterruptControl.hh"
@@ -58,6 +59,7 @@ mythos::KObject device_memory(mythos::init::DEVICE_MEM);
 mythos::SimpleCapAlloc< mythos::init::APP_CAP_START
   , mythos::init::SIZE-mythos::init::APP_CAP_START> capAlloc(myCS);
 mythos::RaplDriverIntel rapl(mythos::init::RAPL_DRIVER_INTEL);
+mythos::ProcessorAllocator pa(mythos::init::PROCESSOR_ALLOCATOR);
 
 
 int main()

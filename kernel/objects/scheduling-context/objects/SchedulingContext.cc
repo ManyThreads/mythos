@@ -41,9 +41,15 @@ namespace mythos {
     void SchedulingContext::unbind(handle_t* ec)
     {
         ASSERT(ec != nullptr);
-        MLOG_DETAIL(mlog::sched, "unbind", DVAR(ec->get()));
+        MLOG_INFO(mlog::sched, "unbind", DVAR(ec->get()));
         readyQueue.remove(ec);
         current_handle.store(nullptr);
+        if(readyQueue.empty()){
+          MLOG_DETAIL(mlog::sched, "call freeSC");
+          pluginProcessorAllocator.pa.freeSC(&paTask, home->getThreadID());
+        }else{
+          MLOG_INFO(mlog::sched, "ready queue not empty!");
+        }   
     }
 
     void SchedulingContext::ready(handle_t* ec)

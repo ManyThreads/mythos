@@ -21,40 +21,45 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  *
- * Copyright 2016 Randolf Rotta, Robert Kuban, and contributors, BTU Cottbus-Senftenberg
+ * Copyright 2020 Philipp Gypser and contributors, BTU Cottbus-Senftenberg
  */
 #pragma once
 
-#include <cstdint>
-#include "mythos/InvocationBuf.hh"
-#include "mythos/Error.hh"
+#include "runtime/PortalBase.hh"
+#include "mythos/protocol/ProcessorAllocator.hh"
+#include "mythos/init.hh"
 
 namespace mythos {
 
-  namespace protocol {
+  class ProcessorAllocator : public KObject
+  {
+  public:
 
-    enum CoreProtocols : uint8_t {
-      KERNEL_OBJECT = 1,
-      DEVICE_MEMORY,
-      KERNEL_MEMORY,
-      FRAME,
-      PAGEMAP,
-      CAPMAP,
-      EXECUTION_CONTEXT,
-      PORTAL,
-      EXAMPLE,
-      CPUDRIVERKNC,
-      RAPLDRIVERINTEL,
-      PROCESSORALLOCATOR,
-      INTERRUPT_CONTROL,
+    ProcessorAllocator() {}
+    ProcessorAllocator(CapPtr cap) : KObject(cap) {}
+
+    struct AllocResult{
+      AllocResult() {}
+      AllocResult(InvocationBuf* ib) {
+        auto msg = ib->cast<protocol::ProcessorAllocator::RetAlloc>();
+        cap = msg->sc();
+      }
+     
+      CapPtr cap = null_cap;
     };
 
-  } // namespace protocol
+    PortalFuture<AllocResult> alloc(PortalLock pr){
+      return pr.invoke<protocol::ProcessorAllocator::Alloc>(_cap);
+    }
 
-enum MappingRequest : uint8_t {
-  MAPPING_PROPERTIES,
-  MAP_FRAME,
-  MAP_TABLE,
-};
+    PortalFuture<AllocResult> alloc(PortalLock pr, CapPtr dstMap){
+      return pr.invoke<protocol::ProcessorAllocator::Alloc>(_cap, dstMap);
+    }
+
+    PortalFuture<void> free(PortalLock pr, CapPtr sc){
+      return pr.invoke<protocol::ProcessorAllocator::Free>(_cap, sc);
+    }
+
+  };
 
 } // namespace mythos
