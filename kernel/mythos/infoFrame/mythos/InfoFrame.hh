@@ -26,10 +26,13 @@
 #pragma once
 
 #include "mythos/InvocationBuf.hh"
+#include "util/RangeSet.hh"
 
 #define PS_PER_TSC_DEFAULT (0x180)
 
 namespace mythos {
+
+typedef RangeSet<uintptr_t, 30> umem_range_t;
 
 class InfoFrame{
   public:
@@ -46,6 +49,7 @@ class InfoFrame{
     InvocationBuf ib; // needs to be the first member (see Initloader::createPortal)
     uint64_t psPerTsc; // picoseconds per time stamp counter
     size_t numThreads; // number of hardware threads available in the system
+    umem_range_t memRanges; // memory ranges that exceed kernel memory space
 };
 
 } // namespace mythos

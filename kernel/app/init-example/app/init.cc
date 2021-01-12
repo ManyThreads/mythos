@@ -517,6 +517,19 @@ void test_process(){
   MLOG_INFO(mlog::app, "Test process finished");
 }
 
+void test_userMem(){
+  MLOG_INFO(mlog::app, "Test user memory");
+  auto ranges = &info_ptr->memRanges;
+
+  // All memory that exceeds kernel memory address range (4G) will be provided directly to user.
+  // Run mythos (qemu/IHK) with more than 4G of memory to get some output
+  for(auto& r : *ranges){
+    MLOG_INFO(mlog::app, "range", DMRANGE(r.getStart(), r.getSize()));
+  }
+
+  MLOG_INFO(mlog::app, "Test user memory finished");
+};
+
 int main()
 {
   char const str[] = "Hello world!";
@@ -533,6 +546,7 @@ int main()
   //test_HostChannel(portal, 24*1024*1024, 2*1024*1024);
   test_ExecutionContext();
   test_pthreads();
+  test_userMem();
   test_Rapl();
   test_processor_allocator();
   test_process();

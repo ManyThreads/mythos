@@ -35,6 +35,7 @@
 #include "objects/ops.hh"
 #include "objects/IFactory.hh"
 #include "mythos/protocol/KernelMemory.hh"
+#include "mythos/InfoFrame.hh"
 
 #include "async/mlog.hh"
 #include "objects/mlog.hh"
@@ -99,6 +100,10 @@ namespace mythos {
     void invoke(Tasklet*, Cap, IInvocation* msg) override;
     Error invokeCreate(Tasklet* t, Cap self, IInvocation* msg);
 
+    umem_range_t getUserMem(){
+      return _umem; 
+    }
+
   private:
     LinkedList<IKernelObject*>::Queueable del_handle = {this};
     IAsyncFree* _parent;
@@ -107,6 +112,7 @@ namespace mythos {
     /** for deletion: the managed range and then the own object */
     std::array<MemoryDescriptor, 2> _memory;
     async::NestedMonitorDelegating monitor;
+    umem_range_t _umem;
   };
 
 class KernelMemoryFactory : public FactoryBase
