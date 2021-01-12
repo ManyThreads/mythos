@@ -492,7 +492,7 @@ int main()
   //test_HostChannel(portal, 24*1024*1024, 2*1024*1024);
   test_ExecutionContext();
   test_pthreads();
-  //test_Rapl();
+  test_Rapl();
   //test_CgaScreen();
 
   char const end[] = "bye, cruel world!";
