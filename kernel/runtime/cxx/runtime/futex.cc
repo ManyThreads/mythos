@@ -59,6 +59,8 @@ struct alignas(64) FutexQueue
  */
 static FutexQueue queue[256];
 
+static mythos::Mutex requeueLock; // lock for futex_requeue (prevents deadlock due to cyclic locking)
+
 static uint32_t hash_futex(uint32_t *uaddr)
 {
     uint32_t hash = mythos::hash32(&uaddr, sizeof(uaddr));
@@ -167,6 +169,85 @@ static int futex_wake(
     return 0;
 }
 
+static int futex_requeue(uint32_t *uaddr /*&barrier*/, unsigned int flags, uint32_t *uaddr2 /*target*/, uint32_t val/*wake limit*/, uint32_t val2/*requeue limit*/){
+    MLOG_DETAIL(mlog::app, "Futex_requeue", DVARhex(uaddr), DVARhex(uaddr2), DVAR(val), DVAR(val2));
+    uint32_t hashFrom = hash_futex(uaddr);
+
+    // wakes up a maximum of  val  waiters that  are  waiting  on  the  futex at uaddr
+    mythos::Mutex::Lock guard0(requeueLock);
+    mythos::Mutex::Lock guard1(queue[hashFrom].readLock);
+    auto curr = &(queue[hashFrom].queueHead);
+    for (int i = 0; i < val; i++) {
+        while (curr->load(std::memory_order_relaxed) && curr->load(std::memory_order_relaxed)->uaddr != uaddr) {
+            MLOG_DETAIL(mlog::app, "Skip entry", DVARhex(curr->load(std::memory_order_relaxed)->uaddr),
+                        DVAR(curr->load(std::memory_order_relaxed)->ec), DVAR(curr->load(std::memory_order_relaxed)->queueNext), DVARhex(uaddr) );
+            curr = &curr->load(std::memory_order_relaxed)->queueNext;
+        }
+
+        if (curr->load(std::memory_order_relaxed) == nullptr){
+          MLOG_DETAIL(mlog::app, "requeue end (end of queue reached)" );
+          return 0;
+        }
+
+        if (queue[hashFrom].queueTail == &curr->load(std::memory_order_relaxed)->queueNext) {
+            // own element is the tail of list:
+            // move tail to the element that points to our element
+            MLOG_DETAIL(mlog::app, "last elem in queue");
+            queue[hashFrom].queueTail = curr;
+        }
+        MLOG_DETAIL(mlog::app, uaddr, "Found entry" );
+        auto entry = curr->load(std::memory_order_relaxed);
+        curr->store(entry->queueNext, std::memory_order_relaxed);
+        auto ec = entry->ec;
+        entry->queueNext.store(reinterpret_cast<FutexQueueElem*>(1ul)); // mark as removed
+
+        MLOG_DETAIL(mlog::app, "Wake EC", DVAR(ec), DVAR(uaddr) );
+        mythos::syscall_signal(ec);
+    }
+
+    // If there are more than val waiters, then the remaining
+    // waiters are removed from the wait queue of the source futex at uaddr and added to the wait queue  of
+    // the  target  futex  at  uaddr2.  The val2 argument specifies an upper limit on the number of waiters
+    // that are requeued to the futex at uaddr2.
+    {
+      uint32_t hashTo = hash_futex(uaddr2);
+      mythos::Mutex::Lock guard2(queue[hashTo].readLock);
+      MLOG_DETAIL(mlog::app, "requeue waiters", DVAR(hashTo) );
+      for (int i = 0; i < val2; i++) {
+          while (curr->load(std::memory_order_relaxed) && curr->load(std::memory_order_relaxed)->uaddr != uaddr) {
+              MLOG_DETAIL(mlog::app, "Skip entry", DVARhex(curr->load(std::memory_order_relaxed)->uaddr),
+                          DVAR(curr->load(std::memory_order_relaxed)->ec), DVAR(curr->load(std::memory_order_relaxed)->queueNext), DVARhex(uaddr) );
+              curr = &curr->load(std::memory_order_relaxed)->queueNext;
+          }
+
+          if (curr->load(std::memory_order_relaxed) == nullptr){
+            MLOG_DETAIL(mlog::app, "requeue end (end of queue reached)" );
+            return 0;
+          }
+
+          if (queue[hashFrom].queueTail == &curr->load(std::memory_order_relaxed)->queueNext) {
+              // own element is the tail of list:
+              // move tail to the element that points to our element
+              MLOG_DETAIL(mlog::app, "last elem in queue");
+              queue[hashFrom].queueTail = curr;
+          }
+          MLOG_DETAIL(mlog::app, uaddr, "Found entry", DVARhex(curr) );
+          auto entry = curr->load(std::memory_order_relaxed);
+          curr->store(entry->queueNext, std::memory_order_relaxed);
+
+          // adapt entry
+          entry->queueNext.store(nullptr);
+          entry->uaddr = uaddr2;
+          // move entry to target queue
+          queue[hashTo].queueTail->store(entry, std::memory_order_relaxed);
+          queue[hashTo].queueTail = &entry->queueNext;
+      }
+    }
+    MLOG_DETAIL(mlog::app, "requeue end" );
+    return 0;
+
+}
+
 long do_futex(
     uint32_t *uaddr, int op, uint32_t val, uint32_t *timeout,
     uint32_t *uaddr2, uint32_t val2, uint32_t val3)
@@ -202,8 +283,8 @@ long do_futex(
         MLOG_WARN(mlog::app, "FUTEX_WAKE_BITSET");
         return futex_wake(uaddr, flags, val, val3);
     case FUTEX_REQUEUE:
-        MLOG_WARN(mlog::app, "FUTEX_REQUEUE");
-        return -ENOSYS;//futex_requeue(uaddr, flags, uaddr2, val, val2, NULL, 0);
+        //MLOG_DETAIL(mlog::app, "FUTEX_REQUEUE");
+        return futex_requeue(uaddr, flags, uaddr2, val, val2);
     case FUTEX_CMP_REQUEUE:
         MLOG_WARN(mlog::app, "FUTEX_CMP_REQUEUE");
         return -ENOSYS;//futex_requeue(uaddr, flags, uaddr2, val, val2, &val3, 0);
@@ -223,8 +304,9 @@ long do_futex(
         MLOG_WARN(mlog::app, "FUTEX_WAIT_REQUEUE_PI");
         return -ENOSYS;//futex_wait_requeue_pi(uaddr, flags, val, timeout, val3, uaddr2);
     case FUTEX_CMP_REQUEUE_PI:
-        MLOG_DETAIL(mlog::app, "FUTEX_CMP_REQUEUE_PI");
+        MLOG_WARN(mlog::app, "FUTEX_CMP_REQUEUE_PI");
         return -ENOSYS;//futex_requeue(uaddr, flags, uaddr2, val, val2, &val3, 1);
     }
+    MLOG_ERROR(mlog::app, "Unknown Futex operation", DVAR(cmd));
     return -ENOSYS;
 }
