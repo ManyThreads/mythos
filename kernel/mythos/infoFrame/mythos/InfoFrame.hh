@@ -49,7 +49,7 @@ class InfoFrame{
     InvocationBuf ib; // needs to be the first member (see Initloader::createPortal)
     uint64_t psPerTsc; // picoseconds per time stamp counter
     size_t numThreads; // number of hardware threads available in the system
-    umem_range_t mem;
+    umem_range_t memRanges; // memory ranges that exceed kernel memory space
 };
 
 } // namespace mythos

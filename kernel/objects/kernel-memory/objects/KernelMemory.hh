@@ -100,6 +100,10 @@ namespace mythos {
     void invoke(Tasklet*, Cap, IInvocation* msg) override;
     Error invokeCreate(Tasklet* t, Cap self, IInvocation* msg);
 
+    umem_range_t getUserMem(){
+      return _umem; 
+    }
+
   private:
     LinkedList<IKernelObject*>::Queueable del_handle = {this};
     IAsyncFree* _parent;

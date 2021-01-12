@@ -100,6 +100,7 @@ void KernelMemory::free(MemoryDescriptor* begin, MemoryDescriptor* end)
 
 void KernelMemory::addRange(PhysPtr<void> start, size_t length)
 {
+  MLOG_INFO(mlog::km, "addRange: chunk = ", DVARhex(start.physint()), DVAR(length));
   // if not in kernel memory address range put it to user mem 
   if (!start.kernelmem()){
     MLOG_INFO(mlog::km, "addRange: completely to user mem (physical)", DVARhex(start.physint()), DVAR(length));
@@ -114,14 +115,14 @@ void KernelMemory::addRange(PhysPtr<void> start, size_t length)
       Range<uintptr_t>::bySize(PhysPtr<void>(_range.getStart()).logint(), _range.getSize());
     kmem = kmem.cut(krange);
     if (!kmem.isEmpty()){
-      MLOG_INFO(mlog::km, "addRange: to user kermel mem (logical)", DVARhex(kmem.getStart()), DVAR(kmem.getSize()));
+      MLOG_INFO(mlog::km, "addRange: to kernel mem (logical)", DVARhex(kmem.getStart()), DVAR(kmem.getSize()));
       heap.addRange(kmem.getStart(), kmem.getSize());
     }
 
     //physical address range for umem
     Range<uintptr_t> umem = Range<uintptr_t>::bySize(start.physint(), length);
     Range<uintptr_t> urange =
-      Range<uintptr_t>::bySize(_range.getSize(), length);
+      Range<uintptr_t>::bySize(_range.getStart() + _range.getSize(), length);
     umem = umem.cut(urange);
     if (!umem.isEmpty()){
       MLOG_INFO(mlog::km, "addRange: to user user mem (physical)", DVARhex(umem.getStart()), DVAR(umem.getSize()));
