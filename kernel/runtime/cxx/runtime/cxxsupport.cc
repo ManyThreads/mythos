@@ -226,7 +226,7 @@ extern "C" long mythos_musl_syscall(
             uint32_t val2 = 0;
             return do_futex(reinterpret_cast<uint32_t*>(a1) /*uaddr*/, 
                             a2 /*op*/, a3 /*val*/, reinterpret_cast<uint32_t*>(a4)/* timeout*/, 
-                            nullptr /*uaddr2*/, val2/*val2*/, a6/*val3*/);
+                            reinterpret_cast<uint32_t*>(a5) /*uaddr2*/, a4/*val2*/, a6/*val3*/);
         }
     case 203: // sched_setaffinity
         return sched_setaffinity(a1, a2, reinterpret_cast<cpu_set_t*>(a3));
