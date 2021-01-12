@@ -58,6 +58,7 @@ namespace mythos {
     cpu_model = getCpuExtModel();
     MLOG_INFO(mlog::boot, "CPU extended model =", cpu_model);
 
+    auto read_units = true;
     dram_avail = false;
     pp0_avail = false;
     pp1_avail = false;
@@ -128,6 +129,7 @@ namespace mythos {
           break;
         default:
           MLOG_ERROR(mlog::boot, "Unknown CPU model :(");
+          read_units = false;
       }
     
     }else if(cpu_fam == 11){
@@ -135,33 +137,40 @@ namespace mythos {
 
         case CPU_KNIGHTS_CORNER:
           MLOG_ERROR(mlog::boot, "Please find out which RAPL sensors are supported for KNC...");
+          read_units = false;
           break;
         default:
           MLOG_ERROR(mlog::boot, "Unknown CPU model :(");
+          read_units = false;
       }
     }else{
       MLOG_ERROR(mlog::boot, "Unsupported processor family");
+      read_units = false;
       return;
     }
 
-    //determine power unit
-    power_units = static_cast<uint32_t>(bits(x86::getMSR(MSR_RAPL_POWER_UNIT),3,0));
-    MLOG_INFO(mlog::boot, "msr_rapl_power_units", power_units);
+    if (read_units) {
+      auto const msr = x86::getMSR(MSR_RAPL_POWER_UNIT);
 
-    //determine time unit
-    time_units = static_cast<uint32_t>(bits(x86::getMSR(MSR_RAPL_POWER_UNIT),19,16));
-    MLOG_INFO(mlog::boot, "time_units", time_units);
+      //determine power unit
+      power_units = static_cast<uint32_t>(bits(msr, 3, 0));
+      MLOG_INFO(mlog::boot, "msr_rapl_power_units", power_units);
 
-    //determine cpu energy unit
-    cpu_energy_units = static_cast<uint32_t>(bits(x86::getMSR(MSR_RAPL_POWER_UNIT),12,8));
-    MLOG_INFO(mlog::boot, "cpu_energy_units", cpu_energy_units);
+      //determine time unit
+      time_units = static_cast<uint32_t>(bits(msr, 19, 16));
+      MLOG_INFO(mlog::boot, "time_units", time_units);
 
-    if(different_units){
-      dram_energy_units = 16;
-    }else{
-      dram_energy_units = cpu_energy_units; 
+      //determine cpu energy unit
+      cpu_energy_units = static_cast<uint32_t>(bits(msr, 12, 8));
+      MLOG_INFO(mlog::boot, "cpu_energy_units", cpu_energy_units);
+
+      if(different_units){
+        dram_energy_units = 16;
+      }else{
+        dram_energy_units = cpu_energy_units; 
+      }
+      MLOG_INFO(mlog::boot, "dram_energy_units", dram_energy_units);
     }
-    MLOG_INFO(mlog::boot, "dram_energy_units", dram_energy_units);
     
     //printEnergy();
   }
