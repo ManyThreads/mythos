@@ -26,6 +26,7 @@
 
 #include "mythos/init.hh"
 #include "mythos/invocation.hh"
+#include "mythos/InfoFrame.hh"
 #include "runtime/Portal.hh"
 #include "runtime/ExecutionContext.hh"
 #include "runtime/CapMap.hh"
@@ -44,14 +45,14 @@
 #include "runtime/Mutex.hh"
 
 
-mythos::InvocationBuf* msg_ptr asm("msg_ptr");
+mythos::InfoFrame* info_ptr asm("info_ptr");
 int main() asm("main");
 
 constexpr uint64_t stacksize = 4*4096;
 char initstack[stacksize];
 char* initstack_top = initstack+stacksize;
 
-mythos::Portal portal(mythos::init::PORTAL, msg_ptr);
+mythos::Portal portal(mythos::init::PORTAL, info_ptr->getInvocationBuf());
 mythos::CapMap myCS(mythos::init::CSPACE);
 mythos::PageMap myAS(mythos::init::PML4);
 mythos::KernelMemory kmem(mythos::init::KM);
@@ -65,6 +66,7 @@ mythos::ProcessorAllocator pa(mythos::init::PROCESSOR_ALLOCATOR);
 int main()
 {
   MLOG_ERROR(mlog::app, "New process started :)");
+  MLOG_INFO(mlog::app, "info frame", DVARhex(info_ptr), DVAR(info_ptr->getNumThreads()), DVAR(info_ptr->getPsPerTSC()));
 
   return 0;
 }

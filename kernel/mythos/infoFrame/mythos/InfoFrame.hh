@@ -1,4 +1,4 @@
-/* -*- mode:asm; indent-tabs-mode:nil; -*- */
+/* -*- mode:C++; -*- */
 /* MIT License -- MyThOS: The Many-Threads Operating System
  *
  * Permission is hereby granted, free of charge, to any person
@@ -21,44 +21,31 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  *
- * Copyright 2016 Randolf Rotta, Robert Kuban, and contributors, BTU Cottbus-Senftenberg
+ * Copyright 2020 Philipp Gypser, BTU Cottbus-Senftenberg
  */
+#pragma once
 
-.extern initstack_top
-.extern start_c
-.extern info_ptr
-.extern __libc_init_array
-.extern exit
+#include "mythos/InvocationBuf.hh"
 
-.align 8
-.global _start
-_start:
-        mov initstack_top, %rsp
-        xor %rbp, %rbp
-        mov %rdi, info_ptr       /* store first argument to global variable */
-        call start_c
-1:      jmp 1b                  /* should never return from start_c anyway */
+#define PS_PER_TSC_DEFAULT (0x180)
 
-/* A handle for __cxa_finalize to manage c++ local destructors.  */
-.global __dso_handle
-.type __dso_handle,@object
-.size __dso_handle,8
-.section .bss
-.align 8
-__dso_handle:
-.skip  8
-.hidden __dso_handle
+namespace mythos {
 
-/*.section .init
-.global _init
-.type _init,@function
-_init:
-        push %rbp
-        mov %rsp, %rbp*/
+class InfoFrame{
+  public:
+    InfoFrame()
+      : psPerTsc(PS_PER_TSC_DEFAULT)
+      , numThreads(1)
+    {}
 
-.section .fini
-.global _fini
-.type _fini,@function
-_fini:
-        push %rbp
-        mov %rsp, %rbp
+    InvocationBuf* getInvocationBuf() {return &ib; }
+    uint64_t getPsPerTSC() { return psPerTsc; }
+    size_t getNumThreads() { return numThreads; }
+    uintptr_t getInfoEnd () { return reinterpret_cast<uintptr_t>(this) + sizeof(InfoFrame); }
+
+    InvocationBuf ib; // needs to be the first member (see Initloader::createPortal)
+    uint64_t psPerTsc; // picoseconds per time stamp counter
+    size_t numThreads; // number of hardware threads available in the system
+};
+
+} // namespace mythos
