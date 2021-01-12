@@ -26,6 +26,7 @@
 #pragma once
 
 #include "objects/ProcessorAllocator.hh"
+#include "objects/SchedulingContext.hh"
 #include "util/events.hh"
 #include "boot/load_init.hh"
 #include "mythos/init.hh"
@@ -46,14 +47,17 @@ namespace mythos {
       MLOG_DETAIL(mlog::pm, "prevent mapping of all scheduling contexts into CSpace");
       loader.processorAllocatorPresent = true;
     }
+
   };
 
   class PluginProcessorAllocator
     : public EventHook<boot::InitLoader&>
+    , public EventHook<Tasklet*, cpu::ThreadID>
   {
   public:
     PluginProcessorAllocator() {
       event::initLoader.add(this);
+      event::idleSC.add(this);
     }
     virtual ~PluginProcessorAllocator() {}
 
@@ -69,6 +73,11 @@ namespace mythos {
       MLOG_DETAIL(mlog::pm, "map SC for init app");
       loader.csSet(init::SCHEDULERS_START+*sc, boot::getScheduler(*sc));
 
+    }
+
+    void processEvent(Tasklet* t, cpu::ThreadID id) override {
+        MLOG_DETAIL(mlog::pm, "idleSc -> freeSC", DVAR(id));
+        pa.freeSC(t, id);
     }
 
     LiFoProcessorAllocator pa;
