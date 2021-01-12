@@ -31,6 +31,7 @@
 #include "async/SimpleMonitorHome.hh"
 #include <cstdint>
 #include "util/error-trace.hh"
+#include "util/events.hh"
 
 namespace mythos {
 
@@ -101,4 +102,7 @@ namespace mythos {
     Tasklet paTask; //task for communication with processor allocator
   };
 
+  namespace event {
+    extern Event<Tasklet*, cpu::ThreadID> idleSC;
+  }
 } // namespace mythos

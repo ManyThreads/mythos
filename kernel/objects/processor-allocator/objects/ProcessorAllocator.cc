@@ -48,9 +48,6 @@ namespace mythos {
     monitor.request(t, [=](Tasklet* t){
         Error err = Error::NOT_IMPLEMENTED;
         switch (msg->getProtocol()) {
-        //case protocol::KernelObject::proto:
-          //err = protocol::KernelObject::dispatchRequest(this, msg->getMethod(), self, msg);
-          //break;
         case protocol::ProcessorAllocator::proto:
           err = protocol::ProcessorAllocator::dispatchRequest(this, msg->getMethod(), t, self, msg);
           break;
@@ -91,7 +88,6 @@ namespace mythos {
 
       optional<CapEntry*> dstEntry;
       if(data.dstSpace() == null_cap){ // direct access
-        //dstEntry = msg->lookupEntry(data.dstPtr, 32, true); // lookup for write access
         dstEntry = msg->lookupEntry(init::SCHEDULERS_START+*id, 32, true); // lookup for write access
         if (!dstEntry){ 
           MLOG_WARN(mlog::pm, "Warning: cannot find dstEntry!");
