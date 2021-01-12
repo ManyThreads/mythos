@@ -522,6 +522,8 @@ void test_userMem(){
   MLOG_INFO(mlog::app, "Test user memory");
   auto ranges = &info_ptr->memRanges;
 
+  // All memory that exceeds kernel memory address range (4G) will be provided directly to user.
+  // Run mythos (qemu/IHK) with more than 4G of memory to get some output
   for(auto& r : *ranges){
     MLOG_INFO(mlog::app, "range", DMRANGE(r.getStart(), r.getSize()));
   }
