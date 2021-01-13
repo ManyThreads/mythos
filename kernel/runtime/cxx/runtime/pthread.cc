@@ -305,6 +305,7 @@ extern "C" int pthread_spin_unlock(pthread_spinlock_t *){
 }
 
 
+#ifdef use_pthreads_stubs
 extern "C" int pthread_barrier_init(pthread_barrier_t *__restrict, const pthread_barrierattr_t *__restrict, unsigned){
 	MLOG_ERROR(mlog::app, __PRETTY_FUNCTION__);
 	return 0;
@@ -319,6 +320,7 @@ extern "C" int pthread_barrier_wait(pthread_barrier_t *){
 	MLOG_ERROR(mlog::app, __PRETTY_FUNCTION__);
 	return 0;
 }
+#endif
 
 
 #ifdef use_pthreads_stubs
