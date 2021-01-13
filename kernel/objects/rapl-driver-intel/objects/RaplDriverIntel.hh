@@ -48,10 +48,13 @@ private:
   bool isIntel;
   uint32_t cpu_fam;
   uint32_t cpu_model;
+
 	uint32_t dram_avail;
 	bool pp0_avail;
 	bool pp1_avail;
 	bool psys_avail;
+	bool pkg_avail;
+
 	bool different_units;
   uint32_t power_units;
   uint32_t time_units;
