@@ -1,8 +1,7 @@
 [module.runtime-memory]
     incfiles = [ "runtime/brk.hh", "runtime/tls.hh",
 "runtime/SequentialHeap.hh", "runtime/umem.hh" ]
-    appfiles = [ "runtime/umem.cc" ]
-    initappfiles = [ "runtime/brk.cc", "runtime/tls.cc" ]
+    appfiles = [ "runtime/umem.cc", "runtime/brk.cc", "runtime/tls.cc" ]
 
     makefile_body = '''
 sequentialHeap:
