@@ -65,6 +65,7 @@ class ProcessorAllocator
   private:
     async::NestedMonitorDelegating monitor;
     RevokeOperation revokeOp = {monitor};
+    cpu::ThreadID toBeFreed = 0;
     CapEntry *sc;
     CapEntry mySC[MYTHOS_MAX_THREADS];
 };

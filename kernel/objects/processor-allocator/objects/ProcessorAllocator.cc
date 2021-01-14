@@ -61,7 +61,9 @@ namespace mythos {
 
 /* IResult<void> */
   void ProcessorAllocator::response(Tasklet* /*t*/, optional<void> res){
-    MLOG_DETAIL(mlog::pm, "revoke response:", res.state());
+    MLOG_DETAIL(mlog::pm, "revoke response:", res.state(), DVAR(toBeFreed));
+    free(toBeFreed);
+    toBeFreed = 0;
   }
 
 /* ProcessorAllocator */
@@ -131,27 +133,25 @@ namespace mythos {
     return Error::SUCCESS;
   }
 
-  Error ProcessorAllocator::invokeFree(Tasklet* /*t*/, Cap, IInvocation* /*msg*/){
-    MLOG_ERROR(mlog::pm, __func__, ": NYI!");  
-    //auto data = msg->getMessage()->cast<protocol::ProcessorAllocator::Free>();
-    //ASSERT(data->sc() >= init::SCHEDULERS_START);
-    //cpu::ThreadID id = data->sc() - init::SCHEDULERS_START;
-    //ASSERT(id < cpu::getNumThreads());
-    //MLOG_ERROR(mlog::pm, "free SC", DVAR(data->sc()), DVAR(id));
-    //revokeOp._revoke(t, this, sc[id], this);
-    //MLOG_ERROR(mlog::pm, "free", DVAR(data->sc()), DVAR(id));
-    //free(id);
-    //return Error::SUCCESS;
-    return Error::NOT_IMPLEMENTED;
+  Error ProcessorAllocator::invokeFree(Tasklet* t, Cap, IInvocation* msg){
+    MLOG_ERROR(mlog::pm, __func__);  
+    auto data = msg->getMessage()->cast<protocol::ProcessorAllocator::Free>();
+    ASSERT(data->sc() >= init::SCHEDULERS_START);
+    cpu::ThreadID id = data->sc() - init::SCHEDULERS_START;
+    ASSERT(id < cpu::getNumThreads());
+    MLOG_ERROR(mlog::pm, "free SC", DVAR(data->sc()), DVAR(id));
+    toBeFreed = id;
+    revokeOp._revoke(t, this, sc[id], this);
+    return Error::SUCCESS;
   }
 
   void ProcessorAllocator::freeSC(Tasklet* t, cpu::ThreadID id){
     MLOG_DETAIL(mlog::pm, "freeSC", DVAR(id));
     monitor.request(t, [=](Tasklet* t){
       MLOG_DETAIL(mlog::pm, "monitor free", DVAR(id));
+      toBeFreed = id;
       //todo: use IResult to call free(id) after cap is revoked
       revokeOp._revoke(t, this, sc[id], this);
-      free(id);
     }
     );
   }
