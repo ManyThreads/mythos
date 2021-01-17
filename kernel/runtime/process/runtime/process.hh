@@ -8,13 +8,12 @@
 #include "util/elf64.hh"
 #include "util/align.hh"
 #include "mythos/InfoFrame.hh"
+#include "runtime/CapAlloc.hh"
 
 extern mythos::InfoFrame* info_ptr asm("info_ptr");
 extern mythos::CapMap myCS;
 extern mythos::PageMap myAS;
 extern mythos::KernelMemory kmem;
-extern mythos::SimpleCapAlloc< mythos::init::APP_CAP_START
-  , mythos::init::SIZE-mythos::init::APP_CAP_START> capAlloc;
 extern mythos::ProcessorAllocator pa;
 
 using namespace mythos;
