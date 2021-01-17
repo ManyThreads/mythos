@@ -211,7 +211,10 @@ static int futex_requeue(uint32_t *uaddr /*&barrier*/, unsigned int flags, uint3
     // that are requeued to the futex at uaddr2.
     {
       uint32_t hashTo = hash_futex(uaddr2);
-      mythos::Mutex::Lock guard2(queue[hashTo].readLock);
+      // if the hashes of the source queue equal the destination queue, use dummy mutux because the tidex mutex 
+      // cannot be locked twice by the same thread
+      mythos::Mutex dummy; 
+      mythos::Mutex::Lock guard2( hashTo != hashFrom? queue[hashTo].readLock : dummy);
       MLOG_DETAIL(mlog::app, "requeue waiters", DVAR(hashTo) );
       for (int i = 0; i < val2; i++) {
           while (curr->load(std::memory_order_relaxed) && curr->load(std::memory_order_relaxed)->uaddr != uaddr) {
