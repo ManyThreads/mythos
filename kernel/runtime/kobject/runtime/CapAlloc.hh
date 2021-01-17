@@ -25,41 +25,8 @@
  */
 #pragma once
 
-#include "async/NestedMonitorDelegating.hh"
-#include "objects/IKernelObject.hh"
+#include "runtime/SimpleCapAlloc.hh"
 
-namespace mythos {
-
-class RaplDriverIntel
-  : public IKernelObject
-{
-public:
-  optional<void const*> vcast(TypeId) const override { THROW(Error::TYPE_MISMATCH); }
-  optional<void> deleteCap(CapEntry&, Cap, IDeleter&) override { RETURN(Error::SUCCESS); }
-  void deleteObject(Tasklet*, IResult<void>*) override {}
-  void invoke(Tasklet* t, Cap self, IInvocation* msg) override;
-
-public:
-  RaplDriverIntel();
-  Error invoke_getRaplVal(Tasklet*, Cap, IInvocation* msg);
-  void printEnergy();
-
-private:
-  bool isIntel;
-  uint32_t cpu_fam;
-  uint32_t cpu_model;
-
-	uint32_t dram_avail;
-	bool pp0_avail;
-	bool pp1_avail;
-	bool psys_avail;
-	bool pkg_avail;
-
-	bool different_units;
-  uint32_t power_units;
-  uint32_t time_units;
-  uint32_t cpu_energy_units;
-  uint32_t dram_energy_units;
-};
-
-} // namespace mythos
+typedef mythos::SimpleCapAlloc< mythos::init::APP_CAP_START,
+  mythos::init::SIZE-mythos::init::APP_CAP_START> cap_alloc_t;
+extern cap_alloc_t capAlloc;
