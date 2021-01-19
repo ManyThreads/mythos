@@ -33,4 +33,5 @@ namespace mlog {
   Logger<MLOG_EC> ec("ec");
   Logger<MLOG_KM> km("km");
   Logger<MLOG_IRQ> irq("irq");
+  Logger<MLOG_PROCESSORMGMT> pm("pm"); //processor management
 } // namespace mlog

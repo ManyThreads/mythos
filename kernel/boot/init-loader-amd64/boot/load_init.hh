@@ -78,12 +78,17 @@ namespace mythos {
       MemMapper memMapper;
 
       Portal* _portal;
+
+      /* to be manipulated by optional processor allocator */
+      bool processorAllocatorPresent;
+      CapPtr initSC;
     };
 
   } // namespace boot
 
   namespace event {
     extern Event<boot::InitLoader&> initLoader;
+    extern Event<boot::InitLoader&> initLoaderEarly;
   }
 
 } // namespace mythos
