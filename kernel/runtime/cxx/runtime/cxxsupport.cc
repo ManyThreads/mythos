@@ -63,33 +63,41 @@ extern mythos::PageMap myAS;
 extern mythos::KernelMemory kmem;
 extern mythos::ProcessorAllocator pa;
 
-struct PthreadCleanerSemaphore{
-  PthreadCleanerSemaphore()
+// synchronization for pthread deletion (exit/join)
+struct PthreadCleaner{
+  PthreadCleaner()
     : flag(FREE)
   {
     //MLOG_ERROR(mlog::app, "PthreadCleaner");
   }
 
   enum state{
-    UNKNOWN = 0,
-    FREE = 1,
-    EXITED = 2
+    UNKNOWN = 0, // invalid
+    FREE = 1, // initial state
+    EXITED = 2 // target pthread has exited and it is now save to free its memory and EC
+    // otherwise it holds the waiters EC pointer
   };
 
+  // marks the target pthread as finished (does not access its memory/stack anymore)
+  // called by the finished pthread after pthread_exit and just before syscall_exit
   void exit(){
     //MLOG_DETAIL(mlog::app, "PthreadCleaner exit", DVARhex(this), DVARhex(pthread_self()));
     auto ec = flag.exchange(EXITED);
     if(ec != FREE){
       ASSERT(ec!=UNKNOWN);
+      // wake waiter EC
       mythos::syscall_signal(ec);
     }
   }
 
+  // wait until pthread t has finished (called exit())
+  // when returning from this function, it is save to free the target pthreads memory and EC
   void wait(pthread_t t){
-    auto pcs = reinterpret_cast<PthreadCleanerSemaphore* >(t - (pthread_self() - reinterpret_cast<uintptr_t>(this)));
+    auto pcs = reinterpret_cast<PthreadCleaner* >(t - (pthread_self() - reinterpret_cast<uintptr_t>(this)));
     //MLOG_DETAIL(mlog::app, "PthreadCleaner wait", DVARhex(pcs), DVARhex(this), DVARhex(pthread_self()), DVARhex(t));
     while(pcs->flag.load() != EXITED){
       mythos::CapPtr exp = FREE;
+      // try to register as waiter
       if(pcs->flag.compare_exchange_weak(exp, mythos_get_pthread_ec_self())){
         //MLOG_DETAIL(mlog::app, "PthreadCleaner going to wait");
         mythos_wait();
@@ -97,10 +105,11 @@ struct PthreadCleanerSemaphore{
     }
   }
   
+  // lock
   std::atomic<mythos::CapPtr> flag;
 };
 
-static thread_local PthreadCleanerSemaphore pthreadCleanerSemphore;
+static thread_local PthreadCleaner pthreadCleaner;
 
 extern "C" [[noreturn]] void __assert_fail (const char *expr, const char *file, int line, const char *func)
 {
@@ -209,7 +218,7 @@ extern "C" long mythos_musl_syscall(
         return 0;
     case 60: // exit(exit_code)
         //MLOG_ERROR(mlog::app, "syscall exit", DVAR(a1));
-        pthreadCleanerSemphore.exit();        
+        pthreadCleaner.exit();        
         asm volatile ("syscall" : : "D"(0), "S"(a1) : "memory");
         return 0;
     case 186: // gettid
@@ -226,7 +235,7 @@ extern "C" long mythos_musl_syscall(
             uint32_t val2 = 0;
             return do_futex(reinterpret_cast<uint32_t*>(a1) /*uaddr*/, 
                             a2 /*op*/, a3 /*val*/, reinterpret_cast<uint32_t*>(a4)/* timeout*/, 
-                            nullptr /*uaddr2*/, val2/*val2*/, a6/*val3*/);
+                            reinterpret_cast<uint32_t*>(a5) /*uaddr2*/, a4/*val2*/, a6/*val3*/);
         }
     case 203: // sched_setaffinity
         return sched_setaffinity(a1, a2, reinterpret_cast<cpu_set_t*>(a3));
@@ -280,10 +289,7 @@ extern "C" int munmap(void *start, size_t len)
 
 extern "C" int unmapself(void *start, size_t len)
 {
-    // dummy implementation
-    MLOG_ERROR(mlog::app, "unmapself: NYI!");
-    ASSERT(0);
-    while(1);
+    PANIC_MSG(false, "unmapself: NYI!");
     return 0;
 }
 
@@ -349,12 +355,16 @@ extern "C" int clone(int (*func)(void *), void *stack, int flags, void *arg, ...
     return myclone(func, stack, flags, arg, ptid, tls, ctid);
 }
 
+// synchronize and cleanup exited pthread
 extern "C" void mythos_pthread_cleanup(pthread_t t){
     MLOG_DETAIL(mlog::app, "mythos_pthread_cleanup", mythos_get_pthread_ec(t));
-    pthreadCleanerSemphore.wait(t);
+    // wait for target pthread to exit
+    pthreadCleaner.wait(t);
+    // delete EC of target pthread
     auto cap = mythos_get_pthread_ec(t);
     mythos::PortalLock pl(portal); 
     capAlloc.free(cap, pl);
+    // memory of target pthread will be free when returning from this function
 }
 
 struct dl_phdr_info

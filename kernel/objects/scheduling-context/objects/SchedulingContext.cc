@@ -32,7 +32,9 @@
 #include "objects/mlog.hh"
 #include "boot/memory-root.hh"
 
+
 namespace mythos {
+    Event<Tasklet*, cpu::ThreadID> event::idleSC;
 
     void SchedulingContext::bind(handle_t*) 
     {
@@ -45,8 +47,8 @@ namespace mythos {
         readyQueue.remove(ec);
         current_handle.store(nullptr);
         if(readyQueue.empty()){
-          MLOG_DETAIL(mlog::sched, "call freeSC");
-          pluginProcessorAllocator.pa.freeSC(&paTask, home->getThreadID());
+          MLOG_DETAIL(mlog::sched, "call idleSC");
+          event::idleSC.emit(&paTask, home->getThreadID());
         }else{
           MLOG_INFO(mlog::sched, "ready queue not empty!");
         }   

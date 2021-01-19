@@ -48,9 +48,6 @@ namespace mythos {
     monitor.request(t, [=](Tasklet* t){
         Error err = Error::NOT_IMPLEMENTED;
         switch (msg->getProtocol()) {
-        //case protocol::KernelObject::proto:
-          //err = protocol::KernelObject::dispatchRequest(this, msg->getMethod(), self, msg);
-          //break;
         case protocol::ProcessorAllocator::proto:
           err = protocol::ProcessorAllocator::dispatchRequest(this, msg->getMethod(), t, self, msg);
           break;
@@ -64,7 +61,9 @@ namespace mythos {
 
 /* IResult<void> */
   void ProcessorAllocator::response(Tasklet* /*t*/, optional<void> res){
-    MLOG_DETAIL(mlog::pm, "revoke response:", res.state());
+    MLOG_DETAIL(mlog::pm, "revoke response:", res.state(), DVAR(toBeFreed));
+    free(toBeFreed);
+    toBeFreed = 0;
   }
 
 /* ProcessorAllocator */
@@ -91,7 +90,6 @@ namespace mythos {
 
       optional<CapEntry*> dstEntry;
       if(data.dstSpace() == null_cap){ // direct access
-        //dstEntry = msg->lookupEntry(data.dstPtr, 32, true); // lookup for write access
         dstEntry = msg->lookupEntry(init::SCHEDULERS_START+*id, 32, true); // lookup for write access
         if (!dstEntry){ 
           MLOG_WARN(mlog::pm, "Warning: cannot find dstEntry!");
@@ -135,27 +133,25 @@ namespace mythos {
     return Error::SUCCESS;
   }
 
+  // todo: implement new revokation mechanism that suits this scenario
   Error ProcessorAllocator::invokeFree(Tasklet* /*t*/, Cap, IInvocation* /*msg*/){
-    MLOG_ERROR(mlog::pm, __func__, ": NYI!");  
+    MLOG_ERROR(mlog::pm, __func__, " NYI!");  
     //auto data = msg->getMessage()->cast<protocol::ProcessorAllocator::Free>();
     //ASSERT(data->sc() >= init::SCHEDULERS_START);
     //cpu::ThreadID id = data->sc() - init::SCHEDULERS_START;
     //ASSERT(id < cpu::getNumThreads());
     //MLOG_ERROR(mlog::pm, "free SC", DVAR(data->sc()), DVAR(id));
+    //toBeFreed = id;
     //revokeOp._revoke(t, this, sc[id], this);
-    //MLOG_ERROR(mlog::pm, "free", DVAR(data->sc()), DVAR(id));
-    //free(id);
-    //return Error::SUCCESS;
-    return Error::NOT_IMPLEMENTED;
+    return Error::SUCCESS;
   }
 
   void ProcessorAllocator::freeSC(Tasklet* t, cpu::ThreadID id){
     MLOG_DETAIL(mlog::pm, "freeSC", DVAR(id));
     monitor.request(t, [=](Tasklet* t){
       MLOG_DETAIL(mlog::pm, "monitor free", DVAR(id));
-      //todo: use IResult to call free(id) after cap is revoked
+      toBeFreed = id;
       revokeOp._revoke(t, this, sc[id], this);
-      free(id);
     }
     );
   }
