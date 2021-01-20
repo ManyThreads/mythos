@@ -59,4 +59,9 @@ namespace mlog {
 #endif
   extern Logger<MLOG_IRQ> irq;
 
+#ifndef MLOG_PERFMON
+#define MLOG_PERFMON FilterWarning
+#endif
+  extern Logger<MLOG_PERFMON> perfmon;
+
 } // namespace mlog

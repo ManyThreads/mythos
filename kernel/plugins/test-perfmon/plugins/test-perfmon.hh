@@ -1,4 +1,4 @@
-/* -*- mode:C++; -*- */
+/* -*- mode:C++; indent-tabs-mode:nil; -*- */
 /* MIT License -- MyThOS: The Many-Threads Operating System
  *
  * Permission is hereby granted, free of charge, to any person
@@ -21,17 +21,25 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  *
- * Copyright 2014 Randolf Rotta, Maik Krüger, and contributors, BTU Cottbus-Senftenberg
+ * Copyright 2021 Philipp Gypser, BTU Cottbus-Senftenberg
  */
+#pragma once
 
-#include "objects/mlog.hh"
+#include "plugins/TestPlugin.hh"
 
-namespace mlog {
-  Logger<MLOG_CAP> cap("cap");
-  Logger<MLOG_SCHED> sched("sched");
-  Logger<MLOG_SYSCALL> syscall("syscall");
-  Logger<MLOG_EC> ec("ec");
-  Logger<MLOG_KM> km("km");
-  Logger<MLOG_IRQ> irq("irq");
-  Logger<MLOG_PERFMON> perfmon("perfmon");
-} // namespace mlog
+namespace mythos {
+namespace test_perfmon {
+
+class TestPerfMon : public TestPlugin
+  {
+  public:
+    TestPerfMon();
+    virtual void initThread(cpu::ThreadID threadID) override;
+    virtual void initGlobal() override;
+
+  private:
+    void runTest();
+  };
+
+} // test_perfmon
+} // mythos
