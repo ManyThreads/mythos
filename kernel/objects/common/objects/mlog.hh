@@ -64,4 +64,9 @@ namespace mlog {
 #endif
   extern Logger<MLOG_PERFMON> perfmon;
 
+#ifndef MLOG_PM
+#define MLOG_PM FilterWarning
+#endif
+  extern Logger<MLOG_PROCESSORMGMT> pm; //processor management
+
 } // namespace mlog

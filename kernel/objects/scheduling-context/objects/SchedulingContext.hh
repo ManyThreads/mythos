@@ -31,6 +31,7 @@
 #include "async/SimpleMonitorHome.hh"
 #include <cstdint>
 #include "util/error-trace.hh"
+#include "util/events.hh"
 
 namespace mythos {
 
@@ -97,6 +98,11 @@ namespace mythos {
     async::Place* home = nullptr;
     list_t readyQueue; //< the ready list of waiting execution contexts
     std::atomic<handle_t*> current_handle = {nullptr}; //< the currently selected execution context
+
+    Tasklet paTask; //task for communication with processor allocator
   };
 
+  namespace event {
+    extern Event<Tasklet*, cpu::ThreadID> idleSC;
+  }
 } // namespace mythos

@@ -12,6 +12,7 @@
 extern mythos::CapMap myCS;
 extern mythos::PageMap myAS;
 extern mythos::KernelMemory kmem;
+extern mythos::ProcessorAllocator pa;
 
 using namespace mythos;
 
@@ -161,23 +162,17 @@ class Process{
     res = myCS.reference(pl, init::DEVICE_MEM, max_cap_depth, cs.cap(), init::DEVICE_MEM, max_cap_depth, 0).wait();
     TEST(res);
 
-    MLOG_DETAIL(mlog::app, "   scheduling contexts");
-    //todo: how to check whether cap is existing?
-    for(CapPtr ptr = init::SCHEDULERS_START; ptr < init::RAPL_DRIVER_INTEL; ptr++){
-      res = myCS.reference(pl, ptr, max_cap_depth, cs.cap(), ptr, max_cap_depth, 0).wait();
-      TEST(res);
-    }
-
     MLOG_DETAIL(mlog::app, "   RAPL driver");
     res = myCS.reference(pl, init::RAPL_DRIVER_INTEL, max_cap_depth, cs.cap(), init::RAPL_DRIVER_INTEL, max_cap_depth, 0).wait();
     TEST(res);
 
     MLOG_DETAIL(mlog::app, "   Interrupt control");
+    MLOG_WARN(mlog::app, "SKIP: Interrupt control caps!");
     //todo: how to check whether cap is existing?
-    for(CapPtr ptr = init::INTERRUPT_CONTROL_START; ptr < init::INTERRUPT_CONTROL_END; ptr++){
-      res = myCS.reference(pl, ptr, max_cap_depth, cs.cap(), ptr, max_cap_depth, 0).wait();
-      TEST(res);
-    }
+    //for(CapPtr ptr = init::INTERRUPT_CONTROL_START; ptr < init::INTERRUPT_CONTROL_END; ptr++){
+      //res = myCS.reference(pl, ptr, max_cap_depth, cs.cap(), ptr, max_cap_depth, 0).wait();
+      //TEST(res);
+    //}
 
     /* create address space */
     //todo: use dynamic table allocation in mmap!
@@ -247,11 +242,17 @@ class Process{
 
     /* create EC */
     MLOG_DETAIL(mlog::app, "create EC ...", DVARhex(img.header()->entry));
+    auto sc = pa.alloc(pl).wait();
+    TEST(sc);
+    MLOG_DETAIL(mlog::app, "allocated SC", DVAR(sc->cap));
     ExecutionContext ec(capAlloc());
-    res = ec.create(kmem).as(pm4).cs(cs).sched(mythos::init::SCHEDULERS_START + 1)
+    res = ec.create(kmem).as(pm4).cs(cs).sched(sc->cap)
     .rawFun(reinterpret_cast<int (*)(void*)>(img.header()->entry), reinterpret_cast<void*>(*ipc_vaddr))
     .suspended(true)
     .invokeVia(pl).wait();
+    TEST(res);
+    MLOG_DETAIL(mlog::app, "move SC");
+    res = myCS.move(pl, sc->cap, max_cap_depth, cs.cap(), sc->cap, max_cap_depth).wait();
     TEST(res);
 
     /* create portal */
