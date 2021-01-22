@@ -96,15 +96,49 @@ void TestPerfMon::runTest(){
   auto bitWidthFixedFunPCs = pm.bitWidthFixedFunPCs();
   log.error(DVAR(bitWidthFixedFunPCs));
 
+  //skip if running in qemu or on old machines
+  if(version < 4) return;
+
+  //asm volatile ("sti" ::: "memory");
+
+  IA32_PERFEVTSELx_Bitfield pmc0_bf;
+  pmc0_bf.eventSelect = UnhaltedReferenceCycles_evSel;
+  pmc0_bf.uMask = UnhaltedReferenceCycles_umask;
+  pmc0_bf.os = true;
+  pmc0_bf.en = true;
+  //pmc0_bf.intEn = true;
+
+  pm.setPerfevtsel(0, pmc0_bf);
+  pm.writePerfevtsel(0);
+
+  IA32_PERFEVTSELx_Bitfield pmc1_bf;
+  pmc1_bf.eventSelect = CycleActivityStallsMemAny_evSel;
+  pmc1_bf.uMask = CycleActivityStallsMemAny_umask;
+  pmc1_bf.cMask = CycleActivityStallsMemAny_cmask;
+  pmc1_bf.os = true;
+  pmc1_bf.en = true;
+  //pmc1_bf.intEn = true;
+
+  pm.setPerfevtsel(1, pmc1_bf);
+  pm.writePerfevtsel(1);
+
   pm.activateAllFFCS();
+  //pm.enableIntAllFFCS();
+  pm.writeFFCS_CTRL();
+
+  //pm.enableIntLapic();
+
+  log.error(DVARhex(IA32_PERF_GLOBAL_STATUS));
   pm.barrier();
   auto instrs1 = pm.readInstRetired();
   auto unhalted1 = pm.readCyclesUnhalted();
   auto cycles1 = pm.readRefCycles();
+  auto llcMisses1 = pm.readPMC(0);
+  auto stallsMem1 = pm.readPMC(1);
   pm.barrier();
   
   unsigned numPrimes = 0;
-  const uint64_t max = 20000;
+  const uint64_t max = 100000;
 
   for(uint64_t i = 0; i < max; i++){
     if(primeTest(i)) numPrimes++;
@@ -114,14 +148,19 @@ void TestPerfMon::runTest(){
   auto instrs2 = pm.readInstRetired();
   auto unhalted2 = pm.readCyclesUnhalted();
   auto cycles2 = pm.readRefCycles();
+  auto llcMisses2 = pm.readPMC(0);
+  auto stallsMem2 = pm.readPMC(1);
   pm.barrier();
 
   auto instrs = instrs2-instrs1;
   auto unhalted = unhalted2-unhalted1;
   auto cycles = cycles2-cycles1;
+  auto llcMisses = llcMisses2-llcMisses1;
+  auto stallsMem = stallsMem2 - stallsMem1;
 
   log.error("Primes found: ", DVAR(numPrimes));
-  log.error("fixed function counters: ", DVAR(instrs), DVAR(unhalted), DVAR(cycles));
+  log.error("performance monitoring: ", DVAR(instrs), DVAR(unhalted), DVAR(cycles), DVAR(llcMisses), DVAR(stallsMem));
+  if(unhalted1 > unhalted2) log.error("FFC1 overflow detected!", DVAR(unhalted1), DVAR(unhalted2));
 }
 
 } // test_perfmon

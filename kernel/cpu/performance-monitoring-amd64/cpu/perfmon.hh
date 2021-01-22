@@ -28,6 +28,7 @@
 #include "cpu/ctrlregs.hh"
 #include "cpu/perfmondefs.hh"
 #include "objects/mlog.hh"
+#include "cpu/LAPIC.hh"
 
 #include <cstdint>
 #include <cstddef>
@@ -117,7 +118,7 @@ namespace mythos {
         return version() > 1 ? 
           bits(perfMonLeaf.edx, 12, 5) : 0; 
       }
-
+  /* perf configuration */
       uint64_t readInstRetired(){
         return getMSR(IA32_PERF_FIXED_CTR0);
       }
@@ -134,6 +135,12 @@ namespace mythos {
         ffcs_ctrl.ff0_enable_os = true;
         ffcs_ctrl.ff1_enable_os = true;
         ffcs_ctrl.ff2_enable_os = true;
+      }
+
+      void enableIntAllFFCS(){
+        ffcs_ctrl.ff0_pmi = true;
+        ffcs_ctrl.ff1_pmi = true;
+        ffcs_ctrl.ff2_pmi = true;
       }
 
       void setFfcsCtrl(IA32_FIXED_CTR_CTRL_Bitfield bf){
@@ -186,6 +193,10 @@ namespace mythos {
         perfMonLeaf = cpuid(ARCHITECTURAL_PERFORMANCE_MONTIROING_LEAF);
         asm volatile ("":::"memory");
       }
+
+      //void enableIntLapic(){
+        //setMSR(X2Apic::REG_LVT_PERFCNT, X2Apic::RegLVT().vector(42));
+      //}
 
     private:
       bool perfMonAvail;

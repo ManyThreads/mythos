@@ -59,9 +59,9 @@ namespace mythos {
 
     /* Performance Event Select Register */
 		BITFIELD_DEF(uint64_t, IA32_FIXED_CTR_CTRL_Bitfield)
-		BoolField<value_t,base_t,0> ff0_enable_os;
-		BoolField<value_t,base_t,1> ff0_enable_user;
-		BoolField<value_t,base_t,2> ff0_anyThread;
+		BoolField<value_t,base_t,0> ff0_enable_os; // fixed function counter 0 enable OS
+		BoolField<value_t,base_t,1> ff0_enable_user; 
+		BoolField<value_t,base_t,2> ff0_anyThread; // count events of all threads on this core
 		BoolField<value_t,base_t,3> ff0_pmi; // Enable PMI on overflow
 		BoolField<value_t,base_t,4> ff1_enable_os;
 		BoolField<value_t,base_t,5> ff1_enable_user;
@@ -127,19 +127,81 @@ namespace mythos {
 
     /* Performance Event Select Register */
 		BITFIELD_DEF(uint64_t, IA32_PERFEVTSELx_Bitfield)
+    //Event Select: Selects a performance event logic unit.
 		UIntField<value_t,base_t,0,8> eventSelect;
-		UIntField<value_t,base_t,8,8> unitMask;
-		BoolField<value_t,base_t,16> userMode;
-		BoolField<value_t,base_t,17> operatingSystemMode;
-		BoolField<value_t,base_t,18> edgeDetect;
-		BoolField<value_t,base_t,19> pinControl;
-		BoolField<value_t,base_t,20> apicInteruptEnable;
+    //UMask: Qualifies the microarchitectural
+    //condition to detect on the selected event logic.
+		UIntField<value_t,base_t,8,8> uMask;
+    //USR: Counts while in privilege level is not ring 0.
+		BoolField<value_t,base_t,16> usr;
+    //OS: Counts while in privilege level is ring 0.
+		BoolField<value_t,base_t,17> os;
+    //Edge: Enables edge detection if set.
+		BoolField<value_t,base_t,18> edge;
+    //PC: Enables pin control.
+		BoolField<value_t,base_t,19> pc;
+    //INT: Enables interrupt on counter overflow.
+		BoolField<value_t,base_t,20> intEn;
+    //AnyThread: When set to 1, it enables counting the associated event 
+    //conditions occurring across all logical processors sharing a processor 
+    //core. When set to 0, the counter only increments the associated event 
+    //conditions occurring in the logical processor which programmed the MSR.
 		BoolField<value_t,base_t,21> anyThread;
-		BoolField<value_t,base_t,22> enableCounters;
+    //EN: Enables the corresponding performance counter to commence 
+    //counting when this bit is set.
+		BoolField<value_t,base_t,22> en;
+    //INV: Invert the CMASK.
 		BoolField<value_t,base_t,23> invert;
-		UIntField<value_t,base_t,24,8> counterMask;
+    //CMASK: When CMASK is not zero, the corresponding performance counter
+    //increments each cycle if the event count is greater than or equal to the CMASK.
+		UIntField<value_t,base_t,24,8> cMask; // counter mask
     IA32_PERFEVTSELx_Bitfield() : value(0) {}
 		BITFIELD_END
+
+    //todo: check availability (see PerfMonEventAvail above)
+    /* Architectural Performance Monitoring Events */
+    //Introduced in Intel Core Solo and Intel Core Duo processors. They are also 
+    //supportedon processors basedon Intel Core microarchitecture.
+    enum ArchitecturalPerformanceMonitoringEvents {
+      //Counts core clock cycles whenever the logical processoris in C0 state 
+      //(not halted).The frequency of this event varies with state transitionsin 
+      //the core.
+      UnhaltedCoreCycles_evSel = 0x3C,
+      UnhaltedCoreCycles_umask = 0x00,
+      //Counts at a fixed frequency whenever the logical processor is in C0 state
+      //(not halted).
+      UnhaltedReferenceCycles_evSel = 0x3C,
+      UnhaltedReferenceCycles_umask = 0x01,
+      //Counts when the last uop of an instruction retires.
+      InstructionsRetired_evSel = 0xC0,
+      InstructionsRetired_umask = 0x00,
+      //Accesses to the LLC, in which the data is present(hit) or not present(miss).
+      LLCReference_evSel = 0x2E,
+      LLCReference_umask = 0x4F,
+      //Accesses to the LLC in which the data is not present(miss)
+      LLCMisses_evSel = 0x2E,
+      LLCMisses_umask = 0x41,
+      //Counts when the last uop of a branch instruction retires
+      BranchInstructionRetired_evSel = 0xC4,
+      BranchInstructionRetired_umask = 0x00,
+      //Counts when the last uop of a branch instruction retires which corrected 
+      //misprediction of the branch prediction hardware at execution time .
+      BranchMissesRetired_evSel = 0xC5,
+      BranchMissesRetired_umask = 0x00,
+      /* INST_RETIRED.ANY -> use FIXED_CTR_0 */
+      /* CPU_CLK_UNHALTED.* -> use FIXED_CTR_1 */
+      /* CPU_CLK_UNHALTED.REF_TSC -> use FIXED_CTR_2 */
+    };
+
+    //todo: this enum is incomplete! please add required entries.
+    //the availability of those entries highly depends on cpu generation/type 
+    /* Performance Monitoring Events based on Skylake Microarchitecture */
+    enum PerformanceMonitoringEvents{
+      //Execution stalls while memory subsystem has an outstanding load.
+      CycleActivityStallsMemAny_evSel = 0xA3, 
+      CycleActivityStallsMemAny_umask = 0x14, 
+      CycleActivityStallsMemAny_cmask = 20, 
+    };
 
   } // namespace x86
 } // namespace mythos
