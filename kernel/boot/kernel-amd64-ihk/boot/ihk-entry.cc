@@ -55,6 +55,7 @@
 #include "objects/InterruptControl.hh"
 #include "boot/memory-root.hh"
 #include "boot/load_init.hh"
+#include "mythos/InfoFrame.hh"
 
 #include "boot/ihk-entry.hh"
 
@@ -342,13 +343,22 @@ void _start_ihk_mythos_(
 
 class IhkInitLoaderPlugin
    : public EventHook<InitLoader&>
+   , public EventHook<InfoFrame*>
 {
 public:
-    IhkInitLoaderPlugin() { event::initLoader.add(this); }
+    IhkInitLoaderPlugin() { 
+      event::initLoader.add(this); 
+      event::initInfoFrame.add(this); 
+    }
+    
     void processEvent(InitLoader& /*loader*/) override {
       // map arbitrary memory into the init application:
       // virtual addr, size, writable, executable, physical address
       //loader.memMapper.mmapDevice(vaddr, size, true, false, physaddr);
+    }
+
+    void processEvent(InfoFrame* infoFrame) override {
+      infoFrame->psPerTsc = boot_param->ns_per_tsc; 
     }
 };
 
