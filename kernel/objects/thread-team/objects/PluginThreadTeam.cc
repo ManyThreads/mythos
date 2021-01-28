@@ -21,52 +21,12 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  *
- * Copyright 2020 Philipp Gypser, BTU Cottbus-Senftenberg
+ * Copyright 2021 Philipp Gypser, BTU Cottbus-Senftenberg
  */
 
+#include "objects/PluginThreadTeam.hh"
 
-#include "objects/ProcessorAllocator.hh"
-#include "objects/mlog.hh"
 
-namespace mythos {
+mythos::PluginThreadTeam pluginThreadTeam;
+mythos::PluginThreadTeamActivator pluginThreadTeamActivator;
 
-/* IKernelObject */ 
-  optional<void> ProcessorAllocator::deleteCap(CapEntry&, Cap, IDeleter&)
-  {
-    MLOG_DETAIL(mlog::pm, __func__);
-    RETURN(Error::SUCCESS);
-  }
-
-  void ProcessorAllocator::deleteObject(Tasklet*, IResult<void>*)
-  {
-    MLOG_DETAIL(mlog::pm, __func__);
-  }
-
-/* ProcessorAllocator */
-  ProcessorAllocator::ProcessorAllocator()
-      : sc(image2kernel(&mySC[0]))
-    {}
-
-  void ProcessorAllocator::init(){
-    MLOG_DETAIL(mlog::pm, "PM::init");
-    for (cpu::ThreadID id = 0; id < cpu::getNumThreads(); ++id) {
-      sc[id].initRoot(Cap(image2kernel(&boot::getScheduler(id))));
-      free(id);
-    }
-  }
-
-  optional<cpu::ThreadID> ProcessorAllocator::alloc(){
-    MLOG_WARN(mlog::pm, "alloc not synchronized yet");
-    optional<cpu::ThreadID> ret;
-    if(nFree > 0){
-      nFree--;
-      ret = freeList[nFree];
-    }
-    return ret;
-  }
-
-  void ProcessorAllocator::free(cpu::ThreadID id) {
-      freeList[nFree] = id;
-      nFree++;
-  }
-} // namespace mythos

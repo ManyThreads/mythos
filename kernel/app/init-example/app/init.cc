@@ -35,7 +35,7 @@
 #include "runtime/Example.hh"
 #include "runtime/PageMap.hh"
 #include "runtime/KernelMemory.hh"
-#include "runtime/ProcessorAllocator.hh"
+#include "runtime/ThreadTeam.hh"
 #include "runtime/CapAlloc.hh"
 #include "runtime/tls.hh"
 #include "runtime/mlog.hh"
@@ -73,7 +73,7 @@ mythos::KernelMemory kmem(mythos::init::KM);
 mythos::KObject device_memory(mythos::init::DEVICE_MEM);
 cap_alloc_t capAlloc(myCS);
 mythos::RaplDriverIntel rapl(mythos::init::RAPL_DRIVER_INTEL);
-mythos::ProcessorAllocator pa(mythos::init::PROCESSOR_ALLOCATOR);
+mythos::ThreadTeam team(mythos::init::THREAD_TEAM);
 
 char threadstack[stacksize];
 char* thread1stack_top = threadstack+stacksize/2;
@@ -186,13 +186,13 @@ void test_tls()
   auto tls = mythos::setupNewTLS();
   MLOG_INFO(mlog::app, "test_EC: create ec1 TLS", DVARhex(tls));
   ASSERT(tls != nullptr);
-  auto sc = pa.alloc(pl).wait();
-  TEST(sc);
-  auto res1 = ec1.create(kmem).as(myAS).cs(myCS).sched(sc->cap)
+  auto res1 = ec1.create(kmem).as(myAS).cs(myCS)
     .prepareStack(thread1stack_top).startFun(threadFun, nullptr)
     .suspended(false).fs(tls)
     .invokeVia(pl).wait();
   TEST(res1);
+  auto res2 = team.tryRunEC(pl, ec1).wait();
+  TEST(res2);
   TEST(ec1.setFSGS(pl,(uint64_t) tls, 0).wait());
   mythos::syscall_signal(ec1.cap());
   MLOG_INFO(mlog::app, "End test tls");
@@ -326,24 +326,24 @@ void test_ExecutionContext()
 
     auto tls1 = mythos::setupNewTLS();
     ASSERT(tls1 != nullptr);
-    auto sc1 = pa.alloc(pl).wait();
-    TEST(sc1);
-    auto res1 = ec1.create(kmem).as(myAS).cs(myCS).sched(sc1->cap)
+    auto res1 = ec1.create(kmem).as(myAS).cs(myCS)
     .prepareStack(thread1stack_top).startFun(&thread_main, nullptr)
     .suspended(false).fs(tls1)
     .invokeVia(pl).wait();
     TEST(res1);
+    auto tres1 = team.tryRunEC(pl, ec1).wait();
+    TEST(tres1);
 
     MLOG_INFO(mlog::app, "test_EC: create ec2");
     auto tls2 = mythos::setupNewTLS();
     ASSERT(tls2 != nullptr);
-    auto sc2 = pa.alloc(pl).wait();
-    TEST(sc2);
-    auto res2 = ec2.create(kmem).as(myAS).cs(myCS).sched(sc2->cap)
+    auto res2 = ec2.create(kmem).as(myAS).cs(myCS)/*.sched(sc2->cap)*/
     .prepareStack(thread2stack_top).startFun(&thread_main, nullptr)
     .suspended(false).fs(tls2)
     .invokeVia(pl).wait();
     TEST(res2);
+    auto tres2 = team.tryRunEC(pl, ec2).wait();
+    TEST(tres2);
   }
 
   for (volatile int i=0; i<100000; i++) {
@@ -370,13 +370,13 @@ void test_InterruptControl() {
   mythos::ExecutionContext ec(capAlloc());
   auto tls = mythos::setupNewTLS();
   ASSERT(tls != nullptr);
-  auto sc = pa.alloc(pl).wait();
-  TEST(sc);
-  auto res1 = ec.create(kmem).as(myAS).cs(myCS).sched(sc->cap)
+  auto res1 = ec.create(kmem).as(myAS).cs(myCS)
     .prepareStack(thread3stack_top).startFun(&thread_main, nullptr)
     .suspended(false).fs(tls)
     .invokeVia(pl).wait();
   TEST(res1);
+  auto tres = team.tryRunEC(pl, ec).wait();
+  TEST(tres);
   TEST(ic.registerForInterrupt(pl, ec.cap(), 0x32).wait());
   TEST(ic.unregisterInterrupt(pl, 0x32).wait());
   TEST(capAlloc.free(ec, pl));
@@ -495,16 +495,6 @@ void test_CgaScreen(){
   MLOG_INFO(mlog::app, "Test CGA finished");
 }
 
-void test_processor_allocator(){
-  MLOG_INFO(mlog::app, "Test processor allocator");
-  mythos::PortalLock pl(portal);
-  auto sc = pa.alloc(pl).wait();
-  TEST(sc);
-  auto res = pa.free(pl, sc->cap).wait();
-  TEST(res);
-  MLOG_INFO(mlog::app, "Test processor allocator finished");
-}
-
 void test_process(){
   MLOG_INFO(mlog::app, "Test process");
 
@@ -533,7 +523,6 @@ int main()
   test_ExecutionContext();
   test_pthreads();
   //test_Rapl()
-  test_processor_allocator();
   test_process();
   //test_CgaScreen();
 

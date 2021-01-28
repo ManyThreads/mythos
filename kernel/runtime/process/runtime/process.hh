@@ -8,11 +8,12 @@
 #include "util/elf64.hh"
 #include "util/align.hh"
 #include "runtime/CapAlloc.hh"
+#include "runtime/ThreadTeam.hh"
 
 extern mythos::CapMap myCS;
 extern mythos::PageMap myAS;
 extern mythos::KernelMemory kmem;
-extern mythos::ProcessorAllocator pa;
+extern mythos::ThreadTeam team;
 
 using namespace mythos;
 
@@ -242,18 +243,24 @@ class Process{
 
     /* create EC */
     MLOG_DETAIL(mlog::app, "create EC ...", DVARhex(img.header()->entry));
-    auto sc = pa.alloc(pl).wait();
-    TEST(sc);
-    MLOG_DETAIL(mlog::app, "allocated SC", DVAR(sc->cap));
     ExecutionContext ec(capAlloc());
-    res = ec.create(kmem).as(pm4).cs(cs).sched(sc->cap)
+    res = ec.create(kmem).as(pm4).cs(cs)
     .rawFun(reinterpret_cast<int (*)(void*)>(img.header()->entry), reinterpret_cast<void*>(*ipc_vaddr))
     .suspended(true)
     .invokeVia(pl).wait();
     TEST(res);
-    MLOG_DETAIL(mlog::app, "move SC");
-    res = myCS.move(pl, sc->cap, max_cap_depth, cs.cap(), sc->cap, max_cap_depth).wait();
+
+    /* create ThreadTeam */
+    MLOG_DETAIL(mlog::app, "create ThreadTeam ...");
+    ThreadTeam tt(capAlloc());
+    res = tt.create(pl, kmem, init::PROCESSOR_ALLOCATOR).wait();
     TEST(res);
+    MLOG_DETAIL(mlog::app, "   register EC in ThreadTeam");
+    res = tt.tryRunEC(pl, ec).wait();
+    TEST(res);
+    res = myCS.move(pl, tt.cap(), max_cap_depth, cs.cap(), init::THREAD_TEAM, max_cap_depth).wait();
+    TEST(res);
+    capAlloc.freeEmpty(tt.cap());
 
     /* create portal */
     MLOG_DETAIL(mlog::app, "create Portal ...");

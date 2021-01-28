@@ -46,6 +46,7 @@ namespace mythos {
       CPUDRIVERKNC,
       RAPLDRIVERINTEL,
       PROCESSORALLOCATOR,
+      THREADTEAM,
       INTERRUPT_CONTROL,
     };
 

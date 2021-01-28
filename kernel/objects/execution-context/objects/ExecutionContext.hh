@@ -117,6 +117,7 @@ namespace mythos {
       if (id == typeId<ISchedulable>()) return static_cast<ISchedulable const*>(this);
       if (id == typeId<IPortalUser>()) return static_cast<IPortalUser const*>(this);
       if (id == typeId<ISignalable>()) return static_cast<ISignalable const*>(this);
+      if (id == typeId<ExecutionContext>()) return this;
       THROW(Error::TYPE_MISMATCH);
     }
     optional<void> deleteCap(CapEntry&, Cap self, IDeleter& del) override;

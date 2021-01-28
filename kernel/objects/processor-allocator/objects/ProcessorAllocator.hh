@@ -21,7 +21,7 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  *
- * Copyright 2020 Philipp Gypser and contributors, BTU Cottbus-Senftenberg
+ * Copyright 2020 Philipp Gypser, BTU Cottbus-Senftenberg
  */
 #pragma once
 
@@ -38,7 +38,6 @@ namespace mythos {
 
 class ProcessorAllocator
   : public IKernelObject
-  , public IResult<void>
 {
   public:
     ProcessorAllocator();
@@ -46,42 +45,27 @@ class ProcessorAllocator
   /* IKernelObject */
     optional<void> deleteCap(CapEntry&, Cap self, IDeleter& del) override;
     void deleteObject(Tasklet* t, IResult<void>* r) override;
-    void invoke(Tasklet* t, Cap self, IInvocation* msg) override;
-
-  /* IResult<void> */
-    void response(Tasklet* /*t*/, optional<void> res) override;
+    optional<void const*> vcast(TypeId id) const override {
+      if (id == typeId<ProcessorAllocator>()) return this;
+      THROW(Error::TYPE_MISMATCH);
+    }
 
     void init();
-    Error invokeAlloc(Tasklet*, Cap, IInvocation* msg);
-    Error invokeFree(Tasklet* t, Cap, IInvocation* msg);
-    void freeSC(Tasklet* t, cpu::ThreadID id);
+
+    //todo: synchronize
+    optional<cpu::ThreadID> alloc(); 
+    void free(cpu::ThreadID id);
+
+    CapEntry* getSC(cpu::ThreadID id){
+      ASSERT(id < cpu::getNumThreads());
+      return &sc[id];
+    }
 
   protected:
-    friend class PluginProcessorAllocator;
-    virtual optional<cpu::ThreadID> alloc() = 0;
-    virtual void free(cpu::ThreadID id) = 0;
-    virtual unsigned numFree() = 0;
-
-  private:
     async::NestedMonitorDelegating monitor;
-    RevokeOperation revokeOp = {monitor};
-    cpu::ThreadID toBeFreed = 0;
     CapEntry *sc;
     CapEntry mySC[MYTHOS_MAX_THREADS];
-};
-
-class LiFoProcessorAllocator : public ProcessorAllocator
-{
-  public:
-    LiFoProcessorAllocator();
-
-    unsigned numFree() override { return nFree; }
-    optional<cpu::ThreadID> alloc() override; 
-    void free(cpu::ThreadID id) override;
-
-  private:
     unsigned nFree;
     cpu::ThreadID freeList[MYTHOS_MAX_THREADS];
 };
-
 } // namespace mythos

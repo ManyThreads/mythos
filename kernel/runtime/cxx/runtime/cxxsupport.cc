@@ -48,19 +48,19 @@
 #include "runtime/Example.hh"
 #include "runtime/PageMap.hh"
 #include "runtime/KernelMemory.hh"
-#include "runtime/ProcessorAllocator.hh"
 #include "runtime/CapAlloc.hh"
 #include "runtime/tls.hh"
 #include "runtime/futex.hh"
 #include "runtime/umem.hh"
 #include "runtime/thread-extra.hh"
+#include "runtime/ThreadTeam.hh"
 
 extern mythos::InvocationBuf* msg_ptr asm("msg_ptr");
 extern mythos::Portal portal;
 extern mythos::CapMap myCS;
 extern mythos::PageMap myAS;
 extern mythos::KernelMemory kmem;
-extern mythos::ProcessorAllocator pa;
+extern mythos::ThreadTeam team;
 
 #ifndef NUM_CPUS
 #define NUM_CPUS (2)
@@ -326,26 +326,23 @@ int myclone(
     if (ptid && (flags&CLONE_PARENT_SETTID)) *ptid = int(ec.cap());
     // @todo store thread-specific ctid pointer, which should set to 0 by the OS on the thread's exit
 
-    auto sc = pa.alloc(pl).wait();
-    ASSERT(sc);
-    if(sc->cap == mythos::null_cap){
-      MLOG_WARN(mlog::app, "Processor allocation failed!");
-      //todo: set errno = EAGAIN
-      return (-1);
-    }
-
-    auto res1 = ec.create(kmem)
+    auto res = ec.create(kmem)
       .as(myAS)
       .cs(myCS)
-      .sched(sc->cap)
+      //.sched(sc->cap)
       .rawStack(rsp)
       .rawFun(func, arg)
       .suspended(false)
       .fs(tls)
       .invokeVia(pl)
       .wait();
-    //MLOG_DETAIL(mlog::app, DVAR(ec.cap()));
-    return ec.cap();
+    auto tres = team.tryRunEC(pl, ec).wait();
+    if(tres){
+      return ec.cap();
+    }
+    MLOG_WARN(mlog::app, "Processor allocation failed!");
+    //todo: set errno = EAGAIN
+    return (-1);
 }
 
 extern "C" int clone(int (*func)(void *), void *stack, int flags, void *arg, ...)

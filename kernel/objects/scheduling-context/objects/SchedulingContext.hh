@@ -32,6 +32,7 @@
 #include <cstdint>
 #include "util/error-trace.hh"
 #include "util/events.hh"
+#include "objects/ThreadTeam.hh"
 
 namespace mythos {
 
@@ -73,7 +74,9 @@ namespace mythos {
     , public IScheduler
   {
   public:
-    SchedulingContext() { }
+    SchedulingContext()
+      : myTeam(nullptr)
+    { }
     void init(async::Place* home) { this->home = home; }
     virtual ~SchedulingContext() {}
 
@@ -87,10 +90,16 @@ namespace mythos {
     void unbind(handle_t* ec_handle) override;
     void ready(handle_t* ec_handle) override;
 
+  public: //ThreadTeam
+    void registerThreadTeam(ThreadTeam* tt){
+      myTeam.store(tt);
+    };
+
   public: // IKernelObject interface
     optional<void> deleteCap(CapEntry&, Cap, IDeleter&) override { RETURN(Error::SUCCESS); }
     optional<void const*> vcast(TypeId id) const override {
       if (id == typeId<IScheduler>()) return static_cast<const IScheduler*>(this);
+      if (id == typeId<SchedulingContext>()) return this;
       THROW(Error::TYPE_MISMATCH);
     }
 
@@ -100,6 +109,7 @@ namespace mythos {
     std::atomic<handle_t*> current_handle = {nullptr}; //< the currently selected execution context
 
     Tasklet paTask; //task for communication with processor allocator
+    std::atomic<ThreadTeam*> myTeam;
   };
 
   namespace event {

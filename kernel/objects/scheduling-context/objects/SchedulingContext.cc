@@ -47,8 +47,13 @@ namespace mythos {
         readyQueue.remove(ec);
         current_handle.store(nullptr);
         if(readyQueue.empty()){
-          MLOG_DETAIL(mlog::sched, "call idleSC");
-          event::idleSC.emit(&paTask, home->getThreadID());
+          MLOG_INFO(mlog::sched, "call idleSC");
+          if(myTeam.load() != nullptr){
+            myTeam.load()->notifyIdle(&paTask, home->getThreadID());
+          }else{
+            MLOG_WARN(mlog::sched, "No ThreadTeam registered!");
+          }
+
         }else{
           MLOG_INFO(mlog::sched, "ready queue not empty!");
         }   
