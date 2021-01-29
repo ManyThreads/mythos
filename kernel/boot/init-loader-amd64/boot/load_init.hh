@@ -33,6 +33,7 @@
 #include "objects/IPageMap.hh"
 #include "objects/ExecutionContext.hh"
 #include "util/events.hh"
+#include "mythos/InfoFrame.hh"
 #include "boot/MemMapper.hh"
 #include "boot/CapAlloc.hh"
 
@@ -56,9 +57,10 @@ namespace mythos {
       optional<void> load();
 
       optional<void> initCSpace();
-      optional<void> createPortal(uintptr_t ipc_vaddr, CapPtr dstPortal);
+      optional<void> createPortal(CapPtr infoFrame, CapPtr dstPortal);
       optional<uintptr_t> loadImage();
       optional<void> createEC(uintptr_t ipc_vaddr);
+      optional<CapPtr> createInfoFrame(uintptr_t ipc_vaddr);
 
       optional<void> loadProgramHeader(
         const elf64::PHeader* ph, CapPtr frameCap, size_t offset);
@@ -90,6 +92,7 @@ namespace mythos {
     extern Event<boot::InitLoader&> initLoader;
     extern Event<boot::InitLoader&> initLoaderEarly;
     extern Event<ExecutionContext*> initEC;
+    extern Event<InfoFrame*> initInfoFrame;
   }
 
 } // namespace mythos

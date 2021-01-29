@@ -44,6 +44,7 @@
 #include "boot/mlog.hh"
 #include "boot/memory-root.hh"
 #include "boot/DeployHWThread.hh"
+#include "mythos/InfoFrame.hh"
 
 
 namespace mythos {
@@ -51,6 +52,7 @@ namespace mythos {
 Event<boot::InitLoader&> event::initLoader;
 Event<boot::InitLoader&> event::initLoaderEarly;
 Event<ExecutionContext*> event::initEC;
+Event<InfoFrame*> event::initInfoFrame;
     
 namespace boot {
 
@@ -80,8 +82,10 @@ optional<void> InitLoader::load()
   if (res) res = initCSpace();
   auto ipc_vaddr = loadImage();
   res = ipc_vaddr;
-  if (res) MLOG_INFO(mlog::boot, "init invokation buffer", DVARhex(*ipc_vaddr));
-  if (res) res = createPortal(*ipc_vaddr, init::PORTAL);
+  if (res) MLOG_INFO(mlog::boot, "init info frame/invokation buffer", DVARhex(*ipc_vaddr));
+  auto infoFramePtr = createInfoFrame(*ipc_vaddr);
+  res = infoFramePtr;
+  if (res) res = createPortal(*infoFramePtr, init::PORTAL);
   if (res) res = createEC(*ipc_vaddr);
   RETURN(res);
 }
@@ -186,19 +190,36 @@ optional<void> InitLoader::initCSpace()
   RETURN(Error::SUCCESS);
 }
 
-optional<void> InitLoader::createPortal(uintptr_t ipc_vaddr, CapPtr dstPortal)
+optional<CapPtr> InitLoader::createInfoFrame(uintptr_t ipc_vaddr)
 {
-    auto size = 2*1024*1024;
+    auto size = round_up(sizeof(InfoFrame), align2M);
+    MLOG_INFO(mlog::boot, "... create info frame");
+    auto frameCap = memMapper.createFrame(init::INFO_FRAME, size, align2M);
+    if (!frameCap) RETHROW(frameCap);
+    MLOG_INFO(mlog::boot, "... map info frame",
+        DVAR(*frameCap), DVARhex(ipc_vaddr));
+    memMapper.mmap(ipc_vaddr, size, true, false, *frameCap, 0);
+
+    auto frameEntry = capAlloc.get(*frameCap);
+    if (!frameEntry) RETHROW(frameEntry);
+    TypedCap<IFrame> frame(frameEntry);
+    if (!frame) RETHROW(frame);
+    auto info = new(reinterpret_cast<InfoFrame*>(frame.getFrameInfo().start.logint())) InfoFrame();
+    info->numThreads = cpu::getNumThreads();
+
+    event::initInfoFrame.emit(info);
+
+    return frameCap;
+}
+
+optional<void> InitLoader::createPortal(CapPtr infoFrame, CapPtr dstPortal)
+{
     MLOG_INFO(mlog::boot, "... create portal in cap", dstPortal);
     auto portal = create<Portal,PortalFactory>(capAlloc.get(dstPortal));
     if (!portal) RETHROW(portal);
 
-    auto frameCap = memMapper.createFrame(size, 2*1024*1024);
-    if (!frameCap) RETHROW(frameCap);
-    MLOG_INFO(mlog::boot, "... map invocation buffer",
-        DVAR(*frameCap), DVARhex(ipc_vaddr));
-    memMapper.mmap(ipc_vaddr, size, true, false, *frameCap, 0);
-    auto res = portal->setInvocationBuf(capAlloc.get(*frameCap), 0);
+    // ensure ib is the first member in InfoFrame -> frame offset == 0
+    auto res = portal->setInvocationBuf(capAlloc.get(infoFrame), 0);
     if (!res) RETHROW(res);
 
     _portal = *portal; // TODO return this?
