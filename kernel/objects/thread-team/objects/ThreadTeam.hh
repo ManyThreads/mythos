@@ -34,13 +34,13 @@
 #include "objects/RevokeOperation.hh"
 #include "objects/ProcessorAllocator.hh"
 #include "objects/ExecutionContext.hh"
-#include "async/IResult.hh"
+#include "objects/SchedulingContext.hh"
 
 namespace mythos {
 
   class ThreadTeam
     : public IKernelObject
-    , public IResult<void>
+    , public INotifyIdle
   {
     public:
       ThreadTeam(IAsyncFree* memory);
@@ -54,10 +54,7 @@ namespace mythos {
         THROW(Error::TYPE_MISMATCH);
       }
 
-    /* IResult<void> */
-      void response(Tasklet* /*t*/, optional<void> res) override;
-
-      void tryRunEC(ExecutionContext* ec);
+      bool tryRunEC(ExecutionContext* ec);
       Error invokeTryRunEC(Tasklet* t, Cap, IInvocation* msg);
       Error invokeDemandRunEC(Tasklet* t, Cap, IInvocation* msg);
       Error invokeForceRunEC(Tasklet* t, Cap, IInvocation* msg);
@@ -71,7 +68,7 @@ namespace mythos {
         MLOG_ERROR(mlog::pm, "ERROR: unbind processor allocator");
       }
 
-      void notifyIdle(Tasklet* t, cpu::ThreadID id){
+      void notifyIdle(Tasklet* t, cpu::ThreadID id) override {
         MLOG_DETAIL(mlog::pm, __func__, DVAR(id));
         monitor.request(t, [=](Tasklet* t){
             removeUsed(id);
@@ -117,6 +114,8 @@ namespace mythos {
       }
 
 
+    private:
+      IAsyncFree* memory;
       async::NestedMonitorDelegating monitor;
 
       friend class ThreadTeamFactory;
@@ -126,7 +125,6 @@ namespace mythos {
       cpu::ThreadID usedList[MYTHOS_MAX_THREADS];
       unsigned nUsed;
 
-      IAsyncFree* memory;
   };
 
   class ThreadTeamFactory : public FactoryBase

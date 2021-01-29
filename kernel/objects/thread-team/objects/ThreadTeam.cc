@@ -59,11 +59,6 @@ namespace mythos {
       } );
   }
 
-/* IResult<void> */
-  void ThreadTeam::response(Tasklet* /*t*/, optional<void> res){
-    MLOG_DETAIL(mlog::pm, "revoke response:", res.state());
-  }
-
 /* ThreadTeam */
   ThreadTeam::ThreadTeam(IAsyncFree* memory)
     : memory(memory)
@@ -71,7 +66,7 @@ namespace mythos {
     , nUsed(0)
     {}
 
-  void ThreadTeam::tryRunEC(ExecutionContext* ec){
+  bool ThreadTeam::tryRunEC(ExecutionContext* ec){
     MLOG_DETAIL(mlog::pm, __func__);
     auto pal = pa.get();
     ASSERT(pal);
@@ -86,13 +81,19 @@ namespace mythos {
     if(id){
       auto sce = pal->getSC(*id);
       TypedCap<SchedulingContext> sc(sce->cap());
-      sc->registerThreadTeam(this);
+      sc->registerThreadTeam(static_cast<INotifyIdle*>(this));
       pushUsed(*id);
       auto ret = ec->setSchedulingContext(sce);
-      MLOG_DETAIL(mlog::pm, "Init EC bind SC", DVAR(*id));
+      if(ret){
+        MLOG_DETAIL(mlog::pm, "Init EC bind SC", DVAR(*id));
+        return true;
+      }else{
+        MLOG_ERROR(mlog::pm, "ERROR: Init EC bind SC failed ", DVAR(*id));
+      }
     }else{
       MLOG_ERROR(mlog::pm, "Cannot allocate SC for init EC");
     }
+    return false;
   }
 
   Error ThreadTeam::invokeTryRunEC(Tasklet* t, Cap, IInvocation* msg){
@@ -107,23 +108,8 @@ namespace mythos {
 
     TypedCap<ExecutionContext> ec(ece);
 
-    auto pal = pa.get();
-    ASSERT(pal);
-    auto id = popFree();
-    if(id){
-      MLOG_DETAIL(mlog::pm, "take SC from Team ", DVAR(*id));
-    }else{
-      MLOG_DETAIL(mlog::pm, "try alloc SC from PA");
-      id = pal->alloc();
-    }
-    if(id){
-      MLOG_DETAIL(mlog::pm, "allocated thread id ", DVAR(*id));
-      auto sce = pal->getSC(*id);
-      TypedCap<SchedulingContext> sc(sce->cap());
-      sc->registerThreadTeam(this);
-      pushUsed(*id);
-      auto ret = ec->setSchedulingContext(sce);
-      return ret.state();
+    if(ec && tryRunEC(*ec)){
+      return Error::SUCCESS;
     }
     return Error::INSUFFICIENT_RESOURCES;
   }

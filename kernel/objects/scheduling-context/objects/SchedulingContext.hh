@@ -32,9 +32,13 @@
 #include <cstdint>
 #include "util/error-trace.hh"
 #include "util/events.hh"
-#include "objects/ThreadTeam.hh"
 
 namespace mythos {
+
+  class INotifyIdle{
+    public:
+      virtual void notifyIdle(Tasklet* t, cpu::ThreadID id) = 0;
+  };
 
   /** Scheduler for multiple application threads on a single hardware
    * thread. It implements an cooperative FIFO strategy that switches only
@@ -91,7 +95,7 @@ namespace mythos {
     void ready(handle_t* ec_handle) override;
 
   public: //ThreadTeam
-    void registerThreadTeam(ThreadTeam* tt){
+    void registerThreadTeam(INotifyIdle* tt){
       myTeam.store(tt);
     };
 
@@ -109,7 +113,7 @@ namespace mythos {
     std::atomic<handle_t*> current_handle = {nullptr}; //< the currently selected execution context
 
     Tasklet paTask; //task for communication with processor allocator
-    std::atomic<ThreadTeam*> myTeam;
+    std::atomic<INotifyIdle*> myTeam;
   };
 
   namespace event {
