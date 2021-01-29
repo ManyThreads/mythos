@@ -96,7 +96,7 @@ namespace mythos {
     return false;
   }
 
-  Error ThreadTeam::invokeTryRunEC(Tasklet* t, Cap, IInvocation* msg){
+  Error ThreadTeam::invokeTryRunEC(Tasklet* /*t*/, Cap, IInvocation* msg){
     MLOG_ERROR(mlog::pm, __func__);
     
     auto data = msg->getMessage()->read<protocol::ThreadTeam::TryRunEC>();
@@ -114,17 +114,17 @@ namespace mythos {
     return Error::INSUFFICIENT_RESOURCES;
   }
 
-  Error ThreadTeam::invokeDemandRunEC(Tasklet* t, Cap, IInvocation* msg){
+  Error ThreadTeam::invokeDemandRunEC(Tasklet* /*t*/, Cap, IInvocation* /*msg*/){
     MLOG_ERROR(mlog::pm, __func__, " NYI!");
     return Error::NOT_IMPLEMENTED;
   }
 
-  Error ThreadTeam::invokeForceRunEC(Tasklet* t, Cap, IInvocation* msg){
+  Error ThreadTeam::invokeForceRunEC(Tasklet* /*t*/, Cap, IInvocation* /*msg*/){
     MLOG_ERROR(mlog::pm, __func__, " NYI!");
     return Error::NOT_IMPLEMENTED;
   }
 
-  Error ThreadTeam::invokeRunNextToEC(Tasklet* t, Cap, IInvocation* msg){
+  Error ThreadTeam::invokeRunNextToEC(Tasklet* /*t*/, Cap, IInvocation* /*msg*/){
     MLOG_ERROR(mlog::pm, __func__, " NYI!");
     return Error::NOT_IMPLEMENTED;
   }

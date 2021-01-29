@@ -70,7 +70,7 @@ namespace mythos {
 
       void notifyIdle(Tasklet* t, cpu::ThreadID id) override {
         MLOG_DETAIL(mlog::pm, __func__, DVAR(id));
-        monitor.request(t, [=](Tasklet* t){
+        monitor.request(t, [=](Tasklet*){
             removeUsed(id);
             pushFree(id);
             monitor.responseAndRequestDone();
