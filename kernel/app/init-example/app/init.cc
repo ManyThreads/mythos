@@ -47,6 +47,7 @@
 #include "runtime/Mutex.hh"
 #include "runtime/cgaScreen.hh"
 #include "runtime/process.hh"
+#include "tbb/tbb.h"
 
 #include <vector>
 #include <array>
@@ -204,7 +205,7 @@ void test_tls()
 void test_heap() {
   MLOG_INFO(mlog::app, "Test heap");
   mythos::PortalLock pl(portal);
-  auto size = 4*1024*1024; // 2 MB
+  auto size = 64*1024*1024; // 2 MB
   auto align = 2*1024*1024; // 2 MB
   uintptr_t vaddr = mythos::round_up(info_ptr->getInfoEnd() + align2M,  align2M);
   // allocate a 2MiB frame
@@ -384,6 +385,28 @@ void test_InterruptControl() {
   MLOG_INFO(mlog::app, "test_InterruptControl end");
 }
 
+void test_TBB(){
+  MLOG_INFO(mlog::app, "Test TBB");
+
+	class say_hello
+	{
+	   int id;
+	   public:
+	      say_hello(int i) : id(i) { }
+	      void operator( ) ( ) const
+	      {
+		 printf("hello from task %d\n",id);
+	      }
+	};
+
+	tbb::task_group tg;
+	for(int i=0; i<10; i++){
+		tg.run(say_hello(i)); // spawn 1st task and return
+	}
+	tg.wait( );             // wait for tasks to complete
+  MLOG_INFO(mlog::app, "Test finished");
+}
+
 bool primeTest(uint64_t n){
 
   if(n == 0 | n == 1){
@@ -513,7 +536,7 @@ int main()
   mythos::syscall_debug(str, sizeof(str)-1);
   MLOG_ERROR(mlog::app, "application is starting :)", DVARhex(info_ptr), DVARhex(initstack_top));
 
-  test_float();
+  //test_float();
   test_Example();
   test_Portal();
   test_heap(); // heap must be initialized for tls test
@@ -525,6 +548,7 @@ int main()
   test_pthreads();
   test_Rapl();
   test_processor_allocator();
+  test_TBB();
   test_process();
   //test_CgaScreen();
 

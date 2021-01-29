@@ -147,22 +147,25 @@ int prlimit(
     return 0;
 }
 
-int sched_setaffinity(pid_t pid, size_t cpusetsize, cpu_set_t *mask)
+int my_sched_setaffinity(pid_t pid, size_t cpusetsize, cpu_set_t *mask)
 {
     //MLOG_DETAIL(mlog::app, "syscall sched_setaffinity", DVAR(pid), DVAR(cpusetsize), DVARhex(mask));
-    if(cpusetsize == info_ptr->getNumThreads() && mask == NULL) return -EFAULT;
+    //todo: make TBB and OMP ressource aware (pthread_create fail)
+    //if(cpusetsize == info_ptr->getNumThreads() && mask == NULL) return -EFAULT;
+    if(cpusetsize == 2 && mask == NULL) return -EFAULT;
     return 0;
 }
 
-int sched_getaffinity(pid_t pid, size_t cpusetsize, cpu_set_t *mask)
+int my_sched_getaffinity(pid_t pid, size_t cpusetsize, cpu_set_t *mask)
 {
-    //MLOG_DETAIL(mlog::app, "syscall sched_getaffinity", DVAR(pid), DVAR(cpusetsize), DVARhex(mask));
+    MLOG_DETAIL(mlog::app, "syscall sched_getaffinity", DVAR(pid), DVAR(cpusetsize), DVARhex(mask));
     if (mask) {
         //CPU_ZERO(mask);
 	memset(mask, 0, cpusetsize);
-        for(int i = 0; i < info_ptr->getNumThreads(); i++) CPU_SET(i, mask);
+        for(int i = 0; i < 2 /*info_ptr->getNumThreads()*/; i++) CPU_SET(i, mask);
     }
-    return info_ptr->getNumThreads();
+    //todo: make TBB and OMP ressource aware (pthread_create fail)
+    return 2;//info_ptr->getNumThreads();
 }
 
 void clock_gettime(long clk, struct timespec *ts){
@@ -210,12 +213,15 @@ extern "C" long mythos_musl_syscall(
     case 24: // sched_yield
         //MLOG_ERROR(mlog::app, "syscall sched_yield NYI");
         return 0;
+    case 25: // mremap
+        //MLOG_ERROR(mlog::app, "syscall sched_yield NYI");
+        return 0;
     case 28:  //madvise
         MLOG_WARN(mlog::app, "syscall madvise NYI");
         return 0;
     case 39: // getpid
         MLOG_WARN(mlog::app, "syscall getpid NYI");
-        return 0;
+        return mythos_get_pthread_ec_self();
     case 60: // exit(exit_code)
         //MLOG_ERROR(mlog::app, "syscall exit", DVAR(a1));
         pthreadCleaner.exit();        
@@ -238,9 +244,9 @@ extern "C" long mythos_musl_syscall(
                             reinterpret_cast<uint32_t*>(a5) /*uaddr2*/, a4/*val2*/, a6/*val3*/);
         }
     case 203: // sched_setaffinity
-        return sched_setaffinity(a1, a2, reinterpret_cast<cpu_set_t*>(a3));
+        return my_sched_setaffinity(a1, a2, reinterpret_cast<cpu_set_t*>(a3));
     case 204: // sched_getaffinity
-        return sched_getaffinity(a1, a2, reinterpret_cast<cpu_set_t*>(a3));
+        return my_sched_getaffinity(a1, a2, reinterpret_cast<cpu_set_t*>(a3));
     case 228: // clock_gettime
         //MLOG_ERROR(mlog::app, "Error: mythos_musl_syscall clock_gettime", DVAR(num), 
             //DVARhex(a1), DVARhex(a2), DVARhex(a3),
@@ -289,7 +295,10 @@ extern "C" int munmap(void *start, size_t len)
 
 extern "C" int unmapself(void *start, size_t len)
 {
-    PANIC_MSG(false, "unmapself: NYI!");
+    // see pthread_exit: another pthread might reuse the memory before unmapped  thread exited
+    MLOG_WARN(mlog::app, "unmapself: possible race condition! ");
+    MLOG_WARN(mlog::app, "unmapself: who's gonna free the EC and SC?! ");
+    mythos::heap.free(reinterpret_cast<unsigned long>(start));
     return 0;
 }
 
@@ -307,7 +316,7 @@ int myclone(
     int (*func)(void *), void *stack, int flags, 
     void *arg, int* ptid, void* tls, int* ctid)
 {
-    //MLOG_DETAIL(mlog::app, "myclone");
+    MLOG_DETAIL(mlog::app, "myclone");
     ASSERT(tls != nullptr);
 
     // The compiler expect a kinda strange alignment coming from clone:
