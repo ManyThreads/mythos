@@ -1,4 +1,4 @@
-/* -*- mode:C++; -*- */
+/* -*- mode:C++; indent-tabs-mode:nil; -*- */
 /* MIT License -- MyThOS: The Many-Threads Operating System
  *
  * Permission is hereby granted, free of charge, to any person
@@ -21,52 +21,25 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  *
- * Copyright 2014 Randolf Rotta, Maik Krüger, and contributors, BTU Cottbus-Senftenberg
+ * Copyright 2021 Philipp Gypser, BTU Cottbus-Senftenberg
  */
 #pragma once
 
-#include "util/Logger.hh"
+#include "plugins/TestPlugin.hh"
 
-namespace mlog {
+namespace mythos {
+namespace test_perfmon {
 
-#ifndef MLOG_CAP
-#define MLOG_CAP FilterWarning
-#endif
-  extern Logger<MLOG_CAP> cap;
+class TestPerfMon : public TestPlugin
+  {
+  public:
+    TestPerfMon();
+    virtual void initThread(cpu::ThreadID threadID) override;
+    virtual void initGlobal() override;
 
-#ifndef MLOG_SCHED
-#define MLOG_SCHED FilterError
-#endif
-  extern Logger<MLOG_SCHED> sched;
+  private:
+    void runTest();
+  };
 
-#ifndef MLOG_SYSCALL
-#define MLOG_SYSCALL FilterWarning
-#endif
-  extern Logger<MLOG_SYSCALL> syscall;
-
-#ifndef MLOG_EC
-#define MLOG_EC FilterWarning
-#endif
-  extern Logger<MLOG_EC> ec;
-
-#ifndef MLOG_KM
-#define MLOG_KM FilterWarning
-#endif
-  extern Logger<MLOG_KM> km;
-
-#ifndef MLOG_IRQ
-#define MLOG_IRQ FilterWarning
-#endif
-  extern Logger<MLOG_IRQ> irq;
-
-#ifndef MLOG_PERFMON
-#define MLOG_PERFMON FilterWarning
-#endif
-  extern Logger<MLOG_PERFMON> perfmon;
-
-#ifndef MLOG_PM
-#define MLOG_PM FilterWarning
-#endif
-  extern Logger<MLOG_PROCESSORMGMT> pm; //processor management
-
-} // namespace mlog
+} // test_perfmon
+} // mythos

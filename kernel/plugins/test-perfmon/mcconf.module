@@ -1,0 +1,3 @@
+[module.plugin-test-perfmon]
+    incfiles = [ "plugins/test-perfmon.hh" ]
+    kernelfiles = [ "plugins/test-perfmon.cc" ]
