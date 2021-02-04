@@ -69,6 +69,7 @@ char initstack[stacksize];
 char* initstack_top = initstack+stacksize;
 
 mythos::Portal portal(mythos::init::PORTAL, info_ptr->getInvocationBuf());
+mythos::Frame infoFrame(mythos::init::INFO_FRAME);
 mythos::CapMap myCS(mythos::init::CSPACE);
 mythos::PageMap myAS(mythos::init::PML4);
 mythos::KernelMemory kmem(mythos::init::KM);
@@ -385,6 +386,47 @@ void test_InterruptControl() {
   MLOG_INFO(mlog::app, "test_InterruptControl end");
 }
 
+long SerialFib( long n ) {
+    if( n<2 )
+        return n;
+    else
+        return SerialFib(n-1)+SerialFib(n-2);
+}
+
+class FibTask: public tbb::task {
+public:
+    const long n;
+    long* const sum;
+    FibTask( long n_, long* sum_ ) :
+        n(n_), sum(sum_)
+    {}
+    tbb::task* execute() {      // Overrides virtual function task::execute
+        if( n<10 ) {
+            *sum = SerialFib(n);
+        } else {
+            long x, y;
+            FibTask& a = *new( allocate_child() ) FibTask(n-1,&x);
+            FibTask& b = *new( allocate_child() ) FibTask(n-2,&y);
+            // Set ref_count to 'two children plus one for the wait".
+            set_ref_count(3);
+            // Start b running.
+            spawn( b );
+            // Start a running and wait for all children (a and b).
+            spawn_and_wait_for_all(a);
+            // Do the sum
+            *sum = x+y;
+        }
+        return NULL;
+    }
+};
+
+long ParallelFib( long n ) {
+    long sum;
+    FibTask& a = *new(tbb::task::allocate_root()) FibTask(n,&sum);
+    tbb::task::spawn_root_and_wait(a);
+    return sum;
+}
+
 void test_TBB(){
   MLOG_INFO(mlog::app, "Test TBB");
 
@@ -399,11 +441,24 @@ void test_TBB(){
 	      }
 	};
 
-	tbb::task_group tg;
-	for(int i=0; i<10; i++){
-		tg.run(say_hello(i)); // spawn 1st task and return
-	}
-	tg.wait( );             // wait for tasks to complete
+
+  MLOG_INFO(mlog::app, "fib", DVAR(ParallelFib(20)));
+
+  //tbb::task_group tg;
+  //printf("created task group\n");
+  //for(int i=0; i<10; i++){
+    //tg.run(say_hello(i)); // spawn 1st task and return
+  //}
+  //tg.wait( );             // wait for tasks to complete
+  //tbb::parallel_for( tbb::blocked_range<int>(0,3),
+    //[&](tbb::blocked_range<int> r)
+    //{
+      //for (int i=r.begin(); i<r.end(); ++i)
+      //{
+        //printf("hello from task %d\n",i);
+      //}
+    //});
+  
   MLOG_INFO(mlog::app, "Test finished");
 }
 
@@ -537,19 +592,18 @@ int main()
   MLOG_ERROR(mlog::app, "application is starting :)", DVARhex(info_ptr), DVARhex(initstack_top));
 
   //test_float();
-  test_Example();
-  test_Portal();
+  //test_Example();
+  //test_Portal();
   test_heap(); // heap must be initialized for tls test
-  test_tls();
-  test_exceptions();
+  //test_tls();
+  //test_exceptions();
   //test_InterruptControl();
   //test_HostChannel(portal, 24*1024*1024, 2*1024*1024);
-  test_ExecutionContext();
-  test_pthreads();
-  test_Rapl();
-  test_processor_allocator();
+  //test_ExecutionContext();
+  //test_pthreads();
+  //test_Rapl();
   test_TBB();
-  test_process();
+  //test_process();
   //test_CgaScreen();
 
   char const end[] = "bye, cruel world!";

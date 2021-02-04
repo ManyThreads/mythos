@@ -91,7 +91,7 @@ namespace mythos {
         MLOG_ERROR(mlog::pm, "ERROR: Init EC bind SC failed ", DVAR(*id));
       }
     }else{
-      MLOG_ERROR(mlog::pm, "Cannot allocate SC for init EC");
+      MLOG_WARN(mlog::pm, "Cannot allocate SC for EC");
     }
     return false;
   }

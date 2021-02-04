@@ -453,10 +453,12 @@ extern "C" int pthread_attr_setinheritsched(pthread_attr_t *, int){
 }
 
 
+#ifdef use_pthreads_stubs
 extern "C" int pthread_mutexattr_destroy(pthread_mutexattr_t *){
 	MLOG_ERROR(mlog::app, __PRETTY_FUNCTION__);
 	return 0;
 }
+#endif
 
 extern "C" int pthread_mutexattr_getprioceiling(const pthread_mutexattr_t *__restrict, int *__restrict){
 	MLOG_ERROR(mlog::app, __PRETTY_FUNCTION__);
@@ -510,10 +512,12 @@ extern "C" int pthread_mutexattr_setrobust(pthread_mutexattr_t *, int){
 	return 0;
 }
 
+#ifdef use_pthreads_stubs
 extern "C" int pthread_mutexattr_settype(pthread_mutexattr_t *, int){
 	MLOG_ERROR(mlog::app, __PRETTY_FUNCTION__);
 	return 0;
 }
+#endif
 
 
 #ifdef use_pthreads_stubs

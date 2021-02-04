@@ -53,6 +53,7 @@ char initstack[stacksize];
 char* initstack_top = initstack+stacksize;
 
 mythos::Portal portal(mythos::init::PORTAL, info_ptr->getInvocationBuf());
+mythos::Frame infoFrame(mythos::init::INFO_FRAME);
 mythos::CapMap myCS(mythos::init::CSPACE);
 mythos::PageMap myAS(mythos::init::PML4);
 mythos::KernelMemory kmem(mythos::init::KM);

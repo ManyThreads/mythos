@@ -247,11 +247,11 @@ class Process{
     MLOG_DETAIL(mlog::app, "create InfoFrame ...");
     auto size = round_up(sizeof(InfoFrame), align2M);
     MLOG_DETAIL(mlog::app, "   create frame", DVAR(size));
-    Frame infoFrame(capAlloc());
-    res = infoFrame.create(pl, kmem, size, align2M).wait();
+    Frame iFrame(capAlloc());
+    res = iFrame.create(pl, kmem, size, align2M).wait();
     TEST(res);
     MLOG_DETAIL(mlog::app, "   map frame to target page map", DVARhex(size), DVARhex(*ipc_vaddr));
-    res = pm4.mmap(pl, infoFrame, *ipc_vaddr, align2M, 0x1).wait();
+    res = pm4.mmap(pl, iFrame, *ipc_vaddr, align2M, 0x1).wait();
     TEST(res);
     
     uintptr_t tmp_vaddr_if = 11*align512G;
@@ -271,7 +271,7 @@ class Process{
     TEST(res);
 
     MLOG_DETAIL(mlog::app, "   mmap");
-    res = myAS.mmap(pl, infoFrame, tmp_vaddr_if, size, 0x1).wait();
+    res = myAS.mmap(pl, iFrame, tmp_vaddr_if, size, 0x1).wait();
     TEST(res);
     
     MLOG_DETAIL(mlog::app, "   copy info frame content");
@@ -321,7 +321,7 @@ class Process{
     Portal port(capAlloc(), reinterpret_cast<void*>(*ipc_vaddr));
     res = port.create(pl, kmem).wait();
     TEST(res);
-    res = port.bind(pl, infoFrame, 0, ec.cap()).wait();
+    res = port.bind(pl, iFrame, 0, ec.cap()).wait();
     TEST(res);
 
     MLOG_DETAIL(mlog::app, "   move Portal");
@@ -330,9 +330,9 @@ class Process{
     capAlloc.freeEmpty(port.cap());
     
     MLOG_DETAIL(mlog::app, "   move info frame");
-    res = myCS.move(pl, infoFrame.cap(), max_cap_depth, cs.cap(), init::INFO_FRAME, max_cap_depth).wait();
+    res = myCS.move(pl, iFrame.cap(), max_cap_depth, cs.cap(), init::INFO_FRAME, max_cap_depth).wait();
     TEST(res);
-    capAlloc.freeEmpty(infoFrame.cap());
+    capAlloc.freeEmpty(iFrame.cap());
 
     /* move tables */
     MLOG_DETAIL(mlog::app, "move tables ...");

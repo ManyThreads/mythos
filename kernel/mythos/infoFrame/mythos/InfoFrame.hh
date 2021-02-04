@@ -26,10 +26,12 @@
 #pragma once
 
 #include "mythos/InvocationBuf.hh"
-
-#define PS_PER_TSC_DEFAULT (0x180)
+#include "mythos/init.hh"
 
 namespace mythos {
+
+constexpr uint64_t PS_PER_TSC_DEFAULT = 0x180;
+constexpr size_t MAX_IB = 4096;
 
 class InfoFrame{
   public:
@@ -38,12 +40,17 @@ class InfoFrame{
       , numThreads(1)
     {}
 
-    InvocationBuf* getInvocationBuf() {return &ib; }
+    InvocationBuf* getInvocationBuf() {return &ib[0]; }
+    InvocationBuf* getInvocationBuf(size_t i) {return &ib[i]; }
+    size_t getIbOffset(size_t i){
+      return reinterpret_cast<uintptr_t>(&ib[i]) - reinterpret_cast<uintptr_t>(this);
+    }
+
     uint64_t getPsPerTSC() { return psPerTsc; }
     size_t getNumThreads() { return numThreads; }
     uintptr_t getInfoEnd () { return reinterpret_cast<uintptr_t>(this) + sizeof(InfoFrame); }
 
-    InvocationBuf ib; // needs to be the first member (see Initloader::createPortal)
+    InvocationBuf ib[MAX_IB]; // needs to be the first member (see Initloader::createPortal)
     uint64_t psPerTsc; // picoseconds per time stamp counter
     size_t numThreads; // number of hardware threads available in the system
 };

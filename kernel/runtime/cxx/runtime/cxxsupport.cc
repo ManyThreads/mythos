@@ -58,17 +58,31 @@
 
 extern mythos::InfoFrame* info_ptr asm("info_ptr");
 extern mythos::Portal portal;
+extern mythos::Frame infoFrame;
 extern mythos::CapMap myCS;
 extern mythos::PageMap myAS;
 extern mythos::KernelMemory kmem;
 extern mythos::ThreadTeam team;
+
+static thread_local mythos::CapPtr localPortalPtr;
+thread_local mythos::Portal localPortal(
+    mythos_get_pthread_ec_self() == mythos::init::EC ? mythos::init::PORTAL : localPortalPtr,
+    mythos_get_pthread_ec_self() == mythos::init::EC ? info_ptr->getInvocationBuf() 
+    : info_ptr->getInvocationBuf(localPortalPtr));
+
+void setRemotePortalPtr(uintptr_t targetTLS, mythos::CapPtr p){
+  auto ptr = reinterpret_cast<mythos::CapPtr*>(targetTLS 
+      - (mythos::getTLS() - reinterpret_cast<uintptr_t>(&localPortalPtr)));
+  *ptr = p;
+}
+
 
 // synchronization for pthread deletion (exit/join)
 struct PthreadCleaner{
   PthreadCleaner()
     : flag(FREE)
   {
-    //MLOG_ERROR(mlog::app, "PthreadCleaner");
+    MLOG_DETAIL(mlog::app, "PthreadCleaner");
   }
 
   enum state{
@@ -150,9 +164,7 @@ int prlimit(
 int my_sched_setaffinity(pid_t pid, size_t cpusetsize, cpu_set_t *mask)
 {
     //MLOG_DETAIL(mlog::app, "syscall sched_setaffinity", DVAR(pid), DVAR(cpusetsize), DVARhex(mask));
-    //todo: make TBB and OMP ressource aware (pthread_create fail)
-    //if(cpusetsize == info_ptr->getNumThreads() && mask == NULL) return -EFAULT;
-    if(cpusetsize == 2 && mask == NULL) return -EFAULT;
+    if(cpusetsize == 8/*info_ptr->getNumThreads()*/ && mask == NULL) return -EFAULT;
     return 0;
 }
 
@@ -162,10 +174,9 @@ int my_sched_getaffinity(pid_t pid, size_t cpusetsize, cpu_set_t *mask)
     if (mask) {
         //CPU_ZERO(mask);
 	memset(mask, 0, cpusetsize);
-        for(int i = 0; i < 2 /*info_ptr->getNumThreads()*/; i++) CPU_SET(i, mask);
+        for(int i = 0; i < 8/*info_ptr->getNumThreads()*/; i++) CPU_SET(i, mask);
     }
-    //todo: make TBB and OMP ressource aware (pthread_create fail)
-    return 2;//info_ptr->getNumThreads();
+    return 8/*info_ptr->getNumThreads()*/;
 }
 
 void clock_gettime(long clk, struct timespec *ts){
@@ -317,15 +328,15 @@ int myclone(
     void *arg, int* ptid, void* tls, int* ctid)
 {
     MLOG_DETAIL(mlog::app, "myclone");
+    setRemotePortalPtr(reinterpret_cast<uintptr_t>(tls), 42);
     ASSERT(tls != nullptr);
-
     // The compiler expect a kinda strange alignment coming from clone:
     // -> rsp % 16 must be 8
     // You can see this also in musl/src/thread/x86_64/clone.s (rsi is stack)
     // We will use the same trick for alignment as musl libc
     auto rsp = (uintptr_t(stack) & uintptr_t(-16))-8;
 
-    mythos::PortalLock pl(portal); // future access will fail if the portal is in use already
+    mythos::PortalLock pl(localPortal); // future access will fail if the portal is in use already
     mythos::ExecutionContext ec(capAlloc());
     if (ptid && (flags&CLONE_PARENT_SETTID)) *ptid = int(ec.cap());
     // @todo store thread-specific ctid pointer, which should set to 0 by the OS on the thread's exit
@@ -333,13 +344,22 @@ int myclone(
     auto res = ec.create(kmem)
       .as(myAS)
       .cs(myCS)
-      //.sched(sc->cap)
       .rawStack(rsp)
       .rawFun(func, arg)
       .suspended(false)
       .fs(tls)
       .invokeVia(pl)
       .wait();
+
+    // create Portal
+    ASSERT(ec.cap() < mythos::MAX_IB);
+    mythos::CapPtr pPtr = capAlloc();
+    mythos::Portal newPortal(pPtr, info_ptr->getInvocationBuf(pPtr));
+    newPortal.create(pl, kmem).wait();
+    newPortal.bind(pl, infoFrame, info_ptr->getIbOffset(pPtr), ec.cap());
+    setRemotePortalPtr(reinterpret_cast<uintptr_t>(tls), pPtr);
+    MLOG_WARN(mlog::app, "todo: free Portal!");
+
     auto tres = team.tryRunEC(pl, ec).wait();
     if(tres){
       return ec.cap();
@@ -368,7 +388,7 @@ extern "C" void mythos_pthread_cleanup(pthread_t t){
     pthreadCleaner.wait(t);
     // delete EC of target pthread
     auto cap = mythos_get_pthread_ec(t);
-    mythos::PortalLock pl(portal); 
+    mythos::PortalLock pl(localPortal); 
     capAlloc.free(cap, pl);
     // memory of target pthread will be free when returning from this function
 }
