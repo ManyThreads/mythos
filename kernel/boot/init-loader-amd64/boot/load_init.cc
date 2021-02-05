@@ -207,6 +207,9 @@ optional<CapPtr> InitLoader::createInfoFrame(uintptr_t ipc_vaddr)
     auto info = new(reinterpret_cast<InfoFrame*>(frame.getFrameInfo().start.logint())) InfoFrame();
     info->numThreads = cpu::getNumThreads();
 
+    //register user memory
+    info->memRanges = _mem->getUserMem();
+
     event::initInfoFrame.emit(info);
 
     return frameCap;
