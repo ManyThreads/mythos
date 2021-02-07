@@ -64,6 +64,7 @@ namespace mythos {
     : memory(memory)
     , nFree(0)
     , nUsed(0)
+    , nDemand(0)
     {}
 
   bool ThreadTeam::tryRunEC(ExecutionContext* ec){
@@ -101,6 +102,7 @@ namespace mythos {
     
     auto data = msg->getMessage()->read<protocol::ThreadTeam::TryRunEC>();
     auto ece = msg->lookupEntry(data.ec());
+    auto ret = msg->getMessage()->cast<protocol::ThreadTeam::RetTryRunEC>();
     if(!ece){
       MLOG_ERROR(mlog::pm, "Error: Did not find EC!");
       return Error::INVALID_CAPABILITY;
@@ -109,19 +111,51 @@ namespace mythos {
     TypedCap<ExecutionContext> ec(ece);
 
     if(ec && tryRunEC(*ec)){
+      ret->setResponse(protocol::ThreadTeam::RetTryRunEC::ALLOCATED);
       return Error::SUCCESS;
     }
-    return Error::INSUFFICIENT_RESOURCES;
+
+    if(data.allocType == protocol::ThreadTeam::DEMAND){
+      if(enqueueDemand(ec)){
+        ret->setResponse(protocol::ThreadTeam::RetTryRunEC::DEMANDED);
+        return Error::SUCCESS;
+      }
+    }else if(data.allocType == protocol::ThreadTeam::FORCE){
+      //todo: force run
+      if(nUsed > 0){
+        //todo: use a more sophisticated mapping scheme
+        auto pal = pa.get();
+        ASSERT(pal);
+        auto sce = pal->getSC(usedList[0]);
+        auto r = ec->setSchedulingContext(sce);
+        if(r){
+          ret->setResponse(protocol::ThreadTeam::RetTryRunEC::FORCED);
+          return Error::SUCCESS;
+        }
+      }
+    }
+
+    ret->setResponse(protocol::ThreadTeam::RetTryRunEC::FAILED);
+    return Error::SUCCESS;
   }
 
-  Error ThreadTeam::invokeDemandRunEC(Tasklet* /*t*/, Cap, IInvocation* /*msg*/){
-    MLOG_ERROR(mlog::pm, __func__, " NYI!");
-    return Error::NOT_IMPLEMENTED;
-  }
+  Error ThreadTeam::invokeRevokeDemand(Tasklet* /*t*/, Cap, IInvocation* msg){
+    MLOG_DETAIL(mlog::pm, __func__);
+    auto data = msg->getMessage()->read<protocol::ThreadTeam::RevokeDemand>();
+    auto ece = msg->lookupEntry(data.ec());
+    auto ret = msg->getMessage()->cast<protocol::ThreadTeam::RetRevokeDemand>();
+    if(!ece){
+      MLOG_ERROR(mlog::pm, "Error: Did not find EC!");
+      return Error::INVALID_CAPABILITY;
+    }
 
-  Error ThreadTeam::invokeForceRunEC(Tasklet* /*t*/, Cap, IInvocation* /*msg*/){
-    MLOG_ERROR(mlog::pm, __func__, " NYI!");
-    return Error::NOT_IMPLEMENTED;
+    TypedCap<ExecutionContext> ec(ece);
+    if(removeDemand(ece)){
+      ret->revoked = true;
+    }
+
+    ret->revoked = false;
+    return Error::SUCCESS;
   }
 
   Error ThreadTeam::invokeRunNextToEC(Tasklet* /*t*/, Cap, IInvocation* /*msg*/){

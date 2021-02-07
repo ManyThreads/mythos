@@ -56,8 +56,7 @@ namespace mythos {
 
       bool tryRunEC(ExecutionContext* ec);
       Error invokeTryRunEC(Tasklet* t, Cap, IInvocation* msg);
-      Error invokeDemandRunEC(Tasklet* t, Cap, IInvocation* msg);
-      Error invokeForceRunEC(Tasklet* t, Cap, IInvocation* msg);
+      Error invokeRevokeDemand(Tasklet* t, Cap, IInvocation* msg);
       Error invokeRunNextToEC(Tasklet* t, Cap, IInvocation* msg);
 
       void bind(optional<ProcessorAllocator*> ) {
@@ -113,6 +112,40 @@ namespace mythos {
         MLOG_ERROR(mlog::pm, "ERROR: did not find used ThreadID ", id);
       }
 
+      bool enqueueDemand(TypedCap<ExecutionContext> ec){
+        if(nDemand < MYTHOS_MAX_THREADS){
+          demandList[nDemand] = ec;
+          nDemand++;
+          return true;
+        }
+        return false;
+      }
+
+      bool removeDemand(TypedCap<ExecutionContext> ec){
+        for(unsigned i = 0; i < nDemand; i++){
+          if(demandList[i].obj() == ec.obj()){
+            nDemand--;
+            for(; i < nDemand; i++){
+              demandList[i] = demandList[i+1];
+            }
+            return true;
+          }
+        }
+        MLOG_WARN(mlog::pm, "did not find EC in demand list ");
+        return false;
+      }
+
+      TypedCap<ExecutionContext> dequeueDemand(){
+        if(nDemand){
+          auto ret = demandList[0];
+          nDemand--;
+          for(unsigned i = 0; i < nDemand; i++){
+            demandList[i] = demandList[i+1];
+          }
+          return ret;
+        }
+        return TypedCap<ExecutionContext>();
+      }
 
     private:
       IAsyncFree* memory;
@@ -124,7 +157,8 @@ namespace mythos {
       unsigned nFree;
       cpu::ThreadID usedList[MYTHOS_MAX_THREADS];
       unsigned nUsed;
-
+      TypedCap<ExecutionContext> demandList[MYTHOS_MAX_THREADS];
+      unsigned nDemand; 
   };
 
   class ThreadTeamFactory : public FactoryBase
