@@ -43,24 +43,16 @@ namespace mythos {
       return pr.invoke<protocol::ThreadTeam::Create>(kmem.cap(), _cap, factory, pa);
     }
 
-    PortalFuture<void> tryRunEC(PortalLock pr, ExecutionContext ec){
-      return pr.invoke<protocol::ThreadTeam::TryRunEC>(_cap, ec.cap());
+    PortalFuture<void> tryRunEC(PortalLock pr, ExecutionContext ec, int at = protocol::ThreadTeam::FAIL){
+      return pr.invoke<protocol::ThreadTeam::TryRunEC>(_cap, ec.cap(), at);
     }
 
     PortalFuture<void> runNextToEC(PortalLock pr, ExecutionContext ec, ExecutionContext ec_place){
       return pr.invoke<protocol::ThreadTeam::RunNextToEC>(_cap, ec.cap(), ec_place.cap());
     }
 
-    PortalFuture<void> demandRunEC(PortalLock pr, ExecutionContext ec){
-      return pr.invoke<protocol::ThreadTeam::TryRunEC>(_cap, ec.cap());
-    }
-
     PortalFuture<void> revokeDemand(PortalLock pr, ExecutionContext ec){
-      return pr.invoke<protocol::ThreadTeam::TryRunEC>(_cap, ec.cap());
-    }
-
-    PortalFuture<void> forceRunEC(PortalLock pr, ExecutionContext ec){
-      return pr.invoke<protocol::ThreadTeam::TryRunEC>(_cap, ec.cap());
+      return pr.invoke<protocol::ThreadTeam::RevokeDemand>(_cap, ec.cap());
     }
   };
 

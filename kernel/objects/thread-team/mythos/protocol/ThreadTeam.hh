@@ -39,12 +39,16 @@ namespace mythos {
       enum Methods : uint8_t {
         TRYRUNEC,
         RETTRYRUNEC,
-        DEMANDRUNEC,
-        RETDEMANDRUNEC,
-        FORCERUNEC,
-        RETFORCERUNEC,
+        REVOKEDEMAND,
+        RETREVOKEDEMAND,
         RUNNEXTTOEC,
         RETRUNNEXTTOEC
+      };
+
+      enum TeamAllocType{
+        FAIL = 0,
+        FORCE = 1,
+        DEMAND = 2
       };
 
       struct Create : public KernelMemory::CreateBase {
@@ -60,23 +64,46 @@ namespace mythos {
 
       struct TryRunEC : public InvocationBase {
         constexpr static uint16_t label = (proto<<8) + TRYRUNEC;
-        TryRunEC(CapPtr ec) : InvocationBase(label,getLength(this)) {
+        TryRunEC(CapPtr ec, int allocType) 
+          : InvocationBase(label,getLength(this)) 
+          , allocType(allocType)
+        {
           addExtraCap(ec);
         }
 
         // execution context to be scheduled
         CapPtr ec() const { return this->capPtrs[0]; }
+        int allocType;
       };
 
       struct RetTryRunEC : public InvocationBase {
         constexpr static uint16_t label = (proto<<8) + RETTRYRUNEC;
-        RetTryRunEC() : InvocationBase(label,getLength(this)) {
-        }
+
+        enum response{
+          FAILED,
+          ALLOCATED,
+          DEMANDED,
+          FORCED
+        };
+
+        RetTryRunEC() 
+          : InvocationBase(label,getLength(this)) 
+          , response(FAILED)
+        {}
+
+        void setResponse(int response){ this->response = response; }
+        int getResponse() { return response; }
+        bool failed() { return response == FAILED; }
+        bool allocated() { return response == ALLOCATED; }
+        bool notFailed() { return response == ALLOCATED || response == DEMANDED 
+          || response == FORCED; } 
+        int response;
       };
 
-      struct DemandRunEC : public InvocationBase {
-        constexpr static uint16_t label = (proto<<8) + DEMANDRUNEC;
-        DemandRunEC(CapPtr ec) : InvocationBase(label,getLength(this)) {
+      struct RevokeDemand : public InvocationBase {
+        constexpr static uint16_t label = (proto<<8) + REVOKEDEMAND;
+        RevokeDemand(CapPtr ec) : InvocationBase(label,getLength(this)) 
+        {
           addExtraCap(ec);
         }
 
@@ -84,26 +111,14 @@ namespace mythos {
         CapPtr ec() const { return this->capPtrs[0]; }
       };
 
-      struct RetDemandRunEC : public InvocationBase {
-        constexpr static uint16_t label = (proto<<8) + RETDEMANDRUNEC;
-        RetDemandRunEC() : InvocationBase(label,getLength(this)) {
-        }
-      };
+      struct RetRevokeDemand : public InvocationBase {
+        constexpr static uint16_t label = (proto<<8) + RETREVOKEDEMAND;
+        RetRevokeDemand() 
+          : InvocationBase(label,getLength(this)) 
+          , revoked(false)
+        {}
 
-      struct ForceRunEC : public InvocationBase {
-        constexpr static uint16_t label = (proto<<8) + FORCERUNEC;
-        ForceRunEC(CapPtr ec) : InvocationBase(label,getLength(this)) {
-          addExtraCap(ec);
-        }
-
-        // execution context to be scheduled
-        CapPtr ec() const { return this->capPtrs[0]; }
-      };
-
-      struct RetForceRunEC : public InvocationBase {
-        constexpr static uint16_t label = (proto<<8) + RETFORCERUNEC;
-        RetForceRunEC() : InvocationBase(label,getLength(this)) {
-        }
+        bool revoked;
       };
 
       struct RunNextToEC : public InvocationBase {
@@ -128,8 +143,7 @@ namespace mythos {
       static Error dispatchRequest(IMPL* obj, uint8_t m, ARGS const&...args) {
         switch(Methods(m)) {
           case TRYRUNEC: return obj->invokeTryRunEC(args...);
-          case DEMANDRUNEC: return obj->invokeDemandRunEC(args...);
-          case FORCERUNEC: return obj->invokeForceRunEC(args...);
+          case REVOKEDEMAND: return obj->invokeRevokeDemand(args...);
           case RUNNEXTTOEC: return obj->invokeRunNextToEC(args...);
           default: return Error::NOT_IMPLEMENTED;
         }
