@@ -54,7 +54,8 @@ namespace mythos {
         THROW(Error::TYPE_MISMATCH);
       }
 
-      bool tryRunEC(ExecutionContext* ec);
+      bool tryRun(ExecutionContext* ec);
+      bool tryRunAt(ExecutionContext* ec, cpu::ThreadID id);
       Error invokeTryRunEC(Tasklet* t, Cap, IInvocation* msg);
       Error invokeRevokeDemand(Tasklet* t, Cap, IInvocation* msg);
       Error invokeRunNextToEC(Tasklet* t, Cap, IInvocation* msg);
@@ -67,85 +68,26 @@ namespace mythos {
         MLOG_ERROR(mlog::pm, "ERROR: unbind processor allocator");
       }
 
-      void notifyIdle(Tasklet* t, cpu::ThreadID id) override {
-        MLOG_DETAIL(mlog::pm, __func__, DVAR(id));
-        monitor.request(t, [=](Tasklet*){
-            removeUsed(id);
-            pushFree(id);
-            monitor.responseAndRequestDone();
-        }); 
-      }
-    private:
-      void pushFree(cpu::ThreadID id){
-        MLOG_DETAIL(mlog::pm, __func__, DVAR(id));
-        freeList[nFree] = id;
-        nFree++;
-      }
+      void bind(optional<ExecutionContext*> /*ec*/){}
 
-      optional<cpu::ThreadID> popFree(){
+      void unbind(optional<ExecutionContext*> ec){
         MLOG_DETAIL(mlog::pm, __func__);
-        optional<cpu::ThreadID> ret;
-        if(nFree > 0){
-          nFree--;
-          ret = freeList[nFree];
+        if(ec){
+          removeDemand(*ec);
         }
-        return ret;
       }
 
-      void pushUsed(cpu::ThreadID id){
-        MLOG_DETAIL(mlog::pm, __func__, DVAR(id));
-        usedList[nUsed] = id;
-        nUsed++;
-      }
+      void notifyIdle(Tasklet* t, cpu::ThreadID id) override;
 
-      void removeUsed(cpu::ThreadID id){
-        MLOG_DETAIL(mlog::pm, __func__, DVAR(id));
-        for(unsigned i = 0; i < nUsed; i++){
-          if(usedList[i] == id){
-            nUsed--;
-            for(; i < nUsed; i++){
-              usedList[i] = usedList[i+1];
-            }
-            return;
-          }
-        }
-        MLOG_ERROR(mlog::pm, "ERROR: did not find used ThreadID ", id);
-      }
-
-      bool enqueueDemand(TypedCap<ExecutionContext> ec){
-        if(nDemand < MYTHOS_MAX_THREADS){
-          demandList[nDemand] = ec;
-          nDemand++;
-          return true;
-        }
-        return false;
-      }
-
-      bool removeDemand(TypedCap<ExecutionContext> ec){
-        for(unsigned i = 0; i < nDemand; i++){
-          if(demandList[i].obj() == ec.obj()){
-            nDemand--;
-            for(; i < nDemand; i++){
-              demandList[i] = demandList[i+1];
-            }
-            return true;
-          }
-        }
-        MLOG_WARN(mlog::pm, "did not find EC in demand list ");
-        return false;
-      }
-
-      TypedCap<ExecutionContext> dequeueDemand(){
-        if(nDemand){
-          auto ret = demandList[0];
-          nDemand--;
-          for(unsigned i = 0; i < nDemand; i++){
-            demandList[i] = demandList[i+1];
-          }
-          return ret;
-        }
-        return TypedCap<ExecutionContext>();
-      }
+    private:
+      void pushFree(cpu::ThreadID id);
+      optional<cpu::ThreadID> popFree();
+      void pushUsed(cpu::ThreadID id);
+      void removeUsed(cpu::ThreadID id);
+      bool enqueueDemand(CapEntry* ec);
+      bool removeDemand(ExecutionContext* ec);
+      //bool tryRunDemand();
+      bool tryRunDemandAt(cpu::ThreadID id);
 
     private:
       IAsyncFree* memory;
@@ -157,7 +99,10 @@ namespace mythos {
       unsigned nFree;
       cpu::ThreadID usedList[MYTHOS_MAX_THREADS];
       unsigned nUsed;
-      TypedCap<ExecutionContext> demandList[MYTHOS_MAX_THREADS];
+      CapRef<ThreadTeam, ExecutionContext> demandEC[MYTHOS_MAX_THREADS];
+      // index < nDemand = demandEC slot in use
+      // index >= nDemand = demandEC slot is free
+      unsigned demandList[MYTHOS_MAX_THREADS]; // indexes to demandEC
       unsigned nDemand; 
   };
 

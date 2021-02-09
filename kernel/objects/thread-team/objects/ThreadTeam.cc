@@ -65,9 +65,13 @@ namespace mythos {
     , nFree(0)
     , nUsed(0)
     , nDemand(0)
-    {}
+    {
+      for(unsigned d = 0; d < MYTHOS_MAX_THREADS; d++){
+        demandList[d] = d;
+      }
+    }
 
-  bool ThreadTeam::tryRunEC(ExecutionContext* ec){
+  bool ThreadTeam::tryRun(ExecutionContext* ec){
     MLOG_DETAIL(mlog::pm, __func__);
     auto pal = pa.get();
     ASSERT(pal);
@@ -79,20 +83,29 @@ namespace mythos {
       MLOG_DETAIL(mlog::pm, "try alloc SC from PA");
       id = pal->alloc();
     }
-    if(id){
-      auto sce = pal->getSC(*id);
-      TypedCap<SchedulingContext> sc(sce->cap());
-      sc->registerThreadTeam(static_cast<INotifyIdle*>(this));
+    if(id && tryRunAt(ec, *id)){
       pushUsed(*id);
-      auto ret = ec->setSchedulingContext(sce);
-      if(ret){
-        MLOG_DETAIL(mlog::pm, "Init EC bind SC", DVAR(*id));
-        return true;
-      }else{
-        MLOG_ERROR(mlog::pm, "ERROR: Init EC bind SC failed ", DVAR(*id));
-      }
+      return true;
     }else{
       MLOG_ERROR(mlog::pm, "Cannot allocate SC for init EC");
+    }
+    return false;
+  }
+
+  bool ThreadTeam::tryRunAt(ExecutionContext* ec, cpu::ThreadID id){
+    MLOG_DETAIL(mlog::pm, __func__);
+    auto pal = pa.get();
+    ASSERT(pal);
+
+    auto sce = pal->getSC(id);
+    TypedCap<SchedulingContext> sc(sce->cap());
+    sc->registerThreadTeam(static_cast<INotifyIdle*>(this));
+    auto ret = ec->setSchedulingContext(sce);
+    if(ret){
+      MLOG_DETAIL(mlog::pm, "Init EC bind SC", DVAR(id));
+      return true;
+    }else{
+      MLOG_ERROR(mlog::pm, "ERROR: Init EC bind SC failed ", DVAR(id));
     }
     return false;
   }
@@ -110,18 +123,17 @@ namespace mythos {
 
     TypedCap<ExecutionContext> ec(ece);
 
-    if(ec && tryRunEC(*ec)){
+    if(ec && tryRun(*ec)){
       ret->setResponse(protocol::ThreadTeam::RetTryRunEC::ALLOCATED);
       return Error::SUCCESS;
     }
 
     if(data.allocType == protocol::ThreadTeam::DEMAND){
-      if(enqueueDemand(ec)){
+      if(enqueueDemand(*ece)){
         ret->setResponse(protocol::ThreadTeam::RetTryRunEC::DEMANDED);
         return Error::SUCCESS;
       }
     }else if(data.allocType == protocol::ThreadTeam::FORCE){
-      //todo: force run
       if(nUsed > 0){
         //todo: use a more sophisticated mapping scheme
         auto pal = pa.get();
@@ -150,17 +162,142 @@ namespace mythos {
     }
 
     TypedCap<ExecutionContext> ec(ece);
-    if(removeDemand(ece)){
+    if(ec && removeDemand(*ec)){
       ret->revoked = true;
+    }else{
+      MLOG_WARN(mlog::pm, "revoke demand failed");
+      ret->revoked = false;
     }
 
-    ret->revoked = false;
     return Error::SUCCESS;
+  }
+
+  void ThreadTeam::notifyIdle(Tasklet* t, cpu::ThreadID id) {
+    MLOG_DETAIL(mlog::pm, __func__, DVAR(id));
+    monitor.request(t, [=](Tasklet*){
+        if(!tryRunDemandAt(id)) {
+          removeUsed(id);
+          pushFree(id);
+        }
+        monitor.responseAndRequestDone();
+    }); 
   }
 
   Error ThreadTeam::invokeRunNextToEC(Tasklet* /*t*/, Cap, IInvocation* /*msg*/){
     MLOG_ERROR(mlog::pm, __func__, " NYI!");
     return Error::NOT_IMPLEMENTED;
+  }
+
+  void ThreadTeam::pushFree(cpu::ThreadID id){
+    MLOG_DETAIL(mlog::pm, __func__, DVAR(id));
+    freeList[nFree] = id;
+    nFree++;
+  }
+
+  optional<cpu::ThreadID> ThreadTeam::popFree(){
+    MLOG_DETAIL(mlog::pm, __func__);
+    optional<cpu::ThreadID> ret;
+    if(nFree > 0){
+      nFree--;
+      ret = freeList[nFree];
+    }
+    return ret;
+  }
+
+  void ThreadTeam::pushUsed(cpu::ThreadID id){
+    MLOG_DETAIL(mlog::pm, __func__, DVAR(id));
+    usedList[nUsed] = id;
+    nUsed++;
+  }
+
+  void ThreadTeam::removeUsed(cpu::ThreadID id){
+    MLOG_DETAIL(mlog::pm, __func__, DVAR(id));
+    for(unsigned i = 0; i < nUsed; i++){
+      if(usedList[i] == id){
+        nUsed--;
+        for(; i < nUsed; i++){
+          usedList[i] = usedList[i+1];
+        }
+        return;
+      }
+    }
+    MLOG_ERROR(mlog::pm, "ERROR: did not find used ThreadID ", id);
+  }
+
+  bool ThreadTeam::enqueueDemand(CapEntry* ec){
+    if(nDemand < MYTHOS_MAX_THREADS){
+      demandEC[demandList[nDemand]].set(this, ec, ec->cap());
+      nDemand++;
+      return true;
+    }
+    return false;
+  }
+
+  bool ThreadTeam::removeDemand(ExecutionContext* ec){
+    //find entry
+    for(unsigned i = 0; i < nDemand; i++){
+      auto di = demandList[i];
+      auto d = demandEC[di].get();
+      if(d && *d == ec){
+        demandEC[di].reset();
+        nDemand--;
+        //move following entries
+        for(; i < nDemand; i++){
+          demandList[i] = demandList[i+1];
+        }
+        //move demand index behind used indexes
+        demandList[nDemand] = di;
+        return true;
+      }
+    }
+    MLOG_WARN(mlog::pm, "did not find EC in demand list ");
+    return false;
+  }
+
+  //bool ThreadTeam::tryRunDemand() {
+    //// demand available?
+    //if(nDemand){
+      ////take first
+      //auto di = demandList[0];
+      //TypedCap<ExecutionContext> ec(demandEC[di]);
+      //ASSERT(ec);
+      ////try to run ec
+      //if(tryRun(*ec)){
+        ////reset CapRef
+        //demandEC[di].reset();
+        //// remove from queue
+        //nDemand--;
+        //for(unsigned i = 0; i < nDemand; i++){
+          //demandList[i] = demandList[i+1];
+        //}
+        //demandList[nDemand] = di;
+        //return true;
+      //}
+    //}
+    //return false;
+  //}
+
+  bool ThreadTeam::tryRunDemandAt(cpu::ThreadID id) {
+    // demand available?
+    if(nDemand){
+      //take first
+      auto di = demandList[0];
+      TypedCap<ExecutionContext> ec(demandEC[di]);
+      ASSERT(ec);
+      //try to run ec
+      if(tryRunAt(*ec, id)){
+        //reset CapRef
+        demandEC[di].reset();
+        // remove from queue
+        nDemand--;
+        for(unsigned i = 0; i < nDemand; i++){
+          demandList[i] = demandList[i+1];
+        }
+        demandList[nDemand] = di;
+        return true;
+      }
+    }
+    return false;
   }
 
   optional<ThreadTeam*> 
@@ -181,4 +318,5 @@ namespace mythos {
     }
     return *obj;
   }
+
 } // namespace mythos

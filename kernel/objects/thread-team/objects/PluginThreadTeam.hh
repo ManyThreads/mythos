@@ -90,7 +90,7 @@ namespace factory {
     void processEvent(ExecutionContext* ec) override {
         MLOG_DETAIL(mlog::pm, "runEc");
         ASSERT(tt != nullptr);
-        tt->tryRunEC(ec);
+        tt->tryRun(ec);
     }
 
     ThreadTeam* tt;
