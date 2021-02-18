@@ -111,6 +111,10 @@ namespace mythos {
 
     if(id){
       MLOG_DETAIL(mlog::pm, DVAR(*id));
+      auto sce = pa->getSC(*id);
+      TypedCap<SchedulingContext> sc(sce->cap());
+      sc->registerThreadTeam(this);
+
       ret->setResponse(protocol::ThreadTeam::RetTryRunEC::DEMANDED);
       TypedCap<ExecutionContext> ec(ece);
       ASSERT(ec);
@@ -167,7 +171,7 @@ namespace mythos {
     }else if(state == SC_NOTIFY){
       if(bound){
         // remove ec from demand queue
-        removeDemand(tmp_ec);
+        removeDemand(tmp_ec, true);
       }else{
         removeUsed(tmp_id);
         pushFree(tmp_id);
@@ -292,7 +296,7 @@ namespace mythos {
     }
 
     TypedCap<ExecutionContext> ec(ece);
-    if(ec && removeDemand(*ec)){
+    if(ec && removeDemand(*ec, true)){
       ret->revoked = true;
     }else{
       MLOG_INFO(mlog::pm, "revoke demand failed");
@@ -363,8 +367,8 @@ namespace mythos {
     return false;
   }
 
-  bool ThreadTeam::removeDemand(ExecutionContext* ec){
-    MLOG_DETAIL(mlog::pm, __func__, DVARhex(ec));
+  bool ThreadTeam::removeDemand(ExecutionContext* ec, bool resetRef){
+    MLOG_DETAIL(mlog::pm, __func__, DVARhex(ec), DVAR(resetRef));
     //find entry
     for(unsigned i = 0; i < nDemand; i++){
       auto di = demandList[i];
@@ -378,8 +382,10 @@ namespace mythos {
         //move demand index behind used indexes
         demandList[nDemand] = di;
         //reset entry
-        tmp_ec = *d;
-        demandEC[di].reset();
+        if(resetRef){
+          tmp_ec = *d;
+          demandEC[di].reset();
+        }
         //dumpDemand();
         return true;
       }
@@ -427,13 +433,19 @@ namespace mythos {
 
   void ThreadTeam::unbind(optional<ExecutionContext*> ec){
     MLOG_DETAIL(mlog::pm, __func__, DVARhex(ec));
-    MLOG_WARN(mlog::pm, "Todo: Not synchronized! -> Handle EC deleted!");
-    ASSERT(state == INVOCATION || state == SC_NOTIFY);
     if(ec){
       if(*ec == tmp_ec){
+        MLOG_DETAIL(mlog::pm, "synchronous unbind");
         tmp_ec = nullptr;
       }else{
-        removeDemand(*ec);
+        MLOG_DETAIL(mlog::pm, "asynchronous unbind");
+        //todo: tasklet valid after unbind?
+        auto ecPtr = *ec;
+        monitor.request(&ec->threadTeamTasklet, [=](Tasklet*){
+            ASSERT(state == IDLE);
+            removeDemand(ecPtr, false);
+            monitor.responseAndRequestDone();
+        }); 
       }
     }
   }

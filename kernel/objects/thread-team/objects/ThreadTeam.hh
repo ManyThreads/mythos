@@ -90,7 +90,7 @@ namespace mythos {
       optional<cpu::ThreadID> popUsed();
       
       bool enqueueDemand(CapEntry* ec);
-      bool removeDemand(ExecutionContext* ec);
+      bool removeDemand(ExecutionContext* ec, bool resetRef);
       bool tryRunDemandAt(Tasklet* t, cpu::ThreadID id);
       void dumpDemand();
 

@@ -327,7 +327,7 @@ extern "C" long mythos_musl_syscall(
 	clock_gettime(a1, reinterpret_cast<struct timespec *>(a2));
         return 0;
     case 231: // exit_group for all pthreads 
-        MLOG_WARN(mlog::app, "syscall exit_group NYI");
+        MLOG_WARN(mlog::app, "syscall exit_group ");
 	mythosExit();
         return 0;
     case 302: // prlimit64

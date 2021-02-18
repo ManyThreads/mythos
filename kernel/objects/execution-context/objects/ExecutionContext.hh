@@ -183,6 +183,9 @@ namespace mythos {
 
     LinkedList<IKernelObject*>::Queueable del_handle = {this};
     IAsyncFree* memory;
+
+  public:
+    Tasklet threadTeamTasklet;
   };
 
   class ExecutionContextFactory : public FactoryBase
