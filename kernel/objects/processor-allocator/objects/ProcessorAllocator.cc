@@ -56,7 +56,7 @@ namespace mythos {
   }
 
   optional<cpu::ThreadID> ProcessorAllocator::alloc(){
-    MLOG_WARN(mlog::pm, "alloc not synchronized yet");
+    MLOG_DETAIL(mlog::pm, __func__);
     optional<cpu::ThreadID> ret;
     if(nFree > 0){
       nFree--;
@@ -66,6 +66,7 @@ namespace mythos {
   }
 
   void ProcessorAllocator::free(cpu::ThreadID id) {
+      MLOG_INFO(mlog::pm, __func__, DVAR(id));
       freeList[nFree] = id;
       nFree++;
   }

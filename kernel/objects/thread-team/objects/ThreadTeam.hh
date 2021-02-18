@@ -26,6 +26,7 @@
 #pragma once
 
 #include "async/NestedMonitorDelegating.hh"
+#include "async/IResult.hh"
 #include "objects/IFactory.hh"
 #include "objects/IKernelObject.hh"
 #include "cpu/hwthreadid.hh"
@@ -41,6 +42,8 @@ namespace mythos {
   class ThreadTeam
     : public IKernelObject
     , public INotifyIdle
+    , public IResult<cpu::ThreadID>
+    , public IResult<void>
   {
     public:
       ThreadTeam(IAsyncFree* memory);
@@ -54,47 +57,63 @@ namespace mythos {
         THROW(Error::TYPE_MISMATCH);
       }
 
+    /* IResult */
+      //called from ProcessorAllocator::alloc
+      void response(Tasklet* t, optional<cpu::ThreadID> id);
+      //called from ExecutionContext::setSchedulingContext
+      void response(Tasklet* t, optional<void> bound);
+  
+      // only for init EC
       bool tryRun(ExecutionContext* ec);
-      bool tryRunAt(ExecutionContext* ec, cpu::ThreadID id);
+
+      // invocations
       Error invokeTryRunEC(Tasklet* t, Cap, IInvocation* msg);
       Error invokeRevokeDemand(Tasklet* t, Cap, IInvocation* msg);
       Error invokeRunNextToEC(Tasklet* t, Cap, IInvocation* msg);
 
-      void bind(optional<ProcessorAllocator*> ) {
-        MLOG_DETAIL(mlog::pm, "bind processor allocator");
-      }
+      void bind(optional<ProcessorAllocator*> paPtr);
+      void unbind(optional<ProcessorAllocator*> );
 
-      void unbind(optional<ProcessorAllocator*> ) {
-        MLOG_ERROR(mlog::pm, "ERROR: unbind processor allocator");
-      }
-
-      void bind(optional<ExecutionContext*> /*ec*/){}
-
-      void unbind(optional<ExecutionContext*> ec){
-        MLOG_DETAIL(mlog::pm, __func__);
-        if(ec){
-          removeDemand(*ec);
-        }
-      }
+      void bind(optional<ExecutionContext*> /*ec*/);
+      void unbind(optional<ExecutionContext*> ec);
 
       void notifyIdle(Tasklet* t, cpu::ThreadID id) override;
 
     private:
+      void tryRunAt(Tasklet* t, ExecutionContext* ec, cpu::ThreadID id);
+
       void pushFree(cpu::ThreadID id);
       optional<cpu::ThreadID> popFree();
+
       void pushUsed(cpu::ThreadID id);
       void removeUsed(cpu::ThreadID id);
+      optional<cpu::ThreadID> popUsed();
+      
       bool enqueueDemand(CapEntry* ec);
       bool removeDemand(ExecutionContext* ec);
-      //bool tryRunDemand();
-      bool tryRunDemandAt(cpu::ThreadID id);
+      bool tryRunDemandAt(Tasklet* t, cpu::ThreadID id);
+      void dumpDemand();
 
     private:
+      LinkedList<IKernelObject*>::Queueable del_handle = {this};
       IAsyncFree* memory;
       async::NestedMonitorDelegating monitor;
 
+    /* state for async operation handling */
+      IInvocation* tmp_msg;
+      static constexpr cpu::ThreadID INV_ID = cpu::ThreadID(-1);
+      cpu::ThreadID tmp_id;
+      ExecutionContext* tmp_ec;
+      enum OperationalState{
+        IDLE,
+        INVOCATION,
+        SC_NOTIFY
+      };
+      OperationalState state;
+
       friend class ThreadTeamFactory;
-      CapRef<ThreadTeam,ProcessorAllocator> pa;
+      CapRef<ThreadTeam,ProcessorAllocator> paRef;
+      ProcessorAllocator* pa;
       cpu::ThreadID freeList[MYTHOS_MAX_THREADS];
       unsigned nFree;
       cpu::ThreadID usedList[MYTHOS_MAX_THREADS];

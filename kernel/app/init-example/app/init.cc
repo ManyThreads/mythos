@@ -387,10 +387,7 @@ void test_InterruptControl() {
 }
 
 long SerialFib( long n ) {
-    if( n<2 )
-        return n;
-    else
-        return SerialFib(n-1)+SerialFib(n-2);
+    return n<2 ? n :SerialFib(n-1)+SerialFib(n-2);
 }
 
 class FibTask: public tbb::task {
@@ -430,34 +427,10 @@ long ParallelFib( long n ) {
 void test_TBB(){
   MLOG_INFO(mlog::app, "Test TBB");
 
-	class say_hello
-	{
-	   int id;
-	   public:
-	      say_hello(int i) : id(i) { }
-	      void operator( ) ( ) const
-	      {
-		 printf("hello from task %d\n",id);
-	      }
-	};
+  tbb::enableDynamicThreading();
 
-
-  MLOG_INFO(mlog::app, "fib", DVAR(ParallelFib(20)));
-
-  //tbb::task_group tg;
-  //printf("created task group\n");
-  //for(int i=0; i<10; i++){
-    //tg.run(say_hello(i)); // spawn 1st task and return
-  //}
-  //tg.wait( );             // wait for tasks to complete
-  //tbb::parallel_for( tbb::blocked_range<int>(0,3),
-    //[&](tbb::blocked_range<int> r)
-    //{
-      //for (int i=r.begin(); i<r.end(); ++i)
-      //{
-        //printf("hello from task %d\n",i);
-      //}
-    //});
+  long f = 40;
+  MLOG_INFO(mlog::app, "fib(", f, ") = ", DVAR(ParallelFib(f)));
   
   MLOG_INFO(mlog::app, "Test finished");
 }
@@ -608,6 +581,5 @@ int main()
 
   char const end[] = "bye, cruel world!";
   mythos::syscall_debug(end, sizeof(end)-1);
-
   return 0;
 }

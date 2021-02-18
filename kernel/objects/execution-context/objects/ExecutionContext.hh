@@ -78,6 +78,8 @@ namespace mythos {
 
     /// only for initial setup
     optional<void> setSchedulingContext(optional<CapEntry*> sce);
+    // for ThreadTeam
+    void setSchedulingContext(Tasklet* t, IResult<void>* r, CapEntry* sce);
     optional<void> setSchedulingContext(Tasklet* t, IInvocation* msg, optional<CapEntry*> sce);
     Error unsetSchedulingContext();
 

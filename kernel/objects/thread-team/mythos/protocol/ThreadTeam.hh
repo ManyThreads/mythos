@@ -45,6 +45,7 @@ namespace mythos {
         RETRUNNEXTTOEC
       };
 
+      //needs to be equal to pthread_alloc_type_t in pthread.h of musl
       enum TeamAllocType{
         FAIL = 0,
         FORCE = 1,
@@ -80,10 +81,10 @@ namespace mythos {
         constexpr static uint16_t label = (proto<<8) + RETTRYRUNEC;
 
         enum response{
-          FAILED,
-          ALLOCATED,
-          DEMANDED,
-          FORCED
+          FAILED = 0,
+          ALLOCATED = 1,
+          DEMANDED = 2,
+          FORCED = 3
         };
 
         RetTryRunEC() 

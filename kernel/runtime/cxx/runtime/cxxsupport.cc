@@ -54,6 +54,8 @@
 #include "runtime/umem.hh"
 #include "runtime/thread-extra.hh"
 #include "runtime/ThreadTeam.hh"
+#include "runtime/Mutex.hh"
+#include "util/optional.hh"
 #include "mythos/InfoFrame.hh"
 
 extern mythos::InfoFrame* info_ptr asm("info_ptr");
@@ -76,6 +78,54 @@ void setRemotePortalPtr(uintptr_t targetTLS, mythos::CapPtr p){
   *ptr = p;
 }
 
+mythos::CapPtr getRemotePortalPtr(pthread_t t){
+    auto rp = reinterpret_cast<mythos::CapPtr*>(t - (pthread_self() - reinterpret_cast<uintptr_t>(&localPortalPtr)));
+    return *rp;
+}
+
+template<size_t SIZE>
+class ThreadPool{
+  public:
+    ThreadPool()
+      : top(0)
+    {}
+
+    struct ThreadPoolEntry{
+      mythos::CapPtr ec;
+      mythos::CapPtr portal;
+    };
+
+    void push(mythos::CapPtr ec, mythos::CapPtr portal){
+        mythos::Mutex::Lock guard(mutex);
+        if(top < SIZE){
+          pool[top] = {ec, portal};
+          top++;
+          MLOG_DETAIL(mlog::app, "pushed to thread pool", DVAR(ec), DVAR(portal));
+        }else{
+          MLOG_WARN(mlog::app, "Thread pool full!");
+        }
+    }
+
+    mythos::optional<ThreadPoolEntry> pop(){
+        mythos::Mutex::Lock guard(mutex);
+        if(top){
+          top--;
+          auto ec = pool[top].ec;
+          auto portal = pool[top].portal;
+          MLOG_DETAIL(mlog::app, "pop from thread pool", DVAR(ec), DVAR(portal));
+          return pool[top];
+        }
+        MLOG_DETAIL(mlog::app, "thread pool empty");
+        return mythos::optional<ThreadPoolEntry>();
+    }
+
+  private:
+    mythos::Mutex mutex;
+    ThreadPoolEntry pool[SIZE];
+    unsigned top;
+};
+
+ThreadPool<1024> threadPool;
 
 // synchronization for pthread deletion (exit/join)
 struct PthreadCleaner{
@@ -133,6 +183,18 @@ extern "C" [[noreturn]] void __assert_fail (const char *expr, const char *file, 
 }
 
 void mythosExit(){
+    //todo: ASSERT(myEC == init::EC)
+
+    //todo: free capspace, all ECs,
+    mythos::PortalLock pl(localPortal); 
+    MLOG_ERROR(mlog::app, "Free all dynamically allocated Caps");
+    capAlloc.freeAll(pl);
+    MLOG_ERROR(mlog::app, "Free Thread Team");
+    myCS.deleteCap(pl, mythos::init::THREAD_TEAM).wait();
+    //MLOG_ERROR(mlog::app, "Free init EC");
+    //myCS.deleteCap(pl, mythos::init::EC).wait();
+    //myCS.deleteCap(pl, mythos::init::CSPACE).wait();
+    //should never return
     MLOG_ERROR(mlog::app, "MYTHOS:PLEASE KILL ME!!!!!!1 elf");
 }
 
@@ -164,7 +226,7 @@ int prlimit(
 int my_sched_setaffinity(pid_t pid, size_t cpusetsize, cpu_set_t *mask)
 {
     //MLOG_DETAIL(mlog::app, "syscall sched_setaffinity", DVAR(pid), DVAR(cpusetsize), DVARhex(mask));
-    if(cpusetsize == 8/*info_ptr->getNumThreads()*/ && mask == NULL) return -EFAULT;
+    if(cpusetsize == info_ptr->getNumThreads() && mask == NULL) return -EFAULT;
     return 0;
 }
 
@@ -174,9 +236,9 @@ int my_sched_getaffinity(pid_t pid, size_t cpusetsize, cpu_set_t *mask)
     if (mask) {
         //CPU_ZERO(mask);
 	memset(mask, 0, cpusetsize);
-        for(int i = 0; i < 8/*info_ptr->getNumThreads()*/; i++) CPU_SET(i, mask);
+        for(int i = 0; i < info_ptr->getNumThreads(); i++) CPU_SET(i, mask);
     }
-    return 8/*info_ptr->getNumThreads()*/;
+    return info_ptr->getNumThreads();
 }
 
 void clock_gettime(long clk, struct timespec *ts){
@@ -234,7 +296,7 @@ extern "C" long mythos_musl_syscall(
         MLOG_WARN(mlog::app, "syscall getpid NYI");
         return mythos_get_pthread_ec_self();
     case 60: // exit(exit_code)
-        //MLOG_ERROR(mlog::app, "syscall exit", DVAR(a1));
+        MLOG_DETAIL(mlog::app, "syscall exit", DVAR(a1));
         pthreadCleaner.exit();        
         asm volatile ("syscall" : : "D"(0), "S"(a1) : "memory");
         return 0;
@@ -307,9 +369,11 @@ extern "C" int munmap(void *start, size_t len)
 extern "C" int unmapself(void *start, size_t len)
 {
     // see pthread_exit: another pthread might reuse the memory before unmapped  thread exited
-    MLOG_WARN(mlog::app, "unmapself: possible race condition! ");
-    MLOG_WARN(mlog::app, "unmapself: who's gonna free the EC and SC?! ");
+    MLOG_WARN(mlog::app, "unmapself");
+    //todo: race condition?
     mythos::heap.free(reinterpret_cast<unsigned long>(start));
+    threadPool.push(mythos_get_pthread_ec_self(), localPortalPtr);
+    asm volatile ("syscall" : : "D"(0), "S"(0) : "memory");
     return 0;
 }
 
@@ -325,10 +389,10 @@ extern "C" int mprotect(void *addr, size_t len, int prot)
 
 int myclone(
     int (*func)(void *), void *stack, int flags, 
-    void *arg, int* ptid, void* tls, int* ctid)
+    void *arg, int* ptid, void* tls, int* ctid,
+    int allocType)
 {
-    MLOG_DETAIL(mlog::app, "myclone");
-    setRemotePortalPtr(reinterpret_cast<uintptr_t>(tls), 42);
+    MLOG_DETAIL(mlog::app, "myclone", DVAR(allocType));
     ASSERT(tls != nullptr);
     // The compiler expect a kinda strange alignment coming from clone:
     // -> rsp % 16 must be 8
@@ -336,33 +400,56 @@ int myclone(
     // We will use the same trick for alignment as musl libc
     auto rsp = (uintptr_t(stack) & uintptr_t(-16))-8;
 
-    mythos::PortalLock pl(localPortal); // future access will fail if the portal is in use already
-    mythos::ExecutionContext ec(capAlloc());
-    if (ptid && (flags&CLONE_PARENT_SETTID)) *ptid = int(ec.cap());
+    mythos::CapPtr ecPtr;
+    mythos::CapPtr portalPtr;
+
+    auto tpe = threadPool.pop();
+    if(tpe){
+      ecPtr = tpe->ec;
+      portalPtr = tpe->portal;
+    }else{
+      ecPtr = capAlloc();
+      portalPtr = capAlloc();
+    }
+
+    mythos::PortalLock pl(localPortal); 
+    mythos::ExecutionContext ec(ecPtr);
+
+    if (ptid && (flags&CLONE_PARENT_SETTID)) *ptid = int(ecPtr);
     // @todo store thread-specific ctid pointer, which should set to 0 by the OS on the thread's exit
 
-    auto res = ec.create(kmem)
-      .as(myAS)
-      .cs(myCS)
-      .rawStack(rsp)
-      .rawFun(func, arg)
-      .suspended(false)
-      .fs(tls)
-      .invokeVia(pl)
-      .wait();
+    if(tpe){
+      // Reuse EC -> configure regs
+      mythos::ExecutionContext::register_t regs;
+      regs.rsp = uintptr_t(rsp), // stack
+      regs.rip = uintptr_t(func); // start function;
+      regs.rdi = uintptr_t(arg); // user context
+      regs.fs_base = uintptr_t(tls); // thread local storage
+      auto res = ec.writeRegisters(pl, regs, true).wait();
+    }else{
+      //create new EC
+      auto res = ec.create(kmem)
+        .as(myAS)
+        .cs(myCS)
+        .rawStack(rsp)
+        .rawFun(func, arg)
+        .suspended(false)
+        .fs(tls)
+        .invokeVia(pl)
+        .wait();
+      
+      // create Portal
+      ASSERT(ec.cap() < mythos::MAX_IB);
+      mythos::Portal newPortal(portalPtr, info_ptr->getInvocationBuf(portalPtr));
+      newPortal.create(pl, kmem).wait();
+      newPortal.bind(pl, infoFrame, info_ptr->getIbOffset(portalPtr), ec.cap());
+    }
 
-    // create Portal
-    ASSERT(ec.cap() < mythos::MAX_IB);
-    mythos::CapPtr pPtr = capAlloc();
-    mythos::Portal newPortal(pPtr, info_ptr->getInvocationBuf(pPtr));
-    newPortal.create(pl, kmem).wait();
-    newPortal.bind(pl, infoFrame, info_ptr->getIbOffset(pPtr), ec.cap());
-    setRemotePortalPtr(reinterpret_cast<uintptr_t>(tls), pPtr);
-    MLOG_WARN(mlog::app, "todo: free Portal!");
+    setRemotePortalPtr(reinterpret_cast<uintptr_t>(tls), portalPtr);
 
-    auto tres = team.tryRunEC(pl, ec).wait();
-    if(tres){
-      return ec.cap();
+    auto tres = team.tryRunEC(pl, ec, allocType).wait();
+    if(tres && tres->notFailed()){
+      return ecPtr;
     }
     MLOG_WARN(mlog::app, "Processor allocation failed!");
     //todo: set errno = EAGAIN
@@ -377,8 +464,9 @@ extern "C" int clone(int (*func)(void *), void *stack, int flags, void *arg, ...
     int* ptid = va_arg(args, int*);
     void* tls = va_arg(args, void*);
     int* ctid = va_arg(args, int*);
+    int allocType = va_arg(args, int);
     va_end(args);
-    return myclone(func, stack, flags, arg, ptid, tls, ctid);
+    return myclone(func, stack, flags, arg, ptid, tls, ctid, allocType);
 }
 
 // synchronize and cleanup exited pthread
@@ -387,10 +475,24 @@ extern "C" void mythos_pthread_cleanup(pthread_t t){
     // wait for target pthread to exit
     pthreadCleaner.wait(t);
     // delete EC of target pthread
-    auto cap = mythos_get_pthread_ec(t);
-    mythos::PortalLock pl(localPortal); 
-    capAlloc.free(cap, pl);
+    auto ec = mythos_get_pthread_ec(t);
+    auto portal = getRemotePortalPtr(t);
+    threadPool.push(ec, portal);
     // memory of target pthread will be free when returning from this function
+}
+
+extern "C" int mythos_revoke_demand(pthread_t t){
+    MLOG_WARN(mlog::app, "revoke demand");
+    mythos::PortalLock pl(localPortal); 
+    auto ecPtr = mythos_get_pthread_ec(t);
+    mythos::ExecutionContext ec(ecPtr);
+    auto res = team.revokeDemand(pl, ec).wait();
+    if(res){
+      auto portalPtr = getRemotePortalPtr(t);
+      threadPool.push(ecPtr, portalPtr);
+      MLOG_WARN(mlog::app, "who's gonna free pthreads memory?");
+    }
+    return res && res->revoked ? 0 : (-1);
 }
 
 struct dl_phdr_info

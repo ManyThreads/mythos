@@ -43,7 +43,22 @@ namespace mythos {
       return pr.invoke<protocol::ThreadTeam::Create>(kmem.cap(), _cap, factory, pa);
     }
 
-    PortalFuture<void> tryRunEC(PortalLock pr, ExecutionContext ec, int at = protocol::ThreadTeam::FAIL){
+    struct RunResult{
+      RunResult() {}
+      RunResult(InvocationBuf* ib) {
+        auto msg = ib->cast<protocol::ThreadTeam::RetTryRunEC>();
+        response = msg->response;
+      }
+
+      bool failed() const { return response == protocol::ThreadTeam::RetTryRunEC::FAILED; }
+      bool allocated() const { return response == protocol::ThreadTeam::RetTryRunEC::ALLOCATED; }
+      bool notFailed() const { return response == protocol::ThreadTeam::RetTryRunEC::ALLOCATED 
+        || response == protocol::ThreadTeam::RetTryRunEC::DEMANDED 
+        || response == protocol::ThreadTeam::RetTryRunEC::FORCED; } 
+      int response = 0;
+    };
+
+    PortalFuture<RunResult> tryRunEC(PortalLock pr, ExecutionContext ec, int at = protocol::ThreadTeam::FAIL){
       return pr.invoke<protocol::ThreadTeam::TryRunEC>(_cap, ec.cap(), at);
     }
 
@@ -51,7 +66,16 @@ namespace mythos {
       return pr.invoke<protocol::ThreadTeam::RunNextToEC>(_cap, ec.cap(), ec_place.cap());
     }
 
-    PortalFuture<void> revokeDemand(PortalLock pr, ExecutionContext ec){
+    struct RevokeResult{
+      RevokeResult() {}
+      RevokeResult(InvocationBuf* ib) {
+        auto msg = ib->cast<protocol::ThreadTeam::RetRevokeDemand>();
+        revoked = msg->revoked;
+      }
+
+      bool revoked = false;
+    };
+    PortalFuture<RevokeResult> revokeDemand(PortalLock pr, ExecutionContext ec){
       return pr.invoke<protocol::ThreadTeam::RevokeDemand>(_cap, ec.cap());
     }
   };

@@ -86,6 +86,26 @@ namespace mythos {
       return res;
     }
 
+    void freeAll(PortalLock& pl){
+      Mutex::Lock guard(m);
+      MLOG_DETAIL(mlog::app, __func__);
+      for(uint32_t i = START; i < next; i++){
+        bool isFree = false;
+        for(uint32_t s = 0; s < top; s++){
+          if(caps[s] == i){
+            isFree = true;
+            break;
+          }
+        }
+
+        if(!isFree){
+          auto res = cs.deleteCap(pl, i).wait();
+        }
+      }
+      next = START;
+      top = 0;
+    }
+
     optional<void> free(KObject p, PortalLock& pl) { return free(p.cap(), pl); }
 
   protected:

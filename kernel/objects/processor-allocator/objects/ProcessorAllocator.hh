@@ -52,9 +52,23 @@ class ProcessorAllocator
 
     void init();
 
-    //todo: synchronize
     optional<cpu::ThreadID> alloc(); 
     void free(cpu::ThreadID id);
+
+    void alloc(Tasklet* t, IResult<cpu::ThreadID>* r){
+      monitor.request(t,[=](Tasklet*){
+            ASSERT(r);
+            r->response(t, alloc());
+            monitor.responseAndRequestDone();
+          });
+    }
+
+    void free(Tasklet* t, cpu::ThreadID id){
+      monitor.request(t,[=](Tasklet*){
+            free(id);  
+            monitor.responseAndRequestDone();
+          });
+    }
 
     CapEntry* getSC(cpu::ThreadID id){
       ASSERT(id < cpu::getNumThreads());

@@ -94,10 +94,14 @@ namespace mythos {
     void unbind(handle_t* ec_handle) override;
     void ready(handle_t* ec_handle) override;
 
+    //todo: use capref
   public: //ThreadTeam
     void registerThreadTeam(INotifyIdle* tt){
       myTeam.store(tt);
     };
+    void resetThreadTeam(){
+      myTeam.store(nullptr);
+    }
 
   public: // IKernelObject interface
     optional<void> deleteCap(CapEntry&, Cap, IDeleter&) override { RETURN(Error::SUCCESS); }
