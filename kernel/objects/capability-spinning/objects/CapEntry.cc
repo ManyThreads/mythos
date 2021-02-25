@@ -139,6 +139,7 @@ namespace mythos {
   Error CapEntry::try_lock_prev()
   {
     auto prev = Link(_prev).ptr();
+    MLOG_ERROR(mlog::cap, __PRETTY_FUNCTION__, DVAR(this), DVAR(prev));
     if (!prev) {
       return Error::GENERIC_ERROR;
     }

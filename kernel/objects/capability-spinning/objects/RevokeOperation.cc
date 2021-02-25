@@ -110,7 +110,7 @@ namespace mythos {
     do {
       if (_startTraversal(root, rootCap)) {
         leaf = _findLockedLeaf(root);
-        MLOG_DETAIL(mlog::cap, "_findLockedLeaf returned", DVAR(*leaf), DVAR(rootCap));
+        MLOG_ERROR(mlog::cap, "_findLockedLeaf returned", DVAR(*leaf), DVAR(rootCap));
         if (leaf == root && !rootCap.isZombie()) {
           // this is a revoke, do not delete the root. no more children -> we are done
           root->finishRevoke();
@@ -145,6 +145,7 @@ namespace mythos {
 
   bool RevokeOperation::_startTraversal(CapEntry* root, Cap rootCap)
   {
+    MLOG_ERROR(mlog::cap, __PRETTY_FUNCTION__ );
     if (!root->lock_prev()) {
       // start is currently unlinked
       // must be the work of another deleter ... success!
@@ -171,6 +172,7 @@ namespace mythos {
 
   CapEntry* RevokeOperation::_findLockedLeaf(CapEntry* root)
   {
+    MLOG_ERROR(mlog::cap, __PRETTY_FUNCTION__ );
     auto curEntry = root;
     while (true) {
       auto curCap = curEntry->cap();

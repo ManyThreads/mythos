@@ -84,9 +84,23 @@ namespace mythos {
     bool kill();
 
     optional<void> unlink();
-    bool try_lock() { return !(_next.fetch_or(LOCKED_FLAG) & LOCKED_FLAG); }
-    void lock() { while (!try_lock()) { hwthread_pause(); } }
-    void unlock() { auto res = _next.fetch_and(~LOCKED_FLAG); ASSERT(res & LOCKED_FLAG); }
+    bool try_lock() { 
+      bool ret = !(_next.fetch_or(LOCKED_FLAG) & LOCKED_FLAG);
+      MLOG_ERROR(mlog::cap, __PRETTY_FUNCTION__, DVAR(this), ret? " locked" : "locking failed!");
+      return ret; }
+    void lock() { 
+      int loop = 0;
+      while (!try_lock()) { 
+      hwthread_pause(); 
+      loop++;
+      if(loop > 2){
+        MLOG_ERROR(mlog::cap, " lockeing failed too many times -> fail");
+        while(1);
+      }
+    } }
+    void unlock() { 
+      MLOG_ERROR(mlog::cap, __PRETTY_FUNCTION__, DVAR(this));
+      auto res = _next.fetch_and(~LOCKED_FLAG); ASSERT(res & LOCKED_FLAG); }
 
     /// only for assertions and debugging
     /// only trust the result if it is false and it should be true
