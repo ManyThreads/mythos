@@ -32,6 +32,7 @@ namespace mythos {
 
   void CapEntry::initRoot(Cap c)
   {
+    MLOG_ERROR(mlog::cap, __PRETTY_FUNCTION__, DVAR(this));
     ASSERT(isKernelAddress(this));
     ASSERT(c.isUsable());
     ASSERT(cap().isEmpty());
@@ -62,6 +63,7 @@ namespace mythos {
 
   void CapEntry::reset()
   {
+    MLOG_ERROR(mlog::cap, __PRETTY_FUNCTION__, DVAR(this));
     ASSERT(isUnlinked() || cap().isAllocated());
     _prev.store(Link().value());
     _next.store(Link().value());
@@ -128,6 +130,7 @@ namespace mythos {
 
   optional<void> CapEntry::unlink()
   {
+    MLOG_ERROR(mlog::cap, __PRETTY_FUNCTION__, DVAR(this));
     auto next = Link(_next).withoutFlags();
     auto prev = Link(_prev).withoutFlags();
     MLOG_ERROR(mlog::cap, __PRETTY_FUNCTION__, DVAR(this));

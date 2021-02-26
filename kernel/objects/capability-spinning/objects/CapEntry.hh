@@ -199,6 +199,7 @@ namespace mythos {
                                        CapEntry& targetEntry, Cap targetCap, 
                                        COMMITFUN const& commit)
   {
+    MLOG_ERROR(mlog::cap, __PRETTY_FUNCTION__, DVAR(this), DVAR(parentCap), DVAR(targetEntry), DVAR(targetCap));
     ASSERT(isKernelAddress(this));
     ASSERT(targetEntry.cap().isAllocated());
     lock(); // lock the parent entry, the child is already acquired
