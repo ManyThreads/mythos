@@ -128,12 +128,11 @@ namespace mythos {
     return true;
   }
 
-  optional<void> CapEntry::unlink()
+  optional<void> CapEntry::unlinkAndUnlockPrev()
   {
     MLOG_ERROR(mlog::cap, __PRETTY_FUNCTION__, DVAR(this));
     auto next = Link(_next).withoutFlags();
     auto prev = Link(_prev).withoutFlags();
-    MLOG_ERROR(mlog::cap, __PRETTY_FUNCTION__, DVAR(this));
     next->_prev.store(prev.value());
     prev->_next.store(next.value());
     _prev.store(Link().value());

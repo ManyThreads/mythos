@@ -75,7 +75,7 @@ namespace mythos {
       if (!dst.lock_prev()) return true; // was already unlinked, should be empty eventually
       dst.lock();
       dst.kill(); // kill again because someone might have inserted something usable meanwhile
-      dst.unlink();
+      dst.unlinkAndUnlockPrev();
       fun(); // perform some caller-defined action while still in an exclusive state
       dst.reset(); // this markes the entry as writeable again, leaves exclusive state
       return true;

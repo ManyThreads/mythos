@@ -129,7 +129,7 @@ namespace mythos {
         }
         auto delRes = leafCap.getPtr()->deleteCap(*leaf, leafCap, *this);
         if (delRes) {
-          leaf->unlink();
+          leaf->unlinkAndUnlockPrev();
           leaf->reset();
         } else {
           // Either tried to delete a portal that is currently deleting

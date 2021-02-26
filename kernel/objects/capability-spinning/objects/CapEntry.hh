@@ -83,7 +83,7 @@ namespace mythos {
      * allocated. Returns true if zombified. */ 
     bool kill();
 
-    optional<void> unlink();
+    optional<void> unlinkAndUnlockPrev();
     bool try_lock() { 
       bool ret = !(_next.fetch_or(LOCKED_FLAG) & LOCKED_FLAG);
       MLOG_ERROR(mlog::cap, __PRETTY_FUNCTION__, DVAR(this), ret? " locked" : "locking failed!");
