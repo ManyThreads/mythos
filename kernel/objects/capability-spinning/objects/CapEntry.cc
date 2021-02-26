@@ -80,6 +80,7 @@ namespace mythos {
 
   optional<void> CapEntry::moveTo(CapEntry& other)
   {
+    MLOG_ERROR(mlog::cap, __PRETTY_FUNCTION__, DVAR(this), DVAR(other));
     ASSERT(other.cap().isAllocated());
     ASSERT(!other.isLinked());
     if (!lock_prev()) {
@@ -129,6 +130,7 @@ namespace mythos {
   {
     auto next = Link(_next).withoutFlags();
     auto prev = Link(_prev).withoutFlags();
+    MLOG_ERROR(mlog::cap, __PRETTY_FUNCTION__, DVAR(this));
     next->_prev.store(prev.value());
     prev->_next.store(next.value());
     _prev.store(Link().value());

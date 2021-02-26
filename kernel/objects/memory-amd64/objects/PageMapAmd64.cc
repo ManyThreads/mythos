@@ -90,16 +90,18 @@ namespace mythos {
     for (size_t i = num_caps(); i < TABLE_SIZE; ++i) MLOG_INFO(mlog::cap, i, _pm_table(i));
   }
 
-  optional<void> PageMap::MappedFrame::deleteCap(CapEntry& entry, Cap /*self*/, IDeleter&)
+  optional<void> PageMap::MappedFrame::deleteCap(CapEntry& entry, Cap self, IDeleter&)
   {
+    MLOG_ERROR(mlog::cap, __PRETTY_FUNCTION__, DVAR(entry), DVAR(self), DVARhex(this));
     auto idx = &entry - &map->_cap_table(0);
     MLOG_DETAIL(mlog::cap, "delete mapped Frame", DVAR(idx));
     map->_pm_table(idx).reset();
     RETURN(Error::SUCCESS);
   }
 
-  optional<void> PageMap::MappedPageMap::deleteCap(CapEntry& entry, Cap /*self*/, IDeleter&)
+  optional<void> PageMap::MappedPageMap::deleteCap(CapEntry& entry, Cap self, IDeleter&)
   {
+    MLOG_ERROR(mlog::cap, __PRETTY_FUNCTION__, DVAR(entry), DVAR(self), DVARhex(this));
     auto idx = &entry - &map->_cap_table(0);
     MLOG_ERROR(mlog::cap, "delete mapped PageMap", DVAR(idx));
     map->_pm_table(idx).reset();
@@ -108,7 +110,7 @@ namespace mythos {
 
   optional<void> PageMap::deleteCap(CapEntry&, Cap self, IDeleter& del)
   {
-    MLOG_ERROR(mlog::cap, __PRETTY_FUNCTION__, self);
+    MLOG_ERROR(mlog::cap, __PRETTY_FUNCTION__, self, DVARhex(this));
     if (self.isOriginal()) {
       MLOG_ERROR(mlog::cap, "delete PageMap", self);
       for (size_t i = 0; i < num_caps(); ++i) {
