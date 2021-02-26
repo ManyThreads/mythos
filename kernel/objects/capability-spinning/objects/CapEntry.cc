@@ -37,7 +37,9 @@ namespace mythos {
     ASSERT(c.isUsable());
     ASSERT(cap().isEmpty());
     Link loopLink(this);
+    MLOG_ERROR(mlog::cap, "this unlocks _next");
     _next.store(loopLink.value());
+    MLOG_ERROR(mlog::cap, "this unlocks _prev");
     _prev.store(loopLink.value());
     _cap.store(c.value());
   }
@@ -65,6 +67,7 @@ namespace mythos {
   {
     MLOG_ERROR(mlog::cap, __PRETTY_FUNCTION__, DVAR(this));
     ASSERT(isUnlinked() || cap().isAllocated());
+    MLOG_ERROR(mlog::cap, "this unlocks _prev");
     _prev.store(Link().value());
     _next.store(Link().value());
     // mark as empty
@@ -108,7 +111,9 @@ namespace mythos {
     other._prev.store(prev.value());
     prev->_next.store(Link(&other).value());
     other.commit(thisCap);
+    MLOG_ERROR(mlog::cap, "this unlocks _prev");
     _prev.store(Link().value());
+    MLOG_ERROR(mlog::cap, "this unlocks _next");
     _next.store(Link().value());
     _cap.store(Cap().value());
     RETURN(Error::SUCCESS);
@@ -135,7 +140,9 @@ namespace mythos {
     auto prev = Link(_prev).withoutFlags();
     next->_prev.store(prev.value());
     prev->_next.store(next.value());
+    MLOG_ERROR(mlog::cap, "this unlocks _prev");
     _prev.store(Link().value());
+    MLOG_ERROR(mlog::cap, "this unlocks _next");
     _next.store(Link().value());
     RETURN(Error::SUCCESS);
   }
@@ -151,6 +158,7 @@ namespace mythos {
       if (Link(_prev.load()).ptr() == prev) {
         return Error::SUCCESS;
       } else { // my _prev has changed in the mean time
+        MLOG_ERROR(mlog::cap, "this unlocks prev");
         prev->unlock();
         return Error::RETRY;
       }

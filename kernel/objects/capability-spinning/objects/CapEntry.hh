@@ -108,7 +108,9 @@ namespace mythos {
 
     Error try_lock_prev();
     bool lock_prev();
-    void unlock_prev() { Link(_prev)->unlock(); }
+    void unlock_prev() { 
+      MLOG_ERROR(mlog::cap, __PRETTY_FUNCTION__, DVAR(this));
+      Link(_prev)->unlock(); }
 
     CapEntry* next()
     {
@@ -216,10 +218,13 @@ namespace mythos {
 
     auto next = Link(_next.load()).withoutFlags();
     next->setPrevPreserveFlags(&targetEntry);
+    MLOG_ERROR(mlog::cap, "this unlocks _next remotely ", DVAR(targetEntry));
     targetEntry._next.store(next.value());
     // deleted or revoking can not be set in target._prev
     // as we allocated target for being inserted
+    MLOG_ERROR(mlog::cap, "this unlocks _prev remotely ", DVAR(targetEntry));
     targetEntry._prev.store(Link(this).value());
+    MLOG_ERROR(mlog::cap, "this unlocks _next ");
     this->_next.store(Link(&targetEntry).value()); // unlocks the parent entry
     targetEntry.commit(targetCap); // release the target entry as usable
     RETURN(Error::SUCCESS);
