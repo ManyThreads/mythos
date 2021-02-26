@@ -85,11 +85,11 @@ namespace mythos {
       monitor.requestDone();
       return;
     }
-    entry.lock();
+    entry.lock_next();
     auto rootCap = entry.cap();
     if (!rootCap.isUsable()) {
       // this is not the cap you are locking for ...
-      entry.unlock();
+      entry.unlock_next();
       res->response(t, Error::LOST_RACE);
       release();
       monitor.requestDone();
@@ -99,7 +99,7 @@ namespace mythos {
     // if some other revoke or delete clears the flag or changes the cap values
     // all children have been deleted in the mean time and we are done
     entry.setRevoking();
-    entry.unlock();
+    entry.unlock_next();
     _result = _delete(&entry, rootCap).state();
     _startAsyncDelete(t);
   }
@@ -115,14 +115,14 @@ namespace mythos {
         if (leaf == root && !rootCap.isZombie()) {
           // this is a revoke, do not delete the root. no more children -> we are done
           root->finishRevoke();
-          root->unlock();
+          root->unlock_next();
           root->unlock_prev();
           RETURN(Error::SUCCESS);
         }
         auto leafCap = leaf->cap();
         ASSERT(leafCap.isZombie());
         if (leafCap.getPtr() == _guarded) {
-          leaf->unlock();
+          leaf->unlock_next();
           leaf->unlock_prev();
           // attempted to delete guarded object
           THROW(Error::CYCLIC_DEPENDENCY);
@@ -134,7 +134,7 @@ namespace mythos {
         } else {
           // Either tried to delete a portal that is currently deleting
           // or tried to to delete _guarded via a recursive call.
-          leaf->unlock();
+          leaf->unlock_next();
           leaf->unlock_prev();
           RETHROW(delRes);
         }
@@ -159,12 +159,12 @@ namespace mythos {
       root->unlock_prev();
       return false;
     }
-    root->lock();
+    root->lock_next();
     // compare only value, not the zombie state
     if (root->cap().asZombie() != rootCap.asZombie()) {
       // start has a new value
       // must be the work of another deleter ... success!
-      root->unlock();
+      root->unlock_next();
       root->unlock_prev();
       return false;
     }
@@ -190,7 +190,7 @@ namespace mythos {
         // go to next child
         curEntry->unlock_prev();
         nextEntry->kill();
-        nextEntry->lock();
+        nextEntry->lock_next();
         curEntry = nextEntry;
         continue;
       } else return curEntry;

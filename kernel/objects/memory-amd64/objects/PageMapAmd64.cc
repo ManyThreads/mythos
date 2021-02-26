@@ -114,7 +114,7 @@ namespace mythos {
     if (self.isOriginal()) {
       MLOG_ERROR(mlog::cap, "delete PageMap", self);
       for (size_t i = 0; i < num_caps(); ++i) {
-        if(_cap_table(i).is_locked()) MLOG_ERROR(mlog::cap, __PRETTY_FUNCTION__, "table is locked and cannot be deleted! -> deadlock detected!");
+        if(_cap_table(i).next_is_locked()) MLOG_ERROR(mlog::cap, __PRETTY_FUNCTION__, "table is locked and cannot be deleted! -> deadlock detected!");
         auto res = del.deleteEntry(_cap_table(i));
         ASSERT_MSG(res, "Mapped entries must be deletable.");
         if (!res) RETHROW(res);

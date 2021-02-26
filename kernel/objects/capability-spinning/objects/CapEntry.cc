@@ -92,11 +92,11 @@ namespace mythos {
       other.reset();
       THROW(Error::GENERIC_ERROR);
     }
-    lock();
+    lock_next();
     auto thisCap = cap();
     if (isRevoking() || !thisCap.isUsable()) {
       other.reset();
-      unlock();
+      unlock_next();
       unlock_prev();
       THROW(Error::INVALID_CAPABILITY);
     }
@@ -154,12 +154,12 @@ namespace mythos {
     if (!prev) {
       return Error::GENERIC_ERROR;
     }
-    if (prev->try_lock()) {
+    if (prev->try_lock_next()) {
       if (Link(_prev.load()).ptr() == prev) {
         return Error::SUCCESS;
       } else { // my _prev has changed in the mean time
         MLOG_ERROR(mlog::cap, "this unlocks prev");
-        prev->unlock();
+        prev->unlock_next();
         return Error::RETRY;
       }
     } else return Error::RETRY;

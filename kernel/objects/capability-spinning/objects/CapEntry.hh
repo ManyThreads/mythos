@@ -84,37 +84,50 @@ namespace mythos {
     bool kill();
 
     optional<void> unlinkAndUnlockPrev();
-    bool try_lock() { 
+
+    /* lock next functions protect the link to the next CapEntry */
+
+    bool try_lock_next()
+    { 
       bool ret = !(_next.fetch_or(LOCKED_FLAG) & LOCKED_FLAG);
       MLOG_ERROR(mlog::cap, __PRETTY_FUNCTION__, DVAR(this), ret? " locked" : "locking failed!");
-      return ret; }
-    void lock() { 
+      return ret;
+    }
+
+    void lock_next()
+    { 
       int loop = 0;
-      while (!try_lock()) { 
-      hwthread_pause(); 
-      loop++;
-      if(loop > 2){
-        MLOG_ERROR(mlog::cap, " lockeing failed too many times -> fail");
-        while(1);
+      while (!try_lock_next()) { 
+        hwthread_pause(); 
+#warning remove counting for production
+        loop++;
+        PANIC_MSG(loop < 2," locking failed too many times");
       }
-    } }
-    void unlock() { 
+    }
+    void unlock_next()
+    { 
       MLOG_ERROR(mlog::cap, __PRETTY_FUNCTION__, DVAR(this));
-      auto res = _next.fetch_and(~LOCKED_FLAG); ASSERT(res & LOCKED_FLAG); }
+      auto res = _next.fetch_and(~LOCKED_FLAG);
+      ASSERT(res & LOCKED_FLAG);
+    }
 
     /// only for assertions and debugging
     /// only trust the result if it is false and it should be true
-    bool is_locked() const { return _next.load() & CapEntry::LOCKED_FLAG; }
+    bool next_is_locked() const { return _next.load() & CapEntry::LOCKED_FLAG; }
+
+    /* lock prev functions protect the link to the next CapEntry */
 
     Error try_lock_prev();
     bool lock_prev();
-    void unlock_prev() { 
+    void unlock_prev()
+    { 
       MLOG_ERROR(mlog::cap, __PRETTY_FUNCTION__, DVAR(this));
-      Link(_prev)->unlock(); }
+      Link(_prev)->unlock_next();
+    }
 
     CapEntry* next()
     {
-      ASSERT(is_locked());
+      ASSERT(next_is_locked());
       return Link(_next).ptr();
     }
 
@@ -204,11 +217,11 @@ namespace mythos {
     MLOG_ERROR(mlog::cap, __PRETTY_FUNCTION__, DVAR(this), DVAR(parentCap), DVAR(targetEntry), DVAR(targetCap));
     ASSERT(isKernelAddress(this));
     ASSERT(targetEntry.cap().isAllocated());
-    lock(); // lock the parent entry, the child is already acquired
+    lock_next(); // lock the parent entry, the child is already acquired
     auto curCap = cap();
     // lazy-locking: check that we still operate on the same parent capability
     if (!curCap.isUsable() || curCap != parentCap) {
-      unlock(); // unlock the parent entry
+      unlock_next(); // unlock the parent entry
       targetEntry.reset(); // release exclusive usage and revert to an empty entry
       THROW(Error::LOST_RACE);
     }
@@ -239,7 +252,7 @@ namespace mythos {
     if (entry.isLinked()) out << ":linked";
     if (entry.isDeleted()) out << ":deleted";
     if (entry.isUnlinked()) out << ":unlinked";
-    if (entry.is_locked()) out << ":locked";
+    if (entry.next_is_locked()) out << ":next_locked";
     if (entry.isRevoking()) out << ":revoking";
     return out;
   }
