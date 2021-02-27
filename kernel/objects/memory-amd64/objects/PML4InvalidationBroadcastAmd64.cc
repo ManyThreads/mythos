@@ -58,6 +58,7 @@ namespace mythos {
     }
     // propagate
     PML4InvalidationBroadcast* pnext = this->next;
+    ASSERT(pnext);
     while (pnext != start && pnext->home->getCR3() != pml4) pnext = pnext->next;
     if (pnext != start) {
       MLOG_DETAIL(mlog::cap, "relay pml4 invalidation");
