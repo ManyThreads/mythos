@@ -517,7 +517,24 @@ void test_process(){
   MLOG_INFO(mlog::app, "Test process finished");
 }
 
-void pageMapBug(){
+void pageMapPageFault(){
+  MLOG_INFO(mlog::app, "Trigger PageMap page fault");
+
+  mythos::PortalLock pl(portal);
+
+  mythos::PageMap pm4(capAlloc());
+
+  auto res = pm4.create(pl, kmem, 4).wait();
+  ASSERT(res);
+
+  MLOG_INFO(mlog::app, "Try to delete pm4 -> page fault");
+
+  capAlloc.free(pm4.cap(), pl);
+  
+  MLOG_INFO(mlog::app, "If you can read this, you might have fixed the page fault?!");
+}
+
+void pageMapDeadlock(){
   MLOG_INFO(mlog::app, "Trigger PageMap deadlock");
 
   mythos::PortalLock pl(portal);
@@ -567,7 +584,8 @@ int main()
   //test_processor_allocator();
   //test_process();
   //test_CgaScreen();
-  pageMapBug();
+  pageMapPageFault();
+  pageMapDeadlock();
 
   char const end[] = "bye, cruel world!";
   mythos::syscall_debug(end, sizeof(end)-1);
