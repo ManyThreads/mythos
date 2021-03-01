@@ -116,7 +116,7 @@ namespace mythos {
       auto curr = this;
       auto last = Link(_prev).ptr();
       do{
-        MLOG_ERROR(mlog::cap, DVAR(iterations), DVARhex(curr), DVAR(*curr), DVARhex(_prev), DVARhex(_next));
+        MLOG_ERROR(mlog::cap, DVAR(iterations), DVARhex(curr), DVAR(*curr), DVARhex(curr->_prev), DVARhex(curr->_next));
         auto next = Link(curr->_next).ptr();
         auto prev = Link(curr->_prev).ptr();
         if(last != prev) MLOG_ERROR(mlog::cap, "link broken: last != prev", DVARhex(last), DVAR(prev));
