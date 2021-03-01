@@ -44,7 +44,15 @@ namespace mythos {
    * thus prev and next of root are locked independently
    *
    * operations that write to the capability
-   * or flags (zombie) must lock both next and prev
+   * or call deleteCap on an obejct  must lock_cap
+   *
+   * lock order: lock_cap, lock_prev, lock_next
+   *
+   * acquired status means someone exclusively acquired an unlinked CapEntry
+   * therefore no races with others trying to insert it.
+   *
+   * acquired status must be only hold shortly
+   *
    */
   class CapEntry
   {

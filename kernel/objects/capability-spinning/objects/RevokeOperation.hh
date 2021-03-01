@@ -39,6 +39,29 @@
 
 namespace mythos {
 
+/**
+ * The revoke operation consists of 2 phases seperated
+ * by an invalidation broadcast.
+ *
+ * 1. synchronous phase removes entries from the capability tree
+ * 2. delete broadcast ensures there are no more references in stack
+ * 3. asynchronous phase interacts with a KM to recycle objects
+ *
+ * 1. synchronous phase
+ *
+ * - Traverses the tree starting from an node (root of that subtree).
+ *   - this traverses the list without locking
+ * - It finds a leaf, killing all the capabilities inbetween.
+ * - the leaf is deleted by killing deleteCap of the object (protected by lock_cap).
+ * if that succeedes, the CapEntry MUST be removed from the tree, as we can't do that twice
+ * and can't hold lock_cap forever.
+ * - If there are problems because of concurrent access, the operation
+ * restarts at the root of the subtree.
+ * - If we can't fix problems synchronously, we switch to asynch. phase
+ * without finishing, reporting "Error::RETRY" to the user.
+ * - a guarded object is the object containing the RevokeOperation, it can't be deleted
+ *
+ */
 class RevokeOperation
   : public IResult<void>
   , protected IDeleter
