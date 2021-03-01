@@ -110,6 +110,25 @@ namespace mythos {
     bool isLinked() const { return cap().isAllocated() && Link(_next).ptr() && Link(_prev).ptr(); }
     bool isUnlinked() const { return cap().isZombie() && !Link(_next).ptr() && !Link(_prev).ptr(); }
 
+    void dumpList(){
+      MLOG_ERROR(mlog::cap, __PRETTY_FUNCTION__, DVARhex(this));
+      unsigned iterations = 0;
+      auto curr = this;
+      auto last = Link(_prev).ptr();
+      do{
+        MLOG_ERROR(mlog::cap, DVAR(iterations), DVARhex(curr), DVAR(*curr), DVARhex(_prev), DVARhex(_next));
+        auto next = Link(curr->_next).ptr();
+        auto prev = Link(curr->_prev).ptr();
+        if(last != prev) MLOG_ERROR(mlog::cap, "link broken: last != prev", DVARhex(last), DVAR(prev));
+        ASSERT(next);
+        ASSERT(prev);
+        MLOG_ERROR(mlog::cap, DVARhex(prev), DVAR(next));
+        last = curr;
+        curr = next;
+        iterations++;
+      }while(curr != this);
+      MLOG_ERROR(mlog::cap, "loop detected -> end dump. Number of entries: ", iterations);
+    }
   private:
 
     // called by move and insertAfter
@@ -185,6 +204,8 @@ namespace mythos {
                                        CapEntry& targetEntry, Cap targetCap, 
                                        COMMITFUN const& commit)
   {
+    //MLOG_ERROR(mlog::cap, __PRETTY_FUNCTION__, DVAR(parentCap), DVARhex(&targetEntry), DVAR(targetEntry), DVAR(targetCap));
+    //dumpList();
     ASSERT(isKernelAddress(this));
     ASSERT(targetEntry.cap().isAllocated());
     lock(); // lock the parent entry, the child is already acquired
@@ -207,6 +228,8 @@ namespace mythos {
     targetEntry._prev.store(Link(this).value());
     this->_next.store(Link(&targetEntry).value()); // unlocks the parent entry
     targetEntry.commit(targetCap); // release the target entry as usable
+    //MLOG_ERROR(mlog::cap, __func__, " done ");
+    //dumpList();
     RETURN(Error::SUCCESS);
   }
 

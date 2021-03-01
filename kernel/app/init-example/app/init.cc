@@ -517,26 +517,51 @@ void test_process(){
   MLOG_INFO(mlog::app, "Test process finished");
 }
 
+void isParentPageFault(){
+  MLOG_INFO(mlog::app, "Trigger isParent page fault");
+
+  mythos::PortalLock pl(portal);
+
+  mythos::CapMap cs(capAlloc());
+
+  mythos::PageMap pm4(capAlloc());
+
+  auto res = cs.create(pl, kmem, CapPtrDepth(12), CapPtrDepth(20), CapPtr(0)).wait();
+  ASSERT(res);
+
+  res = pm4.create(pl, kmem, 4).wait();
+  ASSERT(res);
+
+  MLOG_INFO(mlog::app, "Try to delete page maps -> page fault");
+
+  capAlloc.free(cs.cap(), pl);
+  capAlloc.free(pm4.cap(), pl);
+
+  
+  MLOG_INFO(mlog::app, "If you can read this, you might have fixed the page fault?!");
+}
+
 int main()
 {
   char const str[] = "Hello world!";
   mythos::syscall_debug(str, sizeof(str)-1);
   MLOG_ERROR(mlog::app, "application is starting :)", DVARhex(info_ptr), DVARhex(initstack_top));
 
-  test_float();
-  test_Example();
-  test_Portal();
+  //test_float();
+  //test_Example();
+  //test_Portal();
   test_heap(); // heap must be initialized for tls test
-  test_tls();
-  test_exceptions();
+  //test_tls();
+  //test_exceptions();
   //test_InterruptControl();
   //test_HostChannel(portal, 24*1024*1024, 2*1024*1024);
-  test_ExecutionContext();
-  test_pthreads();
-  test_Rapl();
-  test_processor_allocator();
-  test_process();
+  //test_ExecutionContext();
+  //test_pthreads();
+  //test_Rapl();
+  //test_processor_allocator();
+  //test_process();
   //test_CgaScreen();
+  isParentPageFault();
 
   char const end[] = "bye, cruel world!";
   mythos::syscall_debug(end, sizeof(end)-1);

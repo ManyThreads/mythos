@@ -106,6 +106,9 @@ namespace mythos {
 
   optional<void> RevokeOperation::_delete(CapEntry* root, Cap rootCap)
   {
+    MLOG_ERROR(mlog::cap, __PRETTY_FUNCTION__, DVAR(root), DVAR(*root), DVAR(rootCap));
+    root->dumpList();
+
     CapEntry* leaf;
     do {
       if (_startTraversal(root, rootCap)) {
