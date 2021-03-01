@@ -83,7 +83,9 @@ namespace mythos {
      * allocated. Returns true if zombified. */ 
     bool kill();
 
-    optional<void> unlinkAndUnlockPrev();
+    bool kill(Cap expected);
+
+    optional<void> unlinkAndUnlockLinks();
 
     /* lock next functions protect the link to the next CapEntry */
 
@@ -101,7 +103,7 @@ namespace mythos {
         hwthread_pause(); 
 #warning remove counting for production
         loop++;
-        PANIC_MSG(loop < 2," locking failed too many times");
+        PANIC_MSG(loop < 3, "locking next failed too many times");
       }
     }
 
@@ -128,7 +130,7 @@ namespace mythos {
         hwthread_pause(); 
 #warning remove counting for production
         loop++;
-        PANIC_MSG(loop < 2," locking failed too many times");
+        PANIC_MSG(loop < 3," locking failed too many times");
       }
     }
 
@@ -147,6 +149,7 @@ namespace mythos {
 
     Error try_lock_prev();
     bool lock_prev();
+
     void unlock_prev()
     { 
       MLOG_ERROR(mlog::cap, __PRETTY_FUNCTION__, DVAR(this));
@@ -155,7 +158,6 @@ namespace mythos {
 
     CapEntry* next()
     {
-      ASSERT(next_is_locked());
       return Link(_next).ptr();
     }
 
@@ -197,9 +199,10 @@ namespace mythos {
       CapEntry* operator->() { ASSERT(ptr()); return ptr(); }
 
       Link withFlags(uintlink_t flags) const { return Link(_offset(),  flags); }
-      Link withoutFlags() const { return Link(_offset(), 0); }
+      Link withoutFlags() const { return withFlags(0); }
 
       Link withPtr(CapEntry* ptr) const { return Link(ptr, flags()); }
+      Link withoutPtr() const { return withPtr(nullptr); }
 
       CapEntry* ptr() const
       {
@@ -251,11 +254,15 @@ namespace mythos {
     MLOG_ERROR(mlog::cap, __PRETTY_FUNCTION__, DVAR(this), DVAR(parentCap), DVAR(targetEntry), DVAR(targetCap));
     ASSERT(isKernelAddress(this));
     ASSERT(targetEntry.cap().isAllocated());
-    lock_next(); // lock the parent entry, the child is already acquired
+    // lock the parent entry, the child is already acquired
+    lock_cap();
+    lock_next(); 
     auto curCap = cap();
     // lazy-locking: check that we still operate on the same parent capability
     if (!curCap.isUsable() || curCap != parentCap) {
-      unlock_next(); // unlock the parent entry
+      // unlock the parent entry
+      unlock_next();
+      unlock_cap();
       targetEntry.reset(); // release exclusive usage and revert to an empty entry
       THROW(Error::LOST_RACE);
     }
@@ -265,14 +272,15 @@ namespace mythos {
 
     auto next = Link(_next.load()).withoutFlags();
     next->setPrevPreserveFlags(&targetEntry);
-    MLOG_ERROR(mlog::cap, "this unlocks _next remotely ", DVAR(targetEntry));
+    // dest was never locked MLOG_ERROR(mlog::cap, "this unlocks next in child", DVAR(targetEntry));
     targetEntry._next.store(next.value());
     // deleted or revoking can not be set in target._prev
     // as we allocated target for being inserted
-    MLOG_ERROR(mlog::cap, "this unlocks _prev remotely ", DVAR(targetEntry));
+    // dest was never locked MLOG_ERROR(mlog::cap, "this unlocks cap in child", DVAR(targetEntry));
     targetEntry._prev.store(Link(this).value());
     MLOG_ERROR(mlog::cap, "this unlocks _next ");
     this->_next.store(Link(&targetEntry).value()); // unlocks the parent entry
+    unlock_cap();
     targetEntry.commit(targetCap); // release the target entry as usable
     RETURN(Error::SUCCESS);
   }

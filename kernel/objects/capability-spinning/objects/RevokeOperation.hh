@@ -107,8 +107,7 @@ private:
   void _deleteObject(Tasklet* t);
 
   optional<void> _delete(CapEntry* root, Cap rootCap);
-  bool _startTraversal(CapEntry* root, Cap rootCap);
-  CapEntry* _findLockedLeaf(CapEntry* root);
+  bool _findLeaf(CapEntry* const root, Cap const rootCap, CapEntry*& leaf, Cap& leafCap);
 
   void _startAsyncDelete(Tasklet* t);
 

@@ -91,15 +91,18 @@ namespace mythos {
       other.reset();
       THROW(Error::GENERIC_ERROR);
     }
+    lock_cap();
     lock_next();
     auto thisCap = cap();
     if (isRevoking() || !thisCap.isUsable()) {
       other.reset();
       unlock_next();
+      unlock_cap();
       unlock_prev();
       THROW(Error::INVALID_CAPABILITY);
     }
 
+    // using these values removes lock
     auto next= Link(_next).withoutFlags();
     auto prev= Link(_prev).withoutFlags();
 
@@ -108,10 +111,12 @@ namespace mythos {
     // deletion, deleted or revoking can not be set in other._prev
     // as we allocated other for moving
     other._prev.store(prev.value());
+    MLOG_ERROR(mlog::cap, "this unlocks prev");
     prev->_next.store(Link(&other).value());
     other.commit(thisCap);
+    MLOG_ERROR(mlog::cap, "this unlocks cap");
     _prev.store(Link().value());
-    MLOG_ERROR(mlog::cap, "this unlocks _next");
+    MLOG_ERROR(mlog::cap, "this unlocks next");
     _next.store(Link().value());
     _cap.store(Cap().value());
     RETURN(Error::SUCCESS);
@@ -131,15 +136,24 @@ namespace mythos {
     return true;
   }
 
-  optional<void> CapEntry::unlinkAndUnlockPrev()
+  bool CapEntry::kill(Cap expected)
+  {
+    CapValue expectedValue = expected.value();
+    MLOG_DETAIL(mlog::cap, this, ".kill", DVAR(expected));
+    return _cap.compare_exchange_strong(expectedValue, expected.asZombie().value());
+  }
+
+
+  optional<void> CapEntry::unlinkAndUnlockLinks()
   {
     MLOG_ERROR(mlog::cap, __PRETTY_FUNCTION__, DVAR(this));
-    auto next = Link(_next).withoutFlags();
-    auto prev = Link(_prev).withoutFlags();
-    next->_prev.store(prev.value());
-    prev->_next.store(next.value());
-    MLOG_ERROR(mlog::cap, "this unlocks _prev");
-    _prev.store(Link().value());
+    auto next = Link(_next);
+    auto prev = Link(_prev);
+#warning this does not preserve the flags of next :(
+    next->_prev.store(prev.withoutFlags().value());
+    MLOG_ERROR(mlog::cap, "this unlocks _next of predecessor");
+    prev->_next.store(next.withoutFlags().value());
+    _prev.store(Link().withoutPtr().value());
     MLOG_ERROR(mlog::cap, "this unlocks _next");
     _next.store(Link().value());
     RETURN(Error::SUCCESS);
