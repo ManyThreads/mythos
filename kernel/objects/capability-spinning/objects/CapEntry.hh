@@ -104,10 +104,38 @@ namespace mythos {
         PANIC_MSG(loop < 2," locking failed too many times");
       }
     }
+
     void unlock_next()
     { 
       MLOG_ERROR(mlog::cap, __PRETTY_FUNCTION__, DVAR(this));
       auto res = _next.fetch_and(~LOCKED_FLAG);
+      ASSERT(res & LOCKED_FLAG);
+    }
+
+    /* deletion lock functions protect the deletion of a object  */
+
+    bool try_lock_cap()
+    { 
+      bool ret = !(_prev.fetch_or(LOCKED_FLAG) & LOCKED_FLAG);
+      MLOG_ERROR(mlog::cap, __PRETTY_FUNCTION__, DVAR(this), ret? " locked" : "locking failed!");
+      return ret;
+    }
+
+    void lock_cap()
+    { 
+      int loop = 0;
+      while (!try_lock_cap()) { 
+        hwthread_pause(); 
+#warning remove counting for production
+        loop++;
+        PANIC_MSG(loop < 2," locking failed too many times");
+      }
+    }
+
+    void unlock_cap()
+    { 
+      MLOG_ERROR(mlog::cap, __PRETTY_FUNCTION__, DVAR(this));
+      auto res = _prev.fetch_and(~LOCKED_FLAG);
       ASSERT(res & LOCKED_FLAG);
     }
 
@@ -144,9 +172,15 @@ namespace mythos {
     // called by move and insertAfter
     void setPrevPreserveFlags(CapEntry* ptr);
 
+    // lock flag in _next and _prev
+    // _next protects the link to the next entry (lock_next)
+    // _prev protects the capability in the entry from being changed (lock_cap)
     static constexpr uintlink_t LOCKED_FLAG = 1;
-    static constexpr uintlink_t REVOKING_FLAG = 1 << 1;
-    static constexpr uintlink_t DELETED_FLAG = 1 << 2;
+
+    // flags describing the entry in _prev
+    static constexpr uintlink_t REVOKING_FLAG = 1 << 1; // prevents from moving
+    static constexpr uintlink_t DELETED_FLAG = 1 << 2; // prevents from inserting in soon-to-be-deleted object
+
     static constexpr uintlink_t FLAG_MASK = 7;
 
     static_assert((DELETED_FLAG | REVOKING_FLAG | FLAG_MASK) == FLAG_MASK, "prev flags do not fit");

@@ -67,7 +67,6 @@ namespace mythos {
   {
     MLOG_ERROR(mlog::cap, __PRETTY_FUNCTION__, DVAR(this));
     ASSERT(isUnlinked() || cap().isAllocated());
-    MLOG_ERROR(mlog::cap, "this unlocks _prev");
     _prev.store(Link().value());
     _next.store(Link().value());
     // mark as empty
@@ -106,12 +105,11 @@ namespace mythos {
 
     next->setPrevPreserveFlags(&other);
     other._next.store(next.value());
-    // deleted or revoking can not be set in other._prev
+    // deletion, deleted or revoking can not be set in other._prev
     // as we allocated other for moving
     other._prev.store(prev.value());
     prev->_next.store(Link(&other).value());
     other.commit(thisCap);
-    MLOG_ERROR(mlog::cap, "this unlocks _prev");
     _prev.store(Link().value());
     MLOG_ERROR(mlog::cap, "this unlocks _next");
     _next.store(Link().value());
