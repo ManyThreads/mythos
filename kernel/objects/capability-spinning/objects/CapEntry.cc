@@ -87,18 +87,19 @@ namespace mythos {
     MLOG_ERROR(mlog::cap, __PRETTY_FUNCTION__, DVAR(this), DVAR(other));
     ASSERT(other.cap().isAllocated());
     ASSERT(!other.isLinked());
+    lock_cap();
     if (!lock_prev()) {
+      unlock_cap();
       other.reset();
       THROW(Error::GENERIC_ERROR);
     }
-    lock_cap();
     lock_next();
     auto thisCap = cap();
     if (isRevoking() || !thisCap.isUsable()) {
       other.reset();
       unlock_next();
-      unlock_cap();
       unlock_prev();
+      unlock_cap();
       THROW(Error::INVALID_CAPABILITY);
     }
 
