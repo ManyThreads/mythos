@@ -149,8 +149,7 @@ namespace mythos {
     MLOG_ERROR(mlog::cap, __PRETTY_FUNCTION__, DVAR(this));
     auto next = Link(_next);
     auto prev = Link(_prev);
-#warning this does not preserve the flags of next :(
-    next->_prev.store(prev.withoutFlags().value());
+    next->setPrevPreserveFlags(prev.ptr());
     MLOG_ERROR(mlog::cap, "this unlocks _next of predecessor");
     prev->_next.store(next.withoutFlags().value());
     _prev.store(Link().withoutPtr().value());
