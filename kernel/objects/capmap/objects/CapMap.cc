@@ -66,15 +66,15 @@ namespace mythos {
   CapMapFactory::factory(CapEntry* dstEntry, CapEntry* memEntry, Cap memCap, IAllocator* mem,
                         CapPtrDepth indexbits, CapPtrDepth guardbits, CapPtr guard)
   {
-    auto obj = initial(memEntry, memCap, mem, indexbits, guardbits, guard);
-    if (!obj) RETHROW(obj);
-    auto& root = obj->getRoot();
-    auto cap = root.cap();
-    // Just a reference is stored in the target capability entry.
-    // The CapMap contains its original capability internally
-    // in order to resolve cyclic dependencies during deletion. 
-    auto res = cap::inherit(root, cap, *dstEntry, cap.asReference());
-    if (!res) RETHROW(res); // the object was deleted concurrently
+    auto ptr = mem->alloc(CapMap::size(indexbits), 64);
+    if (!ptr) RETHROW(ptr);
+    auto obj = new(*ptr) CapMap(mem, indexbits, guardbits, guard);
+    auto cap = Cap(obj).withData(CapMapData().writable(true));
+    auto res = cap::inherit(*memEntry, memCap, *dstEntry, cap);
+    if (!res) {
+      mem->free(*ptr, CapMap::size(indexbits));
+      RETHROW(res);
+    }
     return obj;
   }
 
@@ -86,7 +86,9 @@ namespace mythos {
 
   optional<void> CapMap::deleteCap(CapEntry&, Cap self, IDeleter& del)
   {
+    MLOG_INFO(mlog::cap, "CapMap::deleteCap");
     if (self.isOriginal()) {
+      MLOG_DETAIL(mlog::cap, "delete original");
       // delete all entries, leaves them in a locked state (allocated)
       // in order to prevent concurrent insertion of new caps.
       for (size_t i=0; i<cap_count(indexbits); i++) {
