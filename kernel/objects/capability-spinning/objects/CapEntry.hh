@@ -91,18 +91,21 @@ namespace mythos {
      * allocated. Returns true if zombified. */ 
     bool kill();
 
-    bool kill(Cap expected);
+    bool try_kill(Cap expected);
 
     optional<void> unlinkAndUnlockLinks();
 
     /* lock next functions protect the link to the next CapEntry */
 
-    bool try_lock_next()
+    bool try_lock_next(CapEntry* next)
     { 
-      bool ret = !(_next.fetch_or(LOCKED_FLAG) & LOCKED_FLAG);
-      MLOG_ERROR(mlog::cap, __PRETTY_FUNCTION__, DVAR(this), ret? " locked" : "locking failed!");
-      return ret;
+     Link expected(next);
+     uintlink_t expectedValue = expected.value();
+     auto ret = _next.compare_exchange_strong(expectedValue, expected.withFlags(LOCKED_FLAG).value());
+     MLOG_ERROR(mlog::cap, __PRETTY_FUNCTION__, DVAR(this), ret? " locked" : "locking failed!");
+     return ret;
     }
+
 
     void lock_next()
     { 
@@ -181,6 +184,14 @@ namespace mythos {
 
     // called by move and insertAfter
     void setPrevPreserveFlags(CapEntry* ptr);
+
+    // called by lock_next
+    bool try_lock_next()
+    { 
+      bool ret = !(_next.fetch_or(LOCKED_FLAG) & LOCKED_FLAG);
+      MLOG_ERROR(mlog::cap, __PRETTY_FUNCTION__, DVAR(this), ret? " locked" : "locking failed!");
+      return ret;
+    }
 
     // lock flag in _next and _prev
     // _next protects the link to the next entry (lock_next)

@@ -172,7 +172,7 @@ namespace mythos {
           hwthread_pause();
         }
         if (cap::isParentOf(*leafEntry, leafCap, *nextEntry, nextCap)) {
-          if (!nextEntry->kill(nextCap)) {
+          if (!nextEntry->try_kill(nextCap)) {
             MLOG_DETAIL(mlog::cap, "cap to be killed changed concurrently");
             return false; 
           }
