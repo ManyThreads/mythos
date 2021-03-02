@@ -58,7 +58,6 @@ class Process{
     if(pInfoFrame){
       if(pInfoFrame->isRunning()){
         ASSERT(parent == mythos_get_pthread_ec_self());
-        //pInfoFrame->setParent(parent);
         pInfoFrame->setParent(init::PARENT_EC);
         while(pInfoFrame->isRunning()){
           mythos_wait();
@@ -72,8 +71,6 @@ class Process{
   void remove(PortalLock& pl){
     MLOG_ERROR(mlog::app, __PRETTY_FUNCTION__);
     pInfoFrame = nullptr;
-    MLOG_ERROR(mlog::app, "free capmap");
-    capAlloc.free(cs, pl);
     MLOG_ERROR(mlog::app, "free dynamically allocated caps in own CS");
     for (std::vector<CapPtr>::reverse_iterator i = caps.rbegin(); 
         i != caps.rend(); ++i ) {
@@ -81,6 +78,8 @@ class Process{
         capAlloc.free(*i, pl);
      } 
     caps.clear();
+    MLOG_ERROR(mlog::app, "free capmap");
+    capAlloc.free(cs, pl);
   }
 
   void join(PortalLock& pl){
@@ -206,8 +205,7 @@ class Process{
 
   optional<CapPtr> createProcess(PortalLock& pl){
     MLOG_INFO(mlog::app, __func__);
-    MLOG_ERROR(mlog::app, "process needs to be reworked!");
-    return 0;
+
     /* create CapMap */
     MLOG_DETAIL(mlog::app, "create CapMap ...");
     auto res = cs.create(pl, kmem, CapPtrDepth(12), CapPtrDepth(20), CapPtr(0)).wait();
