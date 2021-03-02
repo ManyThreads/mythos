@@ -124,7 +124,7 @@ namespace mythos {
 
   void CapMap::invoke(Tasklet* t, Cap self, IInvocation* msg)
   {
-    /// @todo Monitor might not be neccessary for derive, reference, move
+    /// @todo Monitor might not be neccessary for derive, reference
     monitor.request(t, [=](Tasklet* t){
         Error err = Error::NOT_IMPLEMENTED;
         switch (msg->getProtocol()) {
@@ -186,21 +186,6 @@ namespace mythos {
     if (!srcRef) return srcRef.state();
     // reference
     return cap::reference(*srcRef->entry, *dstRef->entry, srcRef->entry->cap(), data.request).state();
-  }
-
-  Error CapMap::invokeMove(Tasklet*, Cap cap, IInvocation* msg)
-  {
-    auto data = msg->getMessage()->read<protocol::CapMap::Move>();
-    // retrieve dst cap entry
-    auto dstRef = lookupDst(cap, msg, data);
-    if (!dstRef) return dstRef.state();
-    // retrieve source cap entry
-    auto srcRef = this->lookup(cap, data.srcPtr(), data.srcDepth, true);
-    if (!srcRef) return srcRef.state();
-    // move
-    auto res = dstRef->entry->acquire();
-    if (!res) { return res.state(); }
-    return srcRef->entry->moveTo(*dstRef->entry).state();
   }
 
   Error CapMap::invokeDelete(Tasklet*, Cap cap, IInvocation* msg)
