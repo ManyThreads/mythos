@@ -53,6 +53,26 @@ synchronisation.
 
 # Quick Usage Guide
 
+## Running Mythos in QEMU within docker
+
+Qemu is using X11 to display the virtual display. Thus we need to activate X11 output for docker. Install and start XQuartz. In the XQuartz settings under security enable "Allow connections from network clients" and reboot the laptop, not just restart XQuartz neither just log out and in again.
+
+```bash
+git clone https://github.com/ManyThreads/mythos.git
+cd mythos
+git submodule update --init --recursive
+docker build -f Dockerfile -t mythos --progress=plain .
+
+xhost +localhost
+XAUTH=$HOME/.Xauthority
+docker run --rm -it \
+    -e DISPLAY=host.docker.internal:0 \
+    -e XAUTHORITY=$XAUTH \
+    -v $XAUTH:$XAUTH \
+    mythos
+```
+
+
 ## Running in the QEMU virtual machine
 
 * First, run `git submodule update --init --recursive` to pull the needed projects
