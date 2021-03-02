@@ -1,8 +1,3 @@
 # -*- mode:toml; -*-
 [module.propagation]
-incfiles = [
-  "util/SingleLinkedList.hh",
-  "util/Chain.hh",
-  "util/US_Broadcast.hh",
-  "util/Typedef.hh",
-  "util/Structs.hh"]
+incfiles = [ "util/Typedef.hh", "util/Tasklet.hh", "util/SingleLinkedListNonBlock.hh" ]
