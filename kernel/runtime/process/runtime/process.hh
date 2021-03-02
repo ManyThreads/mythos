@@ -211,13 +211,13 @@ class Process{
     auto res = cs.create(pl, kmem, CapPtrDepth(12), CapPtrDepth(20), CapPtr(0)).wait();
     ASSERT(res);
     MLOG_DETAIL(mlog::app, "set CapMap reference...");
-    res = myCS.reference(pl, cs.cap(), max_cap_depth, cs.cap(), init::CSPACE, max_cap_depth, 1).wait();
+    res = myCS.reference(pl, cs.cap(), max_cap_depth, cs.cap(), init::CSPACE, max_cap_depth).wait();
     ASSERT(res);
     
      //copy relevant caps 
     MLOG_DETAIL(mlog::app, "copy relevant Caps ...");
     MLOG_DETAIL(mlog::app, "   kernel memory");
-    res = myCS.reference(pl, init::KM, max_cap_depth, cs.cap(), init::KM, max_cap_depth, 1).wait();
+    res = myCS.reference(pl, init::KM, max_cap_depth, cs.cap(), init::KM, max_cap_depth).wait();
     ASSERT(res);
 
     MLOG_DETAIL(mlog::app, "   factories");
@@ -227,18 +227,18 @@ class Process{
     }
 
     MLOG_DETAIL(mlog::app, "   DEVICE_MEMORY");
-    res = myCS.reference(pl, init::DEVICE_MEM, max_cap_depth, cs.cap(), init::DEVICE_MEM, max_cap_depth, 0).wait();
+    res = myCS.reference(pl, init::DEVICE_MEM, max_cap_depth, cs.cap(), init::DEVICE_MEM, max_cap_depth).wait();
     ASSERT(res);
 
     MLOG_DETAIL(mlog::app, "   RAPL driver");
-    res = myCS.reference(pl, init::RAPL_DRIVER_INTEL, max_cap_depth, cs.cap(), init::RAPL_DRIVER_INTEL, max_cap_depth, 0).wait();
+    res = myCS.reference(pl, init::RAPL_DRIVER_INTEL, max_cap_depth, cs.cap(), init::RAPL_DRIVER_INTEL, max_cap_depth).wait();
     ASSERT(res);
 
     MLOG_DETAIL(mlog::app, "   Interrupt control");
     MLOG_WARN(mlog::app, "SKIP: Interrupt control caps!");
     //todo: how to check whether cap is existing?
     //for(CapPtr ptr = init::INTERRUPT_CONTROL_START; ptr < init::INTERRUPT_CONTROL_END; ptr++){
-      //res = myCS.reference(pl, ptr, max_cap_depth, cs.cap(), ptr, max_cap_depth, 0).wait();
+      //res = myCS.reference(pl, ptr, max_cap_depth, cs.cap(), ptr, max_cap_depth).wait();
       //ASSERT(res);
     //}
 
@@ -339,9 +339,9 @@ class Process{
     caps.push_back(iFrame.cap());
     res = iFrame.create(pl, kmem, size, align2M).wait();
     ASSERT(res);
-    res = myCS.reference(pl, iFrame.cap(), max_cap_depth, cs.cap(), init::INFO_FRAME, max_cap_depth, 0).wait();
+    res = myCS.reference(pl, iFrame.cap(), max_cap_depth, cs.cap(), init::INFO_FRAME, max_cap_depth).wait();
     ASSERT(res);
-    MLOG_WARN(mlog::app, "   map frame to target page map", DVARhex(size), DVARhex(*ipc_vaddr));
+    MLOG_DETAIL(mlog::app, "   map frame to target page map", DVARhex(size), DVARhex(*ipc_vaddr));
     res = pm4.mmap(pl, iFrame, *ipc_vaddr, size, 0x1).wait();
     ASSERT(res);
     
