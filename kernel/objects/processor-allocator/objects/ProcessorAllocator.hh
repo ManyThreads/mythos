@@ -36,6 +36,8 @@
 
 namespace mythos {
 
+class ThreadTeam;
+
 class ProcessorAllocator
   : public IKernelObject
 {
@@ -57,17 +59,17 @@ class ProcessorAllocator
 
     void alloc(Tasklet* t, IResult<cpu::ThreadID>* r){
       monitor.request(t,[=](Tasklet*){
-            ASSERT(r);
-            r->response(t, alloc());
-            monitor.responseAndRequestDone();
-          });
+        ASSERT(r);
+        r->response(t, alloc());
+        monitor.responseAndRequestDone();
+      });
     }
 
     void free(Tasklet* t, cpu::ThreadID id){
       monitor.request(t,[=](Tasklet*){
-            free(id);  
-            monitor.responseAndRequestDone();
-          });
+        free(id);  
+        monitor.responseAndRequestDone();
+      });
     }
 
     CapEntry* getSC(cpu::ThreadID id){
@@ -75,11 +77,44 @@ class ProcessorAllocator
       return &sc[id];
     }
 
-  protected:
+    void bind(optional<ThreadTeam*> /*tt*/){}
+    void unbind(optional<ThreadTeam*> tt){
+      MLOG_INFO(mlog::pm, "unregistered thread team", DVAR(tt));
+      ASSERT(tt);
+      for(unsigned i = 0; i < nTeams; i++){
+        auto ti = teamList[i];
+        auto t = teamRefs[ti].get();
+        if(t && *t == *tt){
+          nTeams--;
+          for(; i < nTeams; i++){
+            teamList[i] = teamList[i+1];
+          }
+        }
+      }
+    }
+
+    void registerThreadTeam(Tasklet* t, CapEntry* threadTeam){
+      monitor.request(t,[=](Tasklet*){
+        if(nTeams < MAX_TEAMS){
+          teamRefs[nTeams].set(this, threadTeam, threadTeam->cap());
+          MLOG_INFO(mlog::pm, "registered thread team on index ", nTeams);
+          nTeams++;
+        }else{
+          MLOG_INFO(mlog::pm, "ERROR: too many thread teams registered!");
+        }
+        monitor.responseAndRequestDone();
+      });
+    }
+
+  private:
+    static constexpr unsigned MAX_TEAMS = MYTHOS_MAX_THREADS;
     async::NestedMonitorDelegating monitor;
     CapEntry *sc;
     CapEntry mySC[MYTHOS_MAX_THREADS];
     unsigned nFree;
     cpu::ThreadID freeList[MYTHOS_MAX_THREADS];
+    CapRef<ProcessorAllocator, ThreadTeam> teamRefs[MAX_TEAMS];
+    unsigned teamList[MAX_TEAMS];
+    unsigned nTeams;
 };
 } // namespace mythos

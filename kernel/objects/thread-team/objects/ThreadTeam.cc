@@ -404,8 +404,10 @@ namespace mythos {
 
         if(!tryRunDemandAt(t, id)) {
           removeUsed(id);
-          pushFree(id);
+          //pushFree(id);
+          ASSERT(pa);
           state = IDLE;
+          pa->free(t, id);
           monitor.responseAndRequestDone();
         }
     }); 
@@ -480,6 +482,7 @@ namespace mythos {
       mem->free(*obj); // mem->release(obj) goes throug IKernelObject deletion mechanism
       RETHROW(res);
     }
+    pa->registerThreadTeam(&obj->paTasklet, dstEntry);
     return *obj;
   }
 

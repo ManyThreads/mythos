@@ -45,6 +45,7 @@ namespace mythos {
 /* ProcessorAllocator */
   ProcessorAllocator::ProcessorAllocator()
       : sc(image2kernel(&mySC[0]))
+      , nTeams(0)
     {}
 
   void ProcessorAllocator::init(){

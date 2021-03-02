@@ -114,6 +114,7 @@ namespace mythos {
       friend class ThreadTeamFactory;
       CapRef<ThreadTeam,ProcessorAllocator> paRef;
       ProcessorAllocator* pa;
+      Tasklet paTasklet;
       cpu::ThreadID freeList[MYTHOS_MAX_THREADS];
       unsigned nFree;
       cpu::ThreadID usedList[MYTHOS_MAX_THREADS];
