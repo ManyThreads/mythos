@@ -206,7 +206,8 @@ class Process{
 
   optional<CapPtr> createProcess(PortalLock& pl){
     MLOG_INFO(mlog::app, __func__);
-
+    MLOG_ERROR(mlog::app, "process needs to be reworked!");
+    return 0;
     /* create CapMap */
     MLOG_DETAIL(mlog::app, "create CapMap ...");
     auto res = cs.create(pl, kmem, CapPtrDepth(12), CapPtrDepth(20), CapPtr(0)).wait();
