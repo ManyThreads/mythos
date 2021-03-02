@@ -191,10 +191,10 @@ void mythosExit(){
 
     //todo: free capspace, all ECs,
     mythos::PortalLock pl(localPortal); 
-    MLOG_ERROR(mlog::app, "Free all dynamically allocated Caps");
+    MLOG_DETAIL(mlog::app, "Free all dynamically allocated Caps");
     capAlloc.freeAll(pl);
 
-    MLOG_ERROR(mlog::app, "notify parent process");
+    MLOG_DETAIL(mlog::app, "notify parent process");
     groupExit.emit();
     MLOG_ERROR(mlog::app, "MYTHOS:PLEASE KILL ME!!!!!!1 elf");
 }

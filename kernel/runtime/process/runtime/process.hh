@@ -34,7 +34,7 @@ class ProcessExitEvent : public EventHook<> {
   }
 
   void processEvent() override {
-    MLOG_ERROR(mlog::app, __PRETTY_FUNCTION__);
+    MLOG_DETAIL(mlog::app, __PRETTY_FUNCTION__);
     info_ptr->setRunning(false);
     auto parent = info_ptr->getParent();
     if(parent != null_cap){
@@ -69,16 +69,16 @@ class Process{
   }
 
   void remove(PortalLock& pl){
-    MLOG_ERROR(mlog::app, __PRETTY_FUNCTION__);
+    MLOG_DETAIL(mlog::app, __PRETTY_FUNCTION__);
     pInfoFrame = nullptr;
-    MLOG_ERROR(mlog::app, "free dynamically allocated caps in own CS");
+    MLOG_DETAIL(mlog::app, "free dynamically allocated caps in own CS");
     for (std::vector<CapPtr>::reverse_iterator i = caps.rbegin(); 
         i != caps.rend(); ++i ) {
-      MLOG_ERROR(mlog::app, DVAR(*i));
+      MLOG_DETAIL(mlog::app, DVAR(*i));
         capAlloc.free(*i, pl);
      } 
     caps.clear();
-    MLOG_ERROR(mlog::app, "free capmap");
+    MLOG_DETAIL(mlog::app, "free capmap");
     capAlloc.free(cs, pl);
   }
 
