@@ -55,7 +55,9 @@
 #include "runtime/thread-extra.hh"
 #include "runtime/ThreadTeam.hh"
 #include "runtime/Mutex.hh"
+#include "runtime/process.hh"
 #include "util/optional.hh"
+#include "util/events.hh"
 #include "mythos/InfoFrame.hh"
 
 extern mythos::InfoFrame* info_ptr asm("info_ptr");
@@ -182,6 +184,8 @@ extern "C" [[noreturn]] void __assert_fail (const char *expr, const char *file, 
     mythos::syscall_exit(-1); /// @TODO syscall_abort(); to see some stack backtrace etc
 }
 
+mythos::Event<> groupExit;
+
 void mythosExit(){
     //todo: ASSERT(myEC == init::EC)
 
@@ -189,12 +193,9 @@ void mythosExit(){
     mythos::PortalLock pl(localPortal); 
     MLOG_ERROR(mlog::app, "Free all dynamically allocated Caps");
     capAlloc.freeAll(pl);
-    MLOG_ERROR(mlog::app, "Free Thread Team");
-    myCS.deleteCap(pl, mythos::init::THREAD_TEAM).wait();
-    //MLOG_ERROR(mlog::app, "Free init EC");
-    //myCS.deleteCap(pl, mythos::init::EC).wait();
-    //myCS.deleteCap(pl, mythos::init::CSPACE).wait();
-    //should never return
+
+    MLOG_ERROR(mlog::app, "notify parent process");
+    groupExit.emit();
     MLOG_ERROR(mlog::app, "MYTHOS:PLEASE KILL ME!!!!!!1 elf");
 }
 
@@ -328,7 +329,7 @@ extern "C" long mythos_musl_syscall(
         return 0;
     case 231: // exit_group for all pthreads 
         MLOG_WARN(mlog::app, "syscall exit_group ");
-	mythosExit();
+        mythosExit();
         return 0;
     case 302: // prlimit64
         //MLOG_WARN(mlog::app, "syscall prlimit64 NYI", DVAR(a1), DVAR(a2), DVAR(a3), DVAR(a4), DVAR(a5), DVAR(a6));

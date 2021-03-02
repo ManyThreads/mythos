@@ -1,3 +1,4 @@
 # -*- mode:toml; -*-
 [module.process]
     incfiles = [ "runtime/process.hh" ]
+    appfiles = [ "runtime/process.cc" ]

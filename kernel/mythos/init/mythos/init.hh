@@ -38,6 +38,7 @@ namespace init {
     CSPACE,
     PML4,
     EC,
+    PARENT_EC, //ec of parent process
     PORTAL,
     EXAMPLE_FACTORY,
     MEMORY_REGION_FACTORY,

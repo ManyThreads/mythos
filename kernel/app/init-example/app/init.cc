@@ -554,6 +554,7 @@ void test_process(){
 
   Process p(&process_test_image_start);
   p.createProcess(pl); 
+  p.join(pl);
 
   MLOG_INFO(mlog::app, "Test process finished");
 }
@@ -575,8 +576,8 @@ int main()
   //test_ExecutionContext();
   //test_pthreads();
   //test_Rapl();
-  test_TBB();
-  //test_process();
+  //test_TBB();
+  test_process();
   //test_CgaScreen();
 
   char const end[] = "bye, cruel world!";

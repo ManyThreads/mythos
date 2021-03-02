@@ -383,7 +383,7 @@ namespace mythos {
     auto res = visitTables(&_pm_table(0), level(), op);
     *failaddr = op.failaddr;
     *faillevel = op.current_level;
-    RETHROW(res.state());
+    RETURN(res.state());
   }
 
   Error PageMap::invokeInstallMap(Tasklet*, Cap self, IInvocation* msg)

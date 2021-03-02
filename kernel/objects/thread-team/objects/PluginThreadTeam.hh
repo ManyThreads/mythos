@@ -48,7 +48,7 @@ namespace factory {
     virtual ~PluginThreadTeamActivator() {}
 
     void processEvent(boot::InitLoader& loader) override {
-      MLOG_ERROR(mlog::pm, "prevent mapping of all scheduling contexts into CSpace");
+      MLOG_INFO(mlog::pm, "prevent mapping of all scheduling contexts into CSpace");
       loader.mapSchedulingContexts = false;
     }
 
