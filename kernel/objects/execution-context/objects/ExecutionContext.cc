@@ -428,7 +428,6 @@ namespace mythos {
         MLOG_INFO(mlog::syscall, "exit");
         setFlags(IS_TRAPPED);
         unsetSchedulingContext();
-        saveState();
         break;
 
       case SYSCALL_POLL:
