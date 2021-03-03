@@ -29,9 +29,7 @@
 #include "objects/IFactory.hh"
 #include "objects/IKernelObject.hh"
 #include "cpu/hwthreadid.hh"
-#include "mythos/protocol/ProcessorAllocator.hh"
 #include "boot/mlog.hh"
-#include "objects/RevokeOperation.hh"
 #include "async/IResult.hh"
 
 namespace mythos {
