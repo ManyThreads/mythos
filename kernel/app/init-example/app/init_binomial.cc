@@ -482,7 +482,7 @@ void test_CgaScreen(){
 // #############################################################################
 
 const size_t DIVISOR = 2;
-const size_t AMOUNT_TASKS = 7;
+const size_t AMOUNT_TASKS = 60;
 
 SingleLinkedListNonBlock jobPool;
 std::atomic<bool> marker[AMOUNT_TASKS];
