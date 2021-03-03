@@ -103,16 +103,7 @@ namespace mythos {
       return ret;
     }
 
-    void lock_next()
-    { 
-      int loop = 0;
-      while (!try_lock_next()) { 
-        hwthread_pause(); 
-#warning remove counting for production
-        loop++;
-        PANIC_MSG(loop < 3, "locking next failed too many times");
-      }
-    }
+    void lock_next() { while (!try_lock_next()) { hwthread_pause(); } }
 
     void unlock_next()
     { 
@@ -128,16 +119,7 @@ namespace mythos {
       return ret;
     }
 
-    void lock_cap()
-    { 
-      int loop = 0;
-      while (!try_lock_cap()) { 
-        hwthread_pause(); 
-#warning remove counting for production
-        loop++;
-        PANIC_MSG(loop < 3," locking failed too many times");
-      }
-    }
+    void lock_cap() { while (!try_lock_cap()) { hwthread_pause(); } }
 
     void unlock_cap()
     { 
