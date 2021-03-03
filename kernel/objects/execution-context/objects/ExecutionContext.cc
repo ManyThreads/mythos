@@ -425,9 +425,15 @@ namespace mythos {
     switch(SyscallCode(code)) {
 
       case SYSCALL_EXIT:
-        MLOG_INFO(mlog::syscall, "exit");
-        setFlags(IS_TRAPPED);
-        unsetSchedulingContext();
+        {
+          MLOG_INFO(mlog::syscall, "exit");
+          setFlags(IS_TRAPPED);
+            auto place = currentPlace.load();
+            if (place) synchronousAt(place) << [this]() {
+                this->saveState();
+                this->_sched.reset();
+            };
+        }
         break;
 
       case SYSCALL_POLL:
