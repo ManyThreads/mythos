@@ -362,7 +362,7 @@ extern "C" void * mmap(void *start, size_t len, int prot, int flags, int fd, off
 extern "C" int munmap(void *start, size_t len)
 {
     // dummy implementation
-    //MLOG_DETAIL(mlog::app, "munmap", DVAR(start), DVAR(len));
+    MLOG_DETAIL(mlog::app, "munmap", DVAR(start), DVAR(len));
     mythos::heap.free(reinterpret_cast<unsigned long>(start));
     return 0;
 }
@@ -370,7 +370,7 @@ extern "C" int munmap(void *start, size_t len)
 extern "C" int unmapself(void *start, size_t len)
 {
     // see pthread_exit: another pthread might reuse the memory before unmapped  thread exited
-    MLOG_WARN(mlog::app, "unmapself");
+    MLOG_DETAIL(mlog::app, "unmapself", DVARhex(start), DVAR(len));
     //todo: race condition?
     mythos::heap.free(reinterpret_cast<unsigned long>(start));
     threadPool.push(mythos_get_pthread_ec_self(), localPortalPtr);
@@ -482,18 +482,19 @@ extern "C" void mythos_pthread_cleanup(pthread_t t){
     // memory of target pthread will be free when returning from this function
 }
 
-extern "C" int mythos_revoke_demand(pthread_t t){
-    MLOG_WARN(mlog::app, "revoke demand");
+extern "C" int mythos_revoke_demand_hook(pthread_t t){
+    MLOG_DETAIL(mlog::app, "revoke demand", mythos_get_pthread_ec(t));
     mythos::PortalLock pl(localPortal); 
     auto ecPtr = mythos_get_pthread_ec(t);
     mythos::ExecutionContext ec(ecPtr);
     auto res = team.revokeDemand(pl, ec).wait();
-    if(res){
+    if(res && res->revoked){
       auto portalPtr = getRemotePortalPtr(t);
       threadPool.push(ecPtr, portalPtr);
-      MLOG_WARN(mlog::app, "who's gonna free pthreads memory?");
+      return 0;
     }
-    return res && res->revoked ? 0 : (-1);
+    MLOG_DETAIL(mlog::app, "revoke failed");
+    return (-1);
 }
 
 struct dl_phdr_info
@@ -516,7 +517,7 @@ extern char __executable_start; //< provided by the default linker script
 extern "C" int dl_iterate_phdr(
     int (*callback) (dl_phdr_info *info, size_t size, void *data), void *data)
 {
-    MLOG_ERROR(mlog::app, "dl_iterate_phdr", DVAR((void*)callback), DVAR(&__executable_start));
+    MLOG_DETAIL(mlog::app, "dl_iterate_phdr", DVAR((void*)callback), DVAR(&__executable_start));
     mythos::elf64::Elf64Image img(&__executable_start);
     ASSERT(img.isValid());
 
