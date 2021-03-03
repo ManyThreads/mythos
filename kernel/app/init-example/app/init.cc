@@ -517,6 +517,19 @@ void test_process(){
   MLOG_INFO(mlog::app, "Test process finished");
 }
 
+void testCapMapDeletion(){
+  MLOG_INFO(mlog::app, "Test CapMap deletion");
+
+  mythos::PortalLock pl(portal);
+  mythos::CapMap cs(capAlloc());
+
+  auto res = cs.create(pl, kmem, CapPtrDepth(12), CapPtrDepth(20), CapPtr(0)).wait();
+  ASSERT(res);
+  
+  capAlloc.free(cs.cap(), pl);
+  MLOG_INFO(mlog::app, "Test CapMap deletion finished");
+}
+
 int main()
 {
   char const str[] = "Hello world!";
@@ -535,8 +548,9 @@ int main()
   test_pthreads();
   test_Rapl();
   test_processor_allocator();
-  test_process();
+  //test_process();
   //test_CgaScreen();
+  testCapMapDeletion();
 
   char const end[] = "bye, cruel world!";
   mythos::syscall_debug(end, sizeof(end)-1);

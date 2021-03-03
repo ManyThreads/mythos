@@ -37,7 +37,6 @@ namespace mythos {
       enum Methods : uint8_t {
         DERIVE,
         REFERENCE,
-        MOVE,
         DELETE,
         REVOKE
       };
@@ -90,16 +89,6 @@ namespace mythos {
         CapRequest request;
       };
 
-      struct Move : public BinaryOp {
-        constexpr static uint16_t label = (proto<<8) + MOVE;
-
-        Move(CapPtr src, uint8_t srcDepth,
-            CapPtr dstCS, CapPtr dst, uint8_t dstDepth)
-          : BinaryOp(label, getLength(this), src, srcDepth, dstCS, dst, dstDepth)
-        {}
-
-      };
-
       struct Delete : public InvocationBase {
         constexpr static uint16_t label = (proto<<8) + DELETE;
 
@@ -142,7 +131,6 @@ namespace mythos {
           switch(Methods(m)) {
             case REFERENCE: return obj->invokeReference(args...);
             case DERIVE: return obj->invokeDerive(args...);
-            case MOVE: return obj->invokeMove(args...);
             case DELETE: return obj->invokeDelete(args...);
             case REVOKE: return obj->invokeRevoke(args...);
             default: return Error::NOT_IMPLEMENTED;

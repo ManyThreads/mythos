@@ -57,11 +57,6 @@ namespace mythos {
       return pr.invoke<protocol::CapMap::Reference>(_cap, src, srcDepth, dstCs, dst, dstDepth, req);
     }
 
-    PortalFuture<void> move(PortalLock pr, CapPtr src, CapPtrDepth srcDepth,
-                                 CapPtr dstCs, CapPtr dst, CapPtrDepth dstDepth) {
-      return pr.invoke<protocol::CapMap::Move>(_cap, src, srcDepth, dstCs, dst, dstDepth);
-    }
-
     PortalFuture<void> deleteCap(PortalLock pr, CapPtr src, CapPtrDepth srcDepth) {
       return pr.invoke<protocol::CapMap::Delete>(_cap, src, srcDepth);
     }

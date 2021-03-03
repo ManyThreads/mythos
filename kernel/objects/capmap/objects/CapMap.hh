@@ -75,7 +75,6 @@ public: // IKernelObject interface
 
   Error invokeReference(Tasklet*, Cap, IInvocation*);
   Error invokeDerive(Tasklet*, Cap, IInvocation*);
-  Error invokeMove(Tasklet*, Cap, IInvocation*);
   Error invokeDelete(Tasklet*, Cap, IInvocation*);
   Error invokeRevoke(Tasklet*, Cap, IInvocation*);
   Error getDebugInfo(Cap, IInvocation*);
