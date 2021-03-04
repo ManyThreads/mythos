@@ -78,6 +78,10 @@ namespace mythos {
     PortalFuture<RevokeResult> revokeDemand(PortalLock pr, ExecutionContext ec){
       return pr.invoke<protocol::ThreadTeam::RevokeDemand>(_cap, ec.cap());
     }
+
+    PortalFuture<RevokeResult> setLimit(PortalLock pr, unsigned limit){
+      return pr.invoke<protocol::ThreadTeam::SetLimit>(_cap, limit);
+    }
   };
 
 } // namespace mythos

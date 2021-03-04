@@ -427,6 +427,11 @@ long ParallelFib( long n ) {
 void test_TBB(){
   MLOG_INFO(mlog::app, "Test TBB");
 
+  //test thread team limitation
+  mythos::PortalLock pl(portal); 
+  auto res = team.setLimit(pl, 2).wait();
+  TEST(res);
+
   tbb::enableDynamicThreading();
 
   long f = 40;

@@ -42,7 +42,8 @@ namespace mythos {
         REVOKEDEMAND,
         RETREVOKEDEMAND,
         RUNNEXTTOEC,
-        RETRUNNEXTTOEC
+        RETRUNNEXTTOEC,
+        SETLIMIT,
       };
 
       //needs to be equal to pthread_alloc_type_t in pthread.h of musl
@@ -140,12 +141,25 @@ namespace mythos {
         }
       };
 
+      // restrict to maximum number of threads
+      struct SetLimit : public InvocationBase {
+        constexpr static uint16_t label = (proto<<8) + SETLIMIT;
+        SetLimit(unsigned limit) 
+          : InvocationBase(label,getLength(this)) 
+          , limit(limit)
+        {}
+
+        // maximum number of threads to be allocated
+        unsigned limit;
+      };
+
       template<class IMPL, class... ARGS>
       static Error dispatchRequest(IMPL* obj, uint8_t m, ARGS const&...args) {
         switch(Methods(m)) {
           case TRYRUNEC: return obj->invokeTryRunEC(args...);
           case REVOKEDEMAND: return obj->invokeRevokeDemand(args...);
           case RUNNEXTTOEC: return obj->invokeRunNextToEC(args...);
+          case SETLIMIT: return obj->invokeSetLimit(args...);
           default: return Error::NOT_IMPLEMENTED;
         }
       }

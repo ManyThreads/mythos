@@ -46,6 +46,7 @@ namespace mythos {
         sc->resetThreadTeam();
         //todo: synchronize!!!!
         pa->free(*used);
+        numAllocated--;
         used = popUsed();
       }
 
@@ -57,6 +58,7 @@ namespace mythos {
         sc->resetThreadTeam();
         //todo:: synchronize!!!
         pa->free(*free);
+        numAllocated--;
         free = popFree();
       }
       del.deleteObject(del_handle);
@@ -111,6 +113,7 @@ namespace mythos {
 
     if(id){
       MLOG_DETAIL(mlog::pm, DVAR(*id));
+      numAllocated++;
       auto sce = pa->getSC(*id);
       TypedCap<SchedulingContext> sc(sce->cap());
       sc->registerThreadTeam(this);
@@ -126,7 +129,7 @@ namespace mythos {
 
     if(data.allocType == protocol::ThreadTeam::DEMAND){
       if(enqueueDemand(*ece)){
-        MLOG_DETAIL(mlog::pm, "enqueued to demand list");
+        MLOG_DETAIL(mlog::pm, "enqueued to demand list", DVARhex(*ece));
         ret->setResponse(protocol::ThreadTeam::RetTryRunEC::ALLOCATED);
       }
     }else if(data.allocType == protocol::ThreadTeam::FORCE){
@@ -152,6 +155,7 @@ namespace mythos {
     ASSERT(tmp_id != INV_ID);
 
     if(state == INVOCATION){
+      MLOG_DETAIL(mlog::pm, "state = INVOCATION");
       ASSERT(tmp_msg);
       ASSERT(tmp_msg->getMethod() == protocol::ThreadTeam::TRYRUNEC);
 
@@ -169,6 +173,7 @@ namespace mythos {
         tmp_msg->replyResponse(Error::GENERIC_ERROR);
       }
     }else if(state == SC_NOTIFY){
+      MLOG_DETAIL(mlog::pm, "state = SC_NOTIFY");
       if(bound){
         // remove ec from demand queue
         removeDemand(tmp_ec, true);
@@ -191,11 +196,14 @@ namespace mythos {
     , tmp_msg(nullptr)
     , tmp_id(INV_ID)
     , tmp_ec(nullptr)
+    , rm_ec(nullptr)
     , state(IDLE)
     , pa(nullptr)
     , nFree(0)
     , nUsed(0)
     , nDemand(0)
+    , limit(0)
+    , numAllocated(0)
     {
       for(unsigned d = 0; d < MYTHOS_MAX_THREADS; d++){
         demandList[d] = d;
@@ -208,8 +216,9 @@ namespace mythos {
     ASSERT(ec);
 
     auto id = popFree();
-    if(!id){
+    if(!id && !limitReached()){
       id = pa->alloc();
+      if(id){ numAllocated++; }
     }
 
     if(id){
@@ -271,6 +280,9 @@ namespace mythos {
       TypedCap<ExecutionContext> ec(ece);
       ASSERT(ec);
       tryRunAt(t, *ec, *id);
+    }else if(limitReached()){
+      MLOG_DETAIL(mlog::pm, "limit reached!");
+      response(t, optional<cpu::ThreadID>());
     }else{
       MLOG_DETAIL(mlog::pm, "try alloc SC from PA");
       ASSERT(pa);
@@ -301,6 +313,18 @@ namespace mythos {
     }else{
       MLOG_INFO(mlog::pm, "revoke demand failed");
     }
+    return Error::SUCCESS;
+  }
+
+  Error ThreadTeam::invokeSetLimit(Tasklet* /*t*/, Cap, IInvocation* msg){
+    MLOG_DETAIL(mlog::pm, __func__);
+    ASSERT(state == INVOCATION);
+
+    auto data = msg->getMessage()->read<protocol::ThreadTeam::SetLimit>();
+    auto oldLimit = limit;
+    limit = data.limit;
+    MLOG_DETAIL(mlog::pm, DVAR(oldLimit), DVAR(limit));
+
     return Error::SUCCESS;
   }
 
@@ -356,7 +380,7 @@ namespace mythos {
   }
 
   bool ThreadTeam::enqueueDemand(CapEntry* ec){
-    MLOG_DETAIL(mlog::pm, __func__);
+    MLOG_DETAIL(mlog::pm, __func__, DVARhex(ec));
     ASSERT(state == INVOCATION);
     if(nDemand < MYTHOS_MAX_THREADS){
       demandEC[demandList[nDemand]].set(this, ec, ec->cap());
@@ -383,7 +407,7 @@ namespace mythos {
         demandList[nDemand] = di;
         //reset entry
         if(resetRef){
-          tmp_ec = *d;
+          rm_ec = *d;
           demandEC[di].reset();
         }
         //dumpDemand();
@@ -408,6 +432,7 @@ namespace mythos {
           ASSERT(pa);
           state = IDLE;
           pa->free(t, id);
+          numAllocated--;
           monitor.responseAndRequestDone();
         }
     }); 
@@ -423,6 +448,7 @@ namespace mythos {
       TypedCap<ExecutionContext> ec(demandEC[di]);
       ASSERT(ec);
       MLOG_DETAIL(mlog::pm, DVARhex(*ec), DVAR(id));
+      tmp_ec = *ec;
       //try to run ec
       tryRunAt(t, *ec, id);
       return true;
@@ -436,9 +462,9 @@ namespace mythos {
   void ThreadTeam::unbind(optional<ExecutionContext*> ec){
     MLOG_DETAIL(mlog::pm, __func__, DVARhex(ec));
     if(ec){
-      if(*ec == tmp_ec){
+      if(*ec == rm_ec){
         MLOG_DETAIL(mlog::pm, "synchronous unbind");
-        tmp_ec = nullptr;
+        rm_ec = nullptr;
       }else{
         MLOG_DETAIL(mlog::pm, "asynchronous unbind");
         //todo: tasklet valid after unbind?

@@ -70,6 +70,7 @@ namespace mythos {
       Error invokeTryRunEC(Tasklet* t, Cap, IInvocation* msg);
       Error invokeRevokeDemand(Tasklet* t, Cap, IInvocation* msg);
       Error invokeRunNextToEC(Tasklet* t, Cap, IInvocation* msg);
+      Error invokeSetLimit(Tasklet* t, Cap, IInvocation* msg);
 
       void bind(optional<ProcessorAllocator*> paPtr);
       void unbind(optional<ProcessorAllocator*> );
@@ -93,6 +94,7 @@ namespace mythos {
       bool removeDemand(ExecutionContext* ec, bool resetRef);
       bool tryRunDemandAt(Tasklet* t, cpu::ThreadID id);
       void dumpDemand();
+      bool limitReached() { return limit && numAllocated >= limit;  } 
 
     private:
       LinkedList<IKernelObject*>::Queueable del_handle = {this};
@@ -104,6 +106,7 @@ namespace mythos {
       static constexpr cpu::ThreadID INV_ID = cpu::ThreadID(-1);
       cpu::ThreadID tmp_id;
       ExecutionContext* tmp_ec;
+      ExecutionContext* rm_ec;
       enum OperationalState{
         IDLE,
         INVOCATION,
@@ -124,6 +127,8 @@ namespace mythos {
       // index >= nDemand = demandEC slot is free
       unsigned demandList[MYTHOS_MAX_THREADS]; // indexes to demandEC
       unsigned nDemand; 
+      unsigned limit;
+      unsigned numAllocated;
   };
 
   class ThreadTeamFactory : public FactoryBase
