@@ -209,7 +209,7 @@ void test_tls()
 void test_heap() {
   MLOG_INFO(mlog::app, "Test heap");
   mythos::PortalLock pl(portal);
-  auto size = 4*1024*1024; // 2 MB
+  auto size = 32*1024*1024; // 32 MB
   auto align = 2*1024*1024; // 2 MB
   uintptr_t vaddr = mythos::round_up(info_ptr->getInfoEnd() + align2M,  align2M);
   // allocate a 2MiB frame
@@ -503,7 +503,8 @@ void test_CgaScreen(){
 
 // #############################################################################
 
-#define AMOUNT_THREADS 3  // Should currently not be higher then #CPU's - 1
+//in Makefile: sudo ../3rdparty/ihkreboot.sh -m $(IHK_MEMSIZE) -c `seq -s, 1 63` -k 1 -p $(shell pwd)/boot64.elf
+#define AMOUNT_THREADS 62  // Should currently not be higher then #CPU's - 1
 const size_t MAX_TASK = 4; // in Release will be set to MYTHOS_MAX_THREADS = 244;
 const size_t TASKQUEUE_DIVISOR = 2; // Tuning how large Tasklists for propagation will be
 std::atomic<int> init_marker[AMOUNT_THREADS]; // Marker to indicate when Threads are done initializing
