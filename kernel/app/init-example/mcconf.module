@@ -1,10 +1,14 @@
 # -*- mode:toml; -*-
 [module.app-init-example]
-    appfiles = [ "app/init.cc" ]
+    initappfiles = [ "app/init.cc" ]
     provides = [ "app/init.elf" ]
-    requires = [ "crtbegin"]
+    requires = [ "crtbegin", "app-process-test"]
 
     makefile_head = '''
+MY_MEMSIZE = 2G
+IHK_MEMSIZE = $(MY_MEMSIZE)
+QEMU_MEMSIZE = $(MY_MEMSIZE)
+
 TARGETS += app/init.elf
 APP_CXXFLAGS += -fopenmp
 '''

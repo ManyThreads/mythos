@@ -45,6 +45,7 @@ namespace mythos {
       EXAMPLE,
       CPUDRIVERKNC,
       RAPLDRIVERINTEL,
+      PROCESSORALLOCATOR,
       INTERRUPT_CONTROL,
     };
 

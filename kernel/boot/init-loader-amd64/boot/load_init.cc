@@ -44,11 +44,14 @@
 #include "boot/mlog.hh"
 #include "boot/memory-root.hh"
 #include "boot/DeployHWThread.hh"
+#include "mythos/InfoFrame.hh"
 
 
 namespace mythos {
     
 Event<boot::InitLoader&> event::initLoader;
+Event<boot::InitLoader&> event::initLoaderEarly;
+Event<InfoFrame*> event::initInfoFrame;
     
 namespace boot {
 
@@ -59,6 +62,9 @@ InitLoader::InitLoader(char* image)
   , capAlloc(init::CAP_ALLOC_START,
         init::CAP_ALLOC_END-init::CAP_ALLOC_START)
   , memMapper(&capAlloc, mythos::init::KM)
+  // default: no processor allocator present
+  , processorAllocatorPresent(false)
+  , initSC(init::SCHEDULERS_START)
 {
   MLOG_INFO(mlog::boot, "found init application image at", (void*)image);
 }
@@ -69,13 +75,17 @@ optional<void> InitLoader::load()
 {
   if (!_img.isValid()) RETURN(Error::GENERIC_ERROR);
 
+  event::initLoaderEarly.emit(*this);
+
   // order matters here
   optional<void> res(Error::SUCCESS);
   if (res) res = initCSpace();
   auto ipc_vaddr = loadImage();
   res = ipc_vaddr;
-  if (res) MLOG_INFO(mlog::boot, "init invokation buffer", DVARhex(*ipc_vaddr));
-  if (res) res = createPortal(*ipc_vaddr, init::PORTAL);
+  if (res) MLOG_INFO(mlog::boot, "init info frame/invokation buffer", DVARhex(*ipc_vaddr));
+  auto infoFramePtr = createInfoFrame(*ipc_vaddr);
+  res = infoFramePtr;
+  if (res) res = createPortal(*infoFramePtr, init::PORTAL);
   if (res) res = createEC(*ipc_vaddr);
   RETURN(res);
 }
@@ -157,12 +167,14 @@ optional<void> InitLoader::initCSpace()
     if (!res) RETHROW(res);
   }
 
-  ASSERT(cpu::getNumThreads() <= init::SCHEDULERS_START - init::APP_CAP_START);
-  MLOG_INFO(mlog::boot, "... create scheduling context caps in caps",
-        init::SCHEDULERS_START, "till", init::SCHEDULERS_START+cpu::getNumThreads()-1);
-  for (cpu::ThreadID id = 0; id < cpu::getNumThreads(); ++id) {
-    auto res = csSet(init::SCHEDULERS_START+id, boot::getScheduler(id));
-    if (!res) RETHROW(res);
+  if(!processorAllocatorPresent){
+    ASSERT(cpu::getNumThreads() <= init::SCHEDULERS_START - init::APP_CAP_START);
+    MLOG_INFO(mlog::boot, "... create scheduling context caps in caps",
+          init::SCHEDULERS_START, "till", init::SCHEDULERS_START+cpu::getNumThreads()-1);
+    for (cpu::ThreadID id = 0; id < cpu::getNumThreads(); ++id) {
+      auto res = csSet(init::SCHEDULERS_START+id, boot::getScheduler(id));
+      if (!res) RETHROW(res);
+    }
   }
 
   ASSERT(cpu::getNumThreads() <= init::INTERRUPT_CONTROL_START - init::APP_CAP_START);
@@ -178,20 +190,36 @@ optional<void> InitLoader::initCSpace()
   RETURN(Error::SUCCESS);
 }
 
-
-optional<void> InitLoader::createPortal(uintptr_t ipc_vaddr, CapPtr dstPortal)
+optional<CapPtr> InitLoader::createInfoFrame(uintptr_t ipc_vaddr)
 {
-    auto size = 2*1024*1024;
+    auto size = round_up(sizeof(InfoFrame), align2M);
+    MLOG_INFO(mlog::boot, "... create info frame");
+    auto frameCap = memMapper.createFrame(init::INFO_FRAME, size, align2M);
+    if (!frameCap) RETHROW(frameCap);
+    MLOG_INFO(mlog::boot, "... map info frame",
+        DVAR(*frameCap), DVARhex(ipc_vaddr));
+    memMapper.mmap(ipc_vaddr, size, true, false, *frameCap, 0);
+
+    auto frameEntry = capAlloc.get(*frameCap);
+    if (!frameEntry) RETHROW(frameEntry);
+    TypedCap<IFrame> frame(frameEntry);
+    if (!frame) RETHROW(frame);
+    auto info = new(reinterpret_cast<InfoFrame*>(frame.getFrameInfo().start.logint())) InfoFrame();
+    info->numThreads = cpu::getNumThreads();
+
+    event::initInfoFrame.emit(info);
+
+    return frameCap;
+}
+
+optional<void> InitLoader::createPortal(CapPtr infoFrame, CapPtr dstPortal)
+{
     MLOG_INFO(mlog::boot, "... create portal in cap", dstPortal);
     auto portal = create<Portal,PortalFactory>(capAlloc.get(dstPortal));
     if (!portal) RETHROW(portal);
 
-    auto frameCap = memMapper.createFrame(size, 2*1024*1024);
-    if (!frameCap) RETHROW(frameCap);
-    MLOG_INFO(mlog::boot, "... map invocation buffer",
-        DVAR(*frameCap), DVARhex(ipc_vaddr));
-    memMapper.mmap(ipc_vaddr, size, true, false, *frameCap, 0);
-    auto res = portal->setInvocationBuf(capAlloc.get(*frameCap), 0);
+    // ensure ib is the first member in InfoFrame -> frame offset == 0
+    auto res = portal->setInvocationBuf(capAlloc.get(infoFrame), 0);
     if (!res) RETHROW(res);
 
     _portal = *portal; // TODO return this?
@@ -281,7 +309,7 @@ optional<void> InitLoader::createEC(uintptr_t ipc_vaddr)
   optional<void> res(Error::SUCCESS);
   if (res) res = ec->setCapSpace(capAlloc.get(init::CSPACE));
   if (res) res = ec->setAddressSpace(capAlloc.get(init::PML4));
-  if (res) res = ec->setSchedulingContext(capAlloc.get(init::SCHEDULERS_START));
+  if (res) res = ec->setSchedulingContext(capAlloc.get(initSC));
   if (!res) RETHROW(res);
   ec->getThreadState().rdi = ipc_vaddr;
   ec->setEntryPoint(_img.header()->entry);

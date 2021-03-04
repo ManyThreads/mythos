@@ -62,6 +62,7 @@ namespace mythos {
     pp0_avail = false;
     pp1_avail = false;
     psys_avail = false;
+    pkg_avail = false;
     different_units = false;
 
     power_units = 0;
@@ -80,6 +81,7 @@ namespace mythos {
         case CPU_IVYBRIDGE_EP:
           pp0_avail=true;
           dram_avail=true;
+          pkg_avail = true;
           break;
 
         case CPU_HASWELL_EP:
@@ -88,18 +90,21 @@ namespace mythos {
           pp0_avail=true;
           dram_avail=true;
           different_units=true;
+          pkg_avail = true;
           break;
 
         case CPU_KNIGHTS_LANDING:
         case CPU_KNIGHTS_MILL:
           dram_avail=true;
           different_units=true;
+          pkg_avail = true;
           break;
 
         case CPU_SANDYBRIDGE:
         case CPU_IVYBRIDGE:
           pp0_avail=true;
           pp1_avail=true;
+          pkg_avail = true;
           break;
 
         case CPU_HASWELL:
@@ -113,6 +118,7 @@ namespace mythos {
           pp0_avail=true;
           pp1_avail=true;
           dram_avail=true;
+          pkg_avail = true;
           break;
 
         case CPU_SKYLAKE:
@@ -125,6 +131,7 @@ namespace mythos {
           pp1_avail=true;
           dram_avail=true;
           psys_avail=true;
+          pkg_avail = true;
           break;
         default:
           MLOG_ERROR(mlog::boot, "Unknown CPU model :(");
@@ -144,24 +151,28 @@ namespace mythos {
       return;
     }
 
-    //determine power unit
-    power_units = static_cast<uint32_t>(bits(x86::getMSR(MSR_RAPL_POWER_UNIT),3,0));
-    MLOG_INFO(mlog::boot, "msr_rapl_power_units", power_units);
+    if (pp0_avail || pp1_avail || dram_avail || psys_avail || pkg_avail) {
+      auto const msr = x86::getMSR(MSR_RAPL_POWER_UNIT);
 
-    //determine time unit
-    time_units = static_cast<uint32_t>(bits(x86::getMSR(MSR_RAPL_POWER_UNIT),19,16));
-    MLOG_INFO(mlog::boot, "time_units", time_units);
+      //determine power unit
+      power_units = static_cast<uint32_t>(bits(msr, 3, 0));
+      MLOG_INFO(mlog::boot, "msr_rapl_power_units", power_units);
 
-    //determine cpu energy unit
-    cpu_energy_units = static_cast<uint32_t>(bits(x86::getMSR(MSR_RAPL_POWER_UNIT),12,8));
-    MLOG_INFO(mlog::boot, "cpu_energy_units", cpu_energy_units);
+      //determine time unit
+      time_units = static_cast<uint32_t>(bits(msr, 19, 16));
+      MLOG_INFO(mlog::boot, "time_units", time_units);
 
-    if(different_units){
-      dram_energy_units = 16;
-    }else{
-      dram_energy_units = cpu_energy_units; 
+      //determine cpu energy unit
+      cpu_energy_units = static_cast<uint32_t>(bits(msr, 12, 8));
+      MLOG_INFO(mlog::boot, "cpu_energy_units", cpu_energy_units);
+
+      if(different_units){
+        dram_energy_units = 16;
+      }else{
+        dram_energy_units = cpu_energy_units; 
+      }
+      MLOG_INFO(mlog::boot, "dram_energy_units", dram_energy_units);
     }
-    MLOG_INFO(mlog::boot, "dram_energy_units", dram_energy_units);
     
     //printEnergy();
   }
@@ -181,25 +192,26 @@ namespace mythos {
 
   void RaplDriverIntel::printEnergy(){
 
-    if(pp0_avail){
+    if(pp0_avail) {
       uint64_t pp0_es = x86::getMSR(MSR_PP0_ENERGY_STATUS);
       MLOG_ERROR(mlog::boot, "Power plane 0 energy status =", pp0_es >> cpu_energy_units);
     }
-    if(pp1_avail){
+    if(pp1_avail) {
       uint64_t pp1_es = x86::getMSR(MSR_PP1_ENERGY_STATUS);
       MLOG_ERROR(mlog::boot, "Power plane 1 energy status =", pp1_es >> cpu_energy_units);
     }
-    if(dram_avail){
+    if(dram_avail) {
       uint64_t dram_es = x86::getMSR(MSR_DRAM_ENERGY_STATUS);
       MLOG_ERROR(mlog::boot, "DRAM energy status =", dram_es >> dram_energy_units);
     }
-    if(psys_avail){
+    if(psys_avail) {
       uint64_t pl_es = x86::getMSR(MSR_PLATFORM_ENERGY_STATUS);
       MLOG_ERROR(mlog::boot, "Platform energy status =", pl_es >> cpu_energy_units);
     }
-
-    uint64_t pkg_es = x86::getMSR(MSR_PKG_ENERGY_STATUS);
-    MLOG_ERROR(mlog::boot, "Package energy status =", pkg_es >> cpu_energy_units);
+    if (pkg_avail) {
+      uint64_t pkg_es = x86::getMSR(MSR_PKG_ENERGY_STATUS);
+      MLOG_ERROR(mlog::boot, "Package energy status =", pkg_es >> cpu_energy_units);
+    }
   }
 
   Error RaplDriverIntel::invoke_getRaplVal(Tasklet*, Cap, IInvocation* msg)
@@ -215,7 +227,7 @@ namespace mythos {
     ret->val.pp1 = pp1_avail? x86::getMSR(MSR_PP1_ENERGY_STATUS) : 0;
     ret->val.psys = psys_avail? x86::getMSR(MSR_PLATFORM_ENERGY_STATUS) : 0;
     ret->val.dram = dram_avail? x86::getMSR(MSR_DRAM_ENERGY_STATUS) : 0;
-    ret->val.pkg = x86::getMSR(MSR_PKG_ENERGY_STATUS);
+    ret->val.pkg = pkg_avail? x86::getMSR(MSR_PKG_ENERGY_STATUS) : 0;
 
     return Error::SUCCESS;
   }

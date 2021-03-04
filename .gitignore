@@ -1,3 +1,9 @@
+/3rdparty/cxx/
+/3rdparty/libcxx/
+/3rdparty/libcxxabi/
+/3rdparty/libunwind/
+/3rdparty/llvm/
+
 a.out
 *.elf
 *.d

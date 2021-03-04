@@ -26,7 +26,7 @@
 
 .extern initstack_top
 .extern start_c
-.extern msg_ptr
+.extern info_ptr
 .extern __libc_init_array
 .extern exit
 
@@ -35,7 +35,7 @@
 _start:
         mov initstack_top, %rsp
         xor %rbp, %rbp
-        mov %rdi, msg_ptr       /* store first argument to global variable */
+        mov %rdi, info_ptr       /* store first argument to global variable */
         call start_c
 1:      jmp 1b                  /* should never return from start_c anyway */
 

@@ -32,6 +32,7 @@
 #include "objects/CapEntry.hh"
 #include "objects/IPageMap.hh"
 #include "util/events.hh"
+#include "mythos/InfoFrame.hh"
 #include "boot/MemMapper.hh"
 #include "boot/CapAlloc.hh"
 
@@ -55,9 +56,10 @@ namespace mythos {
       optional<void> load();
 
       optional<void> initCSpace();
-      optional<void> createPortal(uintptr_t ipc_vaddr, CapPtr dstPortal);
+      optional<void> createPortal(CapPtr infoFrame, CapPtr dstPortal);
       optional<uintptr_t> loadImage();
       optional<void> createEC(uintptr_t ipc_vaddr);
+      optional<CapPtr> createInfoFrame(uintptr_t ipc_vaddr);
 
       optional<void> loadProgramHeader(
         const elf64::PHeader* ph, CapPtr frameCap, size_t offset);
@@ -78,12 +80,18 @@ namespace mythos {
       MemMapper memMapper;
 
       Portal* _portal;
+
+      /* to be manipulated by optional processor allocator */
+      bool processorAllocatorPresent;
+      CapPtr initSC;
     };
 
   } // namespace boot
 
   namespace event {
     extern Event<boot::InitLoader&> initLoader;
+    extern Event<boot::InitLoader&> initLoaderEarly;
+    extern Event<InfoFrame*> initInfoFrame;
   }
 
 } // namespace mythos
