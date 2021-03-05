@@ -91,19 +91,20 @@ namespace mythos {
      * allocated. Returns true if zombified. */ 
     bool kill();
 
-    bool kill(Cap expected);
+    bool try_kill(Cap expected);
 
     optional<void> unlinkAndUnlockLinks();
 
     /* lock next functions protect the link to the next CapEntry */
 
-    bool try_lock_next()
+    bool try_lock_next(CapEntry* next)
     { 
-      bool ret = !(_next.fetch_or(LOCKED_FLAG) & LOCKED_FLAG);
-      return ret;
+     Link expected(next);
+     uintlink_t expectedValue = expected.value();
+     return _next.compare_exchange_strong(expectedValue, expected.withFlags(LOCKED_FLAG).value());
     }
 
-    void lock_next() { while (!try_lock_next()) { hwthread_pause(); } }
+    void lock_next(){ while (!try_lock_next()) { hwthread_pause(); } }
 
     void unlock_next()
     { 
@@ -158,6 +159,9 @@ namespace mythos {
 
     // called by move and insertAfter
     void setPrevPreserveFlags(CapEntry* ptr);
+
+    // called by lock_next
+    bool try_lock_next() { return !(_next.fetch_or(LOCKED_FLAG) & LOCKED_FLAG); }
 
     // lock flag in _next and _prev
     // _next protects the link to the next entry (lock_next)

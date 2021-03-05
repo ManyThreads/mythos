@@ -142,9 +142,8 @@ namespace mythos {
         leaf->unlinkAndUnlockLinks();
         leaf->reset();
       } else {
-        // deletion failed
-        // Either tried to delete a portal that is currently deleting
-        // or tried to to delete _guarded via a recursive call.
+        // deletion failed in the object specific handler
+        // this can be also from trying to delete rhw guarded object (currently deleting portal)
         leaf->unlock_cap();
         RETHROW(delRes);
       }
@@ -170,7 +169,7 @@ namespace mythos {
           hwthread_pause();
         }
         if (cap::isParentOf(*leafEntry, leafCap, *nextEntry, nextCap)) {
-          if (!nextEntry->kill(nextCap)) {
+          if (!nextEntry->try_kill(nextCap)) {
             MLOG_DETAIL(mlog::cap, "cap to be killed changed concurrently");
             return false; 
           }

@@ -129,11 +129,15 @@ namespace mythos {
     return true;
   }
 
-  bool CapEntry::kill(Cap expected)
+  // fails if cap was changed concurrently
+  bool CapEntry::try_kill(Cap expected)
   {
     CapValue expectedValue = expected.value();
-    MLOG_DETAIL(mlog::cap, this, ".kill", DVAR(expected));
-    return _cap.compare_exchange_strong(expectedValue, expected.asZombie().value());
+    MLOG_DETAIL(mlog::cap, this, ".try_kill", DVAR(expected));
+    if (!_cap.compare_exchange_strong(expectedValue, expected.asZombie().value())) {
+      // if the cap was just zombified by sb. else, thats okay
+      return (Cap(expectedValue).asZombie() == expected.asZombie());
+    } else return true;
   }
 
 
@@ -154,14 +158,9 @@ namespace mythos {
     if (!prev) {
       return Error::GENERIC_ERROR;
     }
-    if (prev->try_lock_next()) {
-      if (Link(_prev.load()).ptr() == prev) {
-        return Error::SUCCESS;
-      } else { // my _prev has changed in the mean time
-        prev->unlock_next();
-        return Error::RETRY;
-      }
-    } else return Error::RETRY;
+    auto success = prev->try_lock_next(this);
+    ASSERT(Link(_prev.load()).ptr() == prev);
+    return success ? Error::SUCCESS : Error::RETRY;
   }
 
   bool CapEntry::lock_prev()
