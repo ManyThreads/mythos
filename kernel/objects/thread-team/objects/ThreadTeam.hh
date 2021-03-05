@@ -94,7 +94,7 @@ namespace mythos {
       bool removeDemand(ExecutionContext* ec, bool resetRef);
       bool tryRunDemandAt(Tasklet* t, cpu::ThreadID id);
       void dumpDemand();
-      bool limitReached() { return limit && numAllocated >= limit;  } 
+      bool limitReached() { return limit != 0 && numAllocated >= limit;  } 
 
     private:
       LinkedList<IKernelObject*>::Queueable del_handle = {this};

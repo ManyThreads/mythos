@@ -162,7 +162,7 @@ namespace mythos {
       auto ret = tmp_msg->getMessage()->cast<protocol::ThreadTeam::RetTryRunEC>();
 
       if(bound){
-        MLOG_DETAIL(mlog::pm, "EC successfully bound to SC");
+        MLOG_INFO(mlog::pm, "EC successfully bound to SC");
         pushUsed(tmp_id);
         //allready set! ret->setResponse(protocol::ThreadTeam::RetTryRunEC::ALLOCATED);
         tmp_msg->replyResponse(Error::SUCCESS);
@@ -175,6 +175,7 @@ namespace mythos {
     }else if(state == SC_NOTIFY){
       MLOG_DETAIL(mlog::pm, "state = SC_NOTIFY");
       if(bound){
+        MLOG_INFO(mlog::pm, "EC successfully bound to SC");
         // remove ec from demand queue
         removeDemand(tmp_ec, true);
       }else{
@@ -259,7 +260,7 @@ namespace mythos {
   }
 
   Error ThreadTeam::invokeTryRunEC(Tasklet* t, Cap, IInvocation* msg){
-    MLOG_DETAIL(mlog::pm, __func__);
+    MLOG_INFO(mlog::pm, __func__);
     ASSERT(state == INVOCATION);
     
     auto data = msg->getMessage()->read<protocol::ThreadTeam::TryRunEC>();
@@ -293,7 +294,7 @@ namespace mythos {
   }
     
   Error ThreadTeam::invokeRevokeDemand(Tasklet* /*t*/, Cap, IInvocation* msg){
-    MLOG_DETAIL(mlog::pm, __func__);
+    MLOG_INFO(mlog::pm, __func__);
     ASSERT(state == INVOCATION);
 
     auto data = msg->getMessage()->read<protocol::ThreadTeam::RevokeDemand>();
@@ -317,7 +318,7 @@ namespace mythos {
   }
 
   Error ThreadTeam::invokeSetLimit(Tasklet* /*t*/, Cap, IInvocation* msg){
-    MLOG_DETAIL(mlog::pm, __func__);
+    MLOG_INFO(mlog::pm, __func__);
     ASSERT(state == INVOCATION);
 
     auto data = msg->getMessage()->read<protocol::ThreadTeam::SetLimit>();
@@ -420,13 +421,13 @@ namespace mythos {
   }
 
   void ThreadTeam::notifyIdle(Tasklet* t, cpu::ThreadID id) {
-    MLOG_DETAIL(mlog::pm, __func__, DVAR(id));
+    MLOG_INFO(mlog::pm, __func__, DVAR(id));
     monitor.request(t, [=](Tasklet*){
         ASSERT(state == IDLE);
         ASSERT(tmp_id == INV_ID);
         state = SC_NOTIFY;
 
-        if(!tryRunDemandAt(t, id)) {
+        if(numAllocated > limit || !tryRunDemandAt(t, id)) {
           removeUsed(id);
           //pushFree(id);
           ASSERT(pa);

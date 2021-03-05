@@ -419,8 +419,10 @@ public:
 
 long ParallelFib( long n ) {
     long sum;
+    tbb::task_scheduler_init tsi; // manually initialize TBB scheduler
     FibTask& a = *new(tbb::task::allocate_root()) FibTask(n,&sum);
     tbb::task::spawn_root_and_wait(a);
+    tsi.blocking_terminate(); // wait until TBB is terminated
     return sum;
 }
 
@@ -564,6 +566,52 @@ void test_process(){
   MLOG_INFO(mlog::app, "Test process finished");
 }
 
+void test_scalability(){
+  MLOG_INFO(mlog::app, "Test runtime/energy scalability");
+  mythos::PortalLock pl(portal); 
+  timeval start_run, end_run;
+  
+  tbb::enableDynamicThreading();
+  long f = 40;
+
+  for(unsigned nThreads = 2; nThreads <= info_ptr->getNumThreads(); nThreads++){
+    auto res = team.setLimit(pl, nThreads).wait();
+    ASSERT(res);
+
+    asm volatile ("":::"memory");
+    auto start = rapl.getRaplVal(pl).wait().get();
+    gettimeofday(&start_run, 0);
+    asm volatile ("":::"memory");
+    
+    auto result = ParallelFib(f);
+
+    asm volatile ("":::"memory");
+    auto end = rapl.getRaplVal(pl).wait().get();
+    gettimeofday(&end_run, 0);
+    asm volatile ("":::"memory");
+
+    double seconds =(end_run.tv_usec - start_run.tv_usec)/1000000.0 + end_run.tv_sec - start_run.tv_sec;
+    double pp0 = (end.pp0 - start.pp0) * pow(0.5, start.cpu_energy_units);
+    double pp1 = (end.pp1 - start.pp1) * pow(0.5, start.cpu_energy_units);
+    double psys = (end.psys - start.psys) * pow(0.5, start.cpu_energy_units);
+    double pkg = (end.pkg - start.pkg) * pow(0.5, start.cpu_energy_units);
+    double dram = (end.dram - start.dram) * pow(0.5, start.dram_energy_units);
+
+    std::cout << "Prime test: fib(" << f << ") = " << result << ", "<<  seconds << " seonds, " << nThreads 
+      << " threads" << std::endl;
+
+    std::cout << "Energy consumption (energy/avg. power):" 
+      << " PP0:" << pp0 << "J/" << pp0/seconds << "W" 
+      << " PP1:" << pp1 << "J/" << pp1/seconds << "W" 
+      << " Platform:" << psys << "J/" << psys/seconds << "W" 
+      << " Package: " << pkg << "J/ " << pkg/seconds << "W" 
+      << " DRAM:" << dram << "J/" << dram/seconds << "W" 
+      << std::endl;
+  }
+
+  MLOG_INFO(mlog::app, "Finished scalability test");
+}
+
 int main()
 {
   char const str[] = "Hello world!";
@@ -580,8 +628,9 @@ int main()
   //test_HostChannel(portal, 24*1024*1024, 2*1024*1024);
   test_ExecutionContext();
   test_pthreads();
-  test_Rapl();
-  test_TBB();
+  //test_Rapl();
+  //test_TBB();
+  test_scalability();
   test_process();
   //test_CgaScreen();
 

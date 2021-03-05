@@ -187,9 +187,8 @@ extern "C" [[noreturn]] void __assert_fail (const char *expr, const char *file, 
 mythos::Event<> groupExit;
 
 void mythosExit(){
-    //todo: ASSERT(myEC == init::EC)
+    PANIC(mythos_get_pthread_ec_self() == init::EC);
 
-    //todo: free capspace, all ECs,
     mythos::PortalLock pl(localPortal); 
     MLOG_DETAIL(mlog::app, "Free all dynamically allocated Caps");
     capAlloc.freeAll(pl);
@@ -294,8 +293,9 @@ extern "C" long mythos_musl_syscall(
         MLOG_WARN(mlog::app, "syscall madvise NYI");
         return 0;
     case 39: // getpid
-        MLOG_WARN(mlog::app, "syscall getpid NYI");
-        return mythos_get_pthread_ec_self();
+        MLOG_DETAIL(mlog::app, "syscall getpid NYI");
+        //todo: use proper process identification
+        return 4711;
     case 60: // exit(exit_code)
         MLOG_DETAIL(mlog::app, "syscall exit", DVAR(a1));
         pthreadCleaner.exit();        

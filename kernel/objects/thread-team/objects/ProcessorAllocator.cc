@@ -57,7 +57,7 @@ namespace mythos {
   }
 
   optional<cpu::ThreadID> ProcessorAllocator::alloc(){
-    MLOG_DETAIL(mlog::pm, __func__);
+    MLOG_INFO(mlog::pm, __func__);
     optional<cpu::ThreadID> ret;
     if(nFree > 0){
       nFree--;
