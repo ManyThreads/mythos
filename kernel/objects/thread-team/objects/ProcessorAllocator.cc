@@ -21,11 +21,54 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  *
- * Copyright 2020 Philipp Gypser and contributors, BTU Cottbus-Senftenberg
+ * Copyright 2020 Philipp Gypser, BTU Cottbus-Senftenberg
  */
 
-#include "objects/PluginProcessorAllocator.hh"
 
-mythos::PluginProcessorAllocator pluginProcessorAllocator;
-mythos::PluginProcessorAllocatorActivator pluginProcessorAllocatorActivator;
+#include "objects/ProcessorAllocator.hh"
+#include "objects/mlog.hh"
 
+namespace mythos {
+
+/* IKernelObject */ 
+  optional<void> ProcessorAllocator::deleteCap(CapEntry&, Cap, IDeleter&)
+  {
+    MLOG_DETAIL(mlog::pm, __func__);
+    RETURN(Error::SUCCESS);
+  }
+
+  void ProcessorAllocator::deleteObject(Tasklet*, IResult<void>*)
+  {
+    MLOG_DETAIL(mlog::pm, __func__);
+  }
+
+/* ProcessorAllocator */
+  ProcessorAllocator::ProcessorAllocator()
+      : sc(image2kernel(&mySC[0]))
+      , nTeams(0)
+    {}
+
+  void ProcessorAllocator::init(){
+    MLOG_DETAIL(mlog::pm, "PM::init");
+    for (cpu::ThreadID id = 0; id < cpu::getNumThreads(); ++id) {
+      sc[id].initRoot(Cap(image2kernel(&boot::getScheduler(id))));
+      free(id);
+    }
+  }
+
+  optional<cpu::ThreadID> ProcessorAllocator::alloc(){
+    MLOG_INFO(mlog::pm, __func__);
+    optional<cpu::ThreadID> ret;
+    if(nFree > 0){
+      nFree--;
+      ret = freeList[nFree];
+    }
+    return ret;
+  }
+
+  void ProcessorAllocator::free(cpu::ThreadID id) {
+      MLOG_INFO(mlog::pm, __func__, DVAR(id));
+      freeList[nFree] = id;
+      nFree++;
+  }
+} // namespace mythos

@@ -31,6 +31,7 @@
 #include "util/VectorMax.hh"
 #include "objects/CapEntry.hh"
 #include "objects/IPageMap.hh"
+#include "objects/ExecutionContext.hh"
 #include "util/events.hh"
 #include "mythos/InfoFrame.hh"
 #include "boot/MemMapper.hh"
@@ -82,8 +83,7 @@ namespace mythos {
       Portal* _portal;
 
       /* to be manipulated by optional processor allocator */
-      bool processorAllocatorPresent;
-      CapPtr initSC;
+      bool mapSchedulingContexts;
     };
 
   } // namespace boot
@@ -91,6 +91,7 @@ namespace mythos {
   namespace event {
     extern Event<boot::InitLoader&> initLoader;
     extern Event<boot::InitLoader&> initLoaderEarly;
+    extern Event<ExecutionContext*> initEC;
     extern Event<InfoFrame*> initInfoFrame;
   }
 

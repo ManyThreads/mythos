@@ -35,4 +35,5 @@ void setupInitialTLS();
 
 void* setupNewTLS();
 
+uintptr_t getTLS();
 } // namespace mythos

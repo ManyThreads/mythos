@@ -35,6 +35,11 @@
 
 namespace mythos {
 
+  class INotifyIdle{
+    public:
+      virtual void notifyIdle(Tasklet* t, cpu::ThreadID id) = 0;
+  };
+
   /** Scheduler for multiple application threads on a single hardware
    * thread. It implements an cooperative FIFO strategy that switches only
    * when the currently selected application thread becomes blocked.
@@ -73,7 +78,9 @@ namespace mythos {
     , public IScheduler
   {
   public:
-    SchedulingContext() { }
+    SchedulingContext()
+      : myTeam(nullptr)
+    { }
     void init(async::Place* home) { this->home = home; }
     virtual ~SchedulingContext() {}
 
@@ -87,10 +94,20 @@ namespace mythos {
     void unbind(handle_t* ec_handle) override;
     void ready(handle_t* ec_handle) override;
 
+    //todo: use capref
+  public: //ThreadTeam
+    void registerThreadTeam(INotifyIdle* tt){
+      myTeam.store(tt);
+    };
+    void resetThreadTeam(){
+      myTeam.store(nullptr);
+    }
+
   public: // IKernelObject interface
     optional<void> deleteCap(CapEntry&, Cap, IDeleter&) override { RETURN(Error::SUCCESS); }
     optional<void const*> vcast(TypeId id) const override {
       if (id == typeId<IScheduler>()) return static_cast<const IScheduler*>(this);
+      if (id == typeId<SchedulingContext>()) return this;
       THROW(Error::TYPE_MISMATCH);
     }
 
@@ -100,6 +117,7 @@ namespace mythos {
     std::atomic<handle_t*> current_handle = {nullptr}; //< the currently selected execution context
 
     Tasklet paTask; //task for communication with processor allocator
+    std::atomic<INotifyIdle*> myTeam;
   };
 
   namespace event {

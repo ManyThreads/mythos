@@ -178,12 +178,14 @@ static int futex_requeue(uint32_t *uaddr /*&barrier*/, unsigned int flags, uint3
     mythos::Mutex::Lock guard1(queue[hashFrom].readLock);
     auto curr = &(queue[hashFrom].queueHead);
     for (int i = 0; i < val; i++) {
+        // scan for the next waiter in queue that waits on uaddr
         while (curr->load(std::memory_order_relaxed) && curr->load(std::memory_order_relaxed)->uaddr != uaddr) {
             MLOG_DETAIL(mlog::app, "Skip entry", DVARhex(curr->load(std::memory_order_relaxed)->uaddr),
                         DVAR(curr->load(std::memory_order_relaxed)->ec), DVAR(curr->load(std::memory_order_relaxed)->queueNext), DVARhex(uaddr) );
             curr = &curr->load(std::memory_order_relaxed)->queueNext;
         }
 
+        // if end of queue reached
         if (curr->load(std::memory_order_relaxed) == nullptr){
           MLOG_DETAIL(mlog::app, "requeue end (end of queue reached)" );
           return 0;
@@ -195,6 +197,8 @@ static int futex_requeue(uint32_t *uaddr /*&barrier*/, unsigned int flags, uint3
             MLOG_DETAIL(mlog::app, "last elem in queue");
             queue[hashFrom].queueTail = curr;
         }
+
+        // remove from queue
         MLOG_DETAIL(mlog::app, uaddr, "Found entry" );
         auto entry = curr->load(std::memory_order_relaxed);
         curr->store(entry->queueNext, std::memory_order_relaxed);
@@ -202,6 +206,7 @@ static int futex_requeue(uint32_t *uaddr /*&barrier*/, unsigned int flags, uint3
         entry->queueNext.store(reinterpret_cast<FutexQueueElem*>(1ul)); // mark as removed
 
         MLOG_DETAIL(mlog::app, "Wake EC", DVAR(ec), DVAR(uaddr) );
+        // wake waiter
         mythos::syscall_signal(ec);
     }
 
@@ -217,12 +222,14 @@ static int futex_requeue(uint32_t *uaddr /*&barrier*/, unsigned int flags, uint3
       mythos::Mutex::Lock guard2( hashTo != hashFrom? queue[hashTo].readLock : dummy);
       MLOG_DETAIL(mlog::app, "requeue waiters", DVAR(hashTo) );
       for (int i = 0; i < val2; i++) {
+          // scan for the next waiter in queue that waits on uaddr
           while (curr->load(std::memory_order_relaxed) && curr->load(std::memory_order_relaxed)->uaddr != uaddr) {
               MLOG_DETAIL(mlog::app, "Skip entry", DVARhex(curr->load(std::memory_order_relaxed)->uaddr),
                           DVAR(curr->load(std::memory_order_relaxed)->ec), DVAR(curr->load(std::memory_order_relaxed)->queueNext), DVARhex(uaddr) );
               curr = &curr->load(std::memory_order_relaxed)->queueNext;
           }
 
+          // if end of queue reached
           if (curr->load(std::memory_order_relaxed) == nullptr){
             MLOG_DETAIL(mlog::app, "requeue end (end of queue reached)" );
             return 0;

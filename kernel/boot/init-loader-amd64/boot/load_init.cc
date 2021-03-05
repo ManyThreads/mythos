@@ -51,6 +51,7 @@ namespace mythos {
     
 Event<boot::InitLoader&> event::initLoader;
 Event<boot::InitLoader&> event::initLoaderEarly;
+Event<ExecutionContext*> event::initEC;
 Event<InfoFrame*> event::initInfoFrame;
     
 namespace boot {
@@ -63,8 +64,7 @@ InitLoader::InitLoader(char* image)
         init::CAP_ALLOC_END-init::CAP_ALLOC_START)
   , memMapper(&capAlloc, mythos::init::KM)
   // default: no processor allocator present
-  , processorAllocatorPresent(false)
-  , initSC(init::SCHEDULERS_START)
+  , mapSchedulingContexts(true)
 {
   MLOG_INFO(mlog::boot, "found init application image at", (void*)image);
 }
@@ -167,7 +167,7 @@ optional<void> InitLoader::initCSpace()
     if (!res) RETHROW(res);
   }
 
-  if(!processorAllocatorPresent){
+  if(mapSchedulingContexts){
     ASSERT(cpu::getNumThreads() <= init::SCHEDULERS_START - init::APP_CAP_START);
     MLOG_INFO(mlog::boot, "... create scheduling context caps in caps",
           init::SCHEDULERS_START, "till", init::SCHEDULERS_START+cpu::getNumThreads()-1);
@@ -312,11 +312,12 @@ optional<void> InitLoader::createEC(uintptr_t ipc_vaddr)
   optional<void> res(Error::SUCCESS);
   if (res) res = ec->setCapSpace(capAlloc.get(init::CSPACE));
   if (res) res = ec->setAddressSpace(capAlloc.get(init::PML4));
-  if (res) res = ec->setSchedulingContext(capAlloc.get(initSC));
+  if (mapSchedulingContexts && res) res = ec->setSchedulingContext(capAlloc.get(init::SCHEDULERS_START));
   if (!res) RETHROW(res);
   ec->getThreadState().rdi = ipc_vaddr;
   ec->setEntryPoint(_img.header()->entry);
   ec->setTrapped(false);
+  event::initEC.emit(*ec);
   RETURN(Error::SUCCESS);
 }
 

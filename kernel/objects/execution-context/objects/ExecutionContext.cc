@@ -104,6 +104,28 @@ namespace mythos {
     RETURN(_sched.set(this, *sce, obj.cap()));
   }
 
+  void ExecutionContext::setSchedulingContext(
+      Tasklet* t, IResult<void>* r, CapEntry* sce)
+  {
+    MLOG_INFO(mlog::ec, "setScheduler", DVAR(this), DVAR(sce));
+    ASSERT(r);
+
+    monitor.request(t,[=](Tasklet*){
+            if(currentPlace.load() != nullptr){
+              r->response(t, optional<bool>(false));
+            }else{
+              TypedCap<IScheduler> obj(sce);
+              if (!obj){
+                MLOG_ERROR(mlog::ec, "invalid SC cap entry", DVAR(this), DVAR(sce));
+                r->response(t, optional<void>());
+              } 
+              auto ret = (_sched.set(this, sce, obj.cap()));
+              r->response(t, ret);
+            }
+            monitor.responseAndRequestDone();
+          });
+  }
+
   optional<void> ExecutionContext::setSchedulingContext(
       Tasklet* t, IInvocation* msg, optional<CapEntry*> sce)
   {
@@ -403,8 +425,15 @@ namespace mythos {
     switch(SyscallCode(code)) {
 
       case SYSCALL_EXIT:
-        MLOG_INFO(mlog::syscall, "exit");
-        setFlags(IS_TRAPPED);
+        {
+          MLOG_INFO(mlog::syscall, "exit");
+          setFlags(IS_TRAPPED);
+            auto place = currentPlace.load();
+            if (place) synchronousAt(place) << [this]() {
+                this->saveState();
+                this->_sched.reset();
+            };
+        }
         break;
 
       case SYSCALL_POLL:

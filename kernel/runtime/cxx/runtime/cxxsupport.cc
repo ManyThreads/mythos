@@ -49,25 +49,91 @@
 #include "runtime/PageMap.hh"
 #include "runtime/KernelMemory.hh"
 #include "runtime/CapAlloc.hh"
-#include "runtime/ProcessorAllocator.hh"
 #include "runtime/tls.hh"
 #include "runtime/futex.hh"
 #include "runtime/umem.hh"
 #include "runtime/thread-extra.hh"
+#include "runtime/ThreadTeam.hh"
+#include "runtime/Mutex.hh"
+#include "runtime/process.hh"
+#include "util/optional.hh"
+#include "util/events.hh"
 #include "mythos/InfoFrame.hh"
 
 extern mythos::InfoFrame* info_ptr asm("info_ptr");
 extern mythos::Portal portal;
+extern mythos::Frame infoFrame;
 extern mythos::CapMap myCS;
 extern mythos::PageMap myAS;
 extern mythos::KernelMemory kmem;
-extern mythos::ProcessorAllocator pa;
+extern mythos::ThreadTeam team;
+
+static thread_local mythos::CapPtr localPortalPtr;
+thread_local mythos::Portal localPortal(
+    mythos_get_pthread_ec_self() == mythos::init::EC ? mythos::init::PORTAL : localPortalPtr,
+    mythos_get_pthread_ec_self() == mythos::init::EC ? info_ptr->getInvocationBuf() 
+    : info_ptr->getInvocationBuf(localPortalPtr));
+
+void setRemotePortalPtr(uintptr_t targetTLS, mythos::CapPtr p){
+  auto ptr = reinterpret_cast<mythos::CapPtr*>(targetTLS 
+      - (mythos::getTLS() - reinterpret_cast<uintptr_t>(&localPortalPtr)));
+  *ptr = p;
+}
+
+mythos::CapPtr getRemotePortalPtr(pthread_t t){
+    auto rp = reinterpret_cast<mythos::CapPtr*>(t - (pthread_self() - reinterpret_cast<uintptr_t>(&localPortalPtr)));
+    return *rp;
+}
+
+template<size_t SIZE>
+class ThreadPool{
+  public:
+    ThreadPool()
+      : top(0)
+    {}
+
+    struct ThreadPoolEntry{
+      mythos::CapPtr ec;
+      mythos::CapPtr portal;
+    };
+
+    void push(mythos::CapPtr ec, mythos::CapPtr portal){
+        mythos::Mutex::Lock guard(mutex);
+        if(top < SIZE){
+          pool[top] = {ec, portal};
+          top++;
+          MLOG_DETAIL(mlog::app, "pushed to thread pool", DVAR(ec), DVAR(portal));
+        }else{
+          MLOG_WARN(mlog::app, "Thread pool full!");
+        }
+    }
+
+    mythos::optional<ThreadPoolEntry> pop(){
+        mythos::Mutex::Lock guard(mutex);
+        if(top){
+          top--;
+          auto ec = pool[top].ec;
+          auto portal = pool[top].portal;
+          MLOG_DETAIL(mlog::app, "pop from thread pool", DVAR(ec), DVAR(portal));
+          return pool[top];
+        }
+        MLOG_DETAIL(mlog::app, "thread pool empty");
+        return mythos::optional<ThreadPoolEntry>();
+    }
+
+  private:
+    mythos::Mutex mutex;
+    ThreadPoolEntry pool[SIZE];
+    unsigned top;
+};
+
+ThreadPool<1024> threadPool;
 
 struct PthreadCleaner{
   PthreadCleaner()
     : flag(FREE)
   {
-    //MLOG_ERROR(mlog::app, "PthreadCleaner");
+    MLOG_DETAIL(mlog::app, "PthreadCleaner");
   }
 
   enum state{
@@ -117,7 +183,17 @@ extern "C" [[noreturn]] void __assert_fail (const char *expr, const char *file, 
     mythos::syscall_exit(-1); /// @TODO syscall_abort(); to see some stack backtrace etc
 }
 
+mythos::Event<> groupExit;
+
 void mythosExit(){
+    PANIC(mythos_get_pthread_ec_self() == init::EC);
+
+    mythos::PortalLock pl(localPortal); 
+    MLOG_DETAIL(mlog::app, "Free all dynamically allocated Caps");
+    capAlloc.freeAll(pl);
+
+    MLOG_DETAIL(mlog::app, "notify parent process");
+    groupExit.emit();
     MLOG_ERROR(mlog::app, "MYTHOS:PLEASE KILL ME!!!!!!1 elf");
 }
 
@@ -146,16 +222,16 @@ int prlimit(
     return 0;
 }
 
-int sched_setaffinity(pid_t pid, size_t cpusetsize, cpu_set_t *mask)
+int my_sched_setaffinity(pid_t pid, size_t cpusetsize, cpu_set_t *mask)
 {
     //MLOG_DETAIL(mlog::app, "syscall sched_setaffinity", DVAR(pid), DVAR(cpusetsize), DVARhex(mask));
     if(cpusetsize == info_ptr->getNumThreads() && mask == NULL) return -EFAULT;
     return 0;
 }
 
-int sched_getaffinity(pid_t pid, size_t cpusetsize, cpu_set_t *mask)
+int my_sched_getaffinity(pid_t pid, size_t cpusetsize, cpu_set_t *mask)
 {
-    //MLOG_DETAIL(mlog::app, "syscall sched_getaffinity", DVAR(pid), DVAR(cpusetsize), DVARhex(mask));
+    MLOG_DETAIL(mlog::app, "syscall sched_getaffinity", DVAR(pid), DVAR(cpusetsize), DVARhex(mask));
     if (mask) {
         //CPU_ZERO(mask);
 	memset(mask, 0, cpusetsize);
@@ -209,14 +285,18 @@ extern "C" long mythos_musl_syscall(
     case 24: // sched_yield
         //MLOG_ERROR(mlog::app, "syscall sched_yield NYI");
         return 0;
+    case 25: // mremap
+        //MLOG_ERROR(mlog::app, "syscall sched_yield NYI");
+        return 0;
     case 28:  //madvise
         MLOG_WARN(mlog::app, "syscall madvise NYI");
         return 0;
     case 39: // getpid
-        MLOG_WARN(mlog::app, "syscall getpid NYI");
-        return 0;
+        MLOG_DETAIL(mlog::app, "syscall getpid NYI");
+        //todo: use proper process identification
+        return 4711;
     case 60: // exit(exit_code)
-        //MLOG_ERROR(mlog::app, "syscall exit", DVAR(a1));
+        MLOG_DETAIL(mlog::app, "syscall exit", DVAR(a1));
         pthreadCleaner.exit();        
         asm volatile ("syscall" : : "D"(0), "S"(a1) : "memory");
         return 0;
@@ -237,9 +317,9 @@ extern "C" long mythos_musl_syscall(
                             reinterpret_cast<uint32_t*>(a5) /*uaddr2*/, a4/*val2*/, a6/*val3*/);
         }
     case 203: // sched_setaffinity
-        return sched_setaffinity(a1, a2, reinterpret_cast<cpu_set_t*>(a3));
+        return my_sched_setaffinity(a1, a2, reinterpret_cast<cpu_set_t*>(a3));
     case 204: // sched_getaffinity
-        return sched_getaffinity(a1, a2, reinterpret_cast<cpu_set_t*>(a3));
+        return my_sched_getaffinity(a1, a2, reinterpret_cast<cpu_set_t*>(a3));
     case 228: // clock_gettime
         //MLOG_ERROR(mlog::app, "Error: mythos_musl_syscall clock_gettime", DVAR(num), 
             //DVARhex(a1), DVARhex(a2), DVARhex(a3),
@@ -247,8 +327,8 @@ extern "C" long mythos_musl_syscall(
 	clock_gettime(a1, reinterpret_cast<struct timespec *>(a2));
         return 0;
     case 231: // exit_group for all pthreads 
-        MLOG_WARN(mlog::app, "syscall exit_group NYI");
-	mythosExit();
+        MLOG_WARN(mlog::app, "syscall exit_group ");
+        mythosExit();
         return 0;
     case 302: // prlimit64
         //MLOG_WARN(mlog::app, "syscall prlimit64 NYI", DVAR(a1), DVAR(a2), DVAR(a3), DVAR(a4), DVAR(a5), DVAR(a6));
@@ -281,14 +361,19 @@ extern "C" void * mmap(void *start, size_t len, int prot, int flags, int fd, off
 extern "C" int munmap(void *start, size_t len)
 {
     // dummy implementation
-    //MLOG_DETAIL(mlog::app, "munmap", DVAR(start), DVAR(len));
+    MLOG_DETAIL(mlog::app, "munmap", DVAR(start), DVAR(len));
     mythos::heap.free(reinterpret_cast<unsigned long>(start));
     return 0;
 }
 
 extern "C" int unmapself(void *start, size_t len)
 {
-    PANIC_MSG(false, "unmapself: NYI!");
+    // see pthread_exit: another pthread might reuse the memory before unmapped  thread exited
+    MLOG_DETAIL(mlog::app, "unmapself", DVARhex(start), DVAR(len));
+    //todo: race condition?
+    mythos::heap.free(reinterpret_cast<unsigned long>(start));
+    threadPool.push(mythos_get_pthread_ec_self(), localPortalPtr);
+    asm volatile ("syscall" : : "D"(0), "S"(0) : "memory");
     return 0;
 }
 
@@ -304,42 +389,71 @@ extern "C" int mprotect(void *addr, size_t len, int prot)
 
 int myclone(
     int (*func)(void *), void *stack, int flags, 
-    void *arg, int* ptid, void* tls, int* ctid)
+    void *arg, int* ptid, void* tls, int* ctid,
+    int allocType)
 {
-    //MLOG_DETAIL(mlog::app, "myclone");
+    MLOG_DETAIL(mlog::app, "myclone", DVAR(allocType));
     ASSERT(tls != nullptr);
-
     // The compiler expect a kinda strange alignment coming from clone:
     // -> rsp % 16 must be 8
     // You can see this also in musl/src/thread/x86_64/clone.s (rsi is stack)
     // We will use the same trick for alignment as musl libc
     auto rsp = (uintptr_t(stack) & uintptr_t(-16))-8;
 
-    mythos::PortalLock pl(portal); // future access will fail if the portal is in use already
-    mythos::ExecutionContext ec(capAlloc());
-    if (ptid && (flags&CLONE_PARENT_SETTID)) *ptid = int(ec.cap());
-    // @todo store thread-specific ctid pointer, which should set to 0 by the OS on the thread's exit
+    mythos::CapPtr ecPtr;
+    mythos::CapPtr portalPtr;
 
-    auto sc = pa.alloc(pl).wait();
-    ASSERT(sc);
-    if(sc->cap == mythos::null_cap){
-      MLOG_WARN(mlog::app, "Processor allocation failed!");
-      //todo: set errno = EAGAIN
-      return (-1);
+    auto tpe = threadPool.pop();
+    if(tpe){
+      ecPtr = tpe->ec;
+      portalPtr = tpe->portal;
+    }else{
+      ecPtr = capAlloc();
+      portalPtr = capAlloc();
     }
 
-    auto res1 = ec.create(kmem)
-      .as(myAS)
-      .cs(myCS)
-      .sched(sc->cap)
-      .rawStack(rsp)
-      .rawFun(func, arg)
-      .suspended(false)
-      .fs(tls)
-      .invokeVia(pl)
-      .wait();
-    //MLOG_DETAIL(mlog::app, DVAR(ec.cap()));
-    return ec.cap();
+    mythos::PortalLock pl(localPortal); 
+    mythos::ExecutionContext ec(ecPtr);
+
+    if (ptid && (flags&CLONE_PARENT_SETTID)) *ptid = int(ecPtr);
+    // @todo store thread-specific ctid pointer, which should set to 0 by the OS on the thread's exit
+
+    if(tpe){
+      // Reuse EC -> configure regs
+      mythos::ExecutionContext::register_t regs;
+      regs.rsp = uintptr_t(rsp), // stack
+      regs.rip = uintptr_t(func); // start function;
+      regs.rdi = uintptr_t(arg); // user context
+      regs.fs_base = uintptr_t(tls); // thread local storage
+      auto res = ec.writeRegisters(pl, regs, true).wait();
+    }else{
+      //create new EC
+      auto res = ec.create(kmem)
+        .as(myAS)
+        .cs(myCS)
+        .rawStack(rsp)
+        .rawFun(func, arg)
+        .suspended(false)
+        .fs(tls)
+        .invokeVia(pl)
+        .wait();
+      
+      // create Portal
+      ASSERT(ec.cap() < mythos::MAX_IB);
+      mythos::Portal newPortal(portalPtr, info_ptr->getInvocationBuf(portalPtr));
+      newPortal.create(pl, kmem).wait();
+      newPortal.bind(pl, infoFrame, info_ptr->getIbOffset(portalPtr), ec.cap());
+    }
+
+    setRemotePortalPtr(reinterpret_cast<uintptr_t>(tls), portalPtr);
+
+    auto tres = team.tryRunEC(pl, ec, allocType).wait();
+    if(tres && tres->notFailed()){
+      return ecPtr;
+    }
+    MLOG_WARN(mlog::app, "Processor allocation failed!");
+    //todo: set errno = EAGAIN
+    return (-1);
 }
 
 extern "C" int clone(int (*func)(void *), void *stack, int flags, void *arg, ...)
@@ -350,8 +464,9 @@ extern "C" int clone(int (*func)(void *), void *stack, int flags, void *arg, ...
     int* ptid = va_arg(args, int*);
     void* tls = va_arg(args, void*);
     int* ctid = va_arg(args, int*);
+    int allocType = va_arg(args, int);
     va_end(args);
-    return myclone(func, stack, flags, arg, ptid, tls, ctid);
+    return myclone(func, stack, flags, arg, ptid, tls, ctid, allocType);
 }
 
 // synchronize and cleanup exited pthread
@@ -360,10 +475,25 @@ extern "C" void mythos_pthread_cleanup(pthread_t t){
     // wait for target pthread to exit
     pthreadCleaner.wait(t);
     // delete EC of target pthread
-    auto cap = mythos_get_pthread_ec(t);
-    mythos::PortalLock pl(portal); 
-    capAlloc.free(cap, pl);
+    auto ec = mythos_get_pthread_ec(t);
+    auto portal = getRemotePortalPtr(t);
+    threadPool.push(ec, portal);
     // memory of target pthread will be free when returning from this function
+}
+
+extern "C" int mythos_revoke_demand_hook(pthread_t t){
+    MLOG_DETAIL(mlog::app, "revoke demand", mythos_get_pthread_ec(t));
+    mythos::PortalLock pl(localPortal); 
+    auto ecPtr = mythos_get_pthread_ec(t);
+    mythos::ExecutionContext ec(ecPtr);
+    auto res = team.revokeDemand(pl, ec).wait();
+    if(res && res->revoked){
+      auto portalPtr = getRemotePortalPtr(t);
+      threadPool.push(ecPtr, portalPtr);
+      return 0;
+    }
+    MLOG_DETAIL(mlog::app, "revoke failed");
+    return (-1);
 }
 
 struct dl_phdr_info
@@ -386,7 +516,7 @@ extern char __executable_start; //< provided by the default linker script
 extern "C" int dl_iterate_phdr(
     int (*callback) (dl_phdr_info *info, size_t size, void *data), void *data)
 {
-    MLOG_ERROR(mlog::app, "dl_iterate_phdr", DVAR((void*)callback), DVAR(&__executable_start));
+    MLOG_DETAIL(mlog::app, "dl_iterate_phdr", DVAR((void*)callback), DVAR(&__executable_start));
     mythos::elf64::Elf64Image img(&__executable_start);
     ASSERT(img.isValid());
 

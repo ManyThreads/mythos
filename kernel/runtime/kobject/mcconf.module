@@ -11,5 +11,5 @@ incfiles = [
   "runtime/CapAlloc.hh",
   "runtime/InterruptControl.hh",
   "runtime/RaplDriverIntel.hh",
-  "runtime/ProcessorAllocator.hh"
+  "runtime/ThreadTeam.hh"
   ]

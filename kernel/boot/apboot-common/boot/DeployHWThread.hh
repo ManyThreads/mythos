@@ -38,6 +38,7 @@
 #include "cpu/idle.hh"
 #include "async/Place.hh"
 #include "objects/DeleteBroadcast.hh"
+#include "objects/PML4InvalidationBroadcastAmd64.hh"
 #include "objects/SchedulingContext.hh"
 #include "objects/InterruptControl.hh"
 #include "boot/memory-layout.h"
@@ -78,6 +79,7 @@ struct DeployHWThread
   {
     idt.init();
     DeleteBroadcast::init(); // depends on hwthread enumeration
+    PML4InvalidationBroadcast::init(); // depends on hwthread enumeration
   }
 
   void prepare(cpu::ThreadID threadID, cpu::ApicID apicID)

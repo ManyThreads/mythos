@@ -7,16 +7,41 @@
 #include "util/optional.hh"
 #include "util/elf64.hh"
 #include "util/align.hh"
-#include "runtime/CapAlloc.hh"
+#include "util/events.hh"
 #include "mythos/InfoFrame.hh"
+#include "runtime/CapAlloc.hh"
+#include "runtime/ThreadTeam.hh"
+#include "runtime/thread-extra.hh"
+#include "mythos/syscall.hh"
+#include <vector>
 
 extern mythos::InfoFrame* info_ptr asm("info_ptr");
 extern mythos::CapMap myCS;
 extern mythos::PageMap myAS;
 extern mythos::KernelMemory kmem;
-extern mythos::ProcessorAllocator pa;
+extern mythos::ThreadTeam team;
+
+class ProcessExitEvent;
+extern mythos::Event<> groupExit;
+extern ProcessExitEvent processExitEvent;
 
 using namespace mythos;
+
+class ProcessExitEvent : public EventHook<> {
+  public:
+  ProcessExitEvent(){
+    groupExit.add(this);
+  }
+
+  void processEvent() override {
+    MLOG_DETAIL(mlog::app, __PRETTY_FUNCTION__);
+    info_ptr->setRunning(false);
+    auto parent = info_ptr->getParent();
+    if(parent != null_cap){
+        mythos::syscall_signal(parent);
+    }
+  }
+};
 
 class Process{
   public:
@@ -24,8 +49,46 @@ class Process{
     : cs(capAlloc())
     , pCapAlloc(cs)
     , img(image)
+    , pInfoFrame(nullptr)
+    , parent(mythos_get_pthread_ec_self())
   {}
   
+  void wait(){
+    MLOG_DETAIL(mlog::app, __PRETTY_FUNCTION__);
+    if(pInfoFrame){
+      if(pInfoFrame->isRunning()){
+        ASSERT(parent == mythos_get_pthread_ec_self());
+        pInfoFrame->setParent(init::PARENT_EC);
+        while(pInfoFrame->isRunning()){
+          mythos_wait();
+        }
+        pInfoFrame->setParent(null_cap);
+      }
+    }
+    MLOG_DETAIL(mlog::app, "wait return");
+  }
+
+  void remove(PortalLock& pl){
+    MLOG_DETAIL(mlog::app, __PRETTY_FUNCTION__);
+    pInfoFrame = nullptr;
+    MLOG_DETAIL(mlog::app, "free dynamically allocated caps in own CS");
+    for (std::vector<CapPtr>::reverse_iterator i = caps.rbegin(); 
+        i != caps.rend(); ++i ) {
+      MLOG_DETAIL(mlog::app, DVAR(*i));
+        capAlloc.free(*i, pl);
+     } 
+    caps.clear();
+    MLOG_DETAIL(mlog::app, "free capmap");
+    capAlloc.free(cs, pl);
+  }
+
+  void join(PortalLock& pl){
+    wait();
+    remove(pl);
+  }
+
+  ~Process(){}
+
   optional<void> loadProgramHeader(PortalLock& pl,
       const elf64::PHeader* ph, uintptr_t tmp_vaddr, Frame& f, size_t offset, PageMap& pm)
   {
@@ -45,7 +108,7 @@ class Process{
       mf.executable = ph->flags&elf64::PF_X;
       MLOG_DETAIL(mlog::app, "... mmap program header", DVARhex(vbegin), DVARhex(vend), DVARhex(offset));
       auto res = pm.mmap(pl, f, vbegin, vend-vbegin, mf, offset);
-      TEST(res);
+      ASSERT(res);
 
       // zero the pages, then copy the data
       MLOG_DETAIL(mlog::app, "    zeroing", DVARhex(tmp_vaddr + offset), DVARhex(vend-vbegin));
@@ -80,28 +143,29 @@ class Process{
       MLOG_DETAIL(mlog::app, "allocate frame for application image ...")
       Frame f(capAlloc());
       auto res = f.create(pl, kmem, 2*size, align2M).wait();
+      caps.push_back(f.cap());
       
       uintptr_t tmp_vaddr = 42*align512G;
       MLOG_DETAIL(mlog::app, "temporary map frame to own address space ...", DVARhex(tmp_vaddr));
       MLOG_DETAIL(mlog::app, "   create PageMap");
       PageMap pm3(capAlloc());
       res = pm3.create(pl, kmem, 3).wait();
-      TEST(res);
+      ASSERT(res);
       PageMap pm2(capAlloc());
       res = pm2.create(pl, kmem, 2).wait();
-      TEST(res);
+      ASSERT(res);
 
       MLOG_DETAIL(mlog::app, "   installMap");
       res = myAS.installMap(pl, pm3, ((tmp_vaddr >> 39) & 0x1FF)<< 39, 4,
         protocol::PageMap::MapFlags().writable(true).configurable(true)).wait();
-      TEST(res);
+      ASSERT(res);
       res = pm3.installMap(pl, pm2, ((tmp_vaddr >> 30) & 0x1FF) << 30, 3,
         protocol::PageMap::MapFlags().writable(true).configurable(true)).wait();
-      TEST(res);
+      ASSERT(res);
 
       MLOG_DETAIL(mlog::app, "   mmap");
       res = myAS.mmap(pl, f, tmp_vaddr, size, 0x1).wait();
-      TEST(res);
+      ASSERT(res);
 
       // 3) process each program header: map to page, copy contents
       size_t offset = 0;
@@ -120,22 +184,21 @@ class Process{
       MLOG_DETAIL(mlog::app, "cleaning up ...");
       MLOG_DETAIL(mlog::app, "   unmap frame");
       res = myAS.munmap(pl, tmp_vaddr, size).wait();
-      TEST(res);
+      ASSERT(res);
 
       MLOG_DETAIL(mlog::app, "   remove maps");
       res = myAS.removeMap(pl, tmp_vaddr, 2).wait();
-      TEST(res);
+      ASSERT(res);
       res = myAS.removeMap(pl, tmp_vaddr, 3).wait();
-      TEST(res);
+      ASSERT(res);
 
       MLOG_DETAIL(mlog::app, "   move frame");
-      res = myCS.move(pl, f.cap(), max_cap_depth, cs.cap(), pCapAlloc(), max_cap_depth).wait();
-      TEST(res);
-      capAlloc.freeEmpty(f.cap());
+      res = myCS.reference(pl, f.cap(), max_cap_depth, cs.cap(), pCapAlloc(), max_cap_depth).wait();
+      ASSERT(res);
 
       MLOG_DETAIL(mlog::app, "   delete tables");
-      capAlloc.free(pm3, pl);
-      capAlloc.free(pm2, pl);
+      capAlloc.free(pm3.cap(), pl);
+      capAlloc.free(pm2.cap(), pl);
 
       return ipc_addr;
   }
@@ -146,34 +209,37 @@ class Process{
     /* create CapMap */
     MLOG_DETAIL(mlog::app, "create CapMap ...");
     auto res = cs.create(pl, kmem, CapPtrDepth(12), CapPtrDepth(20), CapPtr(0)).wait();
-    TEST(res);
+    ASSERT(res);
+    MLOG_DETAIL(mlog::app, "set CapMap reference...");
+    res = myCS.reference(pl, cs.cap(), max_cap_depth, cs.cap(), init::CSPACE, max_cap_depth).wait();
+    ASSERT(res);
     
-    /* copy relevant caps */
+     //copy relevant caps 
     MLOG_DETAIL(mlog::app, "copy relevant Caps ...");
     MLOG_DETAIL(mlog::app, "   kernel memory");
-    res = myCS.reference(pl, init::KM, max_cap_depth, cs.cap(), init::KM, max_cap_depth, 0).wait();
-    TEST(res);
+    res = myCS.reference(pl, init::KM, max_cap_depth, cs.cap(), init::KM, max_cap_depth).wait();
+    ASSERT(res);
 
     MLOG_DETAIL(mlog::app, "   factories");
     for(CapPtr ptr = init::EXAMPLE_FACTORY; ptr <= init::UNTYPED_MEMORY_FACTORY; ptr++){
-      res = myCS.reference(pl, ptr, max_cap_depth, cs.cap(), ptr, max_cap_depth, 0).wait();
-      TEST(res);
+      res = myCS.reference(pl, ptr, max_cap_depth, cs.cap(), ptr, max_cap_depth).wait();
+      ASSERT(res);
     }
-    
+
     MLOG_DETAIL(mlog::app, "   DEVICE_MEMORY");
-    res = myCS.reference(pl, init::DEVICE_MEM, max_cap_depth, cs.cap(), init::DEVICE_MEM, max_cap_depth, 0).wait();
-    TEST(res);
+    res = myCS.reference(pl, init::DEVICE_MEM, max_cap_depth, cs.cap(), init::DEVICE_MEM, max_cap_depth).wait();
+    ASSERT(res);
 
     MLOG_DETAIL(mlog::app, "   RAPL driver");
-    res = myCS.reference(pl, init::RAPL_DRIVER_INTEL, max_cap_depth, cs.cap(), init::RAPL_DRIVER_INTEL, max_cap_depth, 0).wait();
-    TEST(res);
+    res = myCS.reference(pl, init::RAPL_DRIVER_INTEL, max_cap_depth, cs.cap(), init::RAPL_DRIVER_INTEL, max_cap_depth).wait();
+    ASSERT(res);
 
     MLOG_DETAIL(mlog::app, "   Interrupt control");
     MLOG_WARN(mlog::app, "SKIP: Interrupt control caps!");
     //todo: how to check whether cap is existing?
     //for(CapPtr ptr = init::INTERRUPT_CONTROL_START; ptr < init::INTERRUPT_CONTROL_END; ptr++){
-      //res = myCS.reference(pl, ptr, max_cap_depth, cs.cap(), ptr, max_cap_depth, 0).wait();
-      //TEST(res);
+      //res = myCS.reference(pl, ptr, max_cap_depth, cs.cap(), ptr, max_cap_depth).wait();
+      //ASSERT(res);
     //}
 
     /* create address space */
@@ -183,38 +249,57 @@ class Process{
 
     // create tables
     PageMap pm4(capAlloc());
+    caps.push_back(pm4.cap());
     auto res_pm = pm4.create(pl, kmem, 4).wait();
-    TEST(res_pm);
+    ASSERT(res_pm);
     PageMap pm3(capAlloc());
+    caps.push_back(pm3.cap());
     res_pm = pm3.create(pl, kmem, 3).wait();
-    TEST(res_pm);
+    ASSERT(res_pm);
     PageMap pm2(capAlloc());
+    caps.push_back(pm2.cap());
     res_pm = pm2.create(pl, kmem, 2).wait();
-    TEST(res_pm);
+    ASSERT(res_pm);
     PageMap pm10(capAlloc());
+    caps.push_back(pm10.cap());
     res_pm = pm10.create(pl, kmem, 1).wait();
-    TEST(res_pm);
+    ASSERT(res_pm);
     PageMap pm11(capAlloc());
+    caps.push_back(pm11.cap());
     res_pm = pm11.create(pl, kmem, 1).wait();
-    TEST(res_pm);
+    ASSERT(res_pm);
     PageMap pm12(capAlloc());
+    caps.push_back(pm12.cap());
     res_pm = pm12.create(pl, kmem, 1).wait();
-    TEST(res_pm);
+    ASSERT(res_pm);
     PageMap pm13(capAlloc());
+    caps.push_back(pm13.cap());
     res_pm = pm13.create(pl, kmem, 1).wait();
-    TEST(res_pm);
+    ASSERT(res_pm);
     PageMap pm14(capAlloc());
+    caps.push_back(pm14.cap());
     res_pm = pm14.create(pl, kmem, 1).wait();
-    TEST(res_pm);
+    ASSERT(res_pm);
     PageMap pm15(capAlloc());
+    caps.push_back(pm15.cap());
     res_pm = pm15.create(pl, kmem, 1).wait();
-    TEST(res_pm);
+    ASSERT(res_pm);
     PageMap pm16(capAlloc());
+    caps.push_back(pm16.cap());
     res_pm = pm16.create(pl, kmem, 1).wait();
-    TEST(res_pm);
+    ASSERT(res_pm);
     PageMap pm17(capAlloc());
+    caps.push_back(pm17.cap());
     res_pm = pm17.create(pl, kmem, 1).wait();
-    TEST(res_pm);
+    ASSERT(res_pm);
+    PageMap pm18(capAlloc());
+    caps.push_back(pm18.cap());
+    res_pm = pm18.create(pl, kmem, 1).wait();
+    ASSERT(res_pm);
+    PageMap pm19(capAlloc());
+    caps.push_back(pm19.cap());
+    res_pm = pm19.create(pl, kmem, 1).wait();
+    ASSERT(res_pm);
 
     // install tables
     pm4.installMap(pl, pm3, ((elf_vaddr >> 39) & 0x1FF) << 39, 4,
@@ -237,74 +322,82 @@ class Process{
       mythos::protocol::PageMap::MapFlags().writable(true).configurable(true)).wait();
     pm2.installMap(pl, pm17, ((elf_vaddr >> 21) & 0x1FF) + 7 << 21, 2,
       mythos::protocol::PageMap::MapFlags().writable(true).configurable(true)).wait();
+    pm2.installMap(pl, pm18, ((elf_vaddr >> 21) & 0x1FF) + 8 << 21, 2,
+      mythos::protocol::PageMap::MapFlags().writable(true).configurable(true)).wait();
+    pm2.installMap(pl, pm19, ((elf_vaddr >> 21) & 0x1FF) + 9 << 21, 2,
+      mythos::protocol::PageMap::MapFlags().writable(true).configurable(true)).wait();
 
     /* load image */
     auto ipc_vaddr = loadImage(pl, pm4);
-    TEST(ipc_vaddr);
+    ASSERT(ipc_vaddr);
 
     /* create InfoFrame */
     MLOG_DETAIL(mlog::app, "create InfoFrame ...");
     auto size = round_up(sizeof(InfoFrame), align2M);
-    MLOG_DETAIL(mlog::app, "   create frame", DVAR(size));
-    Frame infoFrame(capAlloc());
-    res = infoFrame.create(pl, kmem, size, align2M).wait();
-    TEST(res);
+    MLOG_DETAIL(mlog::app, "   create frame");
+    Frame iFrame(capAlloc());
+    caps.push_back(iFrame.cap());
+    res = iFrame.create(pl, kmem, size, align2M).wait();
+    ASSERT(res);
+    res = myCS.reference(pl, iFrame.cap(), max_cap_depth, cs.cap(), init::INFO_FRAME, max_cap_depth).wait();
+    ASSERT(res);
     MLOG_DETAIL(mlog::app, "   map frame to target page map", DVARhex(size), DVARhex(*ipc_vaddr));
-    res = pm4.mmap(pl, infoFrame, *ipc_vaddr, align2M, 0x1).wait();
-    TEST(res);
+    res = pm4.mmap(pl, iFrame, *ipc_vaddr, size, 0x1).wait();
+    ASSERT(res);
     
     uintptr_t tmp_vaddr_if = 11*align512G;
     MLOG_DETAIL(mlog::app, "   temporally map frame to own page map", DVARhex(tmp_vaddr_if));
     PageMap pm3if(capAlloc());
+    caps.push_back(pm3if.cap());
     res = pm3if.create(pl, kmem, 3).wait();
-    TEST(res);
+    ASSERT(res);
     PageMap pm2if(capAlloc());
+    caps.push_back(pm2if.cap());
     res = pm2if.create(pl, kmem, 2).wait();
-    TEST(res);
+    ASSERT(res);
     MLOG_DETAIL(mlog::app, "   installMap");
     res = myAS.installMap(pl, pm3if, ((tmp_vaddr_if >> 39) & 0x1FF)<< 39, 4,
       protocol::PageMap::MapFlags().writable(true).configurable(true)).wait();
-    TEST(res);
+    ASSERT(res);
     res = pm3if.installMap(pl, pm2if, ((tmp_vaddr_if >> 30) & 0x1FF) << 30, 3,
       protocol::PageMap::MapFlags().writable(true).configurable(true)).wait();
-    TEST(res);
+    ASSERT(res);
 
     MLOG_DETAIL(mlog::app, "   mmap");
-    res = myAS.mmap(pl, infoFrame, tmp_vaddr_if, size, 0x1).wait();
-    TEST(res);
+    res = myAS.mmap(pl, iFrame, tmp_vaddr_if, size, 0x1).wait();
+    ASSERT(res);
     
     MLOG_DETAIL(mlog::app, "   copy info frame content");
     mythos::memcpy(reinterpret_cast<void*>(tmp_vaddr_if), info_ptr, sizeof(InfoFrame));
 
-    MLOG_DETAIL(mlog::app, "   unmap");
-    res = myAS.munmap(pl, tmp_vaddr_if, size).wait();
-    TEST(res);
+    pInfoFrame = reinterpret_cast<InfoFrame*>(tmp_vaddr_if);
+    pInfoFrame->setRunning(true);
+    pInfoFrame->setParent(null_cap);
 
-    MLOG_DETAIL(mlog::app, "   remove maps");
-    res = myAS.removeMap(pl, tmp_vaddr_if, 2).wait();
-    TEST(res);
-    res = myAS.removeMap(pl, tmp_vaddr_if, 3).wait();
-    TEST(res);
-
-    MLOG_DETAIL(mlog::app, "   delete tables");
-    capAlloc.free(pm3if, pl);
-    capAlloc.free(pm2if, pl);
-
+    res = myCS.reference(pl, parent, max_cap_depth, cs.cap(), init::PARENT_EC, max_cap_depth).wait();
+    ASSERT(res);
 
     /* create EC */
     MLOG_DETAIL(mlog::app, "create EC ...", DVARhex(img.header()->entry));
-    auto sc = pa.alloc(pl).wait();
-    TEST(sc);
-    MLOG_DETAIL(mlog::app, "allocated SC", DVAR(sc->cap));
     ExecutionContext ec(capAlloc());
-    res = ec.create(kmem).as(pm4).cs(cs).sched(sc->cap)
+    res = ec.create(kmem).as(pm4).cs(cs)
     .rawFun(reinterpret_cast<int (*)(void*)>(img.header()->entry), reinterpret_cast<void*>(*ipc_vaddr))
     .suspended(true)
     .invokeVia(pl).wait();
-    TEST(res);
-    MLOG_DETAIL(mlog::app, "move SC");
-    res = myCS.move(pl, sc->cap, max_cap_depth, cs.cap(), sc->cap, max_cap_depth).wait();
-    TEST(res);
+    caps.push_back(ec.cap());
+    ASSERT(res);
+
+    /* create ThreadTeam */
+    MLOG_DETAIL(mlog::app, "create ThreadTeam ...");
+    ThreadTeam tt(capAlloc());
+    res = tt.create(pl, kmem, init::PROCESSOR_ALLOCATOR).wait();
+    caps.push_back(tt.cap());
+    ASSERT(res);
+    MLOG_DETAIL(mlog::app, "   register EC in ThreadTeam");
+    res = tt.tryRunEC(pl, ec).wait();
+    ASSERT(res);
+    res = myCS.reference(pl, tt.cap(), max_cap_depth, cs.cap(), init::THREAD_TEAM, max_cap_depth).wait();
+    ASSERT(res);
 
     /* create portal */
     MLOG_DETAIL(mlog::app, "create Portal ...");
@@ -313,82 +406,28 @@ class Process{
     MLOG_DETAIL(mlog::app, "   create");
     Portal port(capAlloc(), reinterpret_cast<void*>(*ipc_vaddr));
     res = port.create(pl, kmem).wait();
-    TEST(res);
-    res = port.bind(pl, infoFrame, 0, ec.cap()).wait();
-    TEST(res);
+    caps.push_back(port.cap());
+    ASSERT(res);
+    res = port.bind(pl, iFrame, 0, ec.cap()).wait();
+    ASSERT(res);
 
     MLOG_DETAIL(mlog::app, "   move Portal");
-    res = myCS.move(pl, port.cap(), max_cap_depth, cs.cap(), init::PORTAL, max_cap_depth).wait();
-    TEST(res);
-    capAlloc.freeEmpty(port.cap());
+    res = myCS.reference(pl, port.cap(), max_cap_depth, cs.cap(), init::PORTAL, max_cap_depth).wait();
+    ASSERT(res);
     
-    MLOG_DETAIL(mlog::app, "   move info frame");
-    res = myCS.move(pl, infoFrame.cap(), max_cap_depth, cs.cap(), init::INFO_FRAME, max_cap_depth).wait();
-    TEST(res);
-    capAlloc.freeEmpty(infoFrame.cap());
-
     /* move tables */
-    MLOG_DETAIL(mlog::app, "move tables ...");
-    res = myCS.move(pl, pm3.cap(), max_cap_depth, cs.cap(), pCapAlloc(), max_cap_depth).wait();
-    TEST(res);
-    capAlloc.freeEmpty(pm3.cap());
-
-    res = myCS.move(pl, pm2.cap(), max_cap_depth, cs.cap(), pCapAlloc(), max_cap_depth).wait();
-    TEST(res);
-    capAlloc.freeEmpty(pm2.cap());
-
-    res = myCS.move(pl, pm10.cap(), max_cap_depth, cs.cap(), pCapAlloc(), max_cap_depth).wait();
-    TEST(res);
-    capAlloc.freeEmpty(pm10.cap());
-
-    res = myCS.move(pl, pm11.cap(), max_cap_depth, cs.cap(), pCapAlloc(), max_cap_depth).wait();
-    TEST(res);
-    capAlloc.freeEmpty(pm11.cap());
-
-    res = myCS.move(pl, pm12.cap(), max_cap_depth, cs.cap(), pCapAlloc(), max_cap_depth).wait();
-    TEST(res);
-    capAlloc.freeEmpty(pm12.cap());
-
-    res = myCS.move(pl, pm13.cap(), max_cap_depth, cs.cap(), pCapAlloc(), max_cap_depth).wait();
-    TEST(res);
-    capAlloc.freeEmpty(pm13.cap());
-
-    res = myCS.move(pl, pm14.cap(), max_cap_depth, cs.cap(), pCapAlloc(), max_cap_depth).wait();
-    TEST(res);
-    capAlloc.freeEmpty(pm14.cap());
-
-    res = myCS.move(pl, pm15.cap(), max_cap_depth, cs.cap(), pCapAlloc(), max_cap_depth).wait();
-    TEST(res);
-    capAlloc.freeEmpty(pm15.cap());
-
-    res = myCS.move(pl, pm16.cap(), max_cap_depth, cs.cap(), pCapAlloc(), max_cap_depth).wait();
-    TEST(res);
-    capAlloc.freeEmpty(pm16.cap());
-
-    res = myCS.move(pl, pm17.cap(), max_cap_depth, cs.cap(), pCapAlloc(), max_cap_depth).wait();
-    TEST(res);
-    capAlloc.freeEmpty(pm17.cap());
-
-    res = myCS.move(pl, pm4.cap(), max_cap_depth, cs.cap(), init::PML4, max_cap_depth).wait();
-    TEST(res);
-    capAlloc.freeEmpty(pm4.cap());
+    MLOG_DETAIL(mlog::app, "reference pm4 ...");
+    res = myCS.reference(pl, pm4.cap(), max_cap_depth, cs.cap(), init::PML4, max_cap_depth).wait();
 
     /* wake EC */
     MLOG_DETAIL(mlog::app, "start process ...");
     MLOG_DETAIL(mlog::app, "   move EC");
-    res = myCS.move(pl, ec.cap(), max_cap_depth, cs.cap(), init::EC, max_cap_depth).wait();
-    TEST(res);
-
-    MLOG_DETAIL(mlog::app, "   create reference");
-    res = cs.reference(pl, init::EC, max_cap_depth, init::CSPACE, ec.cap(), max_cap_depth, 0).wait();
-    TEST(res);
+    res = myCS.reference(pl, ec.cap(), max_cap_depth, cs.cap(), init::EC, max_cap_depth).wait();
+    ASSERT(res);
 
     MLOG_DETAIL(mlog::app, "   wake EC");
     res = ec.resume(pl).wait();
-    TEST(res);
-
-    MLOG_DETAIL(mlog::app, "   remove EC");
-    capAlloc.free(ec.cap(), pl);
+    ASSERT(res);
 
     return cs.cap();
   }
@@ -398,6 +437,9 @@ class Process{
   SimpleCapAlloc<init::CAP_ALLOC_START
     , init::CAP_ALLOC_END - init::CAP_ALLOC_START> pCapAlloc;
   elf64::Elf64Image img;
+  InfoFrame* pInfoFrame;
+  CapPtr parent;
+  std::vector<CapPtr> caps;
 };
 
 

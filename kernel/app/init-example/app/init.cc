@@ -36,8 +36,8 @@
 #include "runtime/Example.hh"
 #include "runtime/PageMap.hh"
 #include "runtime/KernelMemory.hh"
+#include "runtime/ThreadTeam.hh"
 #include "runtime/CapAlloc.hh"
-#include "runtime/ProcessorAllocator.hh"
 #include "runtime/tls.hh"
 #include "runtime/mlog.hh"
 #include "runtime/InterruptControl.hh"
@@ -47,6 +47,7 @@
 #include "runtime/Mutex.hh"
 #include "runtime/cgaScreen.hh"
 #include "runtime/process.hh"
+#include "tbb/tbb.h"
 
 #include <vector>
 #include <array>
@@ -68,13 +69,14 @@ char initstack[stacksize];
 char* initstack_top = initstack+stacksize;
 
 mythos::Portal portal(mythos::init::PORTAL, info_ptr->getInvocationBuf());
+mythos::Frame infoFrame(mythos::init::INFO_FRAME);
 mythos::CapMap myCS(mythos::init::CSPACE);
 mythos::PageMap myAS(mythos::init::PML4);
 mythos::KernelMemory kmem(mythos::init::KM);
 mythos::KObject device_memory(mythos::init::DEVICE_MEM);
 cap_alloc_t capAlloc(myCS);
 mythos::RaplDriverIntel rapl(mythos::init::RAPL_DRIVER_INTEL);
-mythos::ProcessorAllocator pa(mythos::init::PROCESSOR_ALLOCATOR);
+mythos::ThreadTeam team(mythos::init::THREAD_TEAM);
 
 char threadstack[stacksize];
 char* thread1stack_top = threadstack+stacksize/2;
@@ -187,13 +189,13 @@ void test_tls()
   auto tls = mythos::setupNewTLS();
   MLOG_INFO(mlog::app, "test_EC: create ec1 TLS", DVARhex(tls));
   ASSERT(tls != nullptr);
-  auto sc = pa.alloc(pl).wait();
-  TEST(sc);
-  auto res1 = ec1.create(kmem).as(myAS).cs(myCS).sched(sc->cap)
+  auto res1 = ec1.create(kmem).as(myAS).cs(myCS)
     .prepareStack(thread1stack_top).startFun(threadFun, nullptr)
     .suspended(false).fs(tls)
     .invokeVia(pl).wait();
   TEST(res1);
+  auto res2 = team.tryRunEC(pl, ec1).wait();
+  TEST(res2);
   TEST(ec1.setFSGS(pl,(uint64_t) tls, 0).wait());
   mythos::syscall_signal(ec1.cap());
   MLOG_INFO(mlog::app, "End test tls");
@@ -204,7 +206,7 @@ void test_tls()
 void test_heap() {
   MLOG_INFO(mlog::app, "Test heap");
   mythos::PortalLock pl(portal);
-  auto size = 4*1024*1024; // 2 MB
+  auto size = 64*1024*1024; // 2 MB
   auto align = 2*1024*1024; // 2 MB
   uintptr_t vaddr = mythos::round_up(info_ptr->getInfoEnd() + align2M,  align2M);
   // allocate a 2MiB frame
@@ -327,24 +329,24 @@ void test_ExecutionContext()
 
     auto tls1 = mythos::setupNewTLS();
     ASSERT(tls1 != nullptr);
-    auto sc1 = pa.alloc(pl).wait();
-    TEST(sc1);
-    auto res1 = ec1.create(kmem).as(myAS).cs(myCS).sched(sc1->cap)
+    auto res1 = ec1.create(kmem).as(myAS).cs(myCS)
     .prepareStack(thread1stack_top).startFun(&thread_main, nullptr)
     .suspended(false).fs(tls1)
     .invokeVia(pl).wait();
     TEST(res1);
+    auto tres1 = team.tryRunEC(pl, ec1).wait();
+    TEST(tres1);
 
     MLOG_INFO(mlog::app, "test_EC: create ec2");
     auto tls2 = mythos::setupNewTLS();
     ASSERT(tls2 != nullptr);
-    auto sc2 = pa.alloc(pl).wait();
-    TEST(sc2);
-    auto res2 = ec2.create(kmem).as(myAS).cs(myCS).sched(sc2->cap)
+    auto res2 = ec2.create(kmem).as(myAS).cs(myCS)/*.sched(sc2->cap)*/
     .prepareStack(thread2stack_top).startFun(&thread_main, nullptr)
     .suspended(false).fs(tls2)
     .invokeVia(pl).wait();
     TEST(res2);
+    auto tres2 = team.tryRunEC(pl, ec2).wait();
+    TEST(tres2);
   }
 
   for (volatile int i=0; i<100000; i++) {
@@ -371,17 +373,73 @@ void test_InterruptControl() {
   mythos::ExecutionContext ec(capAlloc());
   auto tls = mythos::setupNewTLS();
   ASSERT(tls != nullptr);
-  auto sc = pa.alloc(pl).wait();
-  TEST(sc);
-  auto res1 = ec.create(kmem).as(myAS).cs(myCS).sched(sc->cap)
+  auto res1 = ec.create(kmem).as(myAS).cs(myCS)
     .prepareStack(thread3stack_top).startFun(&thread_main, nullptr)
     .suspended(false).fs(tls)
     .invokeVia(pl).wait();
   TEST(res1);
+  auto tres = team.tryRunEC(pl, ec).wait();
+  TEST(tres);
   TEST(ic.registerForInterrupt(pl, ec.cap(), 0x32).wait());
   TEST(ic.unregisterInterrupt(pl, 0x32).wait());
   TEST(capAlloc.free(ec, pl));
   MLOG_INFO(mlog::app, "test_InterruptControl end");
+}
+
+long SerialFib( long n ) {
+    return n<2 ? n :SerialFib(n-1)+SerialFib(n-2);
+}
+
+class FibTask: public tbb::task {
+public:
+    const long n;
+    long* const sum;
+    FibTask( long n_, long* sum_ ) :
+        n(n_), sum(sum_)
+    {}
+    tbb::task* execute() {      // Overrides virtual function task::execute
+        if( n<10 ) {
+            *sum = SerialFib(n);
+        } else {
+            long x, y;
+            FibTask& a = *new( allocate_child() ) FibTask(n-1,&x);
+            FibTask& b = *new( allocate_child() ) FibTask(n-2,&y);
+            // Set ref_count to 'two children plus one for the wait".
+            set_ref_count(3);
+            // Start b running.
+            spawn( b );
+            // Start a running and wait for all children (a and b).
+            spawn_and_wait_for_all(a);
+            // Do the sum
+            *sum = x+y;
+        }
+        return NULL;
+    }
+};
+
+long ParallelFib( long n ) {
+    long sum;
+    tbb::task_scheduler_init tsi; // manually initialize TBB scheduler
+    FibTask& a = *new(tbb::task::allocate_root()) FibTask(n,&sum);
+    tbb::task::spawn_root_and_wait(a);
+    tsi.blocking_terminate(); // wait until TBB is terminated
+    return sum;
+}
+
+void test_TBB(){
+  MLOG_INFO(mlog::app, "Test TBB");
+
+  //test thread team limitation
+  mythos::PortalLock pl(portal); 
+  auto res = team.setLimit(pl, 2).wait();
+  TEST(res);
+
+  tbb::enableDynamicThreading();
+
+  long f = 40;
+  MLOG_INFO(mlog::app, "fib(", f, ") = ", DVAR(ParallelFib(f)));
+  
+  MLOG_INFO(mlog::app, "Test finished");
 }
 
 bool primeTest(uint64_t n){
@@ -496,16 +554,6 @@ void test_CgaScreen(){
   MLOG_INFO(mlog::app, "Test CGA finished");
 }
 
-void test_processor_allocator(){
-  MLOG_INFO(mlog::app, "Test processor allocator");
-  mythos::PortalLock pl(portal);
-  auto sc = pa.alloc(pl).wait();
-  TEST(sc);
-  auto res = pa.free(pl, sc->cap).wait();
-  TEST(res);
-  MLOG_INFO(mlog::app, "Test processor allocator finished");
-}
-
 void test_process(){
   MLOG_INFO(mlog::app, "Test process");
 
@@ -513,6 +561,7 @@ void test_process(){
 
   Process p(&process_test_image_start);
   p.createProcess(pl); 
+  p.join(pl);
 
   MLOG_INFO(mlog::app, "Test process finished");
 }
@@ -530,12 +579,59 @@ void test_userMem(){
   MLOG_INFO(mlog::app, "Test user memory finished");
 };
 
+void test_scalability(){
+  MLOG_INFO(mlog::app, "Test runtime/energy scalability");
+  mythos::PortalLock pl(portal); 
+  timeval start_run, end_run;
+  
+  tbb::enableDynamicThreading();
+  long f = 40;
+
+  for(unsigned nThreads = 2; nThreads <= info_ptr->getNumThreads(); nThreads++){
+    auto res = team.setLimit(pl, nThreads).wait();
+    ASSERT(res);
+
+    asm volatile ("":::"memory");
+    auto start = rapl.getRaplVal(pl).wait().get();
+    gettimeofday(&start_run, 0);
+    asm volatile ("":::"memory");
+    
+    auto result = ParallelFib(f);
+
+    asm volatile ("":::"memory");
+    auto end = rapl.getRaplVal(pl).wait().get();
+    gettimeofday(&end_run, 0);
+    asm volatile ("":::"memory");
+
+    double seconds =(end_run.tv_usec - start_run.tv_usec)/1000000.0 + end_run.tv_sec - start_run.tv_sec;
+    double pp0 = (end.pp0 - start.pp0) * pow(0.5, start.cpu_energy_units);
+    double pp1 = (end.pp1 - start.pp1) * pow(0.5, start.cpu_energy_units);
+    double psys = (end.psys - start.psys) * pow(0.5, start.cpu_energy_units);
+    double pkg = (end.pkg - start.pkg) * pow(0.5, start.cpu_energy_units);
+    double dram = (end.dram - start.dram) * pow(0.5, start.dram_energy_units);
+
+    std::cout << "Prime test: fib(" << f << ") = " << result << ", "<<  seconds << " seonds, " << nThreads 
+      << " threads" << std::endl;
+
+    std::cout << "Energy consumption (energy/avg. power):" 
+      << " PP0:" << pp0 << "J/" << pp0/seconds << "W" 
+      << " PP1:" << pp1 << "J/" << pp1/seconds << "W" 
+      << " Platform:" << psys << "J/" << psys/seconds << "W" 
+      << " Package: " << pkg << "J/ " << pkg/seconds << "W" 
+      << " DRAM:" << dram << "J/" << dram/seconds << "W" 
+      << std::endl;
+  }
+
+  MLOG_INFO(mlog::app, "Finished scalability test");
+}
+
 int main()
 {
   char const str[] = "Hello world!";
   mythos::syscall_debug(str, sizeof(str)-1);
   MLOG_ERROR(mlog::app, "application is starting :)", DVARhex(info_ptr), DVARhex(initstack_top));
 
+  test_userMem();
   test_float();
   test_Example();
   test_Portal();
@@ -546,14 +642,13 @@ int main()
   //test_HostChannel(portal, 24*1024*1024, 2*1024*1024);
   test_ExecutionContext();
   test_pthreads();
-  test_userMem();
-  test_Rapl();
-  test_processor_allocator();
+  //test_Rapl();
+  //test_TBB();
+  test_scalability();
   test_process();
   //test_CgaScreen();
 
   char const end[] = "bye, cruel world!";
   mythos::syscall_debug(end, sizeof(end)-1);
-
   return 0;
 }
