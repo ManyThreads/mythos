@@ -344,8 +344,8 @@ extern "C" long mythos_musl_syscall(
 extern "C" void * mmap(void *start, size_t len, int prot, int flags, int fd, off_t off)
 {
     // dummy implementation
-    //MLOG_DETAIL(mlog::app, "mmap", DVAR(start), DVAR(len), DVAR(prot), DVAR(prot), DVAR(flags), DVAR(fd), DVAR(off));
-    auto tmp = mythos::heap.alloc(len, mythos::align4K);
+    MLOG_DETAIL(mlog::app, "mmap", DVAR(start), DVAR(len), DVAR(prot), DVAR(prot), DVAR(flags), DVAR(fd), DVAR(off));
+    auto tmp = mythos::heap.alloc(mythos::round_up(len, mythos::align4K), mythos::align4K);
     if (!tmp){ 
 	    errno = ENOMEM;
 	    return MAP_FAILED;
