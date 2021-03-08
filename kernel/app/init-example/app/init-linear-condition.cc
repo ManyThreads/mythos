@@ -570,7 +570,7 @@ void run_broadcast(){
   }
 
   for(int i = 0; i < AMOUNT_THREADS; i++){
-    pthread_join(&threads[i], nullptr);
+    pthread_join(threads[i], nullptr);
   }
 }
 

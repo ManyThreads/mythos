@@ -572,7 +572,7 @@ void spawnThreads(){
   for(int i = 0; i < AMOUNT_THREADS; i++){
     marker[i] = false;
     int* pid = new int(i);
-    pthread_create(&threads[i], nullptr, &tMain, pid);
+    pthread_create(threads[i], nullptr, &tMain, pid);
   }
 }
 
