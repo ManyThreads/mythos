@@ -1,6 +1,6 @@
 # -*- mode:toml; -*-
 [module.app-init-example]
-    initappfiles = [ "app/init.cc" ]
+    initappfiles = [ "app/init-binomial-polling.cc" ]
     provides = [ "app/init.elf" ]
     requires = [ "crtbegin", "app-process-test"]
 
