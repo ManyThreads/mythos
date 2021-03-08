@@ -559,8 +559,12 @@ void run_broadcast(){
     asm volatile ("":::"memory");
     end = std::chrono::high_resolution_clock::now();
     asm volatile ("":::"memory");
-    
+
     MLOG_INFO(mlog::app, std::chrono::duration_cast<std::chrono::microseconds>(end - start).count());
+  }
+
+  for(int i = 0; i < AMOUNT_THREADS; i++){
+    pthread_join(&threads[i], nullptr);
   }
 }
 
