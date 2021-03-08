@@ -600,7 +600,7 @@ void* tMain(void* args){
   // Propagationsschleife
   for(int i = 0; i < RUNS; i++){
     // Warte auf benachrichtigung
-    local_mem->spin_wait();
+    local_mem->cond_wait();
     // Setze Argumente für Ereignisbehandlung
     local_mem->setTaskArgs(local_mem);
 
@@ -638,7 +638,7 @@ void initBroadcast(Chain* task){
   while(jobs){
     jobs->copyTask(newJob);
     numTasks++;
-    jobs->spin_unlock();
+    jobs->cond_signal();
     jobs = jobs->getNext();
 
     if(!jobs){
@@ -646,7 +646,11 @@ void initBroadcast(Chain* task){
     }
   }
 
-  while(count < numTasks);
+  pthread_mutex_lock(&ackMutex);
+  while(count < numTasks){
+    pthread_cond_wait(&ackCond, &ackMutex);
+  }
+  pthread_mutex_unlock(&ackMutex);
 }
 
 void* broadcast(void* args){
@@ -666,7 +670,7 @@ void* broadcast(void* args){
   while(jobs){
     jobs->copyTask(newJob);
     numTasks++;
-    jobs->spin_unlock();
+    jobs->cond_signal();
     jobs = jobs->getNext();
 
     if(!jobs){
@@ -674,9 +678,16 @@ void* broadcast(void* args){
     }
   }
 
-  while(count < numTasks);
+  pthread_mutex_lock(&ackMutex);
+  while(count < numTasks){
+    pthread_cond_wait(&ackCond, &ackMutex);
+  }
+  pthread_mutex_unlock(&ackMutex);
 
+  pthread_mutex_lock(task->parentMutex);
   (*task->count)++;
+  pthread_cond_signal(task->parentCond);
+  pthread_mutex_unlock(task->parentMutex);
 
   return 0;
 }
@@ -689,7 +700,7 @@ void* task(void* args){
   asm volatile ("":::"memory");
   stop = std::chrono::high_resolution_clock::now();
   asm volatile ("":::"memory");
-  
+
   while(std::chrono::duration_cast<std::chrono::microseconds>(stop - start).count() < wait[local_mem->getPid()]){
     asm volatile ("":::"memory");
     stop = std::chrono::high_resolution_clock::now();
