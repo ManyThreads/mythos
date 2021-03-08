@@ -58,7 +58,7 @@ stop:
 
 boot: all
 	sudo rm -rf /tmp/ihkmond
-	sudo ${vars.mythos_root}/3rdparty/ihkreboot.sh -m $(IHK_MEMSIZE) -k 1 -p $(shell pwd)/boot64.elf
+	sudo ${vars.mythos_root}/3rdparty/ihkreboot.sh -m $(IHK_MEMSIZE) -c `seq -s, 1 63` -k 1 -p $(shell pwd)/boot64.elf
 
 wait:
 	while [ ! -f /tmp/ihkmond/mcos0/kmsg0 ]; do sleep 1; done
