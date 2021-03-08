@@ -6,7 +6,7 @@
 
     makefile_head = '''
 QEMU_MEMSIZE ?= 1024M
-QEMUFLAGS += -cpu SandyBridge -smp 8
+QEMUFLAGS += -cpu SandyBridge -smp 64
 # com1: text output to terminal
 QEMUFLAGS += -serial stdio
 # com2: object channel for remote procedure calls into mythos
