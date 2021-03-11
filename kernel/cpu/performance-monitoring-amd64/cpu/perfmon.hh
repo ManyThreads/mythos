@@ -127,14 +127,32 @@ namespace mythos {
         return getMSR(IA32_PERF_FIXED_CTR1);
       }
 
-      uint64_t readRefCycles(){
+      uint64_t readRefCyclesUnhalted(){
         return getMSR(IA32_PERF_FIXED_CTR2);
       }
 
+      void resetAllFFCS(){
+        setMSR(IA32_PERF_FIXED_CTR0, 0);
+        setMSR(IA32_PERF_FIXED_CTR1, 0);
+        setMSR(IA32_PERF_FIXED_CTR2, 0);
+      }
+
       void activateAllFFCS(){
-        ffcs_ctrl.ff0_enable_os = true;
-        ffcs_ctrl.ff1_enable_os = true;
-        ffcs_ctrl.ff2_enable_os = true;
+        //ffcs_ctrl.ff0_enable_os = true;
+        //ffcs_ctrl.ff1_enable_os = true;
+        //ffcs_ctrl.ff2_enable_os = true;
+        ffcs_ctrl.ff0_enable_user = true;
+        ffcs_ctrl.ff1_enable_user = true;
+        ffcs_ctrl.ff2_enable_user = true;
+      }
+
+      void deactivateAllFFCS(){
+        ffcs_ctrl.ff0_enable_os = false;
+        ffcs_ctrl.ff1_enable_os = false;
+        ffcs_ctrl.ff2_enable_os = false;
+        ffcs_ctrl.ff0_enable_user = false;
+        ffcs_ctrl.ff1_enable_user = false;
+        ffcs_ctrl.ff2_enable_user = false;
       }
 
       void enableIntAllFFCS(){
@@ -188,15 +206,15 @@ namespace mythos {
         setMSR(MSR_OFFCORE_RSP_0 + index, offcore_rsp[index]);    
       }
 
-      void barrier(){
+      inline void barrier(){
         asm volatile ("":::"memory");
         perfMonLeaf = cpuid(ARCHITECTURAL_PERFORMANCE_MONTIROING_LEAF);
         asm volatile ("":::"memory");
       }
 
-      //void enableIntLapic(){
-        //setMSR(X2Apic::REG_LVT_PERFCNT, X2Apic::RegLVT().vector(42));
-      //}
+      void enableIntLapic(){
+        setMSR(X2Apic::REG_LVT_PERFCNT, X2Apic::RegLVT().vector(42).masked(0));
+      }
 
     private:
       bool perfMonAvail;

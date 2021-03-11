@@ -71,6 +71,8 @@ namespace mythos {
       Error invokeRevokeDemand(Tasklet* t, Cap, IInvocation* msg);
       Error invokeRunNextToEC(Tasklet* t, Cap, IInvocation* msg);
       Error invokeSetLimit(Tasklet* t, Cap, IInvocation* msg);
+      Error invokeResetPerfMon(Tasklet* t, Cap, IInvocation* msg);
+      Error invokePrintPerfMon(Tasklet* t, Cap, IInvocation* msg);
 
       void bind(optional<ProcessorAllocator*> paPtr);
       void unbind(optional<ProcessorAllocator*> );
@@ -129,6 +131,8 @@ namespace mythos {
       unsigned nDemand; 
       unsigned limit;
       unsigned numAllocated;
+
+      perfmon::PerfMonMeasurement pmm[MYTHOS_MAX_THREADS];
   };
 
   class ThreadTeamFactory : public FactoryBase

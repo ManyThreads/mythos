@@ -1,5 +1,5 @@
 # -*- mode:toml; -*-
 [module.objects-thread-team]
-    incfiles = [ "objects/ProcessorAllocator.hh", "objects/ThreadTeam.hh", "mythos/protocol/ThreadTeam.hh", "objects/PluginThreadTeam.hh" ]
-    kernelfiles = [ "objects/ProcessorAllocator.cc", "objects/ThreadTeam.cc", "objects/PluginThreadTeam.cc"]
+    incfiles = [ "objects/PerformanceMonitoring.hh", "objects/ProcessorAllocator.hh", "objects/ThreadTeam.hh", "mythos/protocol/ThreadTeam.hh", "objects/PluginThreadTeam.hh" ]
+    kernelfiles = [ "objects/PerformanceMonitoring.cc", "objects/ProcessorAllocator.cc", "objects/ThreadTeam.cc", "objects/PluginThreadTeam.cc"]
 

@@ -62,6 +62,12 @@ bool primeTest(uint64_t n){
   return true;
 }
 
+uint64_t getTSC(){
+  unsigned low,high;
+  asm volatile("rdtsc" : "=a" (low), "=d" (high));
+  return low | uint64_t(high) << 32;	
+} 
+
 void TestPerfMon::runTest(){
   x86::PerformanceMonitoring pm;
   if(!pm.leafAvail()){
@@ -132,13 +138,14 @@ void TestPerfMon::runTest(){
   pm.barrier();
   auto instrs1 = pm.readInstRetired();
   auto unhalted1 = pm.readCyclesUnhalted();
-  auto cycles1 = pm.readRefCycles();
+  auto cycles1 = pm.readRefCyclesUnhalted();
   auto llcMisses1 = pm.readPMC(0);
   auto stallsMem1 = pm.readPMC(1);
+  auto tsc1 = getTSC();
   pm.barrier();
   
   unsigned numPrimes = 0;
-  const uint64_t max = 100000;
+  const uint64_t max = 1000;
 
   for(uint64_t i = 0; i < max; i++){
     if(primeTest(i)) numPrimes++;
@@ -147,9 +154,10 @@ void TestPerfMon::runTest(){
   pm.barrier();
   auto instrs2 = pm.readInstRetired();
   auto unhalted2 = pm.readCyclesUnhalted();
-  auto cycles2 = pm.readRefCycles();
+  auto cycles2 = pm.readRefCyclesUnhalted();
   auto llcMisses2 = pm.readPMC(0);
   auto stallsMem2 = pm.readPMC(1);
+  auto tsc2 = getTSC();
   pm.barrier();
 
   auto instrs = instrs2-instrs1;
@@ -157,9 +165,10 @@ void TestPerfMon::runTest(){
   auto cycles = cycles2-cycles1;
   auto llcMisses = llcMisses2-llcMisses1;
   auto stallsMem = stallsMem2 - stallsMem1;
+  auto tsc = tsc2 - tsc1;
 
   log.error("Primes found: ", DVAR(numPrimes));
-  log.error("performance monitoring: ", DVAR(instrs), DVAR(unhalted), DVAR(cycles), DVAR(llcMisses), DVAR(stallsMem));
+  log.error("performance monitoring: ", DVAR(instrs), DVAR(unhalted), DVAR(cycles), DVAR(llcMisses), DVAR(stallsMem), DVAR(tsc));
   if(unhalted1 > unhalted2) log.error("FFC1 overflow detected!", DVAR(unhalted1), DVAR(unhalted2));
 }
 

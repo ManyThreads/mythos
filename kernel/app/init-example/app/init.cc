@@ -594,6 +594,7 @@ void test_scalability(){
     asm volatile ("":::"memory");
     auto start = rapl.getRaplVal(pl).wait().get();
     gettimeofday(&start_run, 0);
+    team.resetPerfMon(pl).wait();
     asm volatile ("":::"memory");
     
     auto result = ParallelFib(f);
@@ -601,6 +602,7 @@ void test_scalability(){
     asm volatile ("":::"memory");
     auto end = rapl.getRaplVal(pl).wait().get();
     gettimeofday(&end_run, 0);
+    team.printPerfMon(pl).wait();
     asm volatile ("":::"memory");
 
     double seconds =(end_run.tv_usec - start_run.tv_usec)/1000000.0 + end_run.tv_sec - start_run.tv_sec;
@@ -640,12 +642,12 @@ int main()
   test_exceptions();
   //test_InterruptControl();
   //test_HostChannel(portal, 24*1024*1024, 2*1024*1024);
-  test_ExecutionContext();
-  test_pthreads();
+  //test_ExecutionContext();
+  //test_pthreads();
   //test_Rapl();
   //test_TBB();
   test_scalability();
-  test_process();
+  //test_process();
   //test_CgaScreen();
 
   char const end[] = "bye, cruel world!";
