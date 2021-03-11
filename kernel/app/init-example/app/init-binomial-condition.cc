@@ -552,7 +552,7 @@ void run_broadcast(){
 
   // Simuliere Event
   for(size_t k = 0; k < TESTCASES; k++){
-    MLOG_INFO(mlog::app, "Testcase");
+    MLOG_INFO(mlog::app, "Testcase", k);
     wait[k] = 5;
     for(size_t i = 0; i < RUNS; i++){
       // Warte auf fertige Initialisierung
