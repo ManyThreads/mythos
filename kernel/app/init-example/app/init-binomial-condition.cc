@@ -505,23 +505,25 @@ void test_CgaScreen(){
 // #############################################################################
 
 //in Makefile: sudo ../3rdparty/ihkreboot.sh -m $(IHK_MEMSIZE) -c `seq -s, 1 63` -k 1 -p $(shell pwd)/boot64.elf
-#define AMOUNT_TASKS 60
+#define MAX_TASKS 60
 #define RUNS 115
+#define TESTCASES 60
 
 size_t DIVISOR = 2;
+size_t amount_tasks;
 
 SingleLinkedList jobPool;
 //std::atomic<unsigned> startSync = 0;
 std::atomic<bool> endSync(false);
-pthread_t threads[AMOUNT_TASKS];
-ThreadInit ti[AMOUNT_TASKS];
+pthread_t threads[MAX_TASKS];
+ThreadInit ti[MAX_TASKS];
 
 unsigned wait[] =
 {
-  10, 10, 10, 10, 10, 10, 10, 10,
-  10, 10, 10, 10, 10, 10, 10, 10,
-  10, 10, 10, 10, 10, 10, 10, 10,
-  10, 10, 10, 10, 10, 10, 10, 10,
+  0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0,
   0, 0, 0, 0, 0, 0, 0, 0,
   0, 0, 0, 0, 0, 0, 0, 0,
   0, 0, 0, 0, 0, 0, 0, 0,
@@ -541,7 +543,7 @@ void run_broadcast(){
   std::chrono::time_point<std::chrono::high_resolution_clock> start, stop;
 
   // Erzeuge Threads
-  for(size_t i = 0; i < AMOUNT_TASKS; i++){
+  for(size_t i = 0; i < MAX_TASKS; i++){
     ti[i].pid = i;
     ti[i].mainFun = &tMain;
     ti[i].funArgs = &ti[i];
@@ -549,32 +551,37 @@ void run_broadcast(){
   }
 
   // Simuliere Event
-  for(size_t i = 0; i < RUNS; i++){
-    // Warte auf fertige Initialisierung
-    while(jobPool.size() < AMOUNT_TASKS);
+  for(size_t k = 0; k < TESTCASES; k++){
+    MLOG_INFO(mlog::app, "Testcase");
+    wait[k] = 5;
+    for(size_t i = 0; i < RUNS; i++){
+      // Warte auf fertige Initialisierung
+      while(jobPool.size() < MAX_TASKS);
 
-    // Setze letzte Synchronisierung auf Ende zurück
-    endSync = false;
-    // Erzeuge Aufgabe und starte Broadcast
-    Chain job(&task, &broadcast, nullptr, nullptr);
-    asm volatile ("":::"memory");
-    start = std::chrono::high_resolution_clock::now();
-    asm volatile ("":::"memory");
+      // Setze letzte Synchronisierung auf Ende zurück
+      endSync = false;
+      // Erzeuge Aufgabe und starte Broadcast
+      Chain job(&task, &broadcast, nullptr, nullptr);
+      asm volatile ("":::"memory");
+      start = std::chrono::high_resolution_clock::now();
+      asm volatile ("":::"memory");
 
-    initBroadcast(&job);
+      initBroadcast(&job);
 
-    asm volatile ("":::"memory");
-    stop = std::chrono::high_resolution_clock::now();
-    asm volatile ("":::"memory");
+      asm volatile ("":::"memory");
+      stop = std::chrono::high_resolution_clock::now();
+      asm volatile ("":::"memory");
 
-    MLOG_INFO(mlog::app, std::chrono::duration_cast<std::chrono::microseconds>(stop - start).count());
+      MLOG_INFO(mlog::app, std::chrono::duration_cast<std::chrono::microseconds>(stop - start).count());
 
-    // Teile Threads mit das nächste Iteration beginnen kann
-    endSync = true;
+      // Teile Threads mit das nächste Iteration beginnen kann
+      endSync = true;
+    }
   }
 
+
   // Synchronisation auf Ende
-  for(size_t i = 0; i < AMOUNT_TASKS; i++){
+  for(size_t i = 0; i < MAX_TASKS; i++){
     pthread_join(threads[i], nullptr);
   }
 }
@@ -597,22 +604,24 @@ void* tMain(void* args){
   ThreadInit* init = reinterpret_cast<ThreadInit*>(args);
   Chain* local_mem = init->chain;
 
-  // Propagationsschleife
-  for(int i = 0; i < RUNS; i++){
-    // Warte auf benachrichtigung
-    local_mem->cond_wait();
-    // Setze Argumente für Ereignisbehandlung
-    local_mem->setTaskArgs(local_mem);
+  for(int j = 0; j < TESTCASES; j++){
+    // Propagationsschleife
+    for(int i = 0; i < RUNS; i++){
+      // Warte auf benachrichtigung
+      local_mem->cond_wait();
+      // Setze Argumente für Ereignisbehandlung
+      local_mem->setTaskArgs(local_mem);
 
-    // Behandle Ereignis
-    (*local_mem->getTask())(local_mem->getTaskArgs());
-    // Hilf bei Propagation
-    (*local_mem->getHandler())(local_mem->getHandlerArgs());
+      // Behandle Ereignis
+      (*local_mem->getTask())(local_mem->getTaskArgs());
+      // Hilf bei Propagation
+      (*local_mem->getHandler())(local_mem->getHandlerArgs());
 
-    // Warte auf Signal von main für Beendigung der letzten Broadcast-Iteration
-    while(!endSync);
-    // Pushe Chain für nächste Broadcast-Iteration
-    jobPool.push_front(local_mem);
+      // Warte auf Signal von main für Beendigung der letzten Broadcast-Iteration
+      while(!endSync);
+      // Pushe Chain für nächste Broadcast-Iteration
+      jobPool.push_front(local_mem);
+    }
   }
 
   return 0;
