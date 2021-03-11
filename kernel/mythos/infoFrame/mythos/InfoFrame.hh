@@ -26,26 +26,43 @@
 #pragma once
 
 #include "mythos/InvocationBuf.hh"
-
-#define PS_PER_TSC_DEFAULT (0x180)
+#include "mythos/init.hh"
+#include <atomic>
 
 namespace mythos {
+
+constexpr uint64_t PS_PER_TSC_DEFAULT = 0x180;
+constexpr size_t MAX_IB = 4096;
 
 class InfoFrame{
   public:
     InfoFrame()
       : psPerTsc(PS_PER_TSC_DEFAULT)
       , numThreads(1)
+      , parentEC(0)
+      , running(true)
     {}
 
-    InvocationBuf* getInvocationBuf() {return &ib; }
+    InvocationBuf* getInvocationBuf() {return &ib[0]; }
+    InvocationBuf* getInvocationBuf(size_t i) {return &ib[i]; }
+    size_t getIbOffset(size_t i){
+      return reinterpret_cast<uintptr_t>(&ib[i]) - reinterpret_cast<uintptr_t>(this);
+    }
+
     uint64_t getPsPerTSC() { return psPerTsc; }
     size_t getNumThreads() { return numThreads; }
     uintptr_t getInfoEnd () { return reinterpret_cast<uintptr_t>(this) + sizeof(InfoFrame); }
+    // process synchronization
+    void setParent(CapPtr ptr) { parentEC.store(ptr); }
+    CapPtr getParent() { return parentEC.load(); }
+    bool isRunning() { return running.load(); }
+    void setRunning(bool running) { this->running.store(running); }
 
-    InvocationBuf ib; // needs to be the first member (see Initloader::createPortal)
+    InvocationBuf ib[MAX_IB]; // needs to be the first member (see Initloader::createPortal)
     uint64_t psPerTsc; // picoseconds per time stamp counter
     size_t numThreads; // number of hardware threads available in the system
+    std::atomic<CapPtr> parentEC;
+    std::atomic<bool> running; // process not finished
 };
 
 } // namespace mythos

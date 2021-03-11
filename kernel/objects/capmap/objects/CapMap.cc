@@ -66,15 +66,15 @@ namespace mythos {
   CapMapFactory::factory(CapEntry* dstEntry, CapEntry* memEntry, Cap memCap, IAllocator* mem,
                         CapPtrDepth indexbits, CapPtrDepth guardbits, CapPtr guard)
   {
-    auto obj = initial(memEntry, memCap, mem, indexbits, guardbits, guard);
-    if (!obj) RETHROW(obj);
-    auto& root = obj->getRoot();
-    auto cap = root.cap();
-    // Just a reference is stored in the target capability entry.
-    // The CapMap contains its original capability internally
-    // in order to resolve cyclic dependencies during deletion. 
-    auto res = cap::inherit(root, cap, *dstEntry, cap.asReference());
-    if (!res) RETHROW(res); // the object was deleted concurrently
+    auto ptr = mem->alloc(CapMap::size(indexbits), 64);
+    if (!ptr) RETHROW(ptr);
+    auto obj = new(*ptr) CapMap(mem, indexbits, guardbits, guard);
+    auto cap = Cap(obj).withData(CapMapData().writable(true));
+    auto res = cap::inherit(*memEntry, memCap, *dstEntry, cap);
+    if (!res) {
+      mem->free(*ptr, CapMap::size(indexbits));
+      RETHROW(res);
+    }
     return obj;
   }
 
@@ -86,7 +86,9 @@ namespace mythos {
 
   optional<void> CapMap::deleteCap(CapEntry&, Cap self, IDeleter& del)
   {
+    MLOG_INFO(mlog::cap, "CapMap::deleteCap");
     if (self.isOriginal()) {
+      MLOG_DETAIL(mlog::cap, "delete original");
       // delete all entries, leaves them in a locked state (allocated)
       // in order to prevent concurrent insertion of new caps.
       for (size_t i=0; i<cap_count(indexbits); i++) {
@@ -122,7 +124,7 @@ namespace mythos {
 
   void CapMap::invoke(Tasklet* t, Cap self, IInvocation* msg)
   {
-    /// @todo Monitor might not be neccessary for derive, reference, move
+    /// @todo Monitor might not be neccessary for derive, reference
     monitor.request(t, [=](Tasklet* t){
         Error err = Error::NOT_IMPLEMENTED;
         switch (msg->getProtocol()) {
@@ -184,21 +186,6 @@ namespace mythos {
     if (!srcRef) return srcRef.state();
     // reference
     return cap::reference(*srcRef->entry, *dstRef->entry, srcRef->entry->cap(), data.request).state();
-  }
-
-  Error CapMap::invokeMove(Tasklet*, Cap cap, IInvocation* msg)
-  {
-    auto data = msg->getMessage()->read<protocol::CapMap::Move>();
-    // retrieve dst cap entry
-    auto dstRef = lookupDst(cap, msg, data);
-    if (!dstRef) return dstRef.state();
-    // retrieve source cap entry
-    auto srcRef = this->lookup(cap, data.srcPtr(), data.srcDepth, true);
-    if (!srcRef) return srcRef.state();
-    // move
-    auto res = dstRef->entry->acquire();
-    if (!res) { return res.state(); }
-    return srcRef->entry->moveTo(*dstRef->entry).state();
   }
 
   Error CapMap::invokeDelete(Tasklet*, Cap cap, IInvocation* msg)

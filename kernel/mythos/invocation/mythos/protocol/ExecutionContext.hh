@@ -119,7 +119,12 @@ namespace mythos {
       struct Create : public KernelMemory::CreateBase {
         typedef InvocationBase response_type;
         Create(CapPtr dst, CapPtr factory) 
-          : CreateBase(dst, factory, getLength(this), 3), start(false) { }
+          : CreateBase(dst, factory, getLength(this), 3), start(false) 
+        {
+          as(null_cap);
+          cs(null_cap);
+          sched(null_cap);
+        }
         Amd64Registers regs;
         bool start;
         CapPtr as() const { return this->capPtrs[2]; }

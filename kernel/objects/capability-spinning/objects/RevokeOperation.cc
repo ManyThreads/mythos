@@ -85,11 +85,11 @@ namespace mythos {
       monitor.requestDone();
       return;
     }
-    entry.lock();
+    entry.lock_cap();
     auto rootCap = entry.cap();
     if (!rootCap.isUsable()) {
       // this is not the cap you are locking for ...
-      entry.unlock();
+      entry.unlock_cap();
       res->response(t, Error::LOST_RACE);
       release();
       monitor.requestDone();
@@ -99,7 +99,7 @@ namespace mythos {
     // if some other revoke or delete clears the flag or changes the cap values
     // all children have been deleted in the mean time and we are done
     entry.setRevoking();
-    entry.unlock();
+    entry.unlock_cap();
     _result = _delete(&entry, rootCap).state();
     _startAsyncDelete(t);
   }
@@ -107,90 +107,81 @@ namespace mythos {
   optional<void> RevokeOperation::_delete(CapEntry* root, Cap rootCap)
   {
     CapEntry* leaf;
+    Cap leafCap;
     do {
-      if (_startTraversal(root, rootCap)) {
-        leaf = _findLockedLeaf(root);
-        MLOG_DETAIL(mlog::cap, "_findLockedLeaf returned", DVAR(*leaf), DVAR(rootCap));
-        if (leaf == root && !rootCap.isZombie()) {
-          // this is a revoke, do not delete the root. no more children -> we are done
-          root->finishRevoke();
-          root->unlock();
-          root->unlock_prev();
-          RETURN(Error::SUCCESS);
-        }
-        auto leafCap = leaf->cap();
-        ASSERT(leafCap.isZombie());
-        if (leafCap.getPtr() == _guarded) {
-          leaf->unlock();
-          leaf->unlock_prev();
-          // attempted to delete guarded object
-          THROW(Error::CYCLIC_DEPENDENCY);
-        }
-        auto delRes = leafCap.getPtr()->deleteCap(*leaf, leafCap, *this);
-        if (delRes) {
-          leaf->unlink();
-          leaf->reset();
-        } else {
-          // Either tried to delete a portal that is currently deleting
-          // or tried to to delete _guarded via a recursive call.
-          leaf->unlock();
-          leaf->unlock_prev();
-          RETHROW(delRes);
-        }
-      } else RETURN(Error::SUCCESS); // could not restart, must be done
+      // compare only value, not the zombie state
+      if (root->cap().asZombie() != rootCap.asZombie()) {
+        // start has a new value
+        // must be the work of another deleter ... success!
+        RETURN(Error::SUCCESS); // could not restart, must be done
+      }
+      if (!_findLeaf(root, rootCap, leaf, leafCap)) continue;
+      MLOG_DETAIL(mlog::cap, "_findLockedLeaf returned", DVAR(*leaf), DVAR(rootCap));
+      if (leaf == root && !rootCap.isZombie()) {
+        // this is a revoke, do not delete the root. no more children -> we are done
+        root->finishRevoke();
+        RETURN(Error::SUCCESS);
+      }
+      ASSERT(leafCap.isZombie());
+      if (leafCap.getPtr() == _guarded) {
+        leaf->unlock_cap();
+        // attempted to delete guarded object
+        THROW(Error::CYCLIC_DEPENDENCY);
+      }
+      leaf->lock_cap();
+      if (leaf->cap() != leafCap) {
+        MLOG_DETAIL(mlog::cap, "leaf cap changed concurrently");
+        leaf->unlock_cap();
+        continue;
+      }
+      auto delRes = leafCap.getPtr()->deleteCap(*leaf, leafCap, *this);
+      auto prevres = leaf->lock_prev();
+      ASSERT_MSG(prevres, "somebody unlinked CapEntry currently in unlinking process");
+      leaf->lock_next();
+      if (delRes) {
+        leaf->unlinkAndUnlockLinks();
+        leaf->reset();
+      } else {
+        // deletion failed in the object specific handler
+        // this can be also from trying to delete rhw guarded object (currently deleting portal)
+        leaf->unlock_cap();
+        RETHROW(delRes);
+      }
     } while (leaf != root);
     // deleted root
     RETURN(Error::SUCCESS);
   }
 
-  bool RevokeOperation::_startTraversal(CapEntry* root, Cap rootCap)
+  // not sure if we even need that locking
+  bool RevokeOperation::_findLeaf(CapEntry* const root, Cap const rootCap, CapEntry*& leafEntry, Cap& leafCap)
   {
-    if (!root->lock_prev()) {
-      // start is currently unlinked
-      // must be the work of another deleter ... success!
-      return false;
-    }
-    if (root->prev() == root) {
-      // this is the actual root of the tree
-      // and has no children
-      // avoid deadlocks and finish the operation
-      root->unlock_prev();
-      return false;
-    }
-    root->lock();
-    // compare only value, not the zombie state
-    if (root->cap().asZombie() != rootCap.asZombie()) {
-      // start has a new value
-      // must be the work of another deleter ... success!
-      root->unlock();
-      root->unlock_prev();
-      return false;
-    }
-    return true;
-  }
-
-  CapEntry* RevokeOperation::_findLockedLeaf(CapEntry* root)
-  {
-    auto curEntry = root;
+    leafEntry = root;
+    leafCap = rootCap;
     while (true) {
-      auto curCap = curEntry->cap();
-      auto nextEntry = curEntry->next();
-      // wait for potencially allocated cap to become usable/zombie
-      Cap nextCap;
-      for (nextCap = nextEntry->cap();
-          nextCap.isAllocated();
-          nextCap = nextEntry->cap()) {
-        ASSERT(!nextEntry->isDeleted());
-        hwthread_pause();
+      auto nextEntry = leafEntry->next();
+      if (nextEntry) {
+        Cap nextCap;
+        // wait for potencially allocated cap to become usable/zombie
+        for (nextCap = nextEntry->cap();
+            nextCap.isAllocated();
+            nextCap = nextEntry->cap()) {
+          ASSERT(!nextEntry->isDeleted());
+          hwthread_pause();
+        }
+        if (cap::isParentOf(*leafEntry, leafCap, *nextEntry, nextCap)) {
+          if (!nextEntry->try_kill(nextCap)) {
+            MLOG_DETAIL(mlog::cap, "cap to be killed changed concurrently");
+            return false; 
+          }
+          // go to next child
+          leafEntry = nextEntry;
+          leafCap = nextCap.asZombie();
+          continue;
+        } else return true;
+      } else {
+        MLOG_DETAIL(mlog::cap, "found dead end scanning for leaf");
+        return false; // restart at root
       }
-      if (cap::isParentOf(*curEntry, curCap, *nextEntry, nextCap)) {
-        // go to next child
-        curEntry->unlock_prev();
-        nextEntry->kill();
-        nextEntry->lock();
-        curEntry = nextEntry;
-        continue;
-      } else return curEntry;
     }
   }
 

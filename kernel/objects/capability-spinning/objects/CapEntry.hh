@@ -44,7 +44,15 @@ namespace mythos {
    * thus prev and next of root are locked independently
    *
    * operations that write to the capability
-   * or flags (zombie) must lock both next and prev
+   * or call deleteCap on an obejct  must lock_cap
+   *
+   * lock order: lock_cap, lock_prev, lock_next
+   *
+   * acquired status means someone exclusively acquired an unlinked CapEntry
+   * therefore no races with others trying to insert it.
+   *
+   * acquired status must be only hold shortly
+   *
    */
   class CapEntry
   {
@@ -83,22 +91,59 @@ namespace mythos {
      * allocated. Returns true if zombified. */ 
     bool kill();
 
-    optional<void> unlink();
-    bool try_lock() { return !(_next.fetch_or(LOCKED_FLAG) & LOCKED_FLAG); }
-    void lock() { while (!try_lock()) { hwthread_pause(); } }
-    void unlock() { auto res = _next.fetch_and(~LOCKED_FLAG); ASSERT(res & LOCKED_FLAG); }
+    bool try_kill(Cap expected);
+
+    optional<void> unlinkAndUnlockLinks();
+
+    /* lock next functions protect the link to the next CapEntry */
+
+    bool try_lock_next(CapEntry* next)
+    { 
+     Link expected(next);
+     uintlink_t expectedValue = expected.value();
+     return _next.compare_exchange_strong(expectedValue, expected.withFlags(LOCKED_FLAG).value());
+    }
+
+    void lock_next(){ while (!try_lock_next()) { hwthread_pause(); } }
+
+    void unlock_next()
+    { 
+      auto res = _next.fetch_and(~LOCKED_FLAG);
+      ASSERT(res & LOCKED_FLAG);
+    }
+
+    /* deletion lock functions protect the deletion of a object  */
+
+    bool try_lock_cap()
+    { 
+      bool ret = !(_prev.fetch_or(LOCKED_FLAG) & LOCKED_FLAG);
+      return ret;
+    }
+
+    void lock_cap() { while (!try_lock_cap()) { hwthread_pause(); } }
+
+    void unlock_cap()
+    { 
+      auto res = _prev.fetch_and(~LOCKED_FLAG);
+      ASSERT(res & LOCKED_FLAG);
+    }
 
     /// only for assertions and debugging
     /// only trust the result if it is false and it should be true
-    bool is_locked() const { return _next.load() & CapEntry::LOCKED_FLAG; }
+    bool next_is_locked() const { return _next.load() & CapEntry::LOCKED_FLAG; }
+
+    /* lock prev functions protect the link to the next CapEntry */
 
     Error try_lock_prev();
     bool lock_prev();
-    void unlock_prev() { Link(_prev)->unlock(); }
+
+    void unlock_prev()
+    { 
+      Link(_prev)->unlock_next();
+    }
 
     CapEntry* next()
     {
-      ASSERT(is_locked());
       return Link(_next).ptr();
     }
 
@@ -115,9 +160,18 @@ namespace mythos {
     // called by move and insertAfter
     void setPrevPreserveFlags(CapEntry* ptr);
 
+    // called by lock_next
+    bool try_lock_next() { return !(_next.fetch_or(LOCKED_FLAG) & LOCKED_FLAG); }
+
+    // lock flag in _next and _prev
+    // _next protects the link to the next entry (lock_next)
+    // _prev protects the capability in the entry from being changed (lock_cap)
     static constexpr uintlink_t LOCKED_FLAG = 1;
-    static constexpr uintlink_t REVOKING_FLAG = 1 << 1;
-    static constexpr uintlink_t DELETED_FLAG = 1 << 2;
+
+    // flags describing the entry in _prev
+    static constexpr uintlink_t REVOKING_FLAG = 1 << 1; // prevents from moving
+    static constexpr uintlink_t DELETED_FLAG = 1 << 2; // prevents from inserting in soon-to-be-deleted object
+
     static constexpr uintlink_t FLAG_MASK = 7;
 
     static_assert((DELETED_FLAG | REVOKING_FLAG | FLAG_MASK) == FLAG_MASK, "prev flags do not fit");
@@ -134,9 +188,10 @@ namespace mythos {
       CapEntry* operator->() { ASSERT(ptr()); return ptr(); }
 
       Link withFlags(uintlink_t flags) const { return Link(_offset(),  flags); }
-      Link withoutFlags() const { return Link(_offset(), 0); }
+      Link withoutFlags() const { return withFlags(0); }
 
       Link withPtr(CapEntry* ptr) const { return Link(ptr, flags()); }
+      Link withoutPtr() const { return withPtr(nullptr); }
 
       CapEntry* ptr() const
       {
@@ -187,11 +242,15 @@ namespace mythos {
   {
     ASSERT(isKernelAddress(this));
     ASSERT(targetEntry.cap().isAllocated());
-    lock(); // lock the parent entry, the child is already acquired
+    // lock the parent entry, the child is already acquired
+    lock_cap();
+    lock_next(); 
     auto curCap = cap();
     // lazy-locking: check that we still operate on the same parent capability
     if (!curCap.isUsable() || curCap != parentCap) {
-      unlock(); // unlock the parent entry
+      // unlock the parent entry
+      unlock_next();
+      unlock_cap();
       targetEntry.reset(); // release exclusive usage and revert to an empty entry
       THROW(Error::LOST_RACE);
     }
@@ -201,11 +260,14 @@ namespace mythos {
 
     auto next = Link(_next.load()).withoutFlags();
     next->setPrevPreserveFlags(&targetEntry);
+    // dest was never locked MLOG_ERROR(mlog::cap, "this unlocks next in child", DVAR(targetEntry));
     targetEntry._next.store(next.value());
     // deleted or revoking can not be set in target._prev
     // as we allocated target for being inserted
+    // dest was never locked MLOG_ERROR(mlog::cap, "this unlocks cap in child", DVAR(targetEntry));
     targetEntry._prev.store(Link(this).value());
     this->_next.store(Link(&targetEntry).value()); // unlocks the parent entry
+    unlock_cap();
     targetEntry.commit(targetCap); // release the target entry as usable
     RETURN(Error::SUCCESS);
   }
@@ -219,7 +281,7 @@ namespace mythos {
     if (entry.isLinked()) out << ":linked";
     if (entry.isDeleted()) out << ":deleted";
     if (entry.isUnlinked()) out << ":unlinked";
-    if (entry.is_locked()) out << ":locked";
+    if (entry.next_is_locked()) out << ":next_locked";
     if (entry.isRevoking()) out << ":revoking";
     return out;
   }

@@ -1,5 +1,0 @@
-# -*- mode:toml; -*-
-[module.plugin-processor-allocator]
-    incfiles = [ "objects/PluginProcessorAllocator.hh", "objects/ProcessorAllocator.hh", "mythos/protocol/ProcessorAllocator.hh" ]
-    kernelfiles = [ "objects/ProcessorAllocator.cc", "objects/PluginProcessorAllocator.cc"]
-

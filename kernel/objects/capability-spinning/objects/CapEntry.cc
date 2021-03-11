@@ -82,25 +82,29 @@ namespace mythos {
   {
     ASSERT(other.cap().isAllocated());
     ASSERT(!other.isLinked());
+    lock_cap();
     if (!lock_prev()) {
+      unlock_cap();
       other.reset();
       THROW(Error::GENERIC_ERROR);
     }
-    lock();
+    lock_next();
     auto thisCap = cap();
     if (isRevoking() || !thisCap.isUsable()) {
       other.reset();
-      unlock();
+      unlock_next();
       unlock_prev();
+      unlock_cap();
       THROW(Error::INVALID_CAPABILITY);
     }
 
+    // using these values removes lock
     auto next= Link(_next).withoutFlags();
     auto prev= Link(_prev).withoutFlags();
 
     next->setPrevPreserveFlags(&other);
     other._next.store(next.value());
-    // deleted or revoking can not be set in other._prev
+    // deletion, deleted or revoking can not be set in other._prev
     // as we allocated other for moving
     other._prev.store(prev.value());
     prev->_next.store(Link(&other).value());
@@ -125,13 +129,25 @@ namespace mythos {
     return true;
   }
 
-  optional<void> CapEntry::unlink()
+  // fails if cap was changed concurrently
+  bool CapEntry::try_kill(Cap expected)
   {
-    auto next = Link(_next).withoutFlags();
-    auto prev = Link(_prev).withoutFlags();
-    next->_prev.store(prev.value());
-    prev->_next.store(next.value());
-    _prev.store(Link().value());
+    CapValue expectedValue = expected.value();
+    MLOG_DETAIL(mlog::cap, this, ".try_kill", DVAR(expected));
+    if (!_cap.compare_exchange_strong(expectedValue, expected.asZombie().value())) {
+      // if the cap was just zombified by sb. else, thats okay
+      return (Cap(expectedValue).asZombie() == expected.asZombie());
+    } else return true;
+  }
+
+
+  optional<void> CapEntry::unlinkAndUnlockLinks()
+  {
+    auto next = Link(_next);
+    auto prev = Link(_prev);
+    next->setPrevPreserveFlags(prev.ptr());
+    prev->_next.store(next.withoutFlags().value());
+    _prev.store(Link().withoutPtr().value());
     _next.store(Link().value());
     RETURN(Error::SUCCESS);
   }
@@ -142,14 +158,9 @@ namespace mythos {
     if (!prev) {
       return Error::GENERIC_ERROR;
     }
-    if (prev->try_lock()) {
-      if (Link(_prev.load()).ptr() == prev) {
-        return Error::SUCCESS;
-      } else { // my _prev has changed in the mean time
-        prev->unlock();
-        return Error::RETRY;
-      }
-    } else return Error::RETRY;
+    auto success = prev->try_lock_next(this);
+    ASSERT(Link(_prev.load()).ptr() == prev);
+    return success ? Error::SUCCESS : Error::RETRY;
   }
 
   bool CapEntry::lock_prev()

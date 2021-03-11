@@ -1,0 +1,8 @@
+# -*- mode:toml; -*-
+[module.tbb-app]
+    provides = [ "tbb/tbb.h" ]
+
+    makefile_head = '''
+APP_CPPFLAGS += -I ${vars.tbb_inc_path}
+INITAPP_CXXFLAGS += -DTBB_USE_EXCEPTIONS -DTBB_PREVIEW_WAITING_FOR_WORKERS
+'''

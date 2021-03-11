@@ -133,4 +133,9 @@ void* setupNewTLS() {
     return tcbAddr;
 }
 
+uintptr_t getTLS() {
+  uintptr_t val;
+  asm volatile ( "movq %%fs:0, %0" : "=r"(val) );
+  return val;
+}
 } // namespace mythos
