@@ -507,6 +507,8 @@ void test_CgaScreen(){
 //in Makefile: sudo ../3rdparty/ihkreboot.sh -m $(IHK_MEMSIZE) -c `seq -s, 1 63` -k 1 -p $(shell pwd)/boot64.elf
 #define AMOUNT_TASKS 60
 #define RUNS 115
+#define TESTCASES 61
+#define WAIT 20
 
 size_t DIVISOR = 2;
 
@@ -518,10 +520,10 @@ ThreadInit ti[AMOUNT_TASKS];
 
 unsigned wait[] =
 {
-  10, 10, 10, 10, 10, 10, 10, 10,
-  10, 10, 10, 10, 10, 10, 10, 10,
-  10, 10, 10, 10, 10, 10, 10, 10,
-  10, 10, 10, 10, 10, 10, 10, 10,
+  0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0,
   0, 0, 0, 0, 0, 0, 0, 0,
   0, 0, 0, 0, 0, 0, 0, 0,
   0, 0, 0, 0, 0, 0, 0, 0,
@@ -549,28 +551,34 @@ void run_broadcast(){
   }
 
   // Simuliere Event
-  for(size_t i = 0; i < RUNS; i++){
-    // Warte auf fertige Initialisierung
-    while(jobPool.size() < AMOUNT_TASKS);
+  for(size_t k = 0; k < TESTCASES; k++){
+    MLOG_INFO(mlog::app, "Testcase", k);
+    if(k){
+      wait[k - 1] = WAIT;
+    }
+    for(size_t i = 0; i < RUNS; i++){
+      // Warte auf fertige Initialisierung
+      while(jobPool.size() < AMOUNT_TASKS);
 
-    // Setze letzte Synchronisierung auf Ende zurück
-    endSync = false;
-    // Erzeuge Aufgabe und starte Broadcast
-    Chain job(&task, &broadcast, nullptr, nullptr);
-    asm volatile ("":::"memory");
-    start = std::chrono::high_resolution_clock::now();
-    asm volatile ("":::"memory");
+      // Setze letzte Synchronisierung auf Ende zurück
+      endSync = false;
+      // Erzeuge Aufgabe und starte Broadcast
+      Chain job(&task, &broadcast, nullptr, nullptr);
+      asm volatile ("":::"memory");
+      start = std::chrono::high_resolution_clock::now();
+      asm volatile ("":::"memory");
 
-    initBroadcast(&job);
+      initBroadcast(&job);
 
-    asm volatile ("":::"memory");
-    stop = std::chrono::high_resolution_clock::now();
-    asm volatile ("":::"memory");
+      asm volatile ("":::"memory");
+      stop = std::chrono::high_resolution_clock::now();
+      asm volatile ("":::"memory");
 
-    MLOG_INFO(mlog::app, std::chrono::duration_cast<std::chrono::microseconds>(stop - start).count());
+      MLOG_INFO(mlog::app, std::chrono::duration_cast<std::chrono::microseconds>(stop - start).count());
 
-    // Teile Threads mit das nächste Iteration beginnen kann
-    endSync = true;
+      // Teile Threads mit das nächste Iteration beginnen kann
+      endSync = true;
+    }
   }
 
   // Synchronisation auf Ende
@@ -597,22 +605,24 @@ void* tMain(void* args){
   ThreadInit* init = reinterpret_cast<ThreadInit*>(args);
   Chain* local_mem = init->chain;
 
+  for(int j = 0; j < TESTCASES; j++){
   // Propagationsschleife
-  for(int i = 0; i < RUNS; i++){
-    // Warte auf benachrichtigung
-    local_mem->spin_wait();
-    // Setze Argumente für Ereignisbehandlung
-    local_mem->setTaskArgs(local_mem);
+    for(int i = 0; i < RUNS; i++){
+      // Warte auf benachrichtigung
+      local_mem->spin_wait();
+      // Setze Argumente für Ereignisbehandlung
+      local_mem->setTaskArgs(local_mem);
 
-    // Behandle Ereignis
-    (*local_mem->getTask())(local_mem->getTaskArgs());
-    // Hilf bei Propagation
-    (*local_mem->getHandler())(local_mem->getHandlerArgs());
+      // Behandle Ereignis
+      (*local_mem->getTask())(local_mem->getTaskArgs());
+      // Hilf bei Propagation
+      (*local_mem->getHandler())(local_mem->getHandlerArgs());
 
-    // Warte auf Signal von main für Beendigung der letzten Broadcast-Iteration
-    while(!endSync);
-    // Pushe Chain für nächste Broadcast-Iteration
-    jobPool.push_front(local_mem);
+      // Warte auf Signal von main für Beendigung der letzten Broadcast-Iteration
+      while(!endSync);
+      // Pushe Chain für nächste Broadcast-Iteration
+      jobPool.push_front(local_mem);
+    }
   }
 
   return 0;
@@ -689,7 +699,7 @@ void* task(void* args){
   asm volatile ("":::"memory");
   stop = std::chrono::high_resolution_clock::now();
   asm volatile ("":::"memory");
-  
+
   while(std::chrono::duration_cast<std::chrono::microseconds>(stop - start).count() < wait[local_mem->getPid()]){
     asm volatile ("":::"memory");
     stop = std::chrono::high_resolution_clock::now();
