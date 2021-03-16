@@ -508,6 +508,7 @@ void test_CgaScreen(){
 #define MAX_TASKS 60
 #define RUNS 115
 #define TESTCASES 61
+#define WAIT 20
 
 size_t DIVISOR = 2;
 size_t amount_tasks;
@@ -554,7 +555,7 @@ void run_broadcast(){
   for(size_t k = 0; k < TESTCASES; k++){
     MLOG_INFO(mlog::app, "Testcase", k);
     if(k){
-      wait[k - 1] = 5;
+      wait[k - 1] = WAIT;
     }
     for(size_t i = 0; i < RUNS; i++){
       // Warte auf fertige Initialisierung
