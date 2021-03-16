@@ -507,7 +507,7 @@ void test_CgaScreen(){
 //in Makefile: sudo ../3rdparty/ihkreboot.sh -m $(IHK_MEMSIZE) -c `seq -s, 1 63` -k 1 -p $(shell pwd)/boot64.elf
 #define MAX_TASKS 60
 #define RUNS 115
-#define TESTCASES 60
+#define TESTCASES 61
 
 size_t DIVISOR = 2;
 size_t amount_tasks;
@@ -553,7 +553,9 @@ void run_broadcast(){
   // Simuliere Event
   for(size_t k = 0; k < TESTCASES; k++){
     MLOG_INFO(mlog::app, "Testcase", k);
-    wait[k] = 5;
+    if(k){
+      wait[k - 1] = 5;
+    }
     for(size_t i = 0; i < RUNS; i++){
       // Warte auf fertige Initialisierung
       while(jobPool.size() < MAX_TASKS);
