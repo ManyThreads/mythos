@@ -503,6 +503,8 @@ void test_CgaScreen(){
 //in Makefile: sudo ../3rdparty/ihkreboot.sh -m $(IHK_MEMSIZE) -c `seq -s, 1 63` -k 1 -p $(shell pwd)/boot64.elf
 #define AMOUNT_THREADS 60
 #define RUNS 115
+#define TESTCASES 61
+#define WAIT 20
 
 pthread_cond_t main_cond = PTHREAD_COND_INITIALIZER;
 pthread_mutex_t glob_mutex = PTHREAD_MUTEX_INITIALIZER;
@@ -548,25 +550,33 @@ void run_broadcast(){
 
   //ThreadSafe::tsout << "Initializien" << ThreadSafe::fendl;
   spawnThreads();
-  for(int i = 0; i < RUNS; i++){
-    for(int j = 0; j < AMOUNT_THREADS; j++){
-      while(!marker[j]);
+
+  for(int k = 0; k < TESTCASES; k++){
+    MLOG_INFO(mlog::app, "Testcase", k);
+
+    if(k){
+      wait[k - 1] = WAIT;
     }
+    for(int i = 0; i < RUNS; i++){
+      for(int j = 0; j < AMOUNT_THREADS; j++){
+        while(!marker[j]);
+      }
 
-    //usleep(10000);
+      //usleep(10000);
 
-    //ThreadSafe::tsout << "Propagating" << ThreadSafe::fendl;
-    asm volatile ("":::"memory");
-    start = std::chrono::high_resolution_clock::now();
-    asm volatile ("":::"memory");
+      //ThreadSafe::tsout << "Propagating" << ThreadSafe::fendl;
+      asm volatile ("":::"memory");
+      start = std::chrono::high_resolution_clock::now();
+      asm volatile ("":::"memory");
 
-    simulateEvent();
+      simulateEvent();
 
-    asm volatile ("":::"memory");
-    end = std::chrono::high_resolution_clock::now();
-    asm volatile ("":::"memory");
+      asm volatile ("":::"memory");
+      end = std::chrono::high_resolution_clock::now();
+      asm volatile ("":::"memory");
 
-    MLOG_INFO(mlog::app, std::chrono::duration_cast<std::chrono::microseconds>(end - start).count());
+      MLOG_INFO(mlog::app, std::chrono::duration_cast<std::chrono::microseconds>(end - start).count());
+    }
   }
 
   for(int i = 0; i < AMOUNT_THREADS; i++){
@@ -613,33 +623,35 @@ void simulateEvent(){
 void* tMain(void* args){
   //ThreadSafe::tsout << "Hello World" << ThreadSafe::fendl;
   ThreadData* td = reinterpret_cast<ThreadData*>(args);
-  for(int i = 0; i < RUNS; i++){
-    marker[td->pid] = true;
+  for(int j = 0; j < TESTCASES; j++){
+    for(int i = 0; i < RUNS; i++){
+      marker[td->pid] = true;
 
 
-    //if(marker == AMOUNT_THREADS){
-    //  if(!pthread_mutex_trylock(&glob_mutex)){
-    //    pthread_cond_signal(&main_cond);
-    //    pthread_mutex_unlock(&glob_mutex);
-    //  }
-    //}
+      //if(marker == AMOUNT_THREADS){
+      //  if(!pthread_mutex_trylock(&glob_mutex)){
+      //    pthread_cond_signal(&main_cond);
+      //    pthread_mutex_unlock(&glob_mutex);
+      //  }
+      //}
 
-    //ThreadSafe::tsout << pthread_self() << " wait" << ThreadSafe::fendl;
-    pthread_mutex_lock(&tData[td->pid].mutex);
-    pthread_cond_wait(&td->barrier, &td->mutex);
-    pthread_mutex_unlock(&td->mutex);
-    //ThreadSafe::tsout << pthread_self() << " going on" << ThreadSafe::fendl;
-    marker[td->pid] = false;
+      //ThreadSafe::tsout << pthread_self() << " wait" << ThreadSafe::fendl;
+      pthread_mutex_lock(&tData[td->pid].mutex);
+      pthread_cond_wait(&td->barrier, &td->mutex);
+      pthread_mutex_unlock(&td->mutex);
+      //ThreadSafe::tsout << pthread_self() << " going on" << ThreadSafe::fendl;
+      marker[td->pid] = false;
 
-    (td->handlerPtr)(td->handleArgs);
+      (td->handlerPtr)(td->handleArgs);
 
-    (*td->count)++;
+      (*td->count)++;
 
-    pthread_mutex_lock(&glob_mutex);
-    if(*(td->count) == AMOUNT_THREADS){
-      pthread_cond_signal(&main_cond);
+      pthread_mutex_lock(&glob_mutex);
+      if(*(td->count) == AMOUNT_THREADS){
+        pthread_cond_signal(&main_cond);
+      }
+      pthread_mutex_unlock(&glob_mutex);
     }
-    pthread_mutex_unlock(&glob_mutex);
   }
 
   return 0;

@@ -504,6 +504,8 @@ void test_CgaScreen(){
 //in Makefile: sudo ../3rdparty/ihkreboot.sh -m $(IHK_MEMSIZE) -c `seq -s, 1 63` -k 1 -p $(shell pwd)/boot64.elf
 #define AMOUNT_THREADS 60
 #define RUNS 115
+#define TESTCASES 61
+#define WAIT 20
 
 typedef void* (*Funptr_t)(void*);
 
@@ -542,25 +544,31 @@ void run_broadcast(){
   std::chrono::time_point<std::chrono::high_resolution_clock> start, end;
 
   spawnThreads();
-  for(int i = 0; i < RUNS; i++){
-    for(int j = 0; j < AMOUNT_THREADS; j++){
-      while(!marker[j]);
+  for(int k = 0; k < TESTCASES; k++){
+    MLOG_INFO(mlog::app, "Testcase", k);
+    if(k){
+      wait[k - 1] = WAIT;
     }
+    for(int i = 0; i < RUNS; i++){
+      for(int j = 0; j < AMOUNT_THREADS; j++){
+        while(!marker[j]);
+      }
 
-    //usleep(10000);
-    //ThreadSafe::tsout << "Initializien" << ThreadSafe::fendl;
+      //usleep(10000);
+      //ThreadSafe::tsout << "Initializien" << ThreadSafe::fendl;
 
-    asm volatile ("":::"memory");
-    start = std::chrono::high_resolution_clock::now();
-    asm volatile ("":::"memory");
+      asm volatile ("":::"memory");
+      start = std::chrono::high_resolution_clock::now();
+      asm volatile ("":::"memory");
 
-    simulateEvent();
+      simulateEvent();
 
-    asm volatile ("":::"memory");
-    end = std::chrono::high_resolution_clock::now();
-    asm volatile ("":::"memory");
+      asm volatile ("":::"memory");
+      end = std::chrono::high_resolution_clock::now();
+      asm volatile ("":::"memory");
 
-    MLOG_INFO(mlog::app, std::chrono::duration_cast<std::chrono::microseconds>(end - start).count());
+      MLOG_INFO(mlog::app, std::chrono::duration_cast<std::chrono::microseconds>(end - start).count());
+    }
   }
 
   for(int i = 0; i < AMOUNT_THREADS; i++){
@@ -595,13 +603,15 @@ void simulateEvent(){
 
 void* tMain(void* args){
   int pid = *reinterpret_cast<int*>(args);
-  for(int i = 0; i < RUNS; i++){
-    marker[pid] = true;
-    while(!tData[pid].barrier);
-    tData[pid].barrier = false;
-    marker[pid] = false;
-    (*tData[pid].handlerPtr)(tData[pid].handleArgs);
-    (*tData[pid].count)++;
+  for(int j = 0; j < TESTCASES; j++){
+    for(int i = 0; i < RUNS; i++){
+      marker[pid] = true;
+      while(!tData[pid].barrier);
+      tData[pid].barrier = false;
+      marker[pid] = false;
+      (*tData[pid].handlerPtr)(tData[pid].handleArgs);
+      (*tData[pid].count)++;
+    }
   }
 
   return 0;
