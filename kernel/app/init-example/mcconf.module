@@ -1,6 +1,6 @@
 # -*- mode:toml; -*-
 [module.app-init-example]
-    initappfiles = [ "app/init-linear-condition.cc" ]
+    initappfiles = [ "app/init-linear-condition-amount.cc" ]
     provides = [ "app/init.elf" ]
     requires = [ "crtbegin", "app-process-test"]
 
