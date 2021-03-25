@@ -36,7 +36,6 @@
 #include "objects/IScheduler.hh"
 #include "objects/IFactory.hh"
 #include "objects/IPageMap.hh"
-#include "objects/INotifiable.hh"
 #include "objects/ISignalable.hh"
 #include "objects/IPortal.hh"
 #include "objects/CapEntry.hh"
@@ -92,9 +91,9 @@ namespace mythos {
     optional<void> setRegisters(const mythos::protocol::ExecutionContext::Amd64Registers&);
     optional<void> setBaseRegisters(uint64_t fs_base, uint64_t gs_base);
 
-  public: // INotifiable interface
-    void notify(INotifiable::handle_t* event) override;
-    void denotify(INotifiable::handle_t* event) override;
+  public: // IKEventSink interface
+    void attachKEvent(IKEventSink::handle_t* event) override;
+    void detachKEvent(IKEventSink::handle_t* event) override;
 
   public: // ISchedulable interface
     bool isReady() const override { return !isBlocked(flags.load()); }
@@ -156,7 +155,7 @@ namespace mythos {
 
   private:
     async::NestedMonitorDelegating monitor;
-    INotifiable::list_t notificationQueue;
+    IKEventSink::list_t eventQueue;
     std::atomic<flag_t> flags;
     CapRef<ExecutionContext,IPageMap> _as;
     CapRef<ExecutionContext,ICapMap> _cs;

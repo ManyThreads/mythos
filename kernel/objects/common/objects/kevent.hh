@@ -31,8 +31,8 @@
 
 namespace mythos {
 
-class IKeventSource;
-class IKeventSink;
+class IKEventSource;
+class IKEventSink;
 
 /** notifies a single observer about a pending event.
  * 
@@ -76,9 +76,9 @@ public:
 
     virtual ~IKEventSink() {}
 
-    virtual void attachKEventSink(handle_t*) = 0;
+    virtual void attachKEvent(handle_t*) = 0;
 
-    virtual void detachKEventSink(handle_t*) = 0;
+    virtual void detachKEvent(handle_t*) = 0;
 
 };
 

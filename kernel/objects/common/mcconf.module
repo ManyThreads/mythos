@@ -13,8 +13,6 @@ incfiles = [
   "objects/IFactory.hh",
   "objects/ICapMap.hh",
   "objects/IScheduler.hh",
-  "objects/INotification.hh",
-  "objects/INotifiable.hh",
   "objects/signal.hh",
   "objects/kevent.hh",
   "objects/Cap.hh",

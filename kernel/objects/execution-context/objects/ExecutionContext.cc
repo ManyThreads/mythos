@@ -34,6 +34,7 @@
 #include "objects/DebugMessage.hh"
 #include "objects/IPageMap.hh"
 #include "util/error-trace.hh"
+#include "mythos/syscall.hh"
 
 namespace mythos {
 
@@ -358,16 +359,16 @@ namespace mythos {
     return res.state();
   }
 
-  void ExecutionContext::notify(INotifiable::handle_t* event)
+  void ExecutionContext::attachKEvent(IKEventSink::handle_t* event)
   {
-    MLOG_INFO(mlog::ec, "got notification", DVAR(this), DVAR(event));
-    notificationQueue.push(event);
+    MLOG_INFO(mlog::ec, "got KEvent", DVAR(this), DVAR(event));
+    eventQueue.push(event);
     clearFlagsResume(IS_WAITING);
   }
 
-  void ExecutionContext::denotify(INotifiable::handle_t* event)
+  void ExecutionContext::detachKEvent(IKEventSink::handle_t* event)
   {
-    notificationQueue.remove(event);
+    eventQueue.remove(event);
   }
 
   void ExecutionContext::handleTrap()
@@ -415,10 +416,10 @@ namespace mythos {
       case SYSCALL_WAIT: {
         auto prevState = setFlags(IN_WAIT | IS_WAITING);
         //MLOG_WARN(mlog::syscall, "wait", DVARhex(prevState));
-        if (!notificationQueue.empty() || (prevState & IS_NOTIFIED)){
-		//MLOG_WARN(mlog::syscall, "skip wait");
-          clearFlags(IS_WAITING); // because of race with notifier
-	}
+        if (!eventQueue.empty() || (prevState & IS_NOTIFIED)) {
+          //MLOG_WARN(mlog::syscall, "skip wait");
+          clearFlags(IS_WAITING); // because of race with KEventSource
+        }
         break;
       }
 
@@ -438,8 +439,8 @@ namespace mythos {
         code = uint64_t(syscallInvoke(CapPtr(portal), CapPtr(kobj), userctx).state());
         if (Error(code) != Error::SUCCESS) break; // just return the error code
         auto prevState = setFlags(IN_WAIT | IS_WAITING);
-        if (!notificationQueue.empty() || (prevState & IS_NOTIFIED))
-          clearFlags(IS_WAITING); // because of race with notifier
+        if (!eventQueue.empty() || (prevState & IS_NOTIFIED))
+          clearFlags(IS_WAITING); // because of race with KEventSource
         break;
       }
 
@@ -508,24 +509,24 @@ namespace mythos {
         ASSERT(!(prev & NOT_LOADED));
         ASSERT(currentPlace.load() == &getLocalPlace());
 
-        // return one notification to the user mode if it was waiting for some
+        // return one KEvent to the user mode if it was waiting for some
         auto prevWait = clearFlags(IN_WAIT);
         if (prevWait & IN_WAIT) {
             // clear IS_NOTIFIED only if the user mode was waiting for it
             // we won't clear it twice without a second wait() system call
             clearFlags(IS_NOTIFIED); 
 
-            // return a notification event if any
-            auto e = notificationQueue.pull();
+            // return a KEvent if any
+            auto e = eventQueue.pull();
             if (e) {
-                auto ev = e->get()->deliver();
+                auto ev = e->get()->deliverKEvent();
                 threadState.rsi = ev.user;
                 threadState.rdi = ev.state;
             } else {
                 threadState.rsi = 0;
                 threadState.rdi = uint64_t(Error::NO_MESSAGE);
             }
-            MLOG_DETAIL(mlog::ec, DVAR(this), "return one notification", 
+            MLOG_DETAIL(mlog::ec, DVAR(this), "return one KEvent", 
                         DVARhex(threadState.rsi), DVAR(threadState.rdi));
         }
 
