@@ -15,6 +15,8 @@ incfiles = [
   "objects/IScheduler.hh",
   "objects/INotification.hh",
   "objects/INotifiable.hh",
+  "objects/signal.hh",
+  "objects/kevent.hh",
   "objects/Cap.hh",
   "objects/IKernelObject.hh",
   "objects/DebugMessage.hh",

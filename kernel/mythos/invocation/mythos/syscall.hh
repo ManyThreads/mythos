@@ -26,30 +26,11 @@
 #pragma once
 
 #include <cstdint>
+#include "mythos/KEvent.hh"
 #include "mythos/caps.hh"
 #include "mythos/Error.hh"
 
 namespace mythos {
-
-  // see I/O Completion Ports like in WinNT, or the Event Completion Framework in Solaris
-  // and https://people.freebsd.org/~jlemon/papers/kqueue.pdf
-  struct KEvent
-  {
-    KEvent() : user(0), state(0) {}
-    KEvent(uintptr_t user, uint64_t state) : user(user), state(state) {}
-
-    /** A user defined value that identifies the event source.
-     * It may, for example, point to a user-space handler object.
-     * This value is configured when creating kernel objects that can issue notifications.
-     * Passed in register %rax when returning from a system call.
-     */
-    uintptr_t user;
-
-    /** The status or error code that is returned as event.
-     * Passed in register %rdx when returning from a system call.
-     */
-    uint64_t state;
-  };
 
   enum SyscallCode {
     SYSCALL_EXIT = 0,
