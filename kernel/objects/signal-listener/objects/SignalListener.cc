@@ -82,18 +82,32 @@ namespace mythos {
   {
     auto data = msg->getMessage()->read<protocol::SignalListener::Bind>();
 
-    // TODO set mask
-    // TODO context
+    // its not clear what to do if signals happen while we setup the listener
+    //_mask.store(data.mask);
+    //_context.store(data.context);
 
     if (data.signalSource() == delete_cap) { _source.reset(); }
     else if (data.signalSource() != null_cap) {
       auto err = setSource(msg->lookupEntry(data.signalSource()));
       if (!err) return err.state();
     }
+
     if (data.keventSink() == delete_cap) { _sink.reset(); }
     else if (data.keventSink() != null_cap) {
       auto err = setSink(msg->lookupEntry(data.keventSink()));
       if (!err) return err.state();
+      _mutex << [this] {
+        // read cap fresh from _sink entry because of race with unbind after bind
+        // if it was called, the cap is killed now (-> not usable)
+        // we can not race with another binding call,
+        // because this is protected by the monitor
+        TypedCap<IKEventSink> sink(_sink);
+        if (_signal && sink && !_eventAttached) {
+          sink->attachKEvent(&_eventHandle);
+          _eventAttached = true;
+        }
+      };
+
     }
     return Error::SUCCESS;
   }
@@ -105,14 +119,16 @@ namespace mythos {
     RETURN(_source.set(this, *entry, src.cap()));
   }
 
-  void SignalListener::bind(optional<ISignalSource*>)
+  void SignalListener::bind(optional<ISignalSource*> source)
   {
-    // TODO
+    ASSERT(source);
+    source->attachSignalSink(&_listenerHandle);
   }
 
-  void SignalListener::unbind(optional<ISignalSource*>)
+  void SignalListener::unbind(optional<ISignalSource*> source)
   {
-    // TODO
+    ASSERT(source);
+    source->detachSignalSink(&_listenerHandle);
   }
 
   optional<void> SignalListener::setSink(optional<CapEntry*> entry)
@@ -122,25 +138,51 @@ namespace mythos {
     RETURN(_sink.set(this, *entry, sink.cap()));
   }
 
-  void SignalListener::bind(optional<IKEventSink*>)
+  void SignalListener::bind(optional<IKEventSink*> sink)
   {
-    // TODO
+    ASSERT(sink);
+    // this function is called BEFORE the cap is commited into the CapRef in CapEntry::insertAfter
+    // we can not attach to _sink here because of races with signal changed
   }
 
-  void SignalListener::unbind(optional<IKEventSink*>)
+  void SignalListener::unbind(optional<IKEventSink*> sink)
   {
-    // TODO
+    // this function is called AFTER the cap is killed in resetReference()
+    // and before it is reset
+    ASSERT(sink);
+    _mutex << [this, sink] {
+      sink->detachKEvent(&_eventHandle);
+      _eventAttached = false;
+    };
   }
 
   KEvent SignalListener::deliverKEvent()
   {
-    // TODO
-    return KEvent(0, uint64_t(Error::NO_MESSAGE));
+    KEvent result;
+    _mutex << [this, &result] {
+      result.user = _context;
+      result.state = _signal;
+      // TODO reset is implemented now, maybe requeue
+      _signal = 0;
+      _eventAttached = false;
+    };
+    return  result;
   }
 
   void SignalListener::signalChanged(Signal newValue)
   {
-    // TODO
+    _mutex << [this, newValue] {
+      _signal |= newValue & _mask;
+      if (_signal) {
+        // problem: _sink might be currently bound, but not commited yet
+        // solution: invokation must recheck after binding 
+        TypedCap<IKEventSink> sink(_sink);
+        if (sink && !_eventAttached) {
+          sink->attachKEvent(&_eventHandle);
+          _eventAttached = true;
+        }
+      }
+    };
   }
 
   Error SignalListener::getDebugInfo(Cap self, IInvocation* msg)

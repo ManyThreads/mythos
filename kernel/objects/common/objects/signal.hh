@@ -75,9 +75,9 @@ public:
 
     virtual void signalChanged(Signal newValue) = 0;
 
-    virtual void attachedToSignalSource(ISignalSource*) {};
-
-    virtual void detachedFromSignalSource(ISignalSource*) {};
+    // TODO never called
+    //virtual void attachedToSignalSource(ISignalSource*) {};
+    //virtual void detachedFromSignalSource(ISignalSource*) {};
 };
 
 } // namespace mythos

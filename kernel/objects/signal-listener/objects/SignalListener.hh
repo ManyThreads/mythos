@@ -36,6 +36,7 @@
 #include "objects/CapRef.hh"
 #include "mythos/protocol/KernelObject.hh"
 #include "mythos/protocol/SignalListener.hh"
+#include "util/ThreadMutex.hh"
 
 namespace mythos {
 
@@ -45,7 +46,14 @@ class SignalListener final
   , public IKEventSource
 {
 public:
-  SignalListener(IAsyncFree* mem) : _mem(mem) {}
+
+  SignalListener(IAsyncFree* mem)
+    : _listenerHandle(this)
+    , _eventHandle(this)
+    , _eventAttached(false)
+    , _mem(mem)
+  {}
+
   SignalListener(const SignalListener&) = delete;
 
   optional<void const*> vcast(TypeId id) const override;
@@ -68,19 +76,35 @@ protected:
 
   friend class CapRefBind;
 
+
   CapRef<SignalListener, ISignalSource> _source;
+  // handle is in source list <-> listener is bound to source
+  // the handle is protected by the CapRef lock
+  ISignalSource::handle_t _listenerHandle;
+
   optional<void> setSource(optional<CapEntry*> entry);
   void bind(optional<ISignalSource*>);
   void unbind(optional<ISignalSource*>);
 
+
   CapRef<SignalListener, IKEventSink> _sink;
+  // handle is in sink list <-> listener is bound to sink && signal != 0
+  // protected by CapRef lock AND _mutex
+  // lock order: CapRef lock first, then _mutex
+  IKEventSink::handle_t _eventHandle;
   optional<void> setSink(optional<CapEntry*> entry);
   void bind(optional<IKEventSink*>);
   void unbind(optional<IKEventSink*>);
 
-  std::atomic<Signal> mask;
-  std::atomic<Signal> signal;
-  std::atomic<KEvent::Context> context;
+  // mutex to protect signal, mask, context, _eventAttached and _eventHandle
+  // there are some complex relationships between these member
+  // and its better if we update them atomically for now
+  // _eventAttached serves a similar purpose as the `state``member in Portal
+  ThreadMutex _mutex;
+  bool _eventAttached;
+  Signal _mask;
+  Signal _signal;
+  KEvent::Context _context;
 
   async::NestedMonitorDelegating monitor;
   IDeleter::handle_t del_handle = {this};
