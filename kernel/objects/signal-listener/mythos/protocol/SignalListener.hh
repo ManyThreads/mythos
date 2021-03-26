@@ -25,37 +25,55 @@
  */
 #pragma once
 
-#include <cstdint>
-#include "mythos/InvocationBuf.hh"
-#include "mythos/Error.hh"
+#include "mythos/KEvent.hh"
+#include "mythos/protocol/common.hh"
+#include "mythos/protocol/KernelMemory.hh"
 
 namespace mythos {
-
   namespace protocol {
 
-    enum CoreProtocols : uint8_t {
-      KERNEL_OBJECT = 1,
-      DEVICE_MEMORY,
-      KERNEL_MEMORY,
-      FRAME,
-      PAGEMAP,
-      CAPMAP,
-      EXECUTION_CONTEXT,
-      PORTAL,
-      EXAMPLE,
-      CPUDRIVERKNC,
-      RAPLDRIVERINTEL,
-      PROCESSORALLOCATOR,
-      INTERRUPT_CONTROL,
-      SIGNAL_LISTENER,
+    struct SignalListener {
+
+      typedef KEvent::Value Signal;
+      typedef KEvent::Context Context;
+
+      constexpr static uint8_t proto = SIGNAL_LISTENER;
+
+      enum Methods : uint8_t {
+        BIND,
+        UNBIND,
+      };
+
+      struct Bind : public InvocationBase {
+        constexpr static uint16_t label = (proto<<8) + BIND;
+        Bind(CapPtr signalSource, Signal mask, CapPtr keventSink)
+          : InvocationBase(label,getLength(this))
+          , mask(mask)
+        {
+          addExtraCap(signalSource);
+          addExtraCap(keventSink);
+        }
+
+        Signal mask;
+        Context context;
+
+        CapPtr signalSource() const { return this->capPtrs[0]; }
+        CapPtr keventSink() const { return this->capPtrs[1]; }
+      };
+
+      struct Create : public KernelMemory::CreateBase {
+        Create(CapPtr dst, CapPtr factory) : CreateBase(dst, factory, getLength(this), 0) {}
+      };
+
+      template<class IMPL, class... ARGS>
+      static Error dispatchRequest(IMPL* obj, uint8_t m, ARGS const&...args) {
+        switch(Methods(m)) {
+          case BIND: return obj->invokeBind(args...);
+          default: return Error::NOT_IMPLEMENTED;
+        }
+      }
+
     };
 
   } // namespace protocol
-
-enum MappingRequest : uint8_t {
-  MAPPING_PROPERTIES,
-  MAP_FRAME,
-  MAP_TABLE,
-};
-
 } // namespace mythos

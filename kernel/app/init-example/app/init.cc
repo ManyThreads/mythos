@@ -47,6 +47,7 @@
 #include "runtime/Mutex.hh"
 #include "runtime/cgaScreen.hh"
 #include "runtime/process.hh"
+#include "mythos/protocol/SignalListener.hh"
 
 #include <vector>
 #include <array>
