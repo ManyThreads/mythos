@@ -41,25 +41,41 @@ namespace mythos {
 
       enum Methods : uint8_t {
         BIND,
-        UNBIND,
+        RESET,
       };
 
       struct Bind : public InvocationBase {
         constexpr static uint16_t label = (proto<<8) + BIND;
-        Bind(CapPtr signalSource, Signal mask, CapPtr keventSink)
+        Bind(CapPtr signalSource, Signal mask, Signal resetMask, Signal autoResetMask, Context context, CapPtr keventSink)
           : InvocationBase(label,getLength(this))
           , mask(mask)
+          , resetMask(resetMask)
+          , autoResetMask(autoResetMask)
+          , context(context)
         {
           addExtraCap(signalSource);
           addExtraCap(keventSink);
         }
 
         Signal mask;
+        Signal resetMask;
+        Signal autoResetMask;
         Context context;
 
         CapPtr signalSource() const { return this->capPtrs[0]; }
         CapPtr keventSink() const { return this->capPtrs[1]; }
       };
+
+      struct Reset : public InvocationBase {
+        constexpr static uint16_t label = (proto<<8) + RESET;
+        Reset(Signal resetMask)
+          : InvocationBase(label,getLength(this))
+          , resetMask(resetMask)
+        {}
+
+        Signal resetMask;
+      };
+
 
       struct Create : public KernelMemory::CreateBase {
         Create(CapPtr dst, CapPtr factory) : CreateBase(dst, factory, getLength(this), 0) {}
@@ -69,6 +85,7 @@ namespace mythos {
       static Error dispatchRequest(IMPL* obj, uint8_t m, ARGS const&...args) {
         switch(Methods(m)) {
           case BIND: return obj->invokeBind(args...);
+          case RESET: return obj->invokeReset(args...);
           default: return Error::NOT_IMPLEMENTED;
         }
       }

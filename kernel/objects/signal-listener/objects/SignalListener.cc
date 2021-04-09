@@ -55,7 +55,7 @@ namespace mythos {
   void SignalListener::deleteObject(Tasklet* t, IResult<void>* r)
   {
     monitor.doDelete(t, [=](Tasklet* t){
-      _mem->free(t, r, this, sizeof(ExampleObj));
+      _mem->free(t, r, this, sizeof(SignalListener));
     });
   }
 
@@ -82,35 +82,66 @@ namespace mythos {
   {
     auto data = msg->getMessage()->read<protocol::SignalListener::Bind>();
 
-    // its not clear what to do if signals happen while we setup the listener
-    //_mask.store(data.mask);
-    //_context.store(data.context);
 
-    if (data.signalSource() == delete_cap) { _source.reset(); }
-    else if (data.signalSource() != null_cap) {
+    if (data.signalSource() == delete_cap) {
+      _mutex << [this] { _mask = 0; };
+      _source.reset();
+    } else if (data.signalSource() != null_cap) {
+      _mutex << [this] { _mask = 0; };
       auto err = setSource(msg->lookupEntry(data.signalSource()));
       if (!err) return err.state();
     }
+    _mutex << [this, &data] {
+      _mask = data.mask;
+      _context = data.context;
+      _autoResetMask = data.autoResetMask;
+    };
 
     if (data.keventSink() == delete_cap) { _sink.reset(); }
     else if (data.keventSink() != null_cap) {
       auto err = setSink(msg->lookupEntry(data.keventSink()));
       if (!err) return err.state();
-      _mutex << [this] {
-        // read cap fresh from _sink entry because of race with unbind after bind
-        // if it was called, the cap is killed now (-> not usable)
-        // we can not race with another binding call,
-        // because this is protected by the monitor
-        TypedCap<IKEventSink> sink(_sink);
-        if (_signal && sink && !_eventAttached) {
-          sink->attachKEvent(&_eventHandle);
-          _eventAttached = true;
-        }
-      };
 
     }
+    _mutex << [this, &data] {
+      _signal &= ~data.resetMask;
+      // Comment on races after bind of kevent sink:
+      // read cap fresh from _sink entry because of race with unbind after bind
+      // if it was called, the cap is killed now (-> not usable)
+      // we can not race with another binding call,
+      // because this is protected by the monitor
+      TypedCap<IKEventSink> sink(_sink);
+      if (!sink) return;
+      if (_signal && !_eventAttached) {
+        sink->attachKEvent(&_eventHandle);
+        _eventAttached = true;
+      } else if (!_signal && _eventAttached) {
+        sink->detachKEvent(&_eventHandle);
+        _eventAttached = false;
+      }
+    };
+
     return Error::SUCCESS;
   }
+
+  Error SignalListener::invokeReset(Tasklet*, Cap, IInvocation* msg)
+  {
+    auto data = msg->getMessage()->read<protocol::SignalListener::Reset>();
+    _mutex << [this, &data] {
+      _signal &= ~data.resetMask;
+      TypedCap<IKEventSink> sink(_sink);
+      if (!sink) return;
+      if (_signal && !_eventAttached) {
+        sink->attachKEvent(&_eventHandle);
+        _eventAttached = true;
+      } else if (!_signal && _eventAttached) {
+        sink->detachKEvent(&_eventHandle);
+        _eventAttached = false;
+      }
+    };
+    return Error::SUCCESS;
+  }
+
 
   optional<void> SignalListener::setSource(optional<CapEntry*> entry)
   {
@@ -162,9 +193,17 @@ namespace mythos {
     _mutex << [this, &result] {
       result.user = _context;
       result.state = _signal;
-      // TODO reset is implemented now, maybe requeue
-      _signal = 0;
+
       _eventAttached = false;
+      _signal &= ~_autoResetMask;
+
+      if (_signal) {
+        // reattach event
+        TypedCap<IKEventSink> sink(_sink);
+        if (!sink) return;
+        sink->attachKEvent(&_eventHandle);
+        _eventAttached = true;
+      }
     };
     return  result;
   }

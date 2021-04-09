@@ -51,6 +51,10 @@ public:
     : _listenerHandle(this)
     , _eventHandle(this)
     , _eventAttached(false)
+    , _mask(0)
+    , _autoResetMask(0)
+    , _signal(0)
+    , _context(0)
     , _mem(mem)
   {}
 
@@ -71,6 +75,7 @@ protected:
 
   friend struct protocol::SignalListener;
   Error invokeBind(Tasklet* t, Cap self, IInvocation* msg);
+  Error invokeReset(Tasklet* t, Cap self, IInvocation* msg);
 
 protected:
 
@@ -99,10 +104,11 @@ protected:
   // mutex to protect signal, mask, context, _eventAttached and _eventHandle
   // there are some complex relationships between these member
   // and its better if we update them atomically for now
-  // _eventAttached serves a similar purpose as the `state``member in Portal
+  // _eventAttached serves a similar purpose as the `state` member in Portal
   ThreadMutex _mutex;
   bool _eventAttached;
   Signal _mask;
+  Signal _autoResetMask;
   Signal _signal;
   KEvent::Context _context;
 
