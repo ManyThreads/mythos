@@ -47,6 +47,8 @@ namespace mythos {
   optional<void> SignalListener::deleteCap(CapEntry&, Cap self, IDeleter& del)
   {
     if (self.isOriginal()) {
+      _sink.reset();
+      _source.reset();
       del.deleteObject(del_handle);
     }
     RETURN(Error::SUCCESS);
@@ -82,11 +84,20 @@ namespace mythos {
   {
     auto data = msg->getMessage()->read<protocol::SignalListener::Bind>();
 
-
     if (data.signalSource() == delete_cap) {
+      // _source and _mask can not be set atomically
+      // set _mask to 0 to avoid getting signals after this point
+      // _mask is set to new value later
+      // _signal can be reset with the reset mask later
       _mutex << [this] { _mask = 0; };
+      // triggers unbind and removal from sources queue
       _source.reset();
     } else if (data.signalSource() != null_cap) {
+      // _source and _mask can not be set atomically
+      // we should avoid getting a signal from the old source and the new mask,
+      // or the other wayy around.
+      // So we discard all events until the new mask is set.
+      // _signal can be reset with the reset mask later
       _mutex << [this] { _mask = 0; };
       auto err = setSource(msg->lookupEntry(data.signalSource()));
       if (!err) return err.state();
@@ -94,43 +105,45 @@ namespace mythos {
     _mutex << [this, &data] {
       _mask = data.mask;
       _context = data.context;
-      _autoResetMask = data.autoResetMask;
     };
 
-    if (data.keventSink() == delete_cap) { _sink.reset(); }
+    if (data.keventSink() == delete_cap) {
+      // triggers unbind and removal from signal queue
+      _sink.reset();
+    }
     else if (data.keventSink() != null_cap) {
       auto err = setSink(msg->lookupEntry(data.keventSink()));
       if (!err) return err.state();
 
     }
-    _mutex << [this, &data] {
-      _signal &= ~data.resetMask;
-      // Comment on races after bind of kevent sink:
-      // read cap fresh from _sink entry because of race with unbind after bind
-      // if it was called, the cap is killed now (-> not usable)
-      // we can not race with another binding call,
-      // because this is protected by the monitor
-      TypedCap<IKEventSink> sink(_sink);
-      if (!sink) return;
-      if (_signal && !_eventAttached) {
-        sink->attachKEvent(&_eventHandle);
-        _eventAttached = true;
-      } else if (!_signal && _eventAttached) {
-        sink->detachKEvent(&_eventHandle);
-        _eventAttached = false;
-      }
-    };
 
+    // Comment on races after bind of kevent sink:
+    // - because of the monitor, we don't race with other binds
+    // - concurrent unbinds can only come from revocations on the sink
+    // - resetWithMask can detect earlier unbinds
+    // resetWithMask also (re)attaches to the event queue if necessary
+    resetWithMask(data.resetMask);
     return Error::SUCCESS;
   }
 
   Error SignalListener::invokeReset(Tasklet*, Cap, IInvocation* msg)
   {
     auto data = msg->getMessage()->read<protocol::SignalListener::Reset>();
-    _mutex << [this, &data] {
-      _signal &= ~data.resetMask;
+    resetWithMask(data.resetMask);
+    return Error::SUCCESS;
+  }
+
+  void SignalListener::resetWithMask(Signal resetMask)
+  {
+    _mutex << [this, resetMask] {
+      // resets the bits set in the reset mask
+      _signal &= resetMask;
+
       TypedCap<IKEventSink> sink(_sink);
+      // resolve potencial races with unbind
+      // if unbind has been called, the cap is killed by now (-> not usable)
       if (!sink) return;
+
       if (_signal && !_eventAttached) {
         sink->attachKEvent(&_eventHandle);
         _eventAttached = true;
@@ -139,8 +152,8 @@ namespace mythos {
         _eventAttached = false;
       }
     };
-    return Error::SUCCESS;
   }
+
 
 
   optional<void> SignalListener::setSource(optional<CapEntry*> entry)
@@ -173,7 +186,8 @@ namespace mythos {
   {
     ASSERT(sink);
     // this function is called BEFORE the cap is commited into the CapRef in CapEntry::insertAfter
-    // we can not attach to _sink here because of races with signal changed
+    // we can not attach to _sink here because of races with signal changes
+    // therefor its done while resetting during the bind invokation
   }
 
   void SignalListener::unbind(optional<IKEventSink*> sink)
@@ -182,8 +196,10 @@ namespace mythos {
     // and before it is reset
     ASSERT(sink);
     _mutex << [this, sink] {
-      sink->detachKEvent(&_eventHandle);
-      _eventAttached = false;
+      if (_eventAttached) {
+        sink->detachKEvent(&_eventHandle);
+        _eventAttached = false;
+      }
     };
   }
 
@@ -194,16 +210,10 @@ namespace mythos {
       result.user = _context;
       result.state = _signal;
 
+      _signal = 0;
+      // event sink has pulled handle from its queue before calling deliverKEvent
+      // so we are not attached, this is consistent with (_signal == 0)
       _eventAttached = false;
-      _signal &= ~_autoResetMask;
-
-      if (_signal) {
-        // reattach event
-        TypedCap<IKEventSink> sink(_sink);
-        if (!sink) return;
-        sink->attachKEvent(&_eventHandle);
-        _eventAttached = true;
-      }
     };
     return  result;
   }

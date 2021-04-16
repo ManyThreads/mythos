@@ -46,11 +46,14 @@ namespace mythos {
 
       struct Bind : public InvocationBase {
         constexpr static uint16_t label = (proto<<8) + BIND;
-        Bind(CapPtr signalSource, Signal mask, Signal resetMask, Signal autoResetMask, Context context, CapPtr keventSink)
+        Bind(
+            CapPtr signalSource,
+            Signal mask, Context context,
+            CapPtr keventSink,
+            Signal resetMask = ~Signal(0) /* reset all */)
           : InvocationBase(label,getLength(this))
           , mask(mask)
           , resetMask(resetMask)
-          , autoResetMask(autoResetMask)
           , context(context)
         {
           addExtraCap(signalSource);
@@ -59,7 +62,6 @@ namespace mythos {
 
         Signal mask;
         Signal resetMask;
-        Signal autoResetMask;
         Context context;
 
         CapPtr signalSource() const { return this->capPtrs[0]; }

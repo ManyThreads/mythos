@@ -47,16 +47,7 @@ class SignalListener final
 {
 public:
 
-  SignalListener(IAsyncFree* mem)
-    : _listenerHandle(this)
-    , _eventHandle(this)
-    , _eventAttached(false)
-    , _mask(0)
-    , _autoResetMask(0)
-    , _signal(0)
-    , _context(0)
-    , _mem(mem)
-  {}
+  SignalListener(IAsyncFree* mem) : _mem(mem) {}
 
   SignalListener(const SignalListener&) = delete;
 
@@ -77,6 +68,11 @@ protected:
   Error invokeBind(Tasklet* t, Cap self, IInvocation* msg);
   Error invokeReset(Tasklet* t, Cap self, IInvocation* msg);
 
+  // Resets the bits in signal that are set in reset mask.
+  // Detaches from / attaches to the event queue when nessecary,
+  // even when no bits are reset by resetWithMask itself.
+  void resetWithMask(Signal resetMask);
+
 protected:
 
   friend class CapRefBind;
@@ -85,7 +81,7 @@ protected:
   CapRef<SignalListener, ISignalSource> _source;
   // handle is in source list <-> listener is bound to source
   // the handle is protected by the CapRef lock
-  ISignalSource::handle_t _listenerHandle;
+  ISignalSource::handle_t _listenerHandle = {this};
 
   optional<void> setSource(optional<CapEntry*> entry);
   void bind(optional<ISignalSource*>);
@@ -96,7 +92,7 @@ protected:
   // handle is in sink list <-> listener is bound to sink && signal != 0
   // protected by CapRef lock AND _mutex
   // lock order: CapRef lock first, then _mutex
-  IKEventSink::handle_t _eventHandle;
+  IKEventSink::handle_t _eventHandle = {this};
   optional<void> setSink(optional<CapEntry*> entry);
   void bind(optional<IKEventSink*>);
   void unbind(optional<IKEventSink*>);
@@ -106,11 +102,10 @@ protected:
   // and its better if we update them atomically for now
   // _eventAttached serves a similar purpose as the `state` member in Portal
   ThreadMutex _mutex;
-  bool _eventAttached;
-  Signal _mask;
-  Signal _autoResetMask;
-  Signal _signal;
-  KEvent::Context _context;
+  bool _eventAttached = false;
+  Signal _mask = 0;
+  Signal _signal = 0;
+  KEvent::Context _context = 0;
 
   async::NestedMonitorDelegating monitor;
   IDeleter::handle_t del_handle = {this};
