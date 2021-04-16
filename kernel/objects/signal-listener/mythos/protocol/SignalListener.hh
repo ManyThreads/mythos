@@ -38,6 +38,7 @@ namespace mythos {
       typedef KEvent::Context Context;
 
       constexpr static uint8_t proto = SIGNAL_LISTENER;
+      constexpr static Signal RESET_ALL = ~Signal(0);
 
       enum Methods : uint8_t {
         BIND,
@@ -50,7 +51,7 @@ namespace mythos {
             CapPtr signalSource,
             Signal mask, Context context,
             CapPtr keventSink,
-            Signal resetMask = ~Signal(0) /* reset all */)
+            Signal resetMask = RESET_ALL)
           : InvocationBase(label,getLength(this))
           , mask(mask)
           , resetMask(resetMask)
@@ -70,7 +71,7 @@ namespace mythos {
 
       struct Reset : public InvocationBase {
         constexpr static uint16_t label = (proto<<8) + RESET;
-        Reset(Signal resetMask)
+        Reset(Signal resetMask = RESET_ALL)
           : InvocationBase(label,getLength(this))
           , resetMask(resetMask)
         {}

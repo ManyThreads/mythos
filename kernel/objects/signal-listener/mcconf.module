@@ -1,5 +1,9 @@
 # -*- mode:toml; -*-
 
 [module.objects_signal_listener]
-    incfiles = [ "objects/SignalListener.hh", "mythos/protocol/SignalListener.hh"]
-    kernelfiles = [ "objects/SignalListener.cc" ]
+  incfiles = [
+    "objects/SignalListener.hh",
+    "mythos/protocol/SignalListener.hh",
+    "runtime/SignalListener.hh",
+  ]
+  kernelfiles = [ "objects/SignalListener.cc" ]
