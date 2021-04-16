@@ -51,10 +51,6 @@ public:
     virtual ~IKEventSource() {}
 
     virtual KEvent deliverKEvent() = 0;
-
-    // TODO never called
-    //virtual void attachedToKEventSink(IKEventSink*) {}
-    //virtual void detachedFromKEventSink(IKEventSink*) {}
 };
 
 /** queue of pending events, which are pulled later for delivery to user space.

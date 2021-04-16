@@ -43,6 +43,22 @@ namespace mythos {
         SUSPEND
       };
 
+      enum Signals : uint64_t {
+        NO_SIGNAL = 0ull,
+        // first 0x1F = 31 signals are reserved for traps/interrupts
+        // we might change that later if we need the space
+        // signal number is 1ull << (#IRC);
+        TRAP_DIV_BY_ZERO = 1ull << 0,
+        TRAP_SINGLE_STEP = 1ull << 1,
+        TRAP_NMI = 1ull << 1,
+        TRAP_BREAKPOINT = 1ull << 3,
+        // ...
+        TRAP_PAGEFAULT = 1ull << 14,
+        // ...
+        // other signals start from bit 32
+        TRAP_EXIT = 1ull << 32,
+      };
+
       struct Configure : public InvocationBase {
         typedef InvocationBase response_type;
         constexpr static uint16_t label = (proto<<8) + CONFIGURE;

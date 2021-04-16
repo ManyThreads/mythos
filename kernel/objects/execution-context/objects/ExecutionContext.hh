@@ -37,6 +37,7 @@
 #include "objects/IFactory.hh"
 #include "objects/IPageMap.hh"
 #include "objects/ISignalable.hh"
+#include "objects/signal.hh"
 #include "objects/IPortal.hh"
 #include "objects/CapEntry.hh"
 #include "objects/CapRef.hh"
@@ -50,6 +51,7 @@ namespace mythos {
     , public ISchedulable
     , public IPortalUser
     , public ISignalable
+    , public ISignalSource
   {
   public:
 
@@ -108,6 +110,15 @@ namespace mythos {
   public: // ISignalable interface
     optional<void> signal(CapData data) override;
 
+  public: // ISignalSource interface
+
+    void attachSignalSink(ISignalSource::handle_t*) override;
+    void detachSignalSink(ISignalSource::handle_t*) override;
+
+  protected:
+
+    void changeSignal(Signal signal);
+
   public: // IPortalUser interface
     optional<CapEntryRef> lookupRef(CapPtr ptr, CapPtrDepth ptrDepth, bool writeable) override;
 
@@ -160,7 +171,7 @@ namespace mythos {
     CapRef<ExecutionContext,IPageMap> _as;
     CapRef<ExecutionContext,ICapMap> _cs;
     CapRef<ExecutionContext,IScheduler> _sched;
-    /// @todo reference/link to exception handler (portal/endpoint?)
+    ISignalSource::list_t _sinkList;
 
     // the hardware thread where the fpu state is currently loaded
     std::atomic<async::Place*> currentPlace = {nullptr};
