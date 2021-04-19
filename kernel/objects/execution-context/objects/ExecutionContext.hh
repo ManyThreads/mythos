@@ -49,7 +49,7 @@ namespace mythos {
   class ExecutionContext final
     : public IKernelObject
     , public ISchedulable
-    , public IPortalUser
+    , public IPortalUser // includes IKEventSink
     , public ISignalable
     , public ISignalSource
   {
@@ -127,6 +127,8 @@ namespace mythos {
       if (id == typeId<ISchedulable>()) return static_cast<ISchedulable const*>(this);
       if (id == typeId<IPortalUser>()) return static_cast<IPortalUser const*>(this);
       if (id == typeId<ISignalable>()) return static_cast<ISignalable const*>(this);
+      if (id == typeId<ISignalSource>()) return static_cast<ISignalSource const*>(this);
+      if (id == typeId<IKEventSink>()) return static_cast<IKEventSink const*>(this);
       THROW(Error::TYPE_MISMATCH);
     }
     optional<void> deleteCap(CapEntry&, Cap self, IDeleter& del) override;

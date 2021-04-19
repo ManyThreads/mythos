@@ -305,47 +305,46 @@ void test_pthreads(){
   MLOG_INFO(mlog::app, "End Test Pthreads");
 }
 
-mythos::Mutex mutex;
 void* thread_main(void* ctx)
 {
   MLOG_INFO(mlog::app, "hello thread!", DVAR(ctx));
-  mutex << [ctx]() {
-    MLOG_INFO(mlog::app, "thread in mutex", DVAR(ctx));
-  };
+
   mythos_wait();
   MLOG_INFO(mlog::app, "thread resumed from wait", DVAR(ctx));
+
+  *((volatile char *) nullptr) = 'T';
   return 0;
 }
 
 void test_ExecutionContext()
 {
   MLOG_INFO(mlog::app, "Test ExecutionContext");
-  mythos::ExecutionContext ec1(capAlloc());
-  mythos::ExecutionContext ec2(capAlloc());
+  mythos::ExecutionContext ec(capAlloc());
+  mythos::SignalListener sl(capAlloc());
   {
-    MLOG_INFO(mlog::app, "test_EC: create ec1");
+    MLOG_INFO(mlog::app, "test_EC: create ec");
     mythos::PortalLock pl(portal); // future access will fail if the portal is in use already
 
-    auto tls1 = mythos::setupNewTLS();
-    ASSERT(tls1 != nullptr);
-    auto sc1 = pa.alloc(pl).wait();
-    TEST(sc1);
-    auto res1 = ec1.create(kmem).as(myAS).cs(myCS).sched(sc1->cap)
+    // create new ec
+    auto tls = mythos::setupNewTLS();
+    ASSERT(tls != nullptr);
+    auto sc = pa.alloc(pl).wait();
+    TEST(sc);
+    auto res = ec.create(kmem).as(myAS).cs(myCS).sched(sc->cap)
     .prepareStack(thread1stack_top).startFun(&thread_main, nullptr)
-    .suspended(false).fs(tls1)
+    .suspended(false).fs(tls)
     .invokeVia(pl).wait();
-    TEST(res1);
+    TEST(res);
 
-    MLOG_INFO(mlog::app, "test_EC: create ec2");
-    auto tls2 = mythos::setupNewTLS();
-    ASSERT(tls2 != nullptr);
-    auto sc2 = pa.alloc(pl).wait();
-    TEST(sc2);
-    auto res2 = ec2.create(kmem).as(myAS).cs(myCS).sched(sc2->cap)
-    .prepareStack(thread2stack_top).startFun(&thread_main, nullptr)
-    .suspended(false).fs(tls2)
-    .invokeVia(pl).wait();
-    TEST(res2);
+    MLOG_INFO(mlog::app, "test_EC: create sl");
+    // create new signal listener
+    res = sl.create(pl, kmem).wait();
+    TEST(res);
+
+    res = sl.bind(pl,
+        ec.cap(),
+        mythos::protocol::ExecutionContext::TRAP_PAGEFAULT,
+        mythos_get_pthread_ec_self()).wait();
   }
 
   for (volatile int i=0; i<100000; i++) {
@@ -353,12 +352,16 @@ void test_ExecutionContext()
   }
 
   MLOG_INFO(mlog::app, "sending notifications");
-  mythos::syscall_signal(ec1.cap());
-  mythos::syscall_signal(ec2.cap());
+  mythos::syscall_signal(ec.cap());
+
+  MLOG_INFO(mlog::app, "waiting for trap");
+  sl.wait(); 
+
+  MLOG_INFO(mlog::app, "free EC and signal listener");
   {
     mythos::PortalLock pl(portal); 
-    TEST(capAlloc.free(ec1, pl));
-    TEST(capAlloc.free(ec2, pl));
+    TEST(capAlloc.free(ec, pl));
+    TEST(capAlloc.free(sl, pl));
   }
   MLOG_INFO(mlog::app, "End Test ExecutionContext");
 }
@@ -533,10 +536,10 @@ int main()
   //test_InterruptControl();
   //test_HostChannel(portal, 24*1024*1024, 2*1024*1024);
   test_ExecutionContext();
-  test_pthreads();
-  test_Rapl();
-  test_processor_allocator();
-  test_process();
+  //test_pthreads();
+  //test_Rapl();
+  //test_processor_allocator();
+  //test_process();
   //test_CgaScreen();
 
   char const end[] = "bye, cruel world!";
