@@ -41,25 +41,25 @@ namespace mythos {
       // free used SCs
       auto used = popUsed();
       while(used){
-        auto sce = pa->getSC(*used);
-        TypedCap<SchedulingContext> sc(sce->cap());
-        sc->resetThreadTeam();
+        //auto sce = pa->getSC(*used);
+        //TypedCap<SchedulingContext> sc(sce->cap());
+        //sc->resetThreadTeam();
         //todo: synchronize!!!!
-        pa->free(*used);
+        //pa->free(*used);
         numAllocated--;
         used = popUsed();
       }
 
       // free unused SCs
-      auto free = popFree();
+      auto free = getFree();
       while(free){
-        auto sce = pa->getSC(*free);
-        TypedCap<SchedulingContext> sc(sce->cap());
-        sc->resetThreadTeam();
+        //auto sce = pa->getSC(*free);
+        //TypedCap<SchedulingContext> sc(sce->cap());
+        //sc->resetThreadTeam();
         //todo:: synchronize!!!
-        pa->free(*free);
+        //pa->free(*free);
         numAllocated--;
-        free = popFree();
+        free = getFree();
       }
       del.deleteObject(del_handle);
     }
@@ -97,7 +97,7 @@ namespace mythos {
   }
 
 /* IResult */
-  void ThreadTeam::response(Tasklet* t, optional<cpu::ThreadID> id){
+  void ThreadTeam::response(Tasklet* t, optional<topology::Resource*> r){
     MLOG_DETAIL(mlog::pm, __PRETTY_FUNCTION__);
     ASSERT(pa);
     ASSERT(tmp_msg);
@@ -111,18 +111,19 @@ namespace mythos {
 
     ASSERT(ece);
 
-    if(id){
-      MLOG_DETAIL(mlog::pm, DVAR(*id));
-      numAllocated++;
-      auto sce = pa->getSC(*id);
-      TypedCap<SchedulingContext> sc(sce->cap());
-      sc->registerThreadTeam(this);
-
-      ret->setResponse(protocol::ThreadTeam::RetTryRunEC::DEMANDED);
-      TypedCap<ExecutionContext> ec(ece);
-      ASSERT(ec);
-      tryRunAt(t, *ec, *id);
-      return;
+    if(r && *r){
+      MLOG_DETAIL(mlog::pm, DVARhex(*r));
+      r->setOwner(this);
+      r->moveToPool(&freePool);
+      auto thread = getFree();
+      if(thread){
+        numAllocated++;
+        ret->setResponse(protocol::ThreadTeam::RetTryRunEC::DEMANDED);
+        TypedCap<ExecutionContext> ec(ece);
+        ASSERT(ec);
+        tryRunAt(t, *ec, *thread);
+        return;
+      }
     }
   
     MLOG_DETAIL(mlog::pm, "SC allocation failed");
@@ -133,15 +134,16 @@ namespace mythos {
         ret->setResponse(protocol::ThreadTeam::RetTryRunEC::ALLOCATED);
       }
     }else if(data.allocType == protocol::ThreadTeam::FORCE){
-      if(nUsed > 0){
-        MLOG_DETAIL(mlog::pm, "force run");
-        //todo: use a more sophisticated mapping scheme
-        ret->setResponse(protocol::ThreadTeam::RetTryRunEC::FORCED);
-        TypedCap<ExecutionContext> ec(ece);
-        ASSERT(ec);
-        tryRunAt(t, *ec, usedList[0]);
-        return;
-      }
+      MLOG_ERROR(mlog::pm, "force run NYI!");
+      //if(nUsed > 0){
+        //MLOG_DETAIL(mlog::pm, "force run");
+        ////todo: use a more sophisticated mapping scheme
+        //ret->setResponse(protocol::ThreadTeam::RetTryRunEC::FORCED);
+        //TypedCap<ExecutionContext> ec(ece);
+        //ASSERT(ec);
+        //tryRunAt(t, *ec, usedList[0]);
+        //return;
+      //}
     }
 
     state = IDLE;
@@ -152,7 +154,7 @@ namespace mythos {
 
   void ThreadTeam::response(Tasklet* /*t*/, optional<void> bound){
     MLOG_DETAIL(mlog::pm, __PRETTY_FUNCTION__);
-    ASSERT(tmp_id != INV_ID);
+    ASSERT(tmp_thread);
 
     if(state == INVOCATION){
       MLOG_DETAIL(mlog::pm, "state = INVOCATION");
@@ -163,7 +165,7 @@ namespace mythos {
 
       if(bound){
         MLOG_INFO(mlog::pm, "EC successfully bound to SC");
-        pushUsed(tmp_id);
+        //pushUsed(tmp_id);
         //allready set! ret->setResponse(protocol::ThreadTeam::RetTryRunEC::ALLOCATED);
         tmp_msg->replyResponse(Error::SUCCESS);
       }else{
@@ -179,15 +181,16 @@ namespace mythos {
         // remove ec from demand queue
         removeDemand(tmp_ec, true);
       }else{
-        removeUsed(tmp_id);
-        pushFree(tmp_id);
+        //removeUsed(tmp_id);
+        //pushFree(tmp_id);
+        cachedPool.pushThread(tmp_thread);
       }
     }else{
       MLOG_ERROR(mlog::pm, "ERROR: Invalid operational state");
     }
 
     state = IDLE;
-    tmp_id = INV_ID;
+    tmp_thread = nullptr;
     monitor.responseAndRequestDone();
   }
 
@@ -195,12 +198,12 @@ namespace mythos {
   ThreadTeam::ThreadTeam(IAsyncFree* memory)
     : memory(memory)
     , tmp_msg(nullptr)
-    , tmp_id(INV_ID)
+    , tmp_thread(nullptr)
     , tmp_ec(nullptr)
     , rm_ec(nullptr)
     , state(IDLE)
     , pa(nullptr)
-    , nFree(0)
+    //, nFree(0)
     , nUsed(0)
     , nDemand(0)
     , limit(0)
@@ -216,18 +219,22 @@ namespace mythos {
     ASSERT(pa);
     ASSERT(ec);
 
-    auto id = popFree();
-    if(!id && !limitReached()){
-      id = pa->alloc();
-      if(id){ numAllocated++; }
+    auto thread = getFree();
+    if(!thread && !limitReached()){
+      auto r = pa->alloc();
+      if(r){
+        r->setOwner(this);
+        r->moveToPool(&freePool);
+        thread = getFree();
+      }
     }
 
-    if(id){
-      if(ec->setSchedulingContext(pa->getSC(*id))){
-        pushUsed(*id);
+    if(thread){
+      if(ec->setSchedulingContext(thread->getSC())){
+        //pushUsed(*id);
         return true;
       }else{
-        pushFree(*id);
+        (*thread)->moveToPool(&freePool);
       }
     }
     return false;
@@ -250,12 +257,11 @@ namespace mythos {
     pa = nullptr;
   }
 
-  void ThreadTeam::tryRunAt(Tasklet* t, ExecutionContext* ec, cpu::ThreadID id){
-    MLOG_DETAIL(mlog::pm, __func__, DVARhex(ec), DVAR(id));
-    ASSERT(pa);
-    ASSERT(tmp_id == INV_ID);
-    tmp_id = id;
-    auto sce = pa->getSC(id);
+  void ThreadTeam::tryRunAt(Tasklet* t, ExecutionContext* ec, topology::IThread* thread){
+    MLOG_DETAIL(mlog::pm, __func__, DVARhex(ec), DVARhex(thread), DVAR(thread->getThreadID()));
+    ASSERT(thread);
+    tmp_thread = thread;
+    auto sce = thread->getSC();
     ec->setSchedulingContext(t, this, sce);
   }
 
@@ -273,17 +279,18 @@ namespace mythos {
       return Error::INVALID_CAPABILITY;
     }
     
-    auto id = popFree();
+    auto thread = getFree();
 
-    if(id){
-      MLOG_DETAIL(mlog::pm, "take SC from Team ", DVAR(*id));
+    if(thread){
+      MLOG_DETAIL(mlog::pm, "take SC from Team ", DVAR(thread->getThreadID()));
       ret->setResponse(protocol::ThreadTeam::RetTryRunEC::DEMANDED);
       TypedCap<ExecutionContext> ec(ece);
       ASSERT(ec);
-      tryRunAt(t, *ec, *id);
+      numAllocated++;
+      tryRunAt(t, *ec, *thread);
     }else if(limitReached()){
       MLOG_DETAIL(mlog::pm, "limit reached!");
-      response(t, optional<cpu::ThreadID>());
+      response(t, optional<topology::Resource*>());
     }else{
       MLOG_DETAIL(mlog::pm, "try alloc SC from PA");
       ASSERT(pa);
@@ -334,18 +341,23 @@ namespace mythos {
     return Error::NOT_IMPLEMENTED;
   }
 
-  void ThreadTeam::pushFree(cpu::ThreadID id){
-    MLOG_DETAIL(mlog::pm, __func__, DVAR(id));
-    freeList[nFree] = id;
-    nFree++;
-  }
+  //void ThreadTeam::pushFree(cpu::ThreadID id){
+    //MLOG_DETAIL(mlog::pm, __func__, DVAR(id));
+    //freeList[nFree] = id;
+    //nFree++;
+  //}
 
-  optional<cpu::ThreadID> ThreadTeam::popFree(){
+  optional<topology::IThread*> ThreadTeam::getFree(){
     MLOG_DETAIL(mlog::pm, __func__);
-    optional<cpu::ThreadID> ret;
-    if(nFree > 0){
-      nFree--;
-      ret = freeList[nFree];
+    optional<topology::IThread*> ret;
+    //try get from cached pool
+    auto thread = cachedPool.getThread();
+    if(!thread){
+      //try get from free pool
+      thread = freePool.getThread();
+    }
+    if(thread){
+      ret = thread;
     }
     return ret;
   }
@@ -420,38 +432,39 @@ namespace mythos {
     return false;
   }
 
-  void ThreadTeam::notifyIdle(Tasklet* t, cpu::ThreadID id) {
-    MLOG_INFO(mlog::pm, __func__, DVAR(id));
-    monitor.request(t, [=](Tasklet*){
-        ASSERT(state == IDLE);
-        ASSERT(tmp_id == INV_ID);
-        state = SC_NOTIFY;
+  //void ThreadTeam::notifyIdle(Tasklet* t, cpu::ThreadID id) {
+    //MLOG_INFO(mlog::pm, __func__, DVAR(id));
+    //monitor.request(t, [=](Tasklet*){
+        //ASSERT(state == IDLE);
+        //ASSERT(tmp_id == INV_ID);
+        //state = SC_NOTIFY;
 
-        if(numAllocated > limit || !tryRunDemandAt(t, id)) {
-          removeUsed(id);
-          //pushFree(id);
-          ASSERT(pa);
-          state = IDLE;
-          pa->free(t, id);
-          numAllocated--;
-          monitor.responseAndRequestDone();
-        }
-    }); 
-  }
+        //if(numAllocated > limit || !tryRunDemandAt(t, id)) {
+          //removeUsed(id);
+          ////pushFree(id);
+          //ASSERT(pa);
+          //state = IDLE;
+          ////pa->free(t, id);
+          //numAllocated--;
+          //monitor.responseAndRequestDone();
+        //}
+    //}); 
+  //}
 
-  bool ThreadTeam::tryRunDemandAt(Tasklet* t, cpu::ThreadID id) {
+  bool ThreadTeam::tryRunDemandAt(Tasklet* t, topology::IThread* thread) {
     MLOG_DETAIL(mlog::pm, __func__);
     ASSERT(state == SC_NOTIFY);
+    ASSERT(thread);
     // demand available?
     if(nDemand){
       //take first
       auto di = demandList[0];
       TypedCap<ExecutionContext> ec(demandEC[di]);
       ASSERT(ec);
-      MLOG_DETAIL(mlog::pm, DVARhex(*ec), DVAR(id));
+      MLOG_DETAIL(mlog::pm, DVARhex(*ec), DVAR(thread->getThreadID()));
       tmp_ec = *ec;
       //try to run ec
-      tryRunAt(t, *ec, id);
+      tryRunAt(t, *ec, thread);
       return true;
     }
     //dumpDemand();

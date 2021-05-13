@@ -61,6 +61,7 @@ NORETURN void apboot() {
     ASSERT(topo.threadID(id)<MYTHOS_MAX_APICID);
     ap_config[id].prepare(id, cpu::ApicID(topo.threadID(id)));
     ap_apic2config[topo.threadID(id)] = &ap_config[id];
+    MLOG_ERROR(mlog::pm, __func__, DVAR(topo.threadID(id)), DVAR(id));
   }
 
   //for (int i=0; i<topo.numIOApic(); i++)

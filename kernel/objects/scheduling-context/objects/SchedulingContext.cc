@@ -34,7 +34,6 @@
 
 
 namespace mythos {
-    Event<Tasklet*, cpu::ThreadID> event::idleSC;
 
     void SchedulingContext::bind(handle_t*) 
     {
@@ -48,11 +47,11 @@ namespace mythos {
         current_handle.store(nullptr);
         if(readyQueue.empty()){
           MLOG_INFO(mlog::sched, "call idleSC");
-          auto team = myTeam.load();
-          if(team != nullptr){
-            team->notifyIdle(&paTask, home->getThreadID());
+          auto ni = myNI.load();
+          if(ni != nullptr){
+            ni->notifyIdle();
           }else{
-            MLOG_WARN(mlog::sched, "No ThreadTeam registered!");
+            MLOG_WARN(mlog::sched, "No IdleNotify registered!");
           }
 
         }else{

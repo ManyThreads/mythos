@@ -29,6 +29,8 @@
 #include "objects/IFactory.hh"
 #include "objects/IKernelObject.hh"
 #include "cpu/hwthreadid.hh"
+#include "objects/ProcessorTopology.hh"
+#include "objects/ProcessorPool.hh"
 #include "boot/mlog.hh"
 #include "async/IResult.hh"
 
@@ -38,6 +40,7 @@ class ThreadTeam;
 
 class ProcessorAllocator
   : public IKernelObject
+  , public topology::IResourceOwner
 {
   public:
     ProcessorAllocator();
@@ -50,29 +53,47 @@ class ProcessorAllocator
       THROW(Error::TYPE_MISMATCH);
     }
 
+  /* IResourceOwner */
+    void notifyIdleThread(Tasklet* t, topology::IThread* thread) override {
+      MLOG_ERROR(mlog::pm, "Free thread notified idle...", DVARhex(t), DVARhex(thread));
+    } 
+
     void init();
 
-    optional<cpu::ThreadID> alloc(); 
-    void free(cpu::ThreadID id);
+    //optional<cpu::ThreadID> alloc(); 
+  
+    //void free(Resource* r){
+      //ASSERT(r);
+      //r->moveToPool(&lowLatencyFree);
+    //}
+  
+    //reclaim
 
-    void alloc(Tasklet* t, IResult<cpu::ThreadID>* r){
+    topology::Resource* alloc(){
+      //return lowLatencyFree.tryGetCoarseChunk(); 
+      return lowLatencyFree.getThread(); 
+    } 
+
+    void alloc(Tasklet* t, IResult<topology::Resource*>* r){
+      monitor.request(t,[=](Tasklet*){
+        optional<topology::Resource*> ret;
+        ASSERT(r);
+        auto resource = lowLatencyFree.tryGetCoarseChunk(); 
+        if(resource){
+          ret = resource;
+        }
+        //todo: reclaim
+        r->response(t, ret);
+        monitor.responseAndRequestDone();
+      });
+    }
+    
+    void free(Tasklet* t, topology::Resource* r){
       monitor.request(t,[=](Tasklet*){
         ASSERT(r);
-        r->response(t, alloc());
+        r->moveToPool(&lowLatencyFree);
         monitor.responseAndRequestDone();
       });
-    }
-
-    void free(Tasklet* t, cpu::ThreadID id){
-      monitor.request(t,[=](Tasklet*){
-        free(id);  
-        monitor.responseAndRequestDone();
-      });
-    }
-
-    CapEntry* getSC(cpu::ThreadID id){
-      ASSERT(id < cpu::getNumThreads());
-      return &sc[id];
     }
 
     void bind(optional<ThreadTeam*> /*tt*/){}
@@ -107,12 +128,13 @@ class ProcessorAllocator
   private:
     static constexpr unsigned MAX_TEAMS = MYTHOS_MAX_THREADS;
     async::NestedMonitorDelegating monitor;
-    CapEntry *sc;
-    CapEntry mySC[MYTHOS_MAX_THREADS];
-    unsigned nFree;
-    cpu::ThreadID freeList[MYTHOS_MAX_THREADS];
+    //unsigned nFree;
+    //cpu::ThreadID freeList[MYTHOS_MAX_THREADS];
     CapRef<ProcessorAllocator, ThreadTeam> teamRefs[MAX_TEAMS];
     unsigned teamList[MAX_TEAMS];
     unsigned nTeams;
+
+    ProcessorPool deepSleepFree;
+    ProcessorPool lowLatencyFree;
 };
 } // namespace mythos

@@ -587,7 +587,7 @@ void test_scalability(){
   tbb::enableDynamicThreading();
   long f = 40;
 
-  for(unsigned nThreads = 2; nThreads <= info_ptr->getNumThreads(); nThreads++){
+  for(unsigned nThreads = 2; nThreads <= 2/*info_ptr->getNumThreads()*/; nThreads++){
     auto res = team.setLimit(pl, nThreads).wait();
     ASSERT(res);
 

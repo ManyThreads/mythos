@@ -1,0 +1,7 @@
+# -*- mode:toml; -*-
+[module.topology-qemu]
+    incfiles = [ "objects/ProcessorTopology.hh" ]
+
+    makefile_head = '''
+QEMU_CPUS = 16
+'''

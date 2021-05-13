@@ -114,6 +114,7 @@ public:
   bool isActive() const { return nestingMonitor.load(std::memory_order_relaxed); }
 
   cpu::ThreadID getThreadID(){ return threadID; }
+  cpu::ApicID getApicID(){ return apicID; }
 
 protected:
   void pushPrivate(TaskletBase* msg) {

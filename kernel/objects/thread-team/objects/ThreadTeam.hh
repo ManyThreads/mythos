@@ -33,6 +33,7 @@
 #include "mythos/protocol/ThreadTeam.hh"
 #include "boot/mlog.hh"
 #include "objects/RevokeOperation.hh"
+#include "objects/ProcessorTopology.hh"
 #include "objects/ProcessorAllocator.hh"
 #include "objects/ExecutionContext.hh"
 #include "objects/SchedulingContext.hh"
@@ -41,9 +42,9 @@ namespace mythos {
 
   class ThreadTeam
     : public IKernelObject
-    , public INotifyIdle
-    , public IResult<cpu::ThreadID>
+    , public IResult<topology::Resource*>
     , public IResult<void>
+    , public topology::IResourceOwner
   {
     public:
       ThreadTeam(IAsyncFree* memory);
@@ -59,10 +60,17 @@ namespace mythos {
 
     /* IResult */
       //called from ProcessorAllocator::alloc
-      void response(Tasklet* t, optional<cpu::ThreadID> id);
+      void response(Tasklet* t, optional<topology::Resource*> r);
       //called from ExecutionContext::setSchedulingContext
       void response(Tasklet* t, optional<void> bound);
   
+    /* IResourceOwner */
+      void notifyIdleThread(Tasklet* t, topology::IThread* thread) override {
+        MLOG_INFO(mlog::pm, __func__, DVARhex(t), DVARhex(thread));
+        numAllocated--;
+        cachedPool.pushThread(thread);
+      } 
+
       // only for init EC
       bool tryRun(ExecutionContext* ec);
 
@@ -78,13 +86,11 @@ namespace mythos {
       void bind(optional<ExecutionContext*> /*ec*/);
       void unbind(optional<ExecutionContext*> ec);
 
-      void notifyIdle(Tasklet* t, cpu::ThreadID id) override;
-
     private:
-      void tryRunAt(Tasklet* t, ExecutionContext* ec, cpu::ThreadID id);
+      void tryRunAt(Tasklet* t, ExecutionContext* ec, topology::IThread* thread);
 
-      void pushFree(cpu::ThreadID id);
-      optional<cpu::ThreadID> popFree();
+      //void pushFree(cpu::ThreadID id);
+      optional<topology::IThread*> getFree();
 
       void pushUsed(cpu::ThreadID id);
       void removeUsed(cpu::ThreadID id);
@@ -92,7 +98,7 @@ namespace mythos {
       
       bool enqueueDemand(CapEntry* ec);
       bool removeDemand(ExecutionContext* ec, bool resetRef);
-      bool tryRunDemandAt(Tasklet* t, cpu::ThreadID id);
+      bool tryRunDemandAt(Tasklet* t, topology::IThread* thread);
       void dumpDemand();
       bool limitReached() { return limit != 0 && numAllocated >= limit;  } 
 
@@ -104,7 +110,7 @@ namespace mythos {
     /* state for async operation handling */
       IInvocation* tmp_msg;
       static constexpr cpu::ThreadID INV_ID = cpu::ThreadID(-1);
-      cpu::ThreadID tmp_id;
+      topology::IThread* tmp_thread;
       ExecutionContext* tmp_ec;
       ExecutionContext* rm_ec;
       enum OperationalState{
@@ -118,8 +124,8 @@ namespace mythos {
       CapRef<ThreadTeam,ProcessorAllocator> paRef;
       ProcessorAllocator* pa;
       Tasklet paTasklet;
-      cpu::ThreadID freeList[MYTHOS_MAX_THREADS];
-      unsigned nFree;
+      //cpu::ThreadID freeList[MYTHOS_MAX_THREADS];
+      //unsigned nFree;
       cpu::ThreadID usedList[MYTHOS_MAX_THREADS];
       unsigned nUsed;
       CapRef<ThreadTeam, ExecutionContext> demandEC[MYTHOS_MAX_THREADS];
@@ -129,6 +135,10 @@ namespace mythos {
       unsigned nDemand; 
       unsigned limit;
       unsigned numAllocated;
+
+
+      ProcessorPool freePool;
+      ProcessorPool cachedPool;
   };
 
   class ThreadTeamFactory : public FactoryBase

@@ -37,7 +37,7 @@ namespace mythos {
 
   class INotifyIdle{
     public:
-      virtual void notifyIdle(Tasklet* t, cpu::ThreadID id) = 0;
+      virtual void notifyIdle() = 0;
   };
 
   /** Scheduler for multiple application threads on a single hardware
@@ -79,7 +79,7 @@ namespace mythos {
   {
   public:
     SchedulingContext()
-      : myTeam(nullptr)
+      : myNI(nullptr)
     { }
     void init(async::Place* home) { this->home = home; }
     virtual ~SchedulingContext() {}
@@ -96,12 +96,14 @@ namespace mythos {
 
     //todo: use capref
   public: //ThreadTeam
-    void registerThreadTeam(INotifyIdle* tt){
-      myTeam.store(tt);
+    void registerIdleNotify(INotifyIdle* ni){
+      myNI.store(ni);
     };
-    void resetThreadTeam(){
-      myTeam.store(nullptr);
+    void resetIdleNotify(){
+      myNI.store(nullptr);
     }
+
+    async::Place* getHome(){ return home; }
 
   public: // IKernelObject interface
     optional<void> deleteCap(CapEntry&, Cap, IDeleter&) override { RETURN(Error::SUCCESS); }
@@ -116,11 +118,6 @@ namespace mythos {
     list_t readyQueue; //< the ready list of waiting execution contexts
     std::atomic<handle_t*> current_handle = {nullptr}; //< the currently selected execution context
 
-    Tasklet paTask; //task for communication with processor allocator
-    std::atomic<INotifyIdle*> myTeam;
+    std::atomic<INotifyIdle*> myNI;
   };
-
-  namespace event {
-    extern Event<Tasklet*, cpu::ThreadID> idleSC;
-  }
 } // namespace mythos

@@ -6,7 +6,8 @@
 
     makefile_head = '''
 QEMU_MEMSIZE ?= 1024M
-QEMUFLAGS += -cpu Skylake-Client-v1 -smp 4
+QEMU_CPUS ?= 4
+QEMUFLAGS += -cpu Skylake-Client-v1
 # com1: text output to terminal
 QEMUFLAGS += -serial stdio
 # com2: object channel for remote procedure calls into mythos
@@ -20,21 +21,21 @@ QEMUFLAGS += -d pcall,int,unimp,guest_errors -no-reboot
 .PHONY: qemu qemudbg32 qemudbg
 
 qemu: boot32.elf
-	qemu-system-x86_64 $(QEMUFLAGS) -m $(QEMU_MEMSIZE) -kernel boot32.elf
+	qemu-system-x86_64 $(QEMUFLAGS) -smp $(QEMU_CPUS) -m $(QEMU_MEMSIZE) -kernel boot32.elf
 
 qemu-text: boot32.elf
-	qemu-system-x86_64 -m $(QEMU_MEMSIZE) -cpu Skylake-Client-v1 -smp 4 -curses -kernel boot32.elf
+	qemu-system-x86_64 -m $(QEMU_MEMSIZE) -cpu Skylake-Client-v1 -smp $(QEMU_CPUS) -curses -kernel boot32.elf
 
 qemuidbg: boot32.elf
-	qemu-system-x86_64 $(QEMUFLAGS) -kernel boot32.elf -qmp stdio
+	qemu-system-x86_64 $(QEMUFLAGS) -smp $(QEMU_CPUS) -kernel boot32.elf -qmp stdio
 
 qemudbg32: boot32.elf boot64.elf
-	qemu-system-x86_64 $(QEMUFLAGS) -S -gdb tcp::1234 -kernel boot32.elf &
+	qemu-system-x86_64 $(QEMUFLAGS) -smp $(QEMU_CPUS) -S -gdb tcp::1234 -kernel boot32.elf &
 	sleep 1
 	gdb -s boot64.elf -ex "set architecture i386" -ex "target remote :1234" -tui
 
 qemudbg: boot32.elf boot64.elf
-	qemu-system-x86_64 $(QEMUFLAGS) -gdb tcp::1234 -kernel boot32.elf &
+	qemu-system-x86_64 $(QEMUFLAGS) -smp $(QEMU_CPUS) -gdb tcp::1234 -kernel boot32.elf &
 	sleep 3
 	gdb -s boot64.elf -ex "set architecture i386:x86-64:intel" -ex "target remote :1234" -ex "hbreak kernel.cc:183" -tui
 # set *((short*)$rip) = 0x9090

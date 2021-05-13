@@ -1,0 +1,4 @@
+# -*- mode:toml; -*-
+[module.topology-modi]
+    incfiles = [ "objects/ProcessorTopology.hh" ]
+

@@ -1,0 +1,5 @@
+# -*- mode:toml; -*-
+[module.topology]
+    incfiles = [ "objects/IProcessorTopology.hh" ]
+    kernelfiles = [ "objects/ProcessorTopology.cc" ]
+

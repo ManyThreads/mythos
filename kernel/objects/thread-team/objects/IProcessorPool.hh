@@ -21,41 +21,32 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  *
- * Copyright 2020 Philipp Gypser, BTU Cottbus-Senftenberg
+ * Copyright 2021 Philipp Gypser, BTU Cottbus-Senftenberg
  */
+#pragma once
 
-
-#include "objects/ProcessorAllocator.hh"
-#include "objects/mlog.hh"
 
 namespace mythos {
 
-/* IKernelObject */ 
-  optional<void> ProcessorAllocator::deleteCap(CapEntry&, Cap, IDeleter&)
-  {
-    MLOG_DETAIL(mlog::pm, __func__);
-    RETURN(Error::SUCCESS);
-  }
+namespace topology {
+  struct ISocket;
+  struct ITile;
+  struct ICore;
+  struct IThread;
+  struct Resource;
+}
 
-  void ProcessorAllocator::deleteObject(Tasklet*, IResult<void>*)
-  {
-    MLOG_DETAIL(mlog::pm, __func__);
-  }
-
-/* ProcessorAllocator */
-  ProcessorAllocator::ProcessorAllocator()
-      : nTeams(0)
-    {}
-
-  void ProcessorAllocator::init(){
-    MLOG_DETAIL(mlog::pm, "PM::init");
-    topology::systemTopo.init();
-    for(size_t i = 0; i < topology::systemTopo.getNumSockets(); i++){
-      auto socket = topology::systemTopo.getSocket(i);
-      ASSERT(socket);
-      socket->owner = this;
-      lowLatencyFree.pushSocket(socket);
-    }
-  }
+  struct IProcessorPool {
+    virtual void pushSocket(topology::ISocket* s); 
+    virtual void pushTile(topology::ITile* t);
+    virtual void pushCore(topology::ICore* c);
+    virtual void pushThread(topology::IThread* t);
+    virtual topology::ISocket* popSocket();
+    virtual topology::ITile* popTile();
+    virtual topology::ICore* popCore(); 
+    virtual topology::IThread* popThread();
+    virtual topology::Resource* tryGetCoarseChunk();
+    virtual topology::IThread* getThread();
+  };
 
 } // namespace mythos
