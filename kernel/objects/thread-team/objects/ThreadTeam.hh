@@ -86,6 +86,20 @@ namespace mythos {
       void bind(optional<ExecutionContext*> /*ec*/);
       void unbind(optional<ExecutionContext*> ec);
 
+      void reclaimResources(Tasklet* t, IResult<topology::Resource*>* r){
+        monitor.request(t,[=](Tasklet*){
+          MLOG_INFO(mlog::pm, __func__);
+          ASSERT(r);
+          optional<topology::Resource*> ret;
+          auto thread = getFree();
+          if(thread){
+            ret = *thread;
+          }
+          r->response(t, ret);
+          monitor.responseAndRequestDone();
+        });
+      }
+
     private:
       void tryRunAt(Tasklet* t, ExecutionContext* ec, topology::IThread* thread);
 

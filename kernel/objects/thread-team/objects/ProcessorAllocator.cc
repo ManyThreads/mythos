@@ -45,6 +45,9 @@ namespace mythos {
 /* ProcessorAllocator */
   ProcessorAllocator::ProcessorAllocator()
       : nTeams(0)
+      , tmpTeam(0)
+      , nextTeam(0)
+      , tmp_ret(nullptr)
     {}
 
   void ProcessorAllocator::init(){
@@ -58,4 +61,58 @@ namespace mythos {
     }
   }
 
+  bool ProcessorAllocator::tryReclaimLoop(Tasklet* t){
+      MLOG_DETAIL(mlog::pm, __func__, DVAR(nextTeam), DVAR(tmpTeam));
+      if(nextTeam == tmpTeam){
+        return false;
+      }
+      ASSERT(nextTeam < nTeams);
+      auto team = teamRefs[teamList[nextTeam]].get();
+      ASSERT(team);
+      if(reinterpret_cast<IResult<topology::Resource*>*>(*team) == tmp_ret){
+        MLOG_INFO(mlog::pm, "skip allocating team");
+        nextTeam = (nextTeam + 1) % nTeams;
+        if(nextTeam == tmpTeam){
+          MLOG_INFO(mlog::pm, "no other teams found");
+          return false;
+        }
+        team = teamRefs[teamList[nextTeam]].get();
+        ASSERT(team);
+        if(reinterpret_cast<IResult<topology::Resource*>*>(*team) == tmp_ret){
+            MLOG_ERROR(mlog::pm, "same team registered twice?!");
+            return false;
+        }
+      }
+      nextTeam = (nextTeam + 1) % nTeams;
+      team->reclaimResources(t, this);
+      return true;
+  }
+
+  void ProcessorAllocator::alloc(Tasklet* t, IResult<topology::Resource*>* r){
+    monitor.request(t,[=](Tasklet*){
+      optional<topology::Resource*> ret;
+      ASSERT(r);
+      ASSERT(tmp_ret == nullptr);
+      auto resource = lowLatencyFree.tryGetCoarseChunk(); 
+      if(resource){
+        ret = resource;
+      }else{
+        tmp_ret = r;
+        if(nextTeam >= nTeams){ nextTeam = 0;}
+        ASSERT(nextTeam < nTeams);
+        tmpTeam = nextTeam;
+        if(tryReclaimLoop(t)) return;
+      }
+      r->response(t, ret);
+      monitor.responseAndRequestDone();
+    });
+  }
+  
+  void ProcessorAllocator::free(Tasklet* t, topology::Resource* r){
+    monitor.request(t,[=](Tasklet*){
+      ASSERT(r);
+      r->moveToPool(&lowLatencyFree);
+      monitor.responseAndRequestDone();
+    });
+  }
 } // namespace mythos

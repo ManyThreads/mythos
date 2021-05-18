@@ -41,6 +41,7 @@ class ThreadTeam;
 class ProcessorAllocator
   : public IKernelObject
   , public topology::IResourceOwner
+  , public IResult<topology::Resource*>
 {
   public:
     ProcessorAllocator();
@@ -51,6 +52,20 @@ class ProcessorAllocator
     optional<void const*> vcast(TypeId id) const override {
       if (id == typeId<ProcessorAllocator>()) return this;
       THROW(Error::TYPE_MISMATCH);
+    }
+
+  /* IResult */
+    //called from thread team
+    void response(Tasklet* t, optional<topology::Resource*> r){
+      ASSERT(tmp_ret);
+      if(r){
+        ASSERT(*r);
+      }else{
+        if(tryReclaimLoop(t)) return;
+      }
+      tmp_ret->response(t, r);
+      tmp_ret = nullptr;
+      monitor.responseAndRequestDone();
     }
 
   /* IResourceOwner */
@@ -70,31 +85,13 @@ class ProcessorAllocator
     //reclaim
 
     topology::Resource* alloc(){
-      //return lowLatencyFree.tryGetCoarseChunk(); 
-      return lowLatencyFree.getThread(); 
+      return lowLatencyFree.tryGetCoarseChunk(); 
+      //return lowLatencyFree.getThread(); 
     } 
 
-    void alloc(Tasklet* t, IResult<topology::Resource*>* r){
-      monitor.request(t,[=](Tasklet*){
-        optional<topology::Resource*> ret;
-        ASSERT(r);
-        auto resource = lowLatencyFree.tryGetCoarseChunk(); 
-        if(resource){
-          ret = resource;
-        }
-        //todo: reclaim
-        r->response(t, ret);
-        monitor.responseAndRequestDone();
-      });
-    }
-    
-    void free(Tasklet* t, topology::Resource* r){
-      monitor.request(t,[=](Tasklet*){
-        ASSERT(r);
-        r->moveToPool(&lowLatencyFree);
-        monitor.responseAndRequestDone();
-      });
-    }
+    bool tryReclaimLoop(Tasklet* t);
+    void alloc(Tasklet* t, IResult<topology::Resource*>* r);
+    void free(Tasklet* t, topology::Resource* r);
 
     void bind(optional<ThreadTeam*> /*tt*/){}
     void unbind(optional<ThreadTeam*> tt){
@@ -134,6 +131,9 @@ class ProcessorAllocator
     unsigned teamList[MAX_TEAMS];
     unsigned nTeams;
 
+    unsigned tmpTeam, nextTeam;
+    IResult<topology::Resource*>* tmp_ret;
+    
     ProcessorPool deepSleepFree;
     ProcessorPool lowLatencyFree;
 };
