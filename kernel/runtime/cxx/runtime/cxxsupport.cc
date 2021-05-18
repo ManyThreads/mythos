@@ -452,6 +452,7 @@ int myclone(
       return ecPtr;
     }
     MLOG_WARN(mlog::app, "Processor allocation failed!");
+    threadPool.push(ecPtr, portalPtr);
     //todo: set errno = EAGAIN
     return (-1);
 }

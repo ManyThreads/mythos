@@ -53,7 +53,7 @@ APP_CPPFLAGS += $(CPPFLAGS)
 APP_CPPFLAGS += -I.
 
 APP_CXXFLAGS += $(CXXFLAGS)
-APP_CXXFLAGS += -std=c++11
+APP_CXXFLAGS += -std=c++14
 #APP_CXXFLAGS += -O2 -g3 -ggdb -gdwarf-2
 APP_CXXFLAGS += -O2 -ggdb3
 
