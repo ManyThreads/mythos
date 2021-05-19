@@ -58,6 +58,7 @@
 #include "runtime/process.hh"
 #include "util/optional.hh"
 #include "util/events.hh"
+#include "util/SpinLock.hh"
 #include "mythos/InfoFrame.hh"
 
 extern mythos::InfoFrame* info_ptr asm("info_ptr");
@@ -102,7 +103,7 @@ class ThreadPool{
         if(top < SIZE){
           pool[top] = {ec, portal};
           top++;
-          MLOG_DETAIL(mlog::app, "pushed to thread pool", DVAR(ec), DVAR(portal));
+          //MLOG_DETAIL(mlog::app, "pushed to thread pool", DVAR(ec), DVAR(portal));
         }else{
           MLOG_WARN(mlog::app, "Thread pool full!");
         }
@@ -114,7 +115,7 @@ class ThreadPool{
           top--;
           auto ec = pool[top].ec;
           auto portal = pool[top].portal;
-          MLOG_DETAIL(mlog::app, "pop from thread pool", DVAR(ec), DVAR(portal));
+          //MLOG_DETAIL(mlog::app, "pop from thread pool", DVAR(ec), DVAR(portal));
           return pool[top];
         }
         MLOG_DETAIL(mlog::app, "thread pool empty");
@@ -366,14 +367,29 @@ extern "C" int munmap(void *start, size_t len)
     return 0;
 }
 
+void *unmap_base;
+char shared_stack[4096];
+mythos::SpinLock unmapLock;
+
+void do_unmap [[ noreturn]] (){
+    mythos::heap.free(reinterpret_cast<unsigned long>(unmap_base));
+    threadPool.push(mythos_get_pthread_ec_self(), localPortalPtr);
+    unmapLock.unlock();
+    asm volatile ("syscall" : : "D"(0), "S"(0) : "memory");
+}
+
 extern "C" int unmapself(void *start, size_t len)
 {
     // see pthread_exit: another pthread might reuse the memory before unmapped  thread exited
-    MLOG_DETAIL(mlog::app, "unmapself", DVARhex(start), DVAR(len));
-    //todo: race condition?
-    mythos::heap.free(reinterpret_cast<unsigned long>(start));
-    threadPool.push(mythos_get_pthread_ec_self(), localPortalPtr);
-    asm volatile ("syscall" : : "D"(0), "S"(0) : "memory");
+    MLOG_DETAIL(mlog::app, "unmapself", __TIME__,  DVARhex(start), DVAR(len));
+    unmapLock.lock();
+    //MLOG_INFO(mlog::app, "locked");
+    unmap_base = start; 
+    char *stack = shared_stack + sizeof shared_stack;
+    stack -= (uintptr_t)stack % 16;
+    asm volatile ( "mov %1,%%rsp ; jmp *%0" : : "r"(do_unmap), "r"(stack) : "memory" );
+
+    //for(;;) asm volatile ("syscall" : : "D"(0), "S"(0) : "memory");
     return 0;
 }
 

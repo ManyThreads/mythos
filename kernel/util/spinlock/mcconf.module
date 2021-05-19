@@ -1,0 +1,4 @@
+# -*- mode:toml; -*-
+[module.util-spinlock]
+    incfiles = [ "util/SpinLock.hh" ]
+
