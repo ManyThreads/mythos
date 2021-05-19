@@ -101,9 +101,12 @@ namespace mythos {
         if(nextTeam >= nTeams){ nextTeam = 0;}
         ASSERT(nextTeam < nTeams);
         tmpTeam = nextTeam;
-        if(tryReclaimLoop(t)) return;
+        if(tryReclaimLoop(t)){
+          return;
+        }
       }
       r->response(t, ret);
+      tmp_ret = nullptr;
       monitor.responseAndRequestDone();
     });
   }
