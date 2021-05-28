@@ -150,6 +150,9 @@ namespace mythos {
     PortalFuture<void> writeRegisters(PortalLock pr, register_t const& regs, bool resume) {
       return pr.invoke<protocol::ExecutionContext::WriteRegisters>(_cap, resume, regs);
     }
+    PortalFuture<void> recycle(PortalLock pr, register_t const& regs, bool resume) {
+      return pr.invoke<protocol::ExecutionContext::Recycle>(_cap, resume, regs);
+    }
     PortalFuture<void> setFSGS(PortalLock pr, uintptr_t fs, uintptr_t gs) {
       return pr.invoke<protocol::ExecutionContext::SetFSGS>(_cap, fs,gs);
     }

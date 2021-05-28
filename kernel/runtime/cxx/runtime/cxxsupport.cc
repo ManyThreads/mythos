@@ -381,7 +381,7 @@ void do_unmap [[ noreturn]] (){
 extern "C" int unmapself(void *start, size_t len)
 {
     // see pthread_exit: another pthread might reuse the memory before unmapped  thread exited
-    MLOG_DETAIL(mlog::app, "unmapself", __TIME__,  DVARhex(start), DVAR(len));
+    MLOG_DETAIL(mlog::app, __func__,  DVARhex(start), DVAR(len));
     unmapLock.lock();
     //MLOG_INFO(mlog::app, "locked");
     unmap_base = start; 
@@ -441,7 +441,14 @@ int myclone(
       regs.rip = uintptr_t(func); // start function;
       regs.rdi = uintptr_t(arg); // user context
       regs.fs_base = uintptr_t(tls); // thread local storage
-      auto res = ec.writeRegisters(pl, regs, true).wait();
+      auto res = ec.recycle(pl, regs, true).wait();
+      //auto res = ec.writeRegisters(pl, regs, true).wait();
+      if(!res){
+        MLOG_WARN(mlog::app, "EC recycle failed!");
+        threadPool.push(ecPtr, portalPtr);
+        return (-1);
+      }
+      MLOG_DETAIL(mlog::app, "EC recycled and reconfigured");
     }else{
       //create new EC
       auto res = ec.create(kmem)
@@ -467,7 +474,7 @@ int myclone(
     if(tres && tres->notFailed()){
       return ecPtr;
     }
-    MLOG_WARN(mlog::app, "Processor allocation failed!");
+    MLOG_DETAIL(mlog::app, "Processor allocation failed!");
     threadPool.push(ecPtr, portalPtr);
     //todo: set errno = EAGAIN
     return (-1);

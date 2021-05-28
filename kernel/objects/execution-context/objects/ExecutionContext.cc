@@ -42,7 +42,7 @@ namespace mythos {
     , memory(memory)
   {
     setFlags(IS_TRAPPED + NO_AS + NO_SCHED
-        + DONT_PREEMPT + NOT_LOADED + NOT_RUNNING);
+        + DONT_PREEMPT + NOT_LOADED + NOT_RUNNING + TERMINATED);
     threadState.clear();
     threadState.rflags = x86::FLAG_IF; // ensure that interrupts are enabled in user mode
     fpuState.clear();
@@ -275,11 +275,38 @@ namespace mythos {
 
     auto home = currentPlace.load();
     if (home != nullptr) {
-        MLOG_DETAIL(mlog::ec, "send preemption message", DVAR(this), DVAR(home));
+        MLOG_ERROR(mlog::ec, "send preemption message", DVAR(this), DVAR(home));
         home->run(t->set([this](Tasklet* t){
             this->writeSleepResponse.response(t, optional<void>(Error::SUCCESS));
         }));
     } else writeThreadRegisters(t, optional<void>(Error::SUCCESS));
+    return Error::INHIBIT;
+  }
+
+  Error ExecutionContext::invokeRecycle(Tasklet* t, Cap, IInvocation* msg)
+  {
+    MLOG_INFO(mlog::ec, "recycle", DVAR(this), DVAR(t));
+    monitor.response(t,[=](Tasklet*){
+        MLOG_DETAIL(mlog::ec, "recycle run monitor", DVAR(this), DVAR(t));
+        this->msg = msg;
+        auto prev = setFlags(RECYCLE_WAITING);
+
+        if(isTerminated(prev)){
+          MLOG_DETAIL(mlog::ec, "recycle: reconf", DVAR(this));
+          auto data = msg->getMessage()->read<protocol::ExecutionContext::Recycle>();
+          setFlags(REGISTER_ACCESS);
+          if (data.resume) clearFlags(IS_TRAPPED);
+
+          auto res = setRegisters(data.regs);
+          if (!res) setFlags(IS_TRAPPED);
+
+          clearFlagsResume(RECYCLE_WAITING | REGISTER_ACCESS);
+          msg->replyResponse(res);
+          monitor.responseAndRequestDone();
+        }else{
+          MLOG_DETAIL(mlog::ec, "recycle: not yet exited", DVAR(this));
+        }
+      } );
     return Error::INHIBIT;
   }
 
@@ -426,13 +453,39 @@ namespace mythos {
 
       case SYSCALL_EXIT:
         {
-          MLOG_INFO(mlog::syscall, "exit");
-          setFlags(IS_TRAPPED);
+            setFlags(IS_TRAPPED);
+            MLOG_INFO(mlog::syscall, "exit", DVAR(this), DVAR(&exitTasklet));
             auto place = currentPlace.load();
-            if (place) synchronousAt(place) << [this]() {
+            ASSERT(place);
+            synchronousAt(place) << [this]() {
                 this->saveState();
                 this->_sched.reset();
             };
+              
+            MLOG_DETAIL(mlog::syscall, "terminated");
+            auto prev = setFlags(TERMINATED);
+
+            if(isRecycleWaiting(prev)){
+              MLOG_INFO(mlog::syscall, "waiter detected");
+              monitor.response(&exitTasklet,[=](Tasklet*){
+                MLOG_DETAIL(mlog::syscall, "recycle waiting", DVAR(this), DVAR(&exitTasklet));
+                ASSERT(this->msg);
+                auto data = this->msg->getMessage()->read<protocol::ExecutionContext::Recycle>();
+                setFlags(REGISTER_ACCESS);
+                if (data.resume) clearFlags(IS_TRAPPED);
+
+                auto res = setRegisters(data.regs);
+                if (!res) setFlags(IS_TRAPPED);
+
+                clearFlagsResume(RECYCLE_WAITING | REGISTER_ACCESS);
+                this->msg->replyResponse(res);
+                this->msg = nullptr;
+                monitor.responseAndRequestDone();
+              });
+            }else{
+              MLOG_DETAIL(mlog::syscall, "no waiter");
+            }
+            MLOG_DETAIL(mlog::syscall, "exit done");
         }
         break;
 
@@ -569,6 +622,7 @@ namespace mythos {
             getLocalPlace().setCR3(info.table); // without reload if not changed
         }
 
+        clearFlags(TERMINATED);
         MLOG_DETAIL(mlog::syscall, "resuming", DVAR(this),
                     DVARhex(threadState.rip), DVARhex(threadState.rsp));
         cpu::return_to_user(); // does never return

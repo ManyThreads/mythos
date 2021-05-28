@@ -38,6 +38,7 @@ namespace mythos {
         CONFIGURE,
         READ_REGISTERS,
         WRITE_REGISTERS,
+        RECYCLE,
         SET_FSGS,
         RESUME,
         SUSPEND
@@ -98,6 +99,14 @@ namespace mythos {
         Amd64Registers regs;
       };
 
+      struct Recycle : public InvocationBase {
+        constexpr static uint16_t label = (proto<<8) + RECYCLE;
+        Recycle(bool resume, Amd64Registers regs = Amd64Registers())
+          : InvocationBase(label,getLength(this)), resume(resume), regs(regs) {}
+        bool resume;
+        Amd64Registers regs;
+      };
+
       struct SetFSGS : public InvocationBase {
         constexpr static uint16_t label = (proto<<8) + SET_FSGS;
         SetFSGS(uintptr_t fs, uintptr_t gs)
@@ -141,6 +150,7 @@ namespace mythos {
         case CONFIGURE: return obj->invokeConfigure(args...);
         case READ_REGISTERS: return obj->invokeReadRegisters(args...);
         case WRITE_REGISTERS: return obj->invokeWriteRegisters(args...);
+        case RECYCLE: return obj->invokeRecycle(args...);
         case SET_FSGS: return obj->invokeSetFSGS(args...);
         case RESUME: return obj->invokeResume(args...);
         case SUSPEND: return obj->invokeSuspend(args...);

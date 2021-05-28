@@ -67,6 +67,8 @@ namespace mythos {
       NOT_LOADED   = 1<<8, // CPU state is not loaded
       DONT_PREEMPT  = 1<<9, // somebody else will send the preemption
       NOT_RUNNING  = 1<<10, // EC is not running
+      TERMINATED = 1<<11, // EC called exit syscall
+      RECYCLE_WAITING = 1<<12, //invoke recycle called before terminating
       BLOCK_MASK = IS_WAITING | IS_TRAPPED | NO_AS | NO_SCHED | REGISTER_ACCESS
     };
 
@@ -133,6 +135,7 @@ namespace mythos {
     Error invokeConfigure(Tasklet* t, Cap, IInvocation* msg);
     Error invokeReadRegisters(Tasklet* t, Cap self, IInvocation* msg);
     void  readThreadRegisters(Tasklet* t, optional<void>);
+    Error invokeRecycle(Tasklet* t, Cap self, IInvocation* msg);
     Error invokeWriteRegisters(Tasklet* t, Cap self, IInvocation* msg);
     void writeThreadRegisters(Tasklet* t, optional<void>);
     Error invokeResume(Tasklet* t, Cap self, IInvocation* msg);
@@ -156,6 +159,8 @@ namespace mythos {
     void clearFlagsResume(flag_t f);
     bool isBlocked(flag_t f) const { return (f & BLOCK_MASK) != 0; }
     bool needPreemption(flag_t f) const { return (f & DONT_PREEMPT) == 0; }
+    bool isTerminated(flag_t f) const { return (f & TERMINATED) != 0; }
+    bool isRecycleWaiting(flag_t f) const { return (f & RECYCLE_WAITING) != 0; }
 
   private:
     async::NestedMonitorDelegating monitor;
@@ -186,6 +191,7 @@ namespace mythos {
 
   public:
     Tasklet threadTeamTasklet;
+    Tasklet exitTasklet;
   };
 
   class ExecutionContextFactory : public FactoryBase
