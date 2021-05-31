@@ -57,15 +57,20 @@ class ProcessorAllocator
   /* IResult */
     //called from thread team
     void response(Tasklet* t, optional<topology::Resource*> r){
-      ASSERT(tmp_ret);
-      if(r){
-        ASSERT(*r);
-      }else{
-        if(tryReclaimLoop(t)) return;
-      }
-      tmp_ret->response(t, r);
-      tmp_ret = nullptr;
-      monitor.responseAndRequestDone();
+      monitor.response(t,[=](Tasklet*){
+        ASSERT(tmp_ret);
+        if(r){
+          ASSERT(*r);
+        }else{
+          if(tryReclaimLoop(t)){
+            monitor.responseDone();
+            return;
+          } 
+        }
+        tmp_ret->response(t, r);
+        tmp_ret = nullptr;
+        monitor.responseAndRequestDone();
+      });
     }
 
   /* IResourceOwner */

@@ -70,16 +70,16 @@ namespace mythos {
       auto team = teamRefs[teamList[nextTeam]].get();
       ASSERT(team);
       if(reinterpret_cast<IResult<topology::Resource*>*>(*team) == tmp_ret){
-        MLOG_INFO(mlog::pm, "skip allocating team");
+        MLOG_DETAIL(mlog::pm, "skip allocating team");
         nextTeam = (nextTeam + 1) % nTeams;
         if(nextTeam == tmpTeam){
-          MLOG_INFO(mlog::pm, "no other teams found");
+          MLOG_DETAIL(mlog::pm, "no other teams found");
           return false;
         }
         team = teamRefs[teamList[nextTeam]].get();
         ASSERT(team);
         if(reinterpret_cast<IResult<topology::Resource*>*>(*team) == tmp_ret){
-            MLOG_ERROR(mlog::pm, "same team registered twice?!");
+            MLOG_DETAIL(mlog::pm, "same team registered twice?!");
             return false;
         }
       }
@@ -90,12 +90,11 @@ namespace mythos {
 
   void ProcessorAllocator::alloc(Tasklet* t, IResult<topology::Resource*>* r){
     monitor.request(t,[=](Tasklet*){
-      optional<topology::Resource*> ret;
       ASSERT(r);
       ASSERT(tmp_ret == nullptr);
       auto resource = lowLatencyFree.tryGetCoarseChunk(); 
       if(resource){
-        ret = resource;
+        r->response(t, resource);
       }else{
         tmp_ret = r;
         if(nextTeam >= nTeams){ nextTeam = 0;}
@@ -104,8 +103,8 @@ namespace mythos {
         if(tryReclaimLoop(t)){
           return;
         }
+        r->response(t, optional<topology::Resource*>());
       }
-      r->response(t, ret);
       tmp_ret = nullptr;
       monitor.responseAndRequestDone();
     });

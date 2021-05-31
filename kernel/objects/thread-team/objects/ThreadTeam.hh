@@ -67,8 +67,11 @@ namespace mythos {
     /* IResourceOwner */
       void notifyIdleThread(Tasklet* t, topology::IThread* thread) override {
         MLOG_INFO(mlog::pm, __func__, DVARhex(t), DVARhex(thread));
-        numAllocated--;
-        cachedPool.pushThread(thread);
+        monitor.request(t, [=](Tasklet* t){
+          numAllocated--;
+          cachedPool.pushThread(thread);
+          monitor.requestDone();
+        });
       } 
 
       // only for init EC
@@ -90,12 +93,12 @@ namespace mythos {
         monitor.request(t,[=](Tasklet*){
           MLOG_INFO(mlog::pm, __func__);
           ASSERT(r);
-          optional<topology::Resource*> ret;
           auto thread = getFree();
           if(thread){
-            ret = *thread;
+            r->response(t, *thread);
+          }else{
+            r->response(t, optional<topology::Resource*>());
           }
-          r->response(t, ret);
           monitor.responseAndRequestDone();
         });
       }

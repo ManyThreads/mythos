@@ -50,7 +50,7 @@ namespace topology {
         for(size_t t = 0; t < TILES_PER_SOCKET; t++){
           for(size_t c = 0; c < CORES_PER_TILE; c++){
             for(size_t ht = 0; ht < THREADS_PER_CORE; ht++){
-              cpu::ApicID aID = s + ((c + (c / 7))* 2) + (ht * 64);
+              cpu::ApicID aID = static_cast<cpu::ApicID>(s + ((c + (c / 7))* 2) + (ht * 64));
               MLOG_DETAIL(mlog::pm, __func__, DVAR(s), DVAR(t), DVAR(c), DVAR(ht), DVAR(aID));
               ASSERT(mythos::boot::ap_apic2config[aID]);
               cpu::ThreadID tID = mythos::boot::ap_apic2config[aID]->threadID;

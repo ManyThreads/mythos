@@ -462,10 +462,13 @@ int myclone(
         .wait();
       
       // create Portal
-      ASSERT(ec.cap() < mythos::MAX_IB);
-      mythos::Portal newPortal(portalPtr, info_ptr->getInvocationBuf(portalPtr));
+      ASSERT(portalPtr < mythos::MAX_IB);
+      auto ib = info_ptr->getInvocationBuf(portalPtr);
+      auto ibo = info_ptr->getIbOffset(portalPtr);
+      MLOG_DETAIL(mlog::app, "create portal", DVAR(info_ptr), DVAR(ib), DVAR(ibo), DVAR(portalPtr), DVAR(localPortal.cap()), DVAR(localPortalPtr));
+      mythos::Portal newPortal(portalPtr, ib);
       newPortal.create(pl, kmem).wait();
-      newPortal.bind(pl, infoFrame, info_ptr->getIbOffset(portalPtr), ec.cap());
+      newPortal.bind(pl, infoFrame, ibo, ec.cap());
     }
 
     setRemotePortalPtr(reinterpret_cast<uintptr_t>(tls), portalPtr);

@@ -99,99 +99,108 @@ namespace mythos {
 /* IResult */
   void ThreadTeam::response(Tasklet* t, optional<topology::Resource*> r){
     MLOG_DETAIL(mlog::pm, __PRETTY_FUNCTION__);
-    ASSERT(pa);
-    ASSERT(tmp_msg);
-    ASSERT(tmp_msg->getMethod() == protocol::ThreadTeam::TRYRUNEC);
-
-    auto data = tmp_msg->getMessage()->read<protocol::ThreadTeam::TryRunEC>();
-    auto ece = tmp_msg->lookupEntry(data.ec());
-    auto ret = tmp_msg->getMessage()->cast<protocol::ThreadTeam::RetTryRunEC>();
-
-    ret->setResponse(protocol::ThreadTeam::RetTryRunEC::FAILED);
-
-    ASSERT(ece);
-
-    if(r && *r){
-      MLOG_DETAIL(mlog::pm, DVARhex(*r));
-      r->setOwner(this);
-      r->moveToPool(&freePool);
-      auto thread = getFree();
-      if(thread){
-        numAllocated++;
-        ret->setResponse(protocol::ThreadTeam::RetTryRunEC::DEMANDED);
-        TypedCap<ExecutionContext> ec(ece);
-        ASSERT(ec);
-        tryRunAt(t, *ec, *thread);
-        return;
-      }
-    }
-  
-    MLOG_DETAIL(mlog::pm, "SC allocation failed");
-
-    if(data.allocType == protocol::ThreadTeam::DEMAND){
-      if(enqueueDemand(*ece)){
-        MLOG_DETAIL(mlog::pm, "enqueued to demand list", DVARhex(*ece));
-        ret->setResponse(protocol::ThreadTeam::RetTryRunEC::ALLOCATED);
-      }
-    }else if(data.allocType == protocol::ThreadTeam::FORCE){
-      MLOG_ERROR(mlog::pm, "force run NYI!");
-      //if(nUsed > 0){
-        //MLOG_DETAIL(mlog::pm, "force run");
-        ////todo: use a more sophisticated mapping scheme
-        //ret->setResponse(protocol::ThreadTeam::RetTryRunEC::FORCED);
-        //TypedCap<ExecutionContext> ec(ece);
-        //ASSERT(ec);
-        //tryRunAt(t, *ec, usedList[0]);
-        //return;
-      //}
-    }
-
-    state = IDLE;
-    tmp_msg->replyResponse(Error::SUCCESS);
-    monitor.responseAndRequestDone();
-
-  }
-
-  void ThreadTeam::response(Tasklet* /*t*/, optional<void> bound){
-    MLOG_DETAIL(mlog::pm, __PRETTY_FUNCTION__);
-    ASSERT(tmp_thread);
-
-    if(state == INVOCATION){
-      MLOG_DETAIL(mlog::pm, "state = INVOCATION");
+    monitor.response(t, [=](Tasklet* t){
+      ASSERT(pa);
       ASSERT(tmp_msg);
       ASSERT(tmp_msg->getMethod() == protocol::ThreadTeam::TRYRUNEC);
 
-      auto ret = tmp_msg->getMessage()->cast<protocol::ThreadTeam::RetTryRunEC>();
+      auto data = tmp_msg->getMessage()->read<protocol::ThreadTeam::TryRunEC>();
+      auto ece = tmp_msg->lookupEntry(data.ec());
 
-      if(bound){
-        MLOG_INFO(mlog::pm, "EC successfully bound to SC");
-        //pushUsed(tmp_id);
-        //allready set! ret->setResponse(protocol::ThreadTeam::RetTryRunEC::ALLOCATED);
-        tmp_msg->replyResponse(Error::SUCCESS);
-      }else{
-        MLOG_ERROR(mlog::pm, "ERROR: failed to bind EC to SC!");
-        //todo: reuse sc?
+      ASSERT(ece);
+
+      if(r && *r){
+        MLOG_DETAIL(mlog::pm, DVARhex(*r));
+        r->setOwner(this);
+        r->moveToPool(&freePool);
+        auto thread = getFree();
+        if(thread){
+          numAllocated++;
+          TypedCap<ExecutionContext> ec(ece);
+          ASSERT(ec);
+          tryRunAt(t, *ec, *thread);
+          monitor.responseDone();
+          return;
+        }
+      }
+    
+      MLOG_DETAIL(mlog::pm, "SC allocation failed");
+
+      auto ret = tmp_msg->getMessage()->write<protocol::ThreadTeam::RetTryRunEC>();
+
+      if(data.allocType == protocol::ThreadTeam::DEMAND){
+        if(enqueueDemand(*ece)){
+          MLOG_ERROR(mlog::pm, "enqueued to demand list", DVARhex(*ece));
+          ret->setResponse(protocol::ThreadTeam::RetTryRunEC::DEMANDED);
+        }else{
+          ret->setResponse(protocol::ThreadTeam::RetTryRunEC::FAILED);
+        }
+      }else if(data.allocType == protocol::ThreadTeam::FORCE){
+        MLOG_ERROR(mlog::pm, "force run NYI!");
         ret->setResponse(protocol::ThreadTeam::RetTryRunEC::FAILED);
-        tmp_msg->replyResponse(Error::GENERIC_ERROR);
+        //if(nUsed > 0){
+          //MLOG_DETAIL(mlog::pm, "force run");
+          ////todo: use a more sophisticated mapping scheme
+          //ret->setResponse(protocol::ThreadTeam::RetTryRunEC::FORCED);
+          //TypedCap<ExecutionContext> ec(ece);
+          //ASSERT(ec);
+          //tryRunAt(t, *ec, usedList[0]);
+          //return;
+        //}
       }
-    }else if(state == SC_NOTIFY){
-      MLOG_DETAIL(mlog::pm, "state = SC_NOTIFY");
-      if(bound){
-        MLOG_INFO(mlog::pm, "EC successfully bound to SC");
-        // remove ec from demand queue
-        removeDemand(tmp_ec, true);
-      }else{
-        //removeUsed(tmp_id);
-        //pushFree(tmp_id);
-        cachedPool.pushThread(tmp_thread);
-      }
-    }else{
-      MLOG_ERROR(mlog::pm, "ERROR: Invalid operational state");
-    }
 
-    state = IDLE;
-    tmp_thread = nullptr;
-    monitor.responseAndRequestDone();
+      state = IDLE;
+      tmp_msg->replyResponse(Error::SUCCESS);
+      tmp_msg = nullptr;
+      monitor.responseAndRequestDone();
+    });
+  }
+
+  void ThreadTeam::response(Tasklet* t, optional<void> bound){
+    MLOG_DETAIL(mlog::pm, __PRETTY_FUNCTION__);
+    monitor.response(t, [=](Tasklet* t){
+      ASSERT(tmp_thread);
+
+      if(state == INVOCATION){
+        MLOG_DETAIL(mlog::pm, "state = INVOCATION");
+        ASSERT(tmp_msg);
+        ASSERT(tmp_msg->getMethod() == protocol::ThreadTeam::TRYRUNEC);
+
+        auto ret = tmp_msg->getMessage()->write<protocol::ThreadTeam::RetTryRunEC>();
+
+        if(bound){
+          MLOG_INFO(mlog::pm, "EC successfully bound to SC");
+          //pushUsed(tmp_id);
+          //allready set! ret->setResponse(protocol::ThreadTeam::RetTryRunEC::ALLOCATED);
+          ret->setResponse(protocol::ThreadTeam::RetTryRunEC::ALLOCATED);
+          tmp_msg->replyResponse(Error::SUCCESS);
+          tmp_msg = nullptr;
+        }else{
+          MLOG_ERROR(mlog::pm, "ERROR: failed to bind EC to SC!");
+          //todo: reuse sc?
+          ret->setResponse(protocol::ThreadTeam::RetTryRunEC::FAILED);
+          tmp_msg->replyResponse(Error::GENERIC_ERROR);
+          tmp_msg = nullptr;
+        }
+      }else if(state == SC_NOTIFY){
+        MLOG_ERROR(mlog::pm, "state = SC_NOTIFY");
+        if(bound){
+          MLOG_INFO(mlog::pm, "EC successfully bound to SC");
+          // remove ec from demand queue
+          removeDemand(tmp_ec, true);
+        }else{
+          //removeUsed(tmp_id);
+          //pushFree(tmp_id);
+          cachedPool.pushThread(tmp_thread);
+        }
+      }else{
+        MLOG_ERROR(mlog::pm, "ERROR: Invalid operational state");
+      }
+
+      state = IDLE;
+      tmp_thread = nullptr;
+      monitor.responseAndRequestDone();
+    });
   }
 
 /* ThreadTeam */
@@ -271,10 +280,10 @@ namespace mythos {
     
     auto data = msg->getMessage()->read<protocol::ThreadTeam::TryRunEC>();
     auto ece = msg->lookupEntry(data.ec());
-    auto ret = msg->getMessage()->cast<protocol::ThreadTeam::RetTryRunEC>();
 
     if(!ece){
       MLOG_ERROR(mlog::pm, "Error: Did not find EC!");
+      auto ret = msg->getMessage()->write<protocol::ThreadTeam::RetTryRunEC>();
       ret->setResponse(protocol::ThreadTeam::RetTryRunEC::FAILED);
       return Error::INVALID_CAPABILITY;
     }
@@ -283,7 +292,6 @@ namespace mythos {
 
     if(thread){
       MLOG_DETAIL(mlog::pm, "take SC from Team ", DVAR(thread->getThreadID()));
-      ret->setResponse(protocol::ThreadTeam::RetTryRunEC::DEMANDED);
       TypedCap<ExecutionContext> ec(ece);
       ASSERT(ec);
       numAllocated++;
