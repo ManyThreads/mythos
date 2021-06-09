@@ -135,6 +135,7 @@ namespace mythos {
       MSR_FS_BASE                = 0xc0000100,
       MSR_GS_BASE                = 0xc0000101,
       MSR_KERNEL_GS_BASE         = 0xc0000102,
+      IA32_MISC_ENABLE           = 0x000001A0,
     };
 
     enum Idx {
@@ -169,6 +170,10 @@ namespace mythos {
     inline void enableX2Apic() {
       setMSR(IA32_APIC_BASE_MSR, getMSR(IA32_APIC_BASE_MSR) | XAPIC_ENABLED | X2APIC_ENABLED);
     }
+    //Intel Dynamic Acceleration
+    inline bool isTurboBoostEnabled(){ return bits(getMSR(IA32_MISC_ENABLE), 38) == 0; }
+    inline void disableTurboBoost(){ setMSR(IA32_MISC_ENABLE, getMSR(IA32_MISC_ENABLE) | (1ul << 38)); }
+    inline void enableTurboBoost(){ setMSR(IA32_MISC_ENABLE, getMSR(IA32_MISC_ENABLE) & ~(1ul << 38)); }
 
     inline void setStar(uint64_t kerncs, uint64_t usercs32) {
       setMSR(MSR_IA32_STAR, usercs32<<MSR_SYSRET_SEG | kerncs<<MSR_SYSCALL_SEG);
