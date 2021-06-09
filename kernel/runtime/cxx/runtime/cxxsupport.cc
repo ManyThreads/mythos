@@ -100,6 +100,9 @@ class ThreadPool{
 
     void push(mythos::CapPtr ec, mythos::CapPtr portal){
         mythos::Mutex::Lock guard(mutex);
+        ASSERT(ec);
+        ASSERT(portal);
+
         if(top < SIZE){
           pool[top] = {ec, portal};
           top++;
@@ -128,7 +131,7 @@ class ThreadPool{
     unsigned top;
 };
 
-ThreadPool<1024> threadPool;
+ThreadPool<2048> threadPool;
 
 struct PthreadCleaner{
   PthreadCleaner()
@@ -245,7 +248,7 @@ void clock_gettime(long clk, struct timespec *ts){
     unsigned low,high;
     asm volatile("rdtsc" : "=a" (low), "=d" (high));
     unsigned long tsc = low | uint64_t(high) << 32;	
-        //MLOG_DETAIL(mlog::app, "syscall clock_gettime", DVAR(clk), DVARhex(ts), DVAR(tsc), DVAR((tsc * PS_PER_TSC)/1000000000000));
+        //MLOG_WARN(mlog::app, "syscall clock_gettime", DVAR(clk), DVARhex(ts), DVAR(tsc), DVAR((tsc * info_ptr->getPsPerTSC())/1000000000000), DVAR(info_ptr->getPsPerTSC()));
     ts->tv_nsec = (tsc * info_ptr->getPsPerTSC() / 1000)%1000000000;
     ts->tv_sec = (tsc * info_ptr->getPsPerTSC())/1000000000000;
 }
@@ -372,10 +375,12 @@ char shared_stack[4096];
 mythos::SpinLock unmapLock;
 
 void do_unmap [[ noreturn]] (){
+    volatile auto ec = mythos_get_pthread_ec_self();
+    volatile auto portal = localPortalPtr;
     mythos::heap.free(reinterpret_cast<unsigned long>(unmap_base));
-    threadPool.push(mythos_get_pthread_ec_self(), localPortalPtr);
+    threadPool.push(ec, portal);
     unmapLock.unlock();
-    asm volatile ("syscall" : : "D"(0), "S"(0) : "memory");
+    for(;;) asm volatile ("syscall" : : "D"(0), "S"(0) : "memory");
 }
 
 extern "C" int unmapself(void *start, size_t len)
@@ -428,6 +433,9 @@ int myclone(
       portalPtr = capAlloc();
     }
 
+    ASSERT(ecPtr);
+    ASSERT(portalPtr);
+
     mythos::PortalLock pl(localPortal); 
     mythos::ExecutionContext ec(ecPtr);
 
@@ -444,7 +452,7 @@ int myclone(
       auto res = ec.recycle(pl, regs, true).wait();
       //auto res = ec.writeRegisters(pl, regs, true).wait();
       if(!res){
-        MLOG_WARN(mlog::app, "EC recycle failed!");
+        MLOG_WARN(mlog::app, "EC recycle failed!", DVAR(ec.cap()), DVAR(ecPtr));
         threadPool.push(ecPtr, portalPtr);
         return (-1);
       }
