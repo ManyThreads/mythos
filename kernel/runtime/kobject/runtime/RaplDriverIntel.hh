@@ -58,6 +58,11 @@ namespace mythos {
       return pr.invoke<protocol::RaplDriverIntel::GetRaplVal>(_cap);
     }
 
+    PortalFuture<Result>
+    getGlobalRaplVal(PortalLock pr) {
+      return pr.invoke<protocol::RaplDriverIntel::GetGlobalRaplVal>(_cap);
+    }
+
   };
 
 } // namespace mythos

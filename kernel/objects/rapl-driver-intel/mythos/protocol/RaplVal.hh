@@ -47,6 +47,16 @@ namespace mythos {
       , dram_energy_units(dram_energy_units)
     {}
 
+    void add(RaplVal& rv){
+      this->pp0 += rv.pp0;
+      this->pp1 += rv.pp1;
+      this->psys += rv.psys;
+      this->pkg += rv.pkg;
+      this->dram += rv.dram;
+      ASSERT(this->cpu_energy_units == rv.cpu_energy_units);
+      ASSERT(this->dram_energy_units == rv.dram_energy_units);
+    }
+
     // rounded (truncated) number in Joule
     uint64_t getEnergyPP0(){ return pp0 >> cpu_energy_units; } 
     uint64_t getEnergyPP1(){ return pp1 >> cpu_energy_units; } 

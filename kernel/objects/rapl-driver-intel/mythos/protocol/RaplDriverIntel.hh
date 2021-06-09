@@ -36,12 +36,19 @@ namespace mythos {
 
       enum Methods : uint8_t {
         GETRAPLVAL,
+        GETGLOBALRAPLVAL,
         RESULT
       };
 
       struct GetRaplVal : public InvocationBase {
         constexpr static uint16_t label = (proto<<8) + GETRAPLVAL;
         GetRaplVal() : InvocationBase(label,getLength(this)) {
+        }
+      };
+
+      struct GetGlobalRaplVal : public InvocationBase {
+        constexpr static uint16_t label = (proto<<8) + GETGLOBALRAPLVAL;
+        GetGlobalRaplVal() : InvocationBase(label,getLength(this)) {
         }
       };
 
@@ -56,6 +63,7 @@ namespace mythos {
       static Error dispatchRequest(IMPL* obj, uint8_t m, ARGS const&...args) {
         switch(Methods(m)) {
           case GETRAPLVAL: return obj->invoke_getRaplVal(args...);
+          case GETGLOBALRAPLVAL: return obj->invoke_getGlobalRaplVal(args...);
           default: return Error::NOT_IMPLEMENTED;
         }
       }

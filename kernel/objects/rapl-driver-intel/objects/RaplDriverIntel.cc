@@ -28,6 +28,8 @@
 #include "mythos/InvocationBuf.hh"
 #include "boot/mlog.hh"
 #include "mythos/protocol/RaplDriverIntel.hh"
+#include "mythos/protocol/RaplVal.hh"
+#include "objects/ProcessorTopology.hh"
 #include "cpu/ctrlregs.hh"
 
 #include "util/mstring.hh"
@@ -218,7 +220,7 @@ namespace mythos {
   {
     MLOG_DETAIL(mlog::boot, __PRETTY_FUNCTION__);
 
-    auto ret = msg->getMessage()->cast<protocol::RaplDriverIntel::Result>();
+    auto ret = msg->getMessage()->write<protocol::RaplDriverIntel::Result>();
 
     ret->val.cpu_energy_units = cpu_energy_units;
     ret->val.dram_energy_units = dram_energy_units;
@@ -230,6 +232,50 @@ namespace mythos {
     ret->val.pkg = pkg_avail? x86::getMSR(MSR_PKG_ENERGY_STATUS) : 0;
 
     return Error::SUCCESS;
+  }
+
+  Error RaplDriverIntel::invoke_getGlobalRaplVal(Tasklet*, Cap, IInvocation* msg)
+  {
+    MLOG_DETAIL(mlog::boot, __PRETTY_FUNCTION__);
+
+    auto ret = msg->getMessage()->write<protocol::RaplDriverIntel::Result>();
+
+    ret->val.cpu_energy_units = cpu_energy_units;
+    ret->val.dram_energy_units = dram_energy_units;
+
+    for(size_t i = 0; i < topology::systemTopo.getNumSockets(); i++){
+      MLOG_DETAIL(mlog::boot, DVAR(i));
+      auto socket = topology::systemTopo.getSocket(i);
+      ASSERT(socket);
+      auto sce = socket->getFirstSC();
+      TypedCap<SchedulingContext> sc(sce);
+      ASSERT(sc);
+      auto place = sc->getHome();
+      synchronousAt(place) << [ret, this]() {
+        auto rv = this->getRaplVal();
+        ret->val.add(rv);
+      };
+    }
+
+    return Error::SUCCESS;
+  }
+
+  RaplVal RaplDriverIntel::getRaplVal()
+  {
+    MLOG_DETAIL(mlog::boot, __PRETTY_FUNCTION__);
+    //printEnergy();
+    RaplVal ret;
+
+    ret.cpu_energy_units = cpu_energy_units;
+    ret.dram_energy_units = dram_energy_units;
+
+    ret.pp0 = pp0_avail? x86::getMSR(MSR_PP0_ENERGY_STATUS) : 0;
+    ret.pp1 = pp1_avail? x86::getMSR(MSR_PP1_ENERGY_STATUS) : 0;
+    ret.psys = psys_avail? x86::getMSR(MSR_PLATFORM_ENERGY_STATUS) : 0;
+    ret.dram = dram_avail? x86::getMSR(MSR_DRAM_ENERGY_STATUS) : 0;
+    ret.pkg = pkg_avail? x86::getMSR(MSR_PKG_ENERGY_STATUS) : 0;
+
+    return ret;
   }
 
 } // namespace mythos

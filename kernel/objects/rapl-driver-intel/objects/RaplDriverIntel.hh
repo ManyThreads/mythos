@@ -27,6 +27,7 @@
 
 #include "async/NestedMonitorDelegating.hh"
 #include "objects/IKernelObject.hh"
+#include "mythos/protocol/RaplVal.hh"
 
 namespace mythos {
 
@@ -42,6 +43,8 @@ public:
 public:
   RaplDriverIntel();
   Error invoke_getRaplVal(Tasklet*, Cap, IInvocation* msg);
+  Error invoke_getGlobalRaplVal(Tasklet*, Cap, IInvocation* msg);
+  RaplVal getRaplVal();
   void printEnergy();
 
 private:
