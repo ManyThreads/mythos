@@ -53,11 +53,11 @@ namespace mythos {
   void ProcessorAllocator::init(){
     MLOG_DETAIL(mlog::pm, "PM::init");
     topology::systemTopo.init();
-    for(size_t i = 0; i < topology::systemTopo.getNumSockets(); i++){
-      auto socket = topology::systemTopo.getSocket(i);
+    for(size_t i = topology::systemTopo.getNumSockets(); i > 0; i--){
+      auto socket = topology::systemTopo.getSocket(i-1);
       ASSERT(socket);
       socket->owner = this;
-      lowLatencyFree.pushSocket(socket);
+      pool.pushSocket(socket);
     }
   }
 
@@ -92,7 +92,7 @@ namespace mythos {
     monitor.request(t,[=](Tasklet*){
       ASSERT(r);
       ASSERT(tmp_ret == nullptr);
-      auto resource = lowLatencyFree.tryGetCoarseChunk(); 
+      auto resource = pool.getCore(); 
       if(resource){
         r->response(t, resource);
       }else{
@@ -109,12 +109,27 @@ namespace mythos {
       monitor.responseAndRequestDone();
     });
   }
-  
-  void ProcessorAllocator::free(Tasklet* t, topology::Resource* r){
+
+  void ProcessorAllocator::prealloc(Tasklet* t, IResult<topology::ICore*>* r){
+    MLOG_INFO(mlog::pm, __func__, DVARhex(t));
     monitor.request(t,[=](Tasklet*){
       ASSERT(r);
-      r->moveToPool(&lowLatencyFree);
-      monitor.responseAndRequestDone();
+      auto resource = pool.getCore(); 
+      if(resource){
+        r->response(t, resource);
+      }else{
+        r->response(t, optional<topology::ICore*>());
+      }
+      monitor.requestDone();
+    });
+  }
+  
+  void ProcessorAllocator::free(Tasklet* t, topology::Resource* r, IResult<topology::ICore*>* result){
+    monitor.request(t,[=](Tasklet*){
+      ASSERT(r);
+      r->moveToPool(&pool);
+      result->response(t, optional<topology::ICore*>());
+      monitor.requestDone();
     });
   }
 } // namespace mythos

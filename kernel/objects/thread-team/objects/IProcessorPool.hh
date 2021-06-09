@@ -41,11 +41,13 @@ namespace topology {
     virtual void pushTile(topology::ITile* t);
     virtual void pushCore(topology::ICore* c);
     virtual void pushThread(topology::IThread* t);
+    virtual size_t numThreads();
     virtual topology::ISocket* popSocket();
     virtual topology::ITile* popTile();
     virtual topology::ICore* popCore(); 
     virtual topology::IThread* popThread();
     virtual topology::Resource* tryGetCoarseChunk();
+    virtual topology::ICore* getCore();
     virtual topology::IThread* getThread();
   };
 

@@ -43,6 +43,7 @@ namespace mythos {
   class ThreadTeam
     : public IKernelObject
     , public IResult<topology::Resource*>
+    , public IResult<topology::ICore*>
     , public IResult<void>
     , public topology::IResourceOwner
   {
@@ -61,6 +62,8 @@ namespace mythos {
     /* IResult */
       //called from ProcessorAllocator::alloc
       void response(Tasklet* t, optional<topology::Resource*> r);
+      //called from ProcessorAllocator::prealloc
+      void response(Tasklet* t, optional<topology::ICore*> r);
       //called from ExecutionContext::setSchedulingContext
       void response(Tasklet* t, optional<void> bound);
   
@@ -68,11 +71,16 @@ namespace mythos {
       void notifyIdleThread(Tasklet* t, topology::IThread* thread) override {
         MLOG_INFO(mlog::pm, __func__, DVARhex(t), DVARhex(thread));
         monitor.request(t, [=](Tasklet* t){
+          //todo: check demand
           numAllocated--;
           cachedPool.pushThread(thread);
-          monitor.requestDone();
+          if(!balancePools(t)){
+            monitor.requestDone();
+          }
         });
       } 
+
+      SleepMode getSleepMode() override { return SPINNING; }
 
       // only for init EC
       bool tryRun(ExecutionContext* ec);
@@ -93,9 +101,12 @@ namespace mythos {
         monitor.request(t,[=](Tasklet*){
           MLOG_INFO(mlog::pm, __func__);
           ASSERT(r);
-          auto thread = getFree();
-          if(thread){
-            r->response(t, *thread);
+          auto c = freePool.getCore();
+          if(!c){
+            c = cachedPool.getCore();
+          }
+          if(c){
+            r->response(t, c);
           }else{
             r->response(t, optional<topology::Resource*>());
           }
@@ -103,15 +114,48 @@ namespace mythos {
         });
       }
 
+      bool balancePools(Tasklet* t){
+        MLOG_INFO(mlog::pm, __func__, DVARhex(t));
+        //monitor.request(t,[=](Tasklet*){
+          ASSERT(MIN_FREE_THREADS_IN_TEAM <= TARGET_NUM_THREADS_IN_TEAM);
+          ASSERT(TARGET_NUM_THREADS_IN_TEAM <= MAX_FREE_THREADS_IN_TEAM);
+
+          auto free = freePool.numThreads();
+          auto cached = cachedPool.numThreads();
+          auto sum = free + cached;
+          if(sum < MIN_FREE_THREADS_IN_TEAM){
+            //alloc
+            //auto nAlloc = TARGET_NUM_THREADS_IN_TEAM - sum;
+            pa->prealloc(t, this);
+            return true;
+          }else if(sum > MAX_FREE_THREADS_IN_TEAM){
+            //free
+            //auto nfree = sum - TARGET_NUM_THREADS_IN_TEAM;
+            auto c = freePool.getCore();
+            if(c == nullptr){
+              c = cachedPool.getCore();
+            }
+            if(c){
+              pa->free(t, c, this);
+              return true;
+            }else{
+              MLOG_INFO(mlog::pm, __func__, "too many threads in team but no free core");
+            }
+          }
+          return false;
+          //monitor.requestDone();
+          //monitor.responseAndRequestDone();
+        //});
+      }
     private:
       void tryRunAt(Tasklet* t, ExecutionContext* ec, topology::IThread* thread);
 
       //void pushFree(cpu::ThreadID id);
       optional<topology::IThread*> getFree();
 
-      void pushUsed(cpu::ThreadID id);
-      void removeUsed(cpu::ThreadID id);
-      optional<cpu::ThreadID> popUsed();
+      //void pushUsed(cpu::ThreadID id);
+      //void removeUsed(cpu::ThreadID id);
+      //optional<cpu::ThreadID> popUsed();
       
       bool enqueueDemand(CapEntry* ec);
       bool removeDemand(ExecutionContext* ec, bool resetRef);
@@ -143,8 +187,8 @@ namespace mythos {
       Tasklet paTasklet;
       //cpu::ThreadID freeList[MYTHOS_MAX_THREADS];
       //unsigned nFree;
-      cpu::ThreadID usedList[MYTHOS_MAX_THREADS];
-      unsigned nUsed;
+      //cpu::ThreadID usedList[MYTHOS_MAX_THREADS];
+      //unsigned nUsed;
       CapRef<ThreadTeam, ExecutionContext> demandEC[MYTHOS_MAX_THREADS];
       // index < nDemand = demandEC slot in use
       // index >= nDemand = demandEC slot is free

@@ -25,10 +25,12 @@
  */
 #pragma once
 
-#include "objects/IProcessorTopology.hh"
+#include "objects/ProcessorTopology.hh"
 #include "objects/IProcessorPool.hh"
 
 namespace mythos {
+
+using namespace topology;
 
   struct ProcessorPool : public IProcessorPool {
     
@@ -37,6 +39,7 @@ namespace mythos {
       ASSERT(s->next == nullptr);
       s->next = sockets;
       sockets = s;
+      numResources += TILES_PER_SOCKET * CORES_PER_TILE * THREADS_PER_CORE;
     }
 
     void pushTile(topology::ITile* t) override {
@@ -44,6 +47,7 @@ namespace mythos {
       ASSERT(t->next == nullptr);
       t->next = tiles;
       tiles = t;
+      numResources += CORES_PER_TILE * THREADS_PER_CORE;
       
       // only merge if whole core has same owner
       if(!t->owner){
@@ -75,6 +79,7 @@ namespace mythos {
           curr->next = nullptr;
           curr = *prev; 
           numTiles--;
+          numResources -= CORES_PER_TILE * THREADS_PER_CORE;
         }
         MLOG_DETAIL(mlog::pm, __func__, "merged");
         pushSocket(socket);
@@ -86,6 +91,7 @@ namespace mythos {
       ASSERT(c->next == nullptr);
       c->next = cores;
       cores = c;
+      numResources += THREADS_PER_CORE;
       
       // only merge if whole core has same owner
       if(!c->owner){
@@ -116,6 +122,7 @@ namespace mythos {
           *prev = curr->next;
           curr->next = nullptr;
           curr = *prev; 
+          numResources -= THREADS_PER_CORE;
           numCores--;
         }
         MLOG_DETAIL(mlog::pm, __func__, "merged");
@@ -128,6 +135,7 @@ namespace mythos {
       ASSERT(t->next == nullptr);
       t->next = threads;
       threads = t;
+      numResources++;
 
       // only merge if whole core has same owner
       if(!t->owner){
@@ -158,6 +166,7 @@ namespace mythos {
           *prev = curr->next;
           curr->next = nullptr;
           curr = *prev; 
+          numResources--;
           numThreads--;
         }
         MLOG_DETAIL(mlog::pm, __func__, "merged");
@@ -170,6 +179,7 @@ namespace mythos {
         auto ret = sockets;
         sockets = sockets->next;
         ret->next = nullptr;
+        numResources -= TILES_PER_SOCKET * CORES_PER_TILE * THREADS_PER_CORE;
         return ret;
       } 
       return nullptr;
@@ -180,16 +190,18 @@ namespace mythos {
         auto ret = tiles;
         tiles = tiles->next;
         ret->next = nullptr;
+        numResources -= CORES_PER_TILE * THREADS_PER_CORE;
         return ret;
       } 
       return nullptr;
     }
 
-    topology::ICore* popCore() override { 
+    topology::ICore* popCore() override { /* no, it's not popcorn :( */
       if(cores){
         auto ret = cores;
         cores = cores->next;
         ret->next = nullptr;
+        numResources -= THREADS_PER_CORE;
         return ret;
       } 
       return nullptr;
@@ -200,6 +212,7 @@ namespace mythos {
         auto ret = threads;
         threads = threads->next;
         ret->next = nullptr;
+        numResources--;
         return ret;
       } 
       return nullptr;
@@ -211,6 +224,30 @@ namespace mythos {
       if(cores){ return popCore(); }
       if(threads){ return popThread(); }
       return nullptr;
+    }
+
+    virtual topology::ICore* getCore() override {
+      auto core = popCore();
+      if(!core){
+        auto tile = popTile(); 
+        if(!tile){
+          auto socket = popSocket();
+          if(!socket){
+            return nullptr;
+          }
+          tile = socket->getTile(0);
+          for(size_t i = 1; i < socket->getNumTiles(); i++){
+            pushTile(socket->getTile(i));
+          }
+        }
+        ASSERT(tile);
+        core = tile->getCore(0);
+        for(size_t i = 1; i < tile->getNumCores(); i++){
+          pushCore(tile->getCore(i));
+        }
+      }
+      return core; 
+       
     }
 
     topology::IThread* getThread() override {
@@ -244,18 +281,49 @@ namespace mythos {
       return thread; 
     }
 
+    size_t numThreads() override {
+      // only valid for fixed sized and symmetric processor topologies
+      //size_t numSockets = 0;
+      //auto s = sockets;
+      //while(s){
+        //numSockets++;
+        //s = s->next;
+      //} 
+
+      //size_t numTiles = numSockets * TILES_PER_SOCKET;
+      //auto t = tiles;
+      //while(t){
+        //numTiles++;
+        //t = t->next;
+      //} 
+
+      //size_t numCores = numTiles * CORES_PER_TILE;
+      //auto c = cores;
+      //while(c){
+        //numCores++;
+        //c = c->next;
+      //}
+
+      //size_t numThreads = numCores * THREADS_PER_CORE;
+      //auto th = threads;
+      //while(th){
+        //numThreads++;
+        //th = th->next;
+      //} 
+
+      //if(numThreads != numResources){
+        //MLOG_ERROR(mlog::pm, __func__, "ERROR: numThreads != numResources", DVAR(numThreads), DVAR(numResources));
+      //}
+
+      return numResources;
+    }
+
     topology::ISocket* sockets = nullptr;
     topology::ITile* tiles = nullptr;
     topology::ICore* cores = nullptr;
     topology::IThread* threads = nullptr;
 
-    enum IdleState{
-      DEEP_SLEEP,
-      LOW_LATENCY_SLEEP,
-      SPIN
-    };
-
-    IdleState idleState = SPIN;
+    size_t numResources = 0;
   };
 
 } // namespace mythos

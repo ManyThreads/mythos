@@ -39,16 +39,16 @@ namespace mythos {
       ASSERT(pa);
 
       // free used SCs
-      auto used = popUsed();
-      while(used){
+      //auto used = popUsed();
+      //while(used){
         //auto sce = pa->getSC(*used);
         //TypedCap<SchedulingContext> sc(sce->cap());
         //sc->resetThreadTeam();
         //todo: synchronize!!!!
         //pa->free(*used);
-        numAllocated--;
-        used = popUsed();
-      }
+        //numAllocated--;
+        //used = popUsed();
+      //}
 
       // free unused SCs
       auto free = getFree();
@@ -58,7 +58,7 @@ namespace mythos {
         //sc->resetThreadTeam();
         //todo:: synchronize!!!
         //pa->free(*free);
-        numAllocated--;
+        //numAllocated--;
         free = getFree();
       }
       del.deleteObject(del_handle);
@@ -76,7 +76,7 @@ namespace mythos {
   void ThreadTeam::invoke(Tasklet* t, Cap self, IInvocation* msg)
   {
     MLOG_DETAIL(mlog::pm, __func__, DVAR(t), DVAR(msg));
-    monitor.request(t, [=](Tasklet* t){
+    monitor.request(t, [=](Tasklet* /*t*/){
         ASSERT(state == IDLE);
         state = INVOCATION;
         tmp_msg = msg;
@@ -156,9 +156,25 @@ namespace mythos {
     });
   }
 
+  void ThreadTeam::response(Tasklet* t, optional<topology::ICore*> r){
+    MLOG_INFO(mlog::pm, __PRETTY_FUNCTION__, DVARhex(t));
+    monitor.response(t, [=](Tasklet* t){
+      if(r && *r){
+        MLOG_DETAIL(mlog::pm, DVARhex(*r));
+        r->setOwner(this);
+        r->moveToPool(&freePool);
+      }
+      if(tmp_msg){
+        tmp_msg->replyResponse(Error::SUCCESS);
+        tmp_msg = nullptr;
+      }
+      monitor.responseAndRequestDone();
+    });
+  }
+
   void ThreadTeam::response(Tasklet* t, optional<void> bound){
     MLOG_DETAIL(mlog::pm, __PRETTY_FUNCTION__);
-    monitor.response(t, [=](Tasklet* t){
+    monitor.response(t, [=](Tasklet* /*t*/){
       ASSERT(tmp_thread);
 
       if(state == INVOCATION){
@@ -173,6 +189,12 @@ namespace mythos {
           //pushUsed(tmp_id);
           //allready set! ret->setResponse(protocol::ThreadTeam::RetTryRunEC::ALLOCATED);
           ret->setResponse(protocol::ThreadTeam::RetTryRunEC::ALLOCATED);
+          if(balancePools(t)){
+            state = IDLE;
+            tmp_thread = nullptr;
+            monitor.responseDone();
+            return;
+          }
           tmp_msg->replyResponse(Error::SUCCESS);
           tmp_msg = nullptr;
         }else{
@@ -183,7 +205,7 @@ namespace mythos {
           tmp_msg = nullptr;
         }
       }else if(state == SC_NOTIFY){
-        MLOG_ERROR(mlog::pm, "state = SC_NOTIFY");
+        MLOG_DETAIL(mlog::pm, "state = SC_NOTIFY");
         if(bound){
           MLOG_INFO(mlog::pm, "EC successfully bound to SC");
           // remove ec from demand queue
@@ -199,6 +221,7 @@ namespace mythos {
 
       state = IDLE;
       tmp_thread = nullptr;
+      MLOG_INFO(mlog::pm, "bound", DVARhex(t));
       monitor.responseAndRequestDone();
     });
   }
@@ -213,7 +236,7 @@ namespace mythos {
     , state(IDLE)
     , pa(nullptr)
     //, nFree(0)
-    , nUsed(0)
+    //, nUsed(0)
     , nDemand(0)
     , limit(0)
     , numAllocated(0)
@@ -241,6 +264,7 @@ namespace mythos {
     if(thread){
       if(ec->setSchedulingContext(thread->getSC())){
         //pushUsed(*id);
+        numAllocated++;
         return true;
       }else{
         (*thread)->moveToPool(&freePool);
@@ -267,7 +291,7 @@ namespace mythos {
   }
 
   void ThreadTeam::tryRunAt(Tasklet* t, ExecutionContext* ec, topology::IThread* thread){
-    MLOG_DETAIL(mlog::pm, __func__, DVARhex(ec), DVARhex(thread), DVAR(thread->getThreadID()));
+    MLOG_INFO(mlog::pm, __func__, DVARhex(ec), DVARhex(thread), DVAR(thread->getThreadID()), DVARhex(t));
     ASSERT(thread);
     tmp_thread = thread;
     auto sce = thread->getSC();
@@ -339,7 +363,7 @@ namespace mythos {
     auto data = msg->getMessage()->read<protocol::ThreadTeam::SetLimit>();
     auto oldLimit = limit;
     limit = data.limit;
-    MLOG_DETAIL(mlog::pm, DVAR(oldLimit), DVAR(limit));
+    MLOG_ERROR(mlog::pm, DVAR(oldLimit), DVAR(limit));
 
     return Error::SUCCESS;
   }
@@ -358,47 +382,52 @@ namespace mythos {
   optional<topology::IThread*> ThreadTeam::getFree(){
     MLOG_DETAIL(mlog::pm, __func__);
     optional<topology::IThread*> ret;
-    //try get from cached pool
-    auto thread = cachedPool.getThread();
-    if(!thread){
-      //try get from free pool
-      thread = freePool.getThread();
-    }
-    if(thread){
-      ret = thread;
-    }
-    return ret;
-  }
-
-  void ThreadTeam::pushUsed(cpu::ThreadID id){
-    MLOG_DETAIL(mlog::pm, __func__, DVAR(id));
-    usedList[nUsed] = id;
-    nUsed++;
-  }
-
-  optional<cpu::ThreadID> ThreadTeam::popUsed(){
-    MLOG_DETAIL(mlog::pm, __func__);
-    optional<cpu::ThreadID> ret;
-    if(nUsed > 0){
-      nUsed--;
-      ret = usedList[nUsed];
-    }
-    return ret;
-  }
-
-  void ThreadTeam::removeUsed(cpu::ThreadID id){
-    MLOG_DETAIL(mlog::pm, __func__, DVAR(id));
-    for(unsigned i = 0; i < nUsed; i++){
-      if(usedList[i] == id){
-        nUsed--;
-        for(; i < nUsed; i++){
-          usedList[i] = usedList[i+1];
-        }
-        return;
+    if(!limitReached()){
+      //try get from cached pool
+      auto thread = cachedPool.getThread();
+      if(!thread){
+        //try get from free pool
+        thread = freePool.getThread();
       }
+      if(thread){
+        ret = thread;
+      }
+    }else{
+      MLOG_DETAIL(mlog::pm, __func__, " limit reached!");
     }
-    MLOG_ERROR(mlog::pm, "ERROR: did not find used ThreadID ", id);
+
+    return ret;
   }
+
+  //void ThreadTeam::pushUsed(cpu::ThreadID id){
+    //MLOG_DETAIL(mlog::pm, __func__, DVAR(id));
+    //usedList[nUsed] = id;
+    //nUsed++;
+  //}
+
+  //optional<cpu::ThreadID> ThreadTeam::popUsed(){
+    //MLOG_DETAIL(mlog::pm, __func__);
+    //optional<cpu::ThreadID> ret;
+    //if(nUsed > 0){
+      //nUsed--;
+      //ret = usedList[nUsed];
+    //}
+    //return ret;
+  //}
+
+  //void ThreadTeam::removeUsed(cpu::ThreadID id){
+    //MLOG_DETAIL(mlog::pm, __func__, DVAR(id));
+    //for(unsigned i = 0; i < nUsed; i++){
+      //if(usedList[i] == id){
+        //nUsed--;
+        //for(; i < nUsed; i++){
+          //usedList[i] = usedList[i+1];
+        //}
+        //return;
+      //}
+    //}
+    //MLOG_ERROR(mlog::pm, "ERROR: did not find used ThreadID ", id);
+  //}
 
   bool ThreadTeam::enqueueDemand(CapEntry* ec){
     MLOG_DETAIL(mlog::pm, __func__, DVARhex(ec));

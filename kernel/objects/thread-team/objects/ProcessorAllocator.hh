@@ -78,6 +78,8 @@ class ProcessorAllocator
       MLOG_ERROR(mlog::pm, "Free thread notified idle...", DVARhex(t), DVARhex(thread));
     } 
 
+    SleepMode getSleepMode() override { return DEEPSLEEP; }
+
     void init();
 
     //optional<cpu::ThreadID> alloc(); 
@@ -90,13 +92,14 @@ class ProcessorAllocator
     //reclaim
 
     topology::Resource* alloc(){
-      return lowLatencyFree.tryGetCoarseChunk(); 
-      //return lowLatencyFree.getThread(); 
+      //return pool.tryGetCoarseChunk(); 
+      return pool.getCore();
     } 
 
     bool tryReclaimLoop(Tasklet* t);
     void alloc(Tasklet* t, IResult<topology::Resource*>* r);
-    void free(Tasklet* t, topology::Resource* r);
+    void prealloc(Tasklet* t, IResult<topology::ICore*>* r);
+    void free(Tasklet* t, topology::Resource* r, IResult<topology::ICore*>* result);
 
     void bind(optional<ThreadTeam*> /*tt*/){}
     void unbind(optional<ThreadTeam*> tt){
@@ -139,7 +142,6 @@ class ProcessorAllocator
     unsigned tmpTeam, nextTeam;
     IResult<topology::Resource*>* tmp_ret;
     
-    ProcessorPool deepSleepFree;
-    ProcessorPool lowLatencyFree;
+    ProcessorPool pool;
 };
 } // namespace mythos

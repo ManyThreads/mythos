@@ -25,13 +25,13 @@
  */
 
 #include "cpu/hwthreadid.hh"
+#include "cpu/mwait.hh"
 #include "objects/SchedulingContext.hh"
 #include "objects/ISchedulable.hh"
 #include "objects/CapEntry.hh"
 #include "objects/KernelMemory.hh"
 #include "objects/mlog.hh"
 #include "boot/memory-root.hh"
-
 
 namespace mythos {
 
@@ -76,7 +76,12 @@ namespace mythos {
 
         // wake up the hardware thread if it has no execution context running
 	// or if if current ec got ready in case of race condition
-        if (current == nullptr || current == ec) home->preempt();
+        //if (current == nullptr || current == ec) home->preempt();
+        if (current == nullptr || current == ec){
+          //MLOG_ERROR(mlog::sched, "wake SC");
+          //home->preempt();
+          wake();
+        } 
     }
 
     void SchedulingContext::tryRunUser()
@@ -97,11 +102,11 @@ namespace mythos {
             }
             MLOG_DETAIL(mlog::sched, "try from ready list");
             // something on the ready list?
+            sleepFlag.store(true);
             auto next = readyQueue.pull();
             while (next != nullptr && !next->get()->isReady()) next = readyQueue.pull();
             if (next == nullptr) {
                 // go sleeping because we don't have anything to run
-                MLOG_DETAIL(mlog::sched, "empty ready list, going to sleep");
                 return;
             }
             current_handle.store(next);
@@ -109,4 +114,57 @@ namespace mythos {
         }
     }
 
+    void SchedulingContext::sleep(){
+        //MLOG_ERROR(mlog::sched, "empty ready list, going to sleep");
+        //SleepMode sm = HALT;
+        SleepMode sm = SPINNING;
+        auto ni = myNI.load();
+        if(ni != nullptr){
+          sm = ni->getSleepMode();
+        }else{
+          //MLOG_ERROR(mlog::sched, "No IdleNotify registered!");
+        }
+
+        unsigned long hint = 0;
+        switch(sm){
+          case SPINNING:
+            //MLOG_ERROR(mlog::sched, "Spinning");
+            hint = cpu::mwaitHint(0,0); 
+            break;
+          case HALT:
+            //MLOG_ERROR(mlog::sched, "Halt");
+            hint = cpu::mwaitHint(1,0); 
+            break;
+          case ENHANCEDHALT:
+            //MLOG_ERROR(mlog::sched, "EHalt");
+            hint = cpu::mwaitHint(1,1); 
+            break;
+          case DEEPSLEEP:
+            //MLOG_ERROR(mlog::sched, "Deep sleep");
+            hint = cpu::mwaitHint(3,1); 
+            break;
+          default:
+            MLOG_ERROR(mlog::sched, "Unknown sleep mode ", DVAR(sm));
+        }
+      
+
+        cpu::clflush(&sleepFlag);
+        cpu::barrier();
+        //cpu::clearInt();
+        //cpu::barrier();
+        cpu::monitor(&sleepFlag, 0, 0);
+        cpu::barrier();
+        if(sleepFlag.load()){
+          cpu::mwait(hint,1);
+        }else{
+          //MLOG_ERROR(mlog::sched, "mwait failed");
+        }
+        //MLOG_ERROR(mlog::sched, "woken up");
+    }
+
+    void SchedulingContext::wake(){ 
+      sleepFlag.store(false); 
+      cpu::clflush(&sleepFlag);
+      cpu::barrier();
+    }
 } // namespace mythos

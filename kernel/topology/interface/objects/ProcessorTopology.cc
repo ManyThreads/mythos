@@ -28,6 +28,37 @@
 
 namespace mythos {
 namespace topology {
+  CapEntry* ISocket::getFirstSC() { return getTile(0)->getFirstSC(); }
+  CapEntry* ITile::getFirstSC() { return getCore(0)->getFirstSC(); }
+  CapEntry* ICore::getFirstSC() { return getThread(0)->getFirstSC(); }
+  CapEntry* IThread::getFirstSC() { return getSC(); }
+
+  void ISocket::wake() {
+    for(size_t i = 0; i < getNumTiles(); i++){
+      getTile(i)->wake();
+    }
+  }
+  
+  void ITile::wake() {
+    for(size_t i = 0; i < getNumCores(); i++){
+      getCore(i)->wake();
+    }
+  }
+
+  void ICore::wake() {
+    for(size_t i = 0; i < getNumThreads(); i++){
+      getThread(i)->wake();
+    }
+  }
+
+  void IThread::wake() {
+    MLOG_INFO(mlog::pm, __func__, DVAR(getThreadID()));
+    auto sce = getSC();
+    TypedCap<SchedulingContext> sc(sce);
+    ASSERT(sc);
+    sc->wake();
+  }
+
   SystemTopo systemTopo;
 } //topology
 } // namespace mythos

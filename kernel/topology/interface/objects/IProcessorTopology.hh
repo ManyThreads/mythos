@@ -40,28 +40,23 @@ namespace topology {
 
   struct IResourceOwner {
     virtual void notifyIdleThread(Tasklet* t, IThread* thread) = 0;
+    virtual SleepMode getSleepMode() = 0;
   };
 
   struct Resource{
-    //enum State{
-      //FREE,
-      //PARTITIONED,
-      //ALLOCATED
-    //};
-    //State state = FREE;
     IResourceOwner* owner = nullptr;
 
     virtual IResourceOwner* getOwner() = 0;
     virtual void moveToPool(IProcessorPool* pool) = 0;
     virtual void setOwner(IResourceOwner* ro) = 0;
+    virtual CapEntry* getFirstSC()= 0;
+    virtual void wake();
   };
-
 
   template<class TYPE>
   struct Queueable{
     TYPE* next = nullptr;
   };
-
 
   struct ISystem {
     virtual size_t getNumSockets() = 0;
@@ -76,10 +71,12 @@ namespace topology {
       if(owner){
         return owner;
       }else{
-        MLOG_ERROR(mlog::pm, __func__, "ERROR: resource owner not found!");
+        //MLOG_ERROR(mlog::pm, __func__, "ERROR: resource owner not found!");
         return nullptr;
       }
     }
+
+    CapEntry* getFirstSC() override;
 
     void moveToPool(IProcessorPool* p) override {
       ASSERT(p);
@@ -88,15 +85,26 @@ namespace topology {
 
     void setOwner(IResourceOwner* ro) override {
       MLOG_INFO(mlog::pm, __func__, DVARhex(ro));
+      auto old = owner;
       if(owner){
         MLOG_INFO(mlog::pm, __func__, "replace owner");
         owner = ro;
+        if(ro){
+          if(old->getSleepMode() != ro->getSleepMode()){
+            wake();
+          }
+        }
       }else{
         MLOG_INFO(mlog::pm, __func__, "split ownership");
-        ASSERT(getOwner() != ro);
+        //ASSERT(getOwner() != ro);
         owner = ro;
+        if(ro){
+          wake();
+        }
       }
     }
+
+    void wake() override;
   };
 
   struct ITile : public Resource, public Queueable<ITile> {
@@ -113,6 +121,8 @@ namespace topology {
       }
     }
 
+    CapEntry* getFirstSC() override;
+
     void moveToPool(IProcessorPool* p) override {
       ASSERT(p);
       p->pushTile(this);
@@ -121,10 +131,16 @@ namespace topology {
     void setOwner(IResourceOwner* ro) override {
       MLOG_INFO(mlog::pm, __func__, DVARhex(ro));
       auto socket = getSocket();
+      auto old = owner;
       if(owner){
         MLOG_INFO(mlog::pm, __func__, "replace owner");
         ASSERT(socket->owner == nullptr);
         owner = ro;
+        if(ro){
+          if(old->getSleepMode() != ro->getSleepMode()){
+            wake();
+          }
+        }
         //try to merge
         MLOG_INFO(mlog::pm, __func__, "try to  merge");
         for(size_t i = 0; i < socket->getNumTiles(); i++){
@@ -144,6 +160,9 @@ namespace topology {
         MLOG_INFO(mlog::pm, __func__, "split ownership");
         ASSERT(getOwner() != ro);
         owner = ro;
+        if(ro){
+          wake();
+        }
         //split tree
         for(size_t i = 0; i < socket->getNumTiles(); i++){
           auto t = socket->getTile(i);
@@ -156,6 +175,8 @@ namespace topology {
         socket->setOwner(nullptr);
       }
     }
+
+    void wake() override;
   };
 
   struct ICore : public Resource, public Queueable<ICore> {
@@ -172,6 +193,8 @@ namespace topology {
       }
     }
 
+    CapEntry* getFirstSC() override;
+
     void moveToPool(IProcessorPool* p) override {
       ASSERT(p);
       p->pushCore(this);
@@ -180,10 +203,16 @@ namespace topology {
     void setOwner(IResourceOwner* ro) override {
       MLOG_INFO(mlog::pm, __func__, DVARhex(ro));
       auto tile = getTile();
+      auto old = owner;
       if(owner){
         MLOG_INFO(mlog::pm, __func__, "replace owner");
         ASSERT(tile->owner == nullptr);
         owner = ro;
+        if(ro){
+          if(old->getSleepMode() != ro->getSleepMode()){
+            wake();
+          }
+        }
         //try to merge
         MLOG_INFO(mlog::pm, __func__, "try to  merge");
         for(size_t i = 0; i < tile->getNumCores(); i++){
@@ -201,8 +230,11 @@ namespace topology {
         tile->setOwner(ro);
       }else{
         MLOG_INFO(mlog::pm, __func__, "split ownership");
-        ASSERT(getOwner() != ro);
+        //ASSERT(getOwner() != ro);
         owner = ro;
+        if(ro){
+          wake();
+        }
         //split tree
         for(size_t i = 0; i < tile->getNumCores(); i++){
           auto c = tile->getCore(i);
@@ -215,6 +247,8 @@ namespace topology {
         tile->setOwner(nullptr);
       }
     }
+
+    void wake() override; 
   };
 
   struct IThread : public Resource, public Queueable<IThread> {
@@ -232,6 +266,8 @@ namespace topology {
       }
     }
 
+    CapEntry* getFirstSC() override;
+
     void moveToPool(IProcessorPool* p) override {
       ASSERT(p);
       p->pushThread(this);
@@ -239,11 +275,17 @@ namespace topology {
 
     void setOwner(IResourceOwner* ro) override {
       MLOG_INFO(mlog::pm, __func__, DVARhex(ro));
+      auto old = owner;
       auto core = getCore();
       if(owner){
         MLOG_INFO(mlog::pm, __func__, "replace owner");
         ASSERT(core->owner == nullptr);
         owner = ro;
+        if(ro){
+          if(old->getSleepMode() != ro->getSleepMode()){
+            wake();
+          }
+        }
         //try to merge
         MLOG_INFO(mlog::pm, __func__, "try to  merge");
         for(size_t i = 0; i < core->getNumThreads(); i++){
@@ -261,8 +303,11 @@ namespace topology {
         core->setOwner(ro);
       }else{
         MLOG_INFO(mlog::pm, __func__, "split ownership");
-        ASSERT(getOwner() != ro);
+        //ASSERT(getOwner() != ro);
         owner = ro;
+        if(ro){
+          wake();
+        }
         //split tree
         for(size_t i = 0; i < core->getNumThreads(); i++){
           auto t = core->getThread(i);
@@ -275,6 +320,8 @@ namespace topology {
         core->setOwner(nullptr);
       }
     }
+
+    void wake() override;
   };
 
   struct Thread : public IThread, public INotifyIdle
@@ -297,8 +344,18 @@ namespace topology {
     void notifyIdle() override {
       MLOG_INFO(mlog::pm, __func__, DVAR(threadID), DVAR(apicID));
       auto o = getOwner();
-      ASSERT(o);
-      o->notifyIdleThread(&tasklet, this);
+      if(o) {
+        o->notifyIdleThread(&tasklet, this);
+      }
+    }
+
+    SleepMode getSleepMode() override {
+      MLOG_INFO(mlog::pm, __func__);
+      auto o = getOwner();
+      if(o) {
+        return o->getSleepMode();
+      }
+      return DEEPSLEEP;
     }
 
     CapEntry* getSC() override { return image2kernel(&mySC); }

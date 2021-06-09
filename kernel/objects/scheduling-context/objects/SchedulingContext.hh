@@ -35,9 +35,17 @@
 
 namespace mythos {
 
+  enum SleepMode{
+    SPINNING,
+    HALT,
+    ENHANCEDHALT,
+    DEEPSLEEP
+  };
+
   class INotifyIdle{
     public:
       virtual void notifyIdle() = 0;
+      virtual SleepMode getSleepMode() = 0;
   };
 
   /** Scheduler for multiple application threads on a single hardware
@@ -73,13 +81,14 @@ namespace mythos {
    * queue is empty. If no ready EC was found, there is no selected EC
    * and the control returns.
    */
-  class SchedulingContext final
+  class alignas(256) SchedulingContext final
     : public IKernelObject
     , public IScheduler
   {
   public:
     SchedulingContext()
       : myNI(nullptr)
+      , sleepFlag(true)
     { }
     void init(async::Place* home) { this->home = home; }
     virtual ~SchedulingContext() {}
@@ -88,6 +97,8 @@ namespace mythos {
      * Returns only if no ready execution context was available.
      */
     void tryRunUser();
+    void sleep();
+    void wake(); 
 
   public: // IScheduler interface
     void bind(handle_t* ec_handle) override;
@@ -119,5 +130,6 @@ namespace mythos {
     std::atomic<handle_t*> current_handle = {nullptr}; //< the currently selected execution context
 
     std::atomic<INotifyIdle*> myNI;
+    alignas (128) std::atomic<bool> sleepFlag;
   };
 } // namespace mythos

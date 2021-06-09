@@ -39,6 +39,10 @@ namespace topology {
   constexpr size_t TILES_PER_SOCKET = 1;
   constexpr size_t SOCKETS = 2;
 
+  constexpr size_t MIN_FREE_THREADS_IN_TEAM = 1;
+  constexpr size_t MAX_FREE_THREADS_IN_TEAM = 4;
+  constexpr size_t TARGET_NUM_THREADS_IN_TEAM = 2;
+
   constexpr size_t MAX_CORES = SOCKETS * TILES_PER_SOCKET * CORES_PER_TILE * THREADS_PER_CORE;
   constexpr size_t MAX_THREADS = MAX_CORES * THREADS_PER_CORE;
 
@@ -50,11 +54,13 @@ namespace topology {
         for(size_t t = 0; t < TILES_PER_SOCKET; t++){
           for(size_t c = 0; c < CORES_PER_TILE; c++){
             for(size_t ht = 0; ht < THREADS_PER_CORE; ht++){
-              cpu::ApicID aID = static_cast<cpu::ApicID>(s + ((c + (c / 7))* 2) + (ht * 64));
-              MLOG_DETAIL(mlog::pm, __func__, DVAR(s), DVAR(t), DVAR(c), DVAR(ht), DVAR(aID));
+              //cpu::ApicID aID = static_cast<cpu::ApicID>(s + ((c + (c / 7))* 2) + (ht * 64));
+              size_t core_id = s*TILES_PER_SOCKET*CORES_PER_TILE + c; 
+              cpu::ApicID aID = static_cast<cpu::ApicID>((core_id+(core_id/7))*THREADS_PER_CORE + ht);
+              //MLOG_DETAIL(mlog::pm, __func__, DVAR(s), DVAR(t), DVAR(c), DVAR(ht), DVAR(aID));
               ASSERT(mythos::boot::ap_apic2config[aID]);
               cpu::ThreadID tID = mythos::boot::ap_apic2config[aID]->threadID;
-              //MLOG_INFO(mlog::pm, __func__, DVAR(tID), DVAR(aID));
+              MLOG_DETAIL(mlog::pm, __func__, DVAR(s), DVAR(t), DVAR(c), DVAR(ht), DVAR(tID), DVAR(aID));
               sockets[s].tiles[t].cores[c].threads[ht].init(tID);
             }
           }

@@ -109,10 +109,13 @@ void entry_bsp()
 NORETURN void runUser();
 
 void runUser() {
-  mythos::async::getLocalPlace().processTasks();
-  mythos::boot::getLocalScheduler().tryRunUser();
-//  MLOG_DETAIL(mlog::boot, "going to sleep now");
-  mythos::idle::sleep(); // resets the kernel stack!
+  for(;;){
+    mythos::async::getLocalPlace().processTasks();
+    mythos::boot::getLocalScheduler().tryRunUser();
+    //MLOG_ERROR(mlog::boot, "going to sleep now");
+    //mythos::idle::sleep(); // resets the kernel stack!
+    mythos::boot::getLocalScheduler().sleep();
+  }
 }
 
 /** Boot entry point and deep sleep exit point for application
@@ -134,6 +137,10 @@ void entry_ap(size_t apicID, size_t reason)
   mythos::event::bootAP.emit(mythos::cpu::getThreadID(), firstBoot, reason);
   MLOG_DETAIL(mlog::boot, DVARhex(mythos::x86::getXCR0()));
   MLOG_DETAIL(mlog::boot, "EFER", DVARhex(mythos::x86::getMSR(mythos::x86::MSR_EFER)), DVAR(mythos::x86::getCR0()));
+  //MLOG_ERROR(mlog::boot, "MISC enable", DVARhex(mythos::x86::getMSR(mythos::x86::IA32_MISC_ENABLE)), DVAR(mythos::x86::isTurboBoostEnabled()));
+  //mythos::x86::setMSR(mythos::x86::IA32_MISC_ENABLE,0x4000850089);
+  //mythos::x86::disableTurboBoost();
+  //MLOG_ERROR(mlog::boot, "MISC enabled?", DVARhex(mythos::x86::getMSR(mythos::x86::IA32_MISC_ENABLE)), DVARhex(mythos::x86::getMSR(mythos::x86::IA32_MISC_ENABLE)| (1ul << 38)), DVAR(mythos::x86::isTurboBoostEnabled()));
   mythos::idle::wokeup(apicID, reason); // may not return
   runUser();
 }
@@ -149,8 +156,8 @@ void mythos::cpu::syscall_entry_cxx(mythos::cpu::ThreadState* /*ctx*/)
 {
   mythos::async::getLocalPlace().enterKernel();
   mythos::idle::enteredFromSyscall();
-//  MLOG_DETAIL(mlog::boot, "user system call", DVARhex(ctx->rdi), DVARhex(ctx->rsi),
-//      DVARhex(ctx->rip), DVARhex(ctx->rsp));
+  //MLOG_ERROR(mlog::boot, "user system call", DVARhex(ctx->rdi), DVARhex(ctx->rsi),
+      //DVARhex(ctx->rip), DVARhex(ctx->rsp));
   mythos::ec_handle_syscall();
   runUser();
 }
