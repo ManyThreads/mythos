@@ -26,6 +26,7 @@
 
 #include "boot/load_init.hh"
 
+#include "cpu/mwait.hh"
 #include "util/elf64.hh"
 #include "util/align.hh"
 #include "util/compiler.hh"
@@ -209,7 +210,13 @@ optional<CapPtr> InitLoader::createInfoFrame(uintptr_t ipc_vaddr)
 
     //register user memory
     info->memRanges = _mem->getUserMem();
-
+    
+    if(cpu::invariantTSC()){
+      MLOG_ERROR(mlog::boot, cpu::PsPerTSC());
+      info->psPerTsc = cpu::PsPerTSC();
+    }else{
+      MLOG_ERROR(mlog::boot, "TSC is not invariant!");
+    } 
     event::initInfoFrame.emit(info);
 
     return frameCap;

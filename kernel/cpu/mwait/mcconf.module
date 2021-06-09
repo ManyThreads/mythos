@@ -1,0 +1,3 @@
+# -*- mode:toml; -*-
+[module.kernel-mwait]
+    incfiles = [ "cpu/mwait.hh" ]
