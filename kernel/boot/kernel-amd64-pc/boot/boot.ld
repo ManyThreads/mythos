@@ -50,7 +50,7 @@ SECTIONS
     .bootlower LOAD_ADDR : AT(LOAD_ADDR)
     {
         KEEP(*(.bootlower))
-    } : bootlower /* put into boot segment */
+    } : init /* put into init segment */
     PROVIDE (LOAD_END = .);
 
     /* the begin of the upper half code and data in physical memory */

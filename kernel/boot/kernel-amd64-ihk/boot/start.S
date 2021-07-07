@@ -31,8 +31,6 @@
 .extern entry_bsp
 .extern entry_ap
 
-.section .bootlower, "awx"  // the following code and data is in the low memory init section
-
 // EFER bit 0: SYSCALL instruction enable
 // EFER bit 8: IA-32e mode enable
 // EFER bit 11: enable noexecute bit in page tables
@@ -64,135 +62,34 @@
 #define CR4_MASK     0xFFFFFFFF
 #define CR4_ENABLE   0x00000020
 
-/** magic number for the Multiboot header. */
-#define MULTIBOOT_HEADER_MAGIC          0x1BADB002
+.section .rodata
 
-/** multiboot flags towards the bootloader.
- *
- * https://www.gnu.org/software/grub/manual/multiboot/multiboot.html
- * If bit 0 in the ‘flags’ word is set, then all boot modules loaded along with the operating system must be aligned on page (4KB) boundaries.
- * If bit 1 in the ‘flags’ word is set, then information on available memory via at least the ‘mem_*’ fields of the Multiboot information structure must be included. If the boot loader is capable of passing a memory map (the ‘mmap_*’ fields) and one exists, then it may be included as well.
- * If bit 2 in the ‘flags’ word is set, information about the video mode table must be available to the kernel.
- * If bit 16 in the ‘flags’ word is set, then the fields at offsets 12-28 in the Multiboot header are valid, and the boot loader should use them instead of the fields in the actual executable header to calculate where to load the OS image. This information does not need to be provided if the kernel image is in elf format.
- */
-#define MULTIBOOT_HEADER_FLAGS          0x00000000
-
-.align  4
-/** multiboot header: just magic, flags and checksum without the optional fields */
-/*_mboot_header:
-        .long MULTIBOOT_HEADER_MAGIC
-        .long MULTIBOOT_HEADER_FLAGS
-        .long -(MULTIBOOT_HEADER_MAGIC+MULTIBOOT_HEADER_FLAGS)*/
-
-/** Global Descriptor Table (GDT) during boot.
- * see 3.4.5.1 Code- and Data-Segment Descriptor Types in Intel 253668-048US.
- * granularity 0xa0 = 10100000b => limit granularity 4kb, operand size unset, 64bit mode
- * access 0x9b = 10011011b => present, ring0, code/data, Execute/Read accessed
- *  0011 read/write accessed
- *  1001 execute only accessed
- *  1011 execute/read accessed
- *  access 0xfb = 11111011 => present, ring3, code/data, Execute/Read accessed
- *  limit can be 0 because it is not used in 64bit mode
- */
-.align  8
-.global _boot_gdt_start
+.balign  8
+//.global _boot_gdt_start
 _boot_gdt_start:
-        .quad   0x0000000000000000      // null descriptor
-        .quad   0x0000000000000000      // 0x08 unused
-        .quad   0x00a09b000000ffff      // 0x10 kernel code
-        .quad   0x00a093000000ffff      // 0x18 kernel data
+    .quad   0x0000000000000000      // null descriptor
+    .quad   0x0000000000000000      // 0x08 unused
+    .quad   0x00a09b000000ffff      // 0x10 kernel code
+    .quad   0x00a093000000ffff      // 0x18 kernel data
 _boot_gdt_end:
-        .word   0                       // padding to align ...
+    .word   0                       // padding to align ...
 _boot_gdt:
-        .word   _boot_gdt_end - _boot_gdt_start - 1     // limit: length of the GDT
-        .quad   _boot_gdt_start                 // base
+    .word   _boot_gdt_end - _boot_gdt_start - 1     // limit: length of the GDT
+    .quad   _boot_gdt_start                 // base
 
-/*.align 8
-.global _mboot_table
-_mboot_table:   .quad   0
-.global _mboot_magic
-_mboot_magic:   .quad   0*/
-
-/* just for testing */
-//.global _host_info_ptr
-//_host_info_ptr:   .quad   0
-
-/* start code for the bootstrap processor BSP, i.e. the first core */
-/*.code32
-.align  8
-.global _start_bsp
-.type _start_bsp, @function
-_start_bsp:
-        // eax and ebx contains the multiboot magic and table pointer,
-        // lets store this for later.
-        mov %eax, _mboot_magic
-        mov %ebx, _mboot_table
-
-        // activate the initial page table
-        mov     $(EFER_MSR), %ecx       // select the EFER MSR
-        rdmsr                           // read EFER
-        and     $(EFER_MASK), %eax
-        or      $(EFER_ENABLE), %eax
-        wrmsr                           // write EFER
-        mov     %cr4, %edx
-        and     $(CR4_MASK), %edx
-        or      $(CR4_ENABLE), %edx
-        mov     %edx, %cr4
-        mov     $(BOOT_PML4-VIRT_ADDR), %edx // pointer to the Page Directory
-        mov     %edx, %cr3
-        mov     %cr0, %edx
-        and     $(CR0_MASK), %edx
-        or      $(CR0_ENABLE), %edx
-        mov     %edx, %cr0  // switch to protected mode, with paging enabled and write protect
-
-        // load our own segment descriptor table
-        lgdt    _boot_gdt
-        ljmp    $0x10, $_start_bsp64    // switch CS to 64bit mode
-*/
-.code64
-.align 8
-.global _start_bsp64_pregdt
-.type _start_bsp64_pregdt, @function
-_start_bsp64_pregdt:
-        mov $(BOOT_STACK+BOOT_STACK_SIZE), %rsp    // set up boot kernel stack
-        // load our own segment descriptor table, see above in this file
-        // the segments 0x10 and 0x18 match the final GDT of the kernel
-        lgdt    _boot_gdt
-        // switch code segment to 0x10 instead of leftovers from the loader
-        // create a stack frame like from a far call and return
-        push    $0x10 // KERNEL_CS
-        push    $_start_bsp64
-        retfq
-
-_start_bsp64:
-        mov     $0x18, %cx      // kernel data selector
-        mov     %cx, %ss
-        mov     %cx, %ds
-        mov     %cx, %es
-        mov     %cx, %fs
-        mov     %cx, %gs
-        cld // for gcc code
-
-        mov     $(EFER_MSR), %ecx       // select the EFER MSR
-        rdmsr                           // read EFER
-        and     $(EFER_MASK), %eax
-        or      $(EFER_ENABLE), %eax
-        wrmsr                           // write EFER
-
-        // go to the stage 3 boot code, and never come back
-        xor %rbp, %rbp
-        pushq   $0 // fake return address as first stack frame
-        jmp entry_bsp
 
 .section .text
 
+
+
+
 .code16
-.align 8
+.balign 8
 .global _dbg_trampoline
 base = .
 _dbg_trampoline:
 
-.align 8
+.balign 8
 jmp _dbg_trampoline_code
 
 .org 8
@@ -206,7 +103,7 @@ _dbg_startap:
   .quad 0x0
 
 dbg_ljmp32: // overwritten in (II)
- .long dbg_32prot - base
+  .long dbg_32prot - base
   .word 0x20
 
 boot_gdtptr:
@@ -267,13 +164,13 @@ test:
 
   ljmpl *(dbg_ljmp32 - base)
 
-.align  4
+.balign  4
 boot_idtptr:
   .short  0
   .long 0
 
 
-  .align  4
+  .balign  4
 boot_gdt32:
   .quad 0
   .quad 0
@@ -349,9 +246,44 @@ dbg_loop:
 .global _dbg_trampoline_end
 _dbg_trampoline_end:
 
+/** \f _start_bsp64_pregdt is called from ihk-entry.cc */
+.code64
+.balign 8
+.global _start_bsp64_pregdt
+.type _start_bsp64_pregdt, @function
+_start_bsp64_pregdt:
+    mov $(BOOT_STACK+BOOT_STACK_SIZE), %rsp    // set up boot kernel stack
+    // load our own segment descriptor table, see above in this file
+    // the segments 0x10 and 0x18 match the final GDT of the kernel
+    lgdt    _boot_gdt
+    // switch code segment to 0x10 instead of leftovers from the loader
+    // create a stack frame like from a far call and return
+    push    $0x10 // KERNEL_CS
+    push    $_start_bsp64
+    retfq
+
+_start_bsp64:
+    mov     $0x18, %cx      // kernel data selector
+    mov     %cx, %ss
+    mov     %cx, %ds
+    mov     %cx, %es
+    mov     %cx, %fs
+    mov     %cx, %gs
+    cld // for gcc code
+
+    mov     $(EFER_MSR), %ecx       // select the EFER MSR
+    rdmsr                           // read EFER
+    and     $(EFER_MASK), %eax
+    or      $(EFER_ENABLE), %eax
+    wrmsr                           // write EFER
+
+    // go to the stage 3 boot code, and never come back
+    xor %rbp, %rbp
+    pushq   $0 // fake return address as first stack frame
+    jmp entry_bsp
 
 .code64
-.align 8
+.balign 8
 
 .global _start_ap64_pregdt
 .type _start_ap64_pregdt, @function
