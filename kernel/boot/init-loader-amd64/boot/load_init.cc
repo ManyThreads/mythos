@@ -41,6 +41,7 @@
 #include "objects/SchedulingContext.hh"
 #include "objects/Portal.hh"
 #include "objects/Example.hh"
+#include "objects/SignalListener.hh"
 #include "boot/mlog.hh"
 #include "boot/memory-root.hh"
 #include "boot/DeployHWThread.hh"
@@ -98,6 +99,7 @@ namespace factory {
   CapMapFactory capmap;
   PageMapFactory pagemap;
   KernelMemoryFactory untypedMemory;
+  SignalListenerFactory signalListener;
 } // namespace example
 
 template<class Object, class Factory, class... ARGS>
@@ -159,6 +161,7 @@ optional<void> InitLoader::initCSpace()
   if (res) res = csSet(init::CAPMAP_FACTORY, factory::capmap);
   if (res) res = csSet(init::PAGEMAP_FACTORY, factory::pagemap);
   if (res) res = csSet(init::UNTYPED_MEMORY_FACTORY, factory::untypedMemory);
+  if (res) res = csSet(init::SIGNAL_LISTENER_FACTORY, factory::signalListener);
   if (!res) RETHROW(res);
 
   MLOG_INFO(mlog::boot, "... create memory regions root in cap", init::DEVICE_MEM);

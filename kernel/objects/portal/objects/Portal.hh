@@ -37,6 +37,7 @@
 #include "objects/RevokeOperation.hh"
 #include "mythos/protocol/Portal.hh"
 #include "util/Logger.hh"
+#include "objects/kevent.hh"
 
 namespace mlog {
 #ifndef MLOG_PORTAL
@@ -72,7 +73,7 @@ namespace mythos {
     : public IKernelObject
     , public IPortal
     , public IInvocation
-    , public INotification
+    , public IKEventSource
     , public IResult<void>
   {
   public:
@@ -87,7 +88,7 @@ namespace mythos {
     void unsetOwner() { _owner.reset(); }
 
   public: // INotification interface
-    KEvent deliver() override {
+    KEvent deliverKEvent() override {
       ASSERT(portalState == REPLYING);
       KEvent e(uctx, uint64_t(replyError));
       portalState = OPEN;
@@ -141,7 +142,7 @@ namespace mythos {
     InvocationBuf* ibNew = nullptr;
     CapRef<Portal, IPortalUser> _owner;
     uintptr_t uctx = 0;
-    INotifiable::handle_t notificationHandle = {this};
+    IKEventSink::handle_t keventSinkHandle = {this};
 
     Tasklet mytask;
 

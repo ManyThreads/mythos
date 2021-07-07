@@ -83,6 +83,21 @@ namespace mythos {
       return res;
     }
 
+    /** Call a function on every elemant of the list.
+     * @warning The function  is not allowed to recursively access this list (deadlocks).
+     */
+    template <class FUN>
+    void map(FUN fun)
+    {
+      mutex << [this, fun]() {
+        auto cur = head.load();
+        while (cur) {
+          fun(cur->value);
+          cur = cur->next;
+        }
+      };
+    }
+
     Queueable* peek() { return head; }
 
     bool remove(Queueable* item) {
