@@ -1,6 +1,10 @@
 # -*- mode:toml; -*-
 [module.mythos-invocationBuffer]
-    incfiles = [ "mythos/InvocationBuf.hh", "mythos/syscall.hh", "mythos/invocation.hh",
+    incfiles = [ 
+            "mythos/InvocationBuf.hh",
+            "mythos/KEvent.hh",
+            "mythos/syscall.hh",
+            "mythos/invocation.hh",
              "mythos/protocol/common.hh",
              "mythos/protocol/KernelObject.hh",
              "mythos/protocol/ExecutionContext.hh",

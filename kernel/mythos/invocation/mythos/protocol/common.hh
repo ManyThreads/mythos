@@ -47,6 +47,7 @@ namespace mythos {
       RAPLDRIVERINTEL,
       PROCESSORALLOCATOR,
       INTERRUPT_CONTROL,
+      SIGNAL_LISTENER,
     };
 
   } // namespace protocol

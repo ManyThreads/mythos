@@ -34,6 +34,7 @@
 #include "objects/DebugMessage.hh"
 #include "objects/IPageMap.hh"
 #include "util/error-trace.hh"
+#include "mythos/syscall.hh"
 
 namespace mythos {
 
@@ -361,33 +362,39 @@ namespace mythos {
     return res.state();
   }
 
-  void ExecutionContext::notify(INotifiable::handle_t* event)
+  void ExecutionContext::attachKEvent(IKEventSink::handle_t* event)
   {
-    MLOG_INFO(mlog::ec, "got notification", DVAR(this), DVAR(event));
-    notificationQueue.push(event);
+    MLOG_INFO(mlog::ec, "got KEvent", DVAR(this), DVAR(event));
+    eventQueue.push(event);
     clearFlagsResume(IS_WAITING);
   }
 
-  void ExecutionContext::denotify(INotifiable::handle_t* event)
+  void ExecutionContext::detachKEvent(IKEventSink::handle_t* event)
   {
-    notificationQueue.remove(event);
+    eventQueue.remove(event);
   }
 
   void ExecutionContext::handleTrap()
   {
     auto ctx = &threadState;
-    MLOG_ERROR(mlog::ec, "user fault", DVAR(ctx->irq), DVAR(ctx->error),
+    MLOG_INFO(mlog::ec, "user fault", DVAR(ctx->irq), DVAR(ctx->error),
          DVARhex(ctx->cr2));
-    MLOG_ERROR(mlog::ec, "...", DVARhex(ctx->rip), DVARhex(ctx->rflags),
+    MLOG_INFO(mlog::ec, "...", DVARhex(ctx->rip), DVARhex(ctx->rflags),
          DVARhex(ctx->rsp));
-    MLOG_ERROR(mlog::ec, "...", DVARhex(ctx->rax), DVARhex(ctx->rbx), DVARhex(ctx->rcx),
+    MLOG_INFO(mlog::ec, "...", DVARhex(ctx->rax), DVARhex(ctx->rbx), DVARhex(ctx->rcx),
          DVARhex(ctx->rdx), DVARhex(ctx->rbp), DVARhex(ctx->rdi),
          DVARhex(ctx->rsi));
-    MLOG_ERROR(mlog::ec, "...", DVARhex(ctx->r8), DVARhex(ctx->r9), DVARhex(ctx->r10),
+    MLOG_INFO(mlog::ec, "...", DVARhex(ctx->r8), DVARhex(ctx->r9), DVARhex(ctx->r10),
          DVARhex(ctx->r11), DVARhex(ctx->r12), DVARhex(ctx->r13),
          DVARhex(ctx->r14), DVARhex(ctx->r15));
-    MLOG_ERROR(mlog::ec, "...", DVARhex(ctx->fs_base), DVARhex(ctx->gs_base));
+    MLOG_INFO(mlog::ec, "...", DVARhex(ctx->fs_base), DVARhex(ctx->gs_base));
+
     setFlags(IS_TRAPPED | NOT_RUNNING); // mark as not executable until the exception is handled
+
+    if (ctx->irq <= 0x1F) {
+      Signal signal = 1ull << ctx->irq;
+      changeSignal(signal);
+    }
   }
 
   void ExecutionContext::handleSyscall()
@@ -408,6 +415,7 @@ namespace mythos {
       case SYSCALL_EXIT:
         MLOG_INFO(mlog::syscall, "exit");
         setFlags(IS_TRAPPED);
+        changeSignal(protocol::ExecutionContext::TRAP_EXIT);
         break;
 
       case SYSCALL_POLL:
@@ -418,10 +426,10 @@ namespace mythos {
       case SYSCALL_WAIT: {
         auto prevState = setFlags(IN_WAIT | IS_WAITING);
         //MLOG_WARN(mlog::syscall, "wait", DVARhex(prevState));
-        if (!notificationQueue.empty() || (prevState & IS_NOTIFIED)){
-		//MLOG_WARN(mlog::syscall, "skip wait");
-          clearFlags(IS_WAITING); // because of race with notifier
-	}
+        if (!eventQueue.empty() || (prevState & IS_NOTIFIED)) {
+          //MLOG_WARN(mlog::syscall, "skip wait");
+          clearFlags(IS_WAITING); // because of race with KEventSource
+        }
         break;
       }
 
@@ -441,8 +449,8 @@ namespace mythos {
         code = uint64_t(syscallInvoke(CapPtr(portal), CapPtr(kobj), userctx).state());
         if (Error(code) != Error::SUCCESS) break; // just return the error code
         auto prevState = setFlags(IN_WAIT | IS_WAITING);
-        if (!notificationQueue.empty() || (prevState & IS_NOTIFIED))
-          clearFlags(IS_WAITING); // because of race with notifier
+        if (!eventQueue.empty() || (prevState & IS_NOTIFIED))
+          clearFlags(IS_WAITING); // because of race with KEventSource
         break;
       }
 
@@ -451,8 +459,8 @@ namespace mythos {
         mlog::Logger<mlog::FilterAny> user("user");
         // userctx => address in users virtual memory. Yes, we fully trust the user :(
         // portal => string length
-	char str[300];
-	memcpy(&str[0], reinterpret_cast<char*>(userctx), portal<300?portal:300);
+        char str[300];
+        memcpy(&str[0], reinterpret_cast<char*>(userctx), portal<300?portal:300);
         mlog::sink->write((char const*)&str[0], portal);
         code = uint64_t(Error::SUCCESS);
         break;
@@ -463,7 +471,7 @@ namespace mythos {
         if (!cs) { code = uint64_t(cs.state()); break; }
         TypedCap<ISignalable> th(cs.lookup(CapPtr(portal), 32, false));
         if (!th) { code = uint64_t(th.state()); break; }
-        MLOG_INFO(mlog::syscall, "semaphore signal syscall", DVAR(portal), DVAR(th.obj()));
+        MLOG_DETAIL(mlog::syscall, "semaphore signal syscall", DVAR(portal), DVAR(th.obj()));
         th->signal(th.cap().data());
         code = uint64_t(Error::SUCCESS);
         break;
@@ -480,6 +488,24 @@ namespace mythos {
     MLOG_DETAIL(mlog::syscall, "receiving signal", DVAR(data), DVARhex(prev));
     clearFlagsResume(IS_WAITING);
     RETURN(Error::SUCCESS);
+  }
+
+  void ExecutionContext::attachSignalSink(ISignalSource::handle_t* handle)
+  {
+    _sinkList.push(handle);
+  }
+
+  void ExecutionContext::detachSignalSink(ISignalSource::handle_t* handle)
+  {
+    _sinkList.remove(handle);
+  }
+
+  void ExecutionContext::changeSignal(Signal signal)
+  {
+    _sinkList.map([signal](ISignalSink* sink) {
+      ASSERT(sink);
+      if (sink) sink->signalChanged(signal);
+    });
   }
 
   optional<void> ExecutionContext::syscallInvoke(CapPtr portal, CapPtr dest, uint64_t user)
@@ -511,24 +537,24 @@ namespace mythos {
         ASSERT(!(prev & NOT_LOADED));
         ASSERT(currentPlace.load() == &getLocalPlace());
 
-        // return one notification to the user mode if it was waiting for some
+        // return one KEvent to the user mode if it was waiting for some
         auto prevWait = clearFlags(IN_WAIT);
         if (prevWait & IN_WAIT) {
             // clear IS_NOTIFIED only if the user mode was waiting for it
             // we won't clear it twice without a second wait() system call
             clearFlags(IS_NOTIFIED); 
 
-            // return a notification event if any
-            auto e = notificationQueue.pull();
+            // return a KEvent if any
+            auto e = eventQueue.pull();
             if (e) {
-                auto ev = e->get()->deliver();
+                auto ev = e->get()->deliverKEvent();
                 threadState.rsi = ev.user;
                 threadState.rdi = ev.state;
             } else {
                 threadState.rsi = 0;
                 threadState.rdi = uint64_t(Error::NO_MESSAGE);
             }
-            MLOG_DETAIL(mlog::ec, DVAR(this), "return one notification", 
+            MLOG_DETAIL(mlog::ec, DVAR(this), "return one KEvent", 
                         DVARhex(threadState.rsi), DVAR(threadState.rdi));
         }
 

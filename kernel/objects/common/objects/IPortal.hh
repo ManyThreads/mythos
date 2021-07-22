@@ -29,8 +29,8 @@
 #include "util/optional.hh"
 #include "objects/Cap.hh"
 #include "objects/ICapMap.hh"
-#include "objects/INotifiable.hh"
 #include "objects/TypedCap.hh"
+#include "objects/kevent.hh"
 
 namespace mythos {
 
@@ -55,7 +55,7 @@ namespace mythos {
   };
 
   class IPortalUser
-    : public INotifiable
+    : public IKEventSink
   {
   public:
     virtual ~IPortalUser() {}
