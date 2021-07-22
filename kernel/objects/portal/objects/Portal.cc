@@ -67,7 +67,7 @@ namespace mythos {
   void Portal::unbind(optional<IPortalUser*> obj)
   {
     MLOG_INFO(mlog::portal, "Portal::setOwner unbind");
-    if (obj) obj->denotify(&notificationHandle);
+    if (obj) obj->detachKEvent(&keventSinkHandle);
   }
 
   optional<CapEntryRef> Portal::lookupRef(CapPtr ptr, CapPtrDepth ptrDepth, bool writable)
@@ -113,7 +113,7 @@ namespace mythos {
     auto owner = _owner.get();
     if (owner) {
       replyError = error.state();
-      owner->notify(&notificationHandle);
+      owner->attachKEvent(&keventSinkHandle);
     }
   }
 
@@ -137,7 +137,7 @@ namespace mythos {
     auto owner = _owner.get();
     if (owner) {
       replyError = res.state();
-      owner->notify(&notificationHandle);
+      owner->attachKEvent(&keventSinkHandle);
     }
   }
 
