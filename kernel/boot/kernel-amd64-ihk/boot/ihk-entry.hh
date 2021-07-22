@@ -59,7 +59,7 @@ extern uint64_t* pml4_ihk;
 
 //IHK_KMSG_SIZE is the size of the communication ring buffer between the linux host and mythos as cokernel.
 //Must be equal to IHK_KMSG_SIZE in 3rdparty/ihk/linux/include/ihk/ihk_debug.h
-#define IHK_KMSG_SIZE            (8192 << 5)
+#define IHK_KMSG_SIZE            (8192 << 7)
 
 // @todo this looks soo wrong, not even a constant...
 #define DEBUG_KMSG_MARGIN (boot::kmsg_buf->head == boot::kmsg_buf->tail ? boot::kmsg_buf->len : (((unsigned int)boot::kmsg_buf->head - (unsigned int)boot::kmsg_buf->tail) % (unsigned int)boot::kmsg_buf->len))

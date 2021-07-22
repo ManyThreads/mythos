@@ -128,10 +128,10 @@ class Process{
       res = myAS.removeMap(pl, tmp_vaddr, 3).wait();
       TEST(res);
 
-      MLOG_DETAIL(mlog::app, "   move frame");
-      res = myCS.move(pl, f.cap(), max_cap_depth, cs.cap(), pCapAlloc(), max_cap_depth).wait();
-      TEST(res);
-      capAlloc.freeEmpty(f.cap());
+      //MLOG_DETAIL(mlog::app, "   move frame");
+      //res = myCS.move(pl, f.cap(), max_cap_depth, cs.cap(), pCapAlloc(), max_cap_depth).wait();
+      //TEST(res);
+      //capAlloc.freeEmpty(f.cap());
 
       MLOG_DETAIL(mlog::app, "   delete tables");
       capAlloc.free(pm3, pl);
@@ -142,7 +142,8 @@ class Process{
 
   optional<CapPtr> createProcess(PortalLock& pl){
     MLOG_INFO(mlog::app, __func__);
-
+    MLOG_ERROR(mlog::app, "process needs to be reworked!");
+    return 0;
     /* create CapMap */
     MLOG_DETAIL(mlog::app, "create CapMap ...");
     auto res = cs.create(pl, kmem, CapPtrDepth(12), CapPtrDepth(20), CapPtr(0)).wait();
@@ -302,9 +303,9 @@ class Process{
     .suspended(true)
     .invokeVia(pl).wait();
     TEST(res);
-    MLOG_DETAIL(mlog::app, "move SC");
-    res = myCS.move(pl, sc->cap, max_cap_depth, cs.cap(), sc->cap, max_cap_depth).wait();
-    TEST(res);
+    //MLOG_DETAIL(mlog::app, "move SC");
+    //res = myCS.move(pl, sc->cap, max_cap_depth, cs.cap(), sc->cap, max_cap_depth).wait();
+    //TEST(res);
 
     /* create portal */
     MLOG_DETAIL(mlog::app, "create Portal ...");
@@ -318,66 +319,66 @@ class Process{
     TEST(res);
 
     MLOG_DETAIL(mlog::app, "   move Portal");
-    res = myCS.move(pl, port.cap(), max_cap_depth, cs.cap(), init::PORTAL, max_cap_depth).wait();
-    TEST(res);
-    capAlloc.freeEmpty(port.cap());
+    //res = myCS.move(pl, port.cap(), max_cap_depth, cs.cap(), init::PORTAL, max_cap_depth).wait();
+    //TEST(res);
+    //capAlloc.freeEmpty(port.cap());
     
-    MLOG_DETAIL(mlog::app, "   move info frame");
-    res = myCS.move(pl, infoFrame.cap(), max_cap_depth, cs.cap(), init::INFO_FRAME, max_cap_depth).wait();
-    TEST(res);
-    capAlloc.freeEmpty(infoFrame.cap());
+    //MLOG_DETAIL(mlog::app, "   move info frame");
+    //res = myCS.move(pl, infoFrame.cap(), max_cap_depth, cs.cap(), init::INFO_FRAME, max_cap_depth).wait();
+    //TEST(res);
+    //capAlloc.freeEmpty(infoFrame.cap());
 
     /* move tables */
     MLOG_DETAIL(mlog::app, "move tables ...");
-    res = myCS.move(pl, pm3.cap(), max_cap_depth, cs.cap(), pCapAlloc(), max_cap_depth).wait();
-    TEST(res);
-    capAlloc.freeEmpty(pm3.cap());
+    //res = myCS.move(pl, pm3.cap(), max_cap_depth, cs.cap(), pCapAlloc(), max_cap_depth).wait();
+    //TEST(res);
+    //capAlloc.freeEmpty(pm3.cap());
 
-    res = myCS.move(pl, pm2.cap(), max_cap_depth, cs.cap(), pCapAlloc(), max_cap_depth).wait();
-    TEST(res);
-    capAlloc.freeEmpty(pm2.cap());
+    //res = myCS.move(pl, pm2.cap(), max_cap_depth, cs.cap(), pCapAlloc(), max_cap_depth).wait();
+    //TEST(res);
+    //capAlloc.freeEmpty(pm2.cap());
 
-    res = myCS.move(pl, pm10.cap(), max_cap_depth, cs.cap(), pCapAlloc(), max_cap_depth).wait();
-    TEST(res);
-    capAlloc.freeEmpty(pm10.cap());
+    //res = myCS.move(pl, pm10.cap(), max_cap_depth, cs.cap(), pCapAlloc(), max_cap_depth).wait();
+    //TEST(res);
+    //capAlloc.freeEmpty(pm10.cap());
 
-    res = myCS.move(pl, pm11.cap(), max_cap_depth, cs.cap(), pCapAlloc(), max_cap_depth).wait();
-    TEST(res);
-    capAlloc.freeEmpty(pm11.cap());
+    //res = myCS.move(pl, pm11.cap(), max_cap_depth, cs.cap(), pCapAlloc(), max_cap_depth).wait();
+    //TEST(res);
+    //capAlloc.freeEmpty(pm11.cap());
 
-    res = myCS.move(pl, pm12.cap(), max_cap_depth, cs.cap(), pCapAlloc(), max_cap_depth).wait();
-    TEST(res);
-    capAlloc.freeEmpty(pm12.cap());
+    //res = myCS.move(pl, pm12.cap(), max_cap_depth, cs.cap(), pCapAlloc(), max_cap_depth).wait();
+    //TEST(res);
+    //capAlloc.freeEmpty(pm12.cap());
 
-    res = myCS.move(pl, pm13.cap(), max_cap_depth, cs.cap(), pCapAlloc(), max_cap_depth).wait();
-    TEST(res);
-    capAlloc.freeEmpty(pm13.cap());
+    //res = myCS.move(pl, pm13.cap(), max_cap_depth, cs.cap(), pCapAlloc(), max_cap_depth).wait();
+    //TEST(res);
+    //capAlloc.freeEmpty(pm13.cap());
 
-    res = myCS.move(pl, pm14.cap(), max_cap_depth, cs.cap(), pCapAlloc(), max_cap_depth).wait();
-    TEST(res);
-    capAlloc.freeEmpty(pm14.cap());
+    //res = myCS.move(pl, pm14.cap(), max_cap_depth, cs.cap(), pCapAlloc(), max_cap_depth).wait();
+    //TEST(res);
+    //capAlloc.freeEmpty(pm14.cap());
 
-    res = myCS.move(pl, pm15.cap(), max_cap_depth, cs.cap(), pCapAlloc(), max_cap_depth).wait();
-    TEST(res);
-    capAlloc.freeEmpty(pm15.cap());
+    //res = myCS.move(pl, pm15.cap(), max_cap_depth, cs.cap(), pCapAlloc(), max_cap_depth).wait();
+    //TEST(res);
+    //capAlloc.freeEmpty(pm15.cap());
 
-    res = myCS.move(pl, pm16.cap(), max_cap_depth, cs.cap(), pCapAlloc(), max_cap_depth).wait();
-    TEST(res);
-    capAlloc.freeEmpty(pm16.cap());
+    //res = myCS.move(pl, pm16.cap(), max_cap_depth, cs.cap(), pCapAlloc(), max_cap_depth).wait();
+    //TEST(res);
+    //capAlloc.freeEmpty(pm16.cap());
 
-    res = myCS.move(pl, pm17.cap(), max_cap_depth, cs.cap(), pCapAlloc(), max_cap_depth).wait();
-    TEST(res);
-    capAlloc.freeEmpty(pm17.cap());
+    //res = myCS.move(pl, pm17.cap(), max_cap_depth, cs.cap(), pCapAlloc(), max_cap_depth).wait();
+    //TEST(res);
+    //capAlloc.freeEmpty(pm17.cap());
 
-    res = myCS.move(pl, pm4.cap(), max_cap_depth, cs.cap(), init::PML4, max_cap_depth).wait();
-    TEST(res);
-    capAlloc.freeEmpty(pm4.cap());
+    //res = myCS.move(pl, pm4.cap(), max_cap_depth, cs.cap(), init::PML4, max_cap_depth).wait();
+    //TEST(res);
+    //capAlloc.freeEmpty(pm4.cap());
 
     /* wake EC */
     MLOG_DETAIL(mlog::app, "start process ...");
-    MLOG_DETAIL(mlog::app, "   move EC");
-    res = myCS.move(pl, ec.cap(), max_cap_depth, cs.cap(), init::EC, max_cap_depth).wait();
-    TEST(res);
+    //MLOG_DETAIL(mlog::app, "   move EC");
+    //res = myCS.move(pl, ec.cap(), max_cap_depth, cs.cap(), init::EC, max_cap_depth).wait();
+    //TEST(res);
 
     MLOG_DETAIL(mlog::app, "   create reference");
     res = cs.reference(pl, init::EC, max_cap_depth, init::CSPACE, ec.cap(), max_cap_depth, 0).wait();
