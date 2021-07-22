@@ -79,8 +79,10 @@ protected:
 
 
   CapRef<SignalListener, ISignalSource> _source;
-  // handle is in source list <-> listener is bound to source
-  // the handle is protected by the CapRef lock
+
+  /** handle is in source list <-> listener is bound to source
+   * the handle is protected by the CapRef lock
+   */
   ISignalSource::handle_t _listenerHandle = {this};
 
   optional<void> setSource(optional<CapEntry*> entry);
@@ -89,19 +91,24 @@ protected:
 
 
   CapRef<SignalListener, IKEventSink> _sink;
-  // handle is in sink list <-> listener is bound to sink && signal != 0
-  // protected by CapRef lock AND _mutex
-  // lock order: CapRef lock first, then _mutex
+
+  /** handle is in sink list <-> listener is bound to sink && signal != 0
+   * protected by CapRef lock AND _mutex
+   * lock order: CapRef lock first, then _mutex
+   */
   IKEventSink::handle_t _eventHandle = {this};
   optional<void> setSink(optional<CapEntry*> entry);
   void bind(optional<IKEventSink*>);
   void unbind(optional<IKEventSink*>);
 
-  // mutex to protect signal, mask, context, _eventAttached and _eventHandle
-  // there are some complex relationships between these member
-  // and its better if we update them atomically for now
-  // _eventAttached serves a similar purpose as the `state` member in Portal
+  /** mutex to protect signal, mask, context, _eventAttached and _eventHandle
+   * there are some complex relationships between these member
+   * and its better if we update them atomically for now
+   */
   ThreadMutex _mutex;
+
+  /** _eventAttached serves a similar purpose as the `state` member in Portal
+   */
   bool _eventAttached = false;
   Signal _mask = 0;
   Signal _signal = 0;
