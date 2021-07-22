@@ -320,6 +320,132 @@ namespace mythos {
       CPU_ATOM_GEMINI_LAKE	= 122,
       CPU_ATOM_DENVERTON	= 95
     };
+
+    /* Performance monitoring */
+
+    //cpuid performance monitoring
+    enum CpuidPerfMon{
+      ARCHITECTURAL_PERFORMANCE_MONTIROING_LEAF = 0xA
+    };
+
+    enum PerfMsrAddress{
+      //Performance counter register
+      //scope: core
+      IA32_PMC0 = 0xC1,
+      //...
+      //IA32_PMC7 = 0xC8,
+
+      //TSC Frequency Clock Counter (R/Write to
+      //clear)
+      IA32_MPERF = 0xE7, // If CPUID.06H: ECX[0] = 1
+
+      //Actual Performance Clock Counter (R/Write
+      //to clear)
+      IA32_APERF = 0xE8, // If CPUID.06H: ECX[0] = 1
+
+      //Performance Event Select Register 0 (R/W)
+      IA32_PERFEVTSEL0 = 0x186,
+      //...
+      //IA32_PERFEVTSEL7 = 0x18D,
+
+      //Current Performance Status (RO)
+      IA32_PERF_STATUS = 0x198,
+
+      //Performance Control MSR (R/W)
+      //Software makes a request for a new
+      //Performance state (P-State) by writing this
+      //MSR. 
+      IA32_PERF_CTL = 0x199,
+
+      //Enable Misc. Processor Features (R/W)
+      //Allows a variety of processor functions to
+      //be enabled and disabled.
+      //(performance monitoring/ speedstep / monitor&mwait )
+      IA32_MISC_ENABLE = 0x1A0,
+
+      //Offcore Response Event Select Register (R/W)
+      //scope: module 
+      MSR_OFFCORE_RSP_0 = 0x1A6,
+      MSR_OFFCORE_RSP_1 = 0x1A7,
+
+      //Performance Energy Bias Hint (R/W)
+      IA32_ENERGY_PERF_BIAS = 0x1B0,
+      
+      // This event counts the number of instructions that retire
+      // execution. For instructions that consist of multiple micro-
+      // ops, this event counts the retirement of the last micro-op
+      // of the instruction. The counter continues counting during
+      // hardware interrupts, traps, and inside interrupt handlers.
+      // Event Mask Mnemonic: Inst_Retired.Any
+      IA32_PERF_FIXED_CTR0 = 0x309,
+
+      // The CPU_CLK_UNHALTED.THREAD event counts the
+      // number of core cycles while the logical processor is not in
+      // a halt state.
+      // If there is only one logical processor in a processor core,
+      // CPU_CLK_UNHALTED.CORE counts the unhalted cycles of
+      // the processor core.
+      // If there are more than one logical processor in a processor
+      // core, CPU_CLK_UNHALTED.THREAD_ANY is supported by
+      //programming IA32_FIXED_CTR_CTRL[bit 6]AnyThread =
+      // 1.
+      //The core frequency may change from time to time due to
+      //transitions associated with Enhanced Intel SpeedStep
+      //Technology or TM2. For this reason this event may have a
+      //changing ratio with regards to time.
+      // Event Mask Mnemonic:CPU_CLK_UNHALTED.THREAD/CPU_CLK_UNHALTED.CORE/CPU_CLK_UNHALTED.THREAD_ANY 
+      IA32_PERF_FIXED_CTR1 = 0x30A, 
+
+      //This event counts the number of reference cycles at the
+      //TSC rate when the core is not in a halt state and not in a
+      //TM stop-clock state. The core enters the halt state when
+      //it is running the HLT instruction or the MWAIT instruction.
+      //This event is not affected by core frequency changes (e.g.,
+      //P states) but counts at the same frequency as the time
+      //stamp counter. This event can approximate elapsed time
+      //while the core was not in a halt state and not in a TM
+      //stopclock state.
+      // Event Mask Mnemonic: CPU_CLK_UNHALTED.REF_TSC
+      IA32_PERF_FIXED_CTR2 = 0x30B, 
+
+      //Read Only MSR that enumerates the
+      //existence of performance monitoring
+      //features. (RO)
+      IA32_PERF_CAPABILITIES = 0x345, 
+
+      //Fixed-Function Performance Counter
+      //Control (R/W)
+      //Counter increments while the results of
+      //ANDing respective enable bit in
+      //IA32_PERF_GLOBAL_CTRL with the
+      //corresponding OS or USR bits in this MSR is
+      //true.
+      IA32_FIXED_CTR_CTRL = 0x38D,
+
+      //Global Performance Counter Status (RO)
+      IA32_PERF_GLOBAL_STATUS = 0x38E, 
+
+      //Global Performance Counter Control (R/W) 
+      //Counter increments while the result of
+      //ANDing the respective enable bit in this
+      //MSR with the corresponding OS or USR bits
+      //in the general-purpose or fixed counter
+      //control MSR is true.
+      IA32_PERF_GLOBAL_CTRL = 0x38F, 
+
+      //Global Performance Counter Overflow
+      //Control (R/W)
+      IA32_PERF_GLOBAL_OVF_CTRL = 0x390,
+
+      //Global Performance Counter Overflow
+      //Reset Control (R/W)
+      IA32_PERF_GLOBAL_STATUS_RESET = 0x390,
+
+      //Indicator that core perfmon interface is in
+      //use. (RO)
+      IA32_PERF_GLOBAL_INUSE = 0x392,
+    };
+
   } // namespace x86
 
   class IOPort8 {
