@@ -592,14 +592,14 @@ int main()
   //test_InterruptControl();
   //test_HostChannel(portal, 24*1024*1024, 2*1024*1024);
   test_ExecutionContext();
-  test_pthreads();
-  test_Rapl();
-  test_processor_allocator();
+  //test_pthreads();
+  //test_Rapl();
+  //test_processor_allocator();
   //test_process();
   //test_CgaScreen();
+  testCapMapDeletion();
   pageMapPageFault();
   pageMapDeadlock();
-  testCapMapDeletion();
 
   char const end[] = "bye, cruel world!";
   mythos::syscall_debug(end, sizeof(end)-1);
