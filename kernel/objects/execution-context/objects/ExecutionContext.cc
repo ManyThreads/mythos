@@ -237,6 +237,9 @@ namespace mythos {
         respData->regs.rbp = threadState.rbp;
         respData->regs.fs_base = threadState.fs_base;
         respData->regs.gs_base = threadState.gs_base;
+        respData->regs.irq = threadState.irq;
+        respData->regs.error = threadState.error;
+        respData->regs.cr2 = threadState.cr2;
         clearFlagsResume(REGISTER_ACCESS);
         msg->replyResponse(Error::SUCCESS);
         msg = nullptr;

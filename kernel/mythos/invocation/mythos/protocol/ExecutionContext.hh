@@ -80,6 +80,9 @@ namespace mythos {
         uint64_t rbp = 0;
         uint64_t fs_base = 0;
         uint64_t gs_base = 0;
+        uint64_t irq = 0; // read-only
+        uint64_t error = 0; // read-only
+        uint64_t cr2 = 0; // read-only
       };
 
       // has WriteRegisters message as result
