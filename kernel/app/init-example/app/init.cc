@@ -366,6 +366,82 @@ void test_ExecutionContext()
   MLOG_INFO(mlog::app, "End Test ExecutionContext");
 }
 
+std::atomic<unsigned> prio_flag;
+
+void* prio_main(void* ctx)
+{
+  if(ctx != nullptr){
+      MLOG_INFO(mlog::app, "hello priority thread!", DVAR(ctx));
+      ASSERT(prio_flag.load() == 1);
+      prio_flag++;
+      for (volatile int i=0; i<100000; i++) {
+        for (volatile int j=0; j<1000; j++) {}
+      }
+      MLOG_INFO(mlog::app, "priority thread finished", DVAR(ctx));
+  }else{
+      MLOG_INFO(mlog::app, "hello normal thread!", DVAR(ctx));
+      ASSERT(prio_flag.load() == 0);
+      prio_flag++;
+      while(prio_flag.load() < 3);
+      MLOG_INFO(mlog::app, "normal thread finished", DVAR(ctx));
+  }
+  
+  prio_flag++;
+  return 0;
+}
+
+void test_PrioEC()
+{
+  MLOG_INFO(mlog::app, "Test ExecutionContext priority scheduling");
+  mythos::ExecutionContext ec1(capAlloc());
+  mythos::ExecutionContext ec2(capAlloc());
+
+  prio_flag.store(0);
+
+  {
+    MLOG_INFO(mlog::app, "test_EC: create ec");
+    mythos::PortalLock pl(portal); // future access will fail if the portal is in use already
+
+    // create new ec
+    auto tls1 = mythos::setupNewTLS();
+    auto tls2 = mythos::setupNewTLS();
+    ASSERT(tls1 != nullptr);
+    ASSERT(tls2 != nullptr);
+
+    auto sc = pa.alloc(pl).wait();
+    TEST(sc);
+
+    auto res = ec1.create(kmem).as(myAS).cs(myCS).sched(sc->cap)
+    .prepareStack(thread1stack_top).startFun(&prio_main, nullptr)
+    .suspended(true).fs(tls1)
+    .invokeVia(pl).wait();
+    TEST(res);
+
+    res = ec2.create(kmem).as(myAS).cs(myCS).sched(sc->cap)
+    .prepareStack(thread2stack_top).startFun(&prio_main, (void*)1)
+    .suspended(true).fs(tls2)
+    .invokeVia(pl).wait();
+    TEST(res);
+
+    ec2.setPriority(pl, true).wait();
+    
+    ec1.resume(pl).wait();
+
+    MLOG_INFO(mlog::app, "wait for EC1 to start");
+    while(prio_flag.load() == 0);
+
+    ec2.resume(pl).wait();
+
+    MLOG_INFO(mlog::app, "wait for ECs to finish execution");
+    while(prio_flag < 4);
+
+    MLOG_INFO(mlog::app, "free ECs");
+    TEST(capAlloc.free(ec1, pl));
+    TEST(capAlloc.free(ec2, pl));
+  }
+  MLOG_INFO(mlog::app, "End Test ExecutionContext priority scheduling");
+}
+
 void test_InterruptControl() {
   MLOG_INFO(mlog::app, "test_InterruptControl start");
   mythos::InterruptControl ic(mythos::init::INTERRUPT_CONTROL_START);
@@ -549,6 +625,7 @@ int main()
   //test_InterruptControl();
   //test_HostChannel(portal, 24*1024*1024, 2*1024*1024);
   test_ExecutionContext();
+  test_PrioEC();
   test_pthreads();
   test_Rapl();
   test_processor_allocator();

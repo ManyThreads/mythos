@@ -40,7 +40,8 @@ namespace mythos {
         WRITE_REGISTERS,
         SET_FSGS,
         RESUME,
-        SUSPEND
+        SUSPEND,
+        SET_PRIORITY
       };
 
       enum Signals : uint64_t {
@@ -125,6 +126,13 @@ namespace mythos {
         uintptr_t gs;
       };
 
+      struct SetPriority : public InvocationBase {
+        constexpr static uint16_t label = (proto<<8) + SET_PRIORITY;
+        SetPriority(bool priority)
+          : InvocationBase(label,getLength(this)), priority(priority) {}
+        bool priority;
+      };
+
       struct Resume : public InvocationBase {
         constexpr static uint16_t label = (proto<<8) + RESUME;
         Resume() : InvocationBase(label,getLength(this)) {}
@@ -156,6 +164,7 @@ namespace mythos {
         case READ_REGISTERS: return obj->invokeReadRegisters(args...);
         case WRITE_REGISTERS: return obj->invokeWriteRegisters(args...);
         case SET_FSGS: return obj->invokeSetFSGS(args...);
+        case SET_PRIORITY: return obj->invokeSetPriority(args...);
         case RESUME: return obj->invokeResume(args...);
         case SUSPEND: return obj->invokeSuspend(args...);
         default: return Error::NOT_IMPLEMENTED;

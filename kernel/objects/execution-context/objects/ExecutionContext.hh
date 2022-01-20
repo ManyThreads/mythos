@@ -68,6 +68,7 @@ namespace mythos {
       NOT_LOADED   = 1<<8, // CPU state is not loaded
       DONT_PREEMPT  = 1<<9, // somebody else will send the preemption
       NOT_RUNNING  = 1<<10, // EC is not running
+      PRIORITY = 1<<11, // EC has high priority
       BLOCK_MASK = IS_WAITING | IS_TRAPPED | NO_AS | NO_SCHED | REGISTER_ACCESS
     };
 
@@ -99,6 +100,7 @@ namespace mythos {
 
   public: // ISchedulable interface
     bool isReady() const override { return !isBlocked(flags.load()); }
+    bool hasPriority() override { return (flags.load() & PRIORITY) != 0; }
     void resume() override;
     void handleTrap() override;
     void handleInterrupt() override { setFlags(NOT_RUNNING); }
@@ -149,6 +151,7 @@ namespace mythos {
     void suspendThread(Tasklet* t, optional<void>);
     Error getDebugInfo(Cap self, IInvocation* msg);
     Error invokeSetFSGS(Tasklet* t, Cap self, IInvocation* msg);
+    Error invokeSetPriority(Tasklet*, Cap, IInvocation* msg);
 
   protected:
     friend class CapRefBind;
