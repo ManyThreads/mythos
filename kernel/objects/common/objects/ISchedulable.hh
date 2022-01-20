@@ -65,6 +65,8 @@ namespace mythos {
     
     virtual void saveState() = 0;
 
+    virtual bool hasPriority() { return false; }
+
     /** informs the execution context that the user-mode code trapped and error handling is needed. */
     virtual void handleTrap() = 0;
 

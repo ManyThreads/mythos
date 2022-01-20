@@ -350,6 +350,23 @@ namespace mythos {
       });
   }
 
+  Error ExecutionContext::invokeSetPriority(Tasklet*, Cap, IInvocation* msg)
+  {
+    auto const& data = *msg->getMessage()->cast<protocol::ExecutionContext::SetPriority>();
+    if (data.priority) {
+      setFlags(PRIORITY);
+    }else{
+      clearFlags(PRIORITY);
+    }
+
+    if (isReady()) {
+      auto sched = _sched.get();
+      if (sched) sched->ready(&ec_handle);
+    }
+    
+    return Error::SUCCESS;
+  }
+
   Error ExecutionContext::invokeSetFSGS(Tasklet*, Cap, IInvocation* msg)
   {
     auto const& data = *msg->getMessage()->cast<protocol::ExecutionContext::SetFSGS>();

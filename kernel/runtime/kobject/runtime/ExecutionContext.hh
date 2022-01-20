@@ -153,6 +153,9 @@ namespace mythos {
     PortalFuture<void> setFSGS(PortalLock pr, uintptr_t fs, uintptr_t gs) {
       return pr.invoke<protocol::ExecutionContext::SetFSGS>(_cap, fs,gs);
     }
+    PortalFuture<void> setPriority(PortalLock pr, bool priority) {
+      return pr.invoke<protocol::ExecutionContext::SetPriority>(_cap, priority);
+    }
     PortalFuture<void> resume(PortalLock pr) {
       return pr.invoke<protocol::ExecutionContext::Resume>(_cap);
     }
