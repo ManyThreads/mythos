@@ -68,7 +68,7 @@ namespace mythos {
       NOT_LOADED   = 1<<8, // CPU state is not loaded
       DONT_PREEMPT  = 1<<9, // somebody else will send the preemption
       NOT_RUNNING  = 1<<10, // EC is not running
-      PRIORITY = 1<<11, // EC has priority
+      PRIORITY = 1<<11, // EC has high priority
       BLOCK_MASK = IS_WAITING | IS_TRAPPED | NO_AS | NO_SCHED | REGISTER_ACCESS
     };
 
