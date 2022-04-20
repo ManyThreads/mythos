@@ -44,6 +44,8 @@ namespace mythos {
         RUNNEXTTOEC,
         RETRUNNEXTTOEC,
         SETLIMIT,
+        RESETPERFMON,
+        PRINTPERFMON,
       };
 
       //needs to be equal to pthread_alloc_type_t in pthread.h of musl
@@ -153,6 +155,20 @@ namespace mythos {
         unsigned limit;
       };
 
+      struct ResetPerfMon : public InvocationBase {
+        constexpr static uint16_t label = (proto<<8) + RESETPERFMON;
+        ResetPerfMon() 
+          : InvocationBase(label,getLength(this)) 
+        {}
+      };
+
+      struct PrintPerfMon : public InvocationBase {
+        constexpr static uint16_t label = (proto<<8) + PRINTPERFMON;
+        PrintPerfMon() 
+          : InvocationBase(label,getLength(this)) 
+        {}
+      };
+
       template<class IMPL, class... ARGS>
       static Error dispatchRequest(IMPL* obj, uint8_t m, ARGS const&...args) {
         switch(Methods(m)) {
@@ -160,6 +176,8 @@ namespace mythos {
           case REVOKEDEMAND: return obj->invokeRevokeDemand(args...);
           case RUNNEXTTOEC: return obj->invokeRunNextToEC(args...);
           case SETLIMIT: return obj->invokeSetLimit(args...);
+          case RESETPERFMON: return obj->invokeResetPerfMon(args...);
+          case PRINTPERFMON: return obj->invokePrintPerfMon(args...);
           default: return Error::NOT_IMPLEMENTED;
         }
       }

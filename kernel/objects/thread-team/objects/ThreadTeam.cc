@@ -27,6 +27,7 @@
 
 #include "objects/ThreadTeam.hh"
 #include "objects/mlog.hh"
+#include "objects/PerformanceMonitoring.hh"
 
 namespace mythos {
 
@@ -149,6 +150,15 @@ namespace mythos {
         //}
       }
 
+    //if(id){
+      //MLOG_DETAIL(mlog::pm, DVAR(*id));
+      //numAllocated++;
+      //auto sce = pa->getSC(*id);
+      //TypedCap<SchedulingContext> sc(sce->cap());
+      //sc->registerThreadTeam(this);
+      //perfmon::initAt(*id);
+      //perfmon::printAt(*id);
+
       state = IDLE;
       tmp_msg->replyResponse(Error::SUCCESS);
       tmp_msg = nullptr;
@@ -261,10 +271,17 @@ namespace mythos {
       }
     }
 
+<<<<<<< HEAD
     if(thread){
       if(ec->setSchedulingContext(thread->getSC())){
         //pushUsed(*id);
         numAllocated++;
+=======
+    if(id){
+      if(ec->setSchedulingContext(pa->getSC(*id))){
+        perfmon::initAt(*id);
+        pushUsed(*id);
+>>>>>>> i202_thread_team_performance_monitoring
         return true;
       }else{
         (*thread)->moveToPool(&freePool);
@@ -364,6 +381,47 @@ namespace mythos {
     auto oldLimit = limit;
     limit = data.limit;
     MLOG_ERROR(mlog::pm, DVAR(oldLimit), DVAR(limit));
+
+    return Error::SUCCESS;
+  }
+
+  Error ThreadTeam::invokeResetPerfMon(Tasklet* /*t*/, Cap, IInvocation* msg){
+    MLOG_INFO(mlog::pm, __func__);
+    ASSERT(state == INVOCATION);
+    for(unsigned i = 0; i < nUsed; i++){
+      auto id = usedList[i];
+      perfmon::resetAt(id);
+    }
+
+    for(unsigned i = 0; i < MYTHOS_MAX_THREADS; i++){
+      pmm[i].reset();
+    }
+
+    return Error::SUCCESS;
+  }
+
+  Error ThreadTeam::invokePrintPerfMon(Tasklet* /*t*/, Cap, IInvocation* msg){
+    MLOG_INFO(mlog::pm, __func__);
+    ASSERT(state == INVOCATION);
+    for(unsigned i = 0; i < nUsed; i++){
+      auto id = usedList[i];
+      perfmon::readAt(id, &pmm[i]);
+    }
+
+    uint64_t sumTicks = 0;
+    uint64_t sumUnhalted = 0;
+    for(unsigned i = 0; i < MYTHOS_MAX_THREADS; i++){
+      if(pmm[i].tscTicks){
+        auto ticks = pmm[i].tscTicks;
+        sumTicks += ticks;
+        auto unhalted = pmm[i].refCyclesUnhalted;
+        sumUnhalted += unhalted;
+        auto utilization = (unhalted * 100) / ticks;
+        MLOG_ERROR(mlog::pm, "SC=", i, DVAR(ticks), DVAR(unhalted), DVAR(utilization));
+      }
+    }
+    auto avgUtilization = (sumUnhalted * 100) / sumTicks;
+    MLOG_ERROR(mlog::pm, DVAR(sumTicks), DVAR(sumUnhalted), DVAR(avgUtilization));
 
     return Error::SUCCESS;
   }
@@ -469,6 +527,7 @@ namespace mythos {
     return false;
   }
 
+<<<<<<< HEAD
   //void ThreadTeam::notifyIdle(Tasklet* t, cpu::ThreadID id) {
     //MLOG_INFO(mlog::pm, __func__, DVAR(id));
     //monitor.request(t, [=](Tasklet*){
@@ -489,6 +548,30 @@ namespace mythos {
   //}
 
   bool ThreadTeam::tryRunDemandAt(Tasklet* t, topology::IThread* thread) {
+=======
+  void ThreadTeam::notifyIdle(Tasklet* t, cpu::ThreadID id) {
+    MLOG_INFO(mlog::pm, __func__, DVAR(id));
+    monitor.request(t, [=](Tasklet*){
+        ASSERT(state == IDLE);
+        ASSERT(tmp_id == INV_ID);
+        state = SC_NOTIFY;
+
+        if(numAllocated > limit || !tryRunDemandAt(t, id)) {
+          removeUsed(id);
+          //pushFree(id);
+          ASSERT(pa);
+          state = IDLE;
+          perfmon::readAt(id, &pmm[id]);
+          perfmon::printAt(id);
+          pa->free(t, id);
+          numAllocated--;
+          monitor.responseAndRequestDone();
+        }
+    }); 
+  }
+
+  bool ThreadTeam::tryRunDemandAt(Tasklet* t, cpu::ThreadID id) {
+>>>>>>> i202_thread_team_performance_monitoring
     MLOG_DETAIL(mlog::pm, __func__);
     ASSERT(state == SC_NOTIFY);
     ASSERT(thread);
