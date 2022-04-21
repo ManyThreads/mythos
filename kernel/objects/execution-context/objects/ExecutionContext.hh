@@ -36,8 +36,8 @@
 #include "objects/IScheduler.hh"
 #include "objects/IFactory.hh"
 #include "objects/IPageMap.hh"
-#include "objects/INotifiable.hh"
 #include "objects/ISignalable.hh"
+#include "objects/signal.hh"
 #include "objects/IPortal.hh"
 #include "objects/CapEntry.hh"
 #include "objects/CapRef.hh"
@@ -49,8 +49,9 @@ namespace mythos {
   class ExecutionContext final
     : public IKernelObject
     , public ISchedulable
-    , public IPortalUser
+    , public IPortalUser // includes IKEventSink
     , public ISignalable
+    , public ISignalSource
   {
   public:
 
@@ -69,6 +70,7 @@ namespace mythos {
       NOT_RUNNING  = 1<<10, // EC is not running
       TERMINATED = 1<<11, // EC called exit syscall
       RECYCLE_WAITING = 1<<12, //invoke recycle called before terminating
+      PRIORITY = 1<<13, // EC has high priority
       BLOCK_MASK = IS_WAITING | IS_TRAPPED | NO_AS | NO_SCHED | REGISTER_ACCESS
     };
 
@@ -96,12 +98,13 @@ namespace mythos {
     optional<void> setRegisters(const mythos::protocol::ExecutionContext::Amd64Registers&);
     optional<void> setBaseRegisters(uint64_t fs_base, uint64_t gs_base);
 
-  public: // INotifiable interface
-    void notify(INotifiable::handle_t* event) override;
-    void denotify(INotifiable::handle_t* event) override;
+  public: // IKEventSink interface
+    void attachKEvent(IKEventSink::handle_t* event) override;
+    void detachKEvent(IKEventSink::handle_t* event) override;
 
   public: // ISchedulable interface
     bool isReady() const override { return !isBlocked(flags.load()); }
+    bool hasPriority() override { return (flags.load() & PRIORITY) != 0; }
     void resume() override;
     void handleTrap() override;
     void handleInterrupt() override { setFlags(NOT_RUNNING); }
@@ -113,6 +116,15 @@ namespace mythos {
   public: // ISignalable interface
     optional<void> signal(CapData data) override;
 
+  public: // ISignalSource interface
+
+    void attachSignalSink(ISignalSource::handle_t*) override;
+    void detachSignalSink(ISignalSource::handle_t*) override;
+
+  protected:
+
+    void changeSignal(Signal signal);
+
   public: // IPortalUser interface
     optional<CapEntryRef> lookupRef(CapPtr ptr, CapPtrDepth ptrDepth, bool writeable) override;
 
@@ -122,6 +134,8 @@ namespace mythos {
       if (id == typeId<IPortalUser>()) return static_cast<IPortalUser const*>(this);
       if (id == typeId<ISignalable>()) return static_cast<ISignalable const*>(this);
       if (id == typeId<ExecutionContext>()) return this;
+      if (id == typeId<ISignalSource>()) return static_cast<ISignalSource const*>(this);
+      if (id == typeId<IKEventSink>()) return static_cast<IKEventSink const*>(this);
       THROW(Error::TYPE_MISMATCH);
     }
     optional<void> deleteCap(CapEntry&, Cap self, IDeleter& del) override;
@@ -143,6 +157,7 @@ namespace mythos {
     void suspendThread(Tasklet* t, optional<void>);
     Error getDebugInfo(Cap self, IInvocation* msg);
     Error invokeSetFSGS(Tasklet* t, Cap self, IInvocation* msg);
+    Error invokeSetPriority(Tasklet*, Cap, IInvocation* msg);
 
   protected:
     friend class CapRefBind;
@@ -164,12 +179,12 @@ namespace mythos {
 
   private:
     async::NestedMonitorDelegating monitor;
-    INotifiable::list_t notificationQueue;
+    IKEventSink::list_t eventQueue;
     std::atomic<flag_t> flags;
     CapRef<ExecutionContext,IPageMap> _as;
     CapRef<ExecutionContext,ICapMap> _cs;
     CapRef<ExecutionContext,IScheduler> _sched;
-    /// @todo reference/link to exception handler (portal/endpoint?)
+    ISignalSource::list_t _sinkList;
 
     // the hardware thread where the fpu state is currently loaded
     std::atomic<async::Place*> currentPlace = {nullptr};

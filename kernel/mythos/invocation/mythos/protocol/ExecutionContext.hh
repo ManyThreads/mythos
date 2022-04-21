@@ -41,7 +41,24 @@ namespace mythos {
         RECYCLE,
         SET_FSGS,
         RESUME,
-        SUSPEND
+        SUSPEND,
+        SET_PRIORITY
+      };
+
+      enum Signals : uint64_t {
+        NO_SIGNAL = 0ull,
+        // first 0x1F = 31 signals are reserved for traps/interrupts
+        // we might change that later if we need the space
+        // signal number is 1ull << (#IRC);
+        TRAP_DIV_BY_ZERO = 1ull << 0,
+        TRAP_SINGLE_STEP = 1ull << 1,
+        TRAP_NMI         = 1ull << 2,
+        TRAP_BREAKPOINT  = 1ull << 3,
+        // ...
+        TRAP_PAGEFAULT   = 1ull << 14,
+        // ...
+        // other signals start from bit 32
+        TRAP_EXIT        = 1ull << 32,
       };
 
       struct Configure : public InvocationBase {
@@ -81,6 +98,9 @@ namespace mythos {
         uint64_t rbp = 0;
         uint64_t fs_base = 0;
         uint64_t gs_base = 0;
+        uint64_t irq = 0; // read-only
+        uint64_t error = 0; // read-only
+        uint64_t cr2 = 0; // read-only
       };
 
       // has WriteRegisters message as result
@@ -113,6 +133,13 @@ namespace mythos {
           : InvocationBase(label,getLength(this)), fs(fs), gs(gs) {}
         uintptr_t fs;
         uintptr_t gs;
+      };
+
+      struct SetPriority : public InvocationBase {
+        constexpr static uint16_t label = (proto<<8) + SET_PRIORITY;
+        SetPriority(bool priority)
+          : InvocationBase(label,getLength(this)), priority(priority) {}
+        bool priority;
       };
 
       struct Resume : public InvocationBase {
@@ -152,6 +179,7 @@ namespace mythos {
         case WRITE_REGISTERS: return obj->invokeWriteRegisters(args...);
         case RECYCLE: return obj->invokeRecycle(args...);
         case SET_FSGS: return obj->invokeSetFSGS(args...);
+        case SET_PRIORITY: return obj->invokeSetPriority(args...);
         case RESUME: return obj->invokeResume(args...);
         case SUSPEND: return obj->invokeSuspend(args...);
         default: return Error::NOT_IMPLEMENTED;

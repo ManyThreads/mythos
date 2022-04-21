@@ -48,6 +48,7 @@ namespace mythos {
       PROCESSORALLOCATOR,
       THREADTEAM,
       INTERRUPT_CONTROL,
+      SIGNAL_LISTENER,
     };
 
   } // namespace protocol

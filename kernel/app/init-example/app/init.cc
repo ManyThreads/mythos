@@ -48,6 +48,7 @@
 #include "runtime/cgaScreen.hh"
 #include "runtime/process.hh"
 #include "tbb/tbb.h"
+#include "runtime/SignalListener.hh"
 
 #include <vector>
 #include <array>
@@ -306,47 +307,47 @@ void test_pthreads(){
   MLOG_INFO(mlog::app, "End Test Pthreads");
 }
 
-mythos::Mutex mutex;
 void* thread_main(void* ctx)
 {
   MLOG_INFO(mlog::app, "hello thread!", DVAR(ctx));
-  mutex << [ctx]() {
-    MLOG_INFO(mlog::app, "thread in mutex", DVAR(ctx));
-  };
+
   mythos_wait();
   MLOG_INFO(mlog::app, "thread resumed from wait", DVAR(ctx));
+
+  *((volatile char *) nullptr) = 'T';
   return 0;
 }
 
 void test_ExecutionContext()
 {
   MLOG_INFO(mlog::app, "Test ExecutionContext");
-  mythos::ExecutionContext ec1(capAlloc());
-  mythos::ExecutionContext ec2(capAlloc());
+  mythos::ExecutionContext ec(capAlloc());
+  mythos::SignalListener sl(capAlloc());
   {
-    MLOG_INFO(mlog::app, "test_EC: create ec1");
+    MLOG_INFO(mlog::app, "test_EC: create ec");
     mythos::PortalLock pl(portal); // future access will fail if the portal is in use already
 
-    auto tls1 = mythos::setupNewTLS();
-    ASSERT(tls1 != nullptr);
-    auto res1 = ec1.create(kmem).as(myAS).cs(myCS)
+    // create new ec
+    auto tls = mythos::setupNewTLS();
+    ASSERT(tls != nullptr);
+    auto res = ec.create(kmem).as(myAS).cs(myCS)
     .prepareStack(thread1stack_top).startFun(&thread_main, nullptr)
-    .suspended(false).fs(tls1)
+    .suspended(false).fs(tls)
     .invokeVia(pl).wait();
-    TEST(res1);
-    auto tres1 = team.tryRunEC(pl, ec1).wait();
-    TEST(tres1);
+    TEST(res);
 
-    MLOG_INFO(mlog::app, "test_EC: create ec2");
-    auto tls2 = mythos::setupNewTLS();
-    ASSERT(tls2 != nullptr);
-    auto res2 = ec2.create(kmem).as(myAS).cs(myCS)/*.sched(sc2->cap)*/
-    .prepareStack(thread2stack_top).startFun(&thread_main, nullptr)
-    .suspended(false).fs(tls2)
-    .invokeVia(pl).wait();
-    TEST(res2);
-    auto tres2 = team.tryRunEC(pl, ec2).wait();
-    TEST(tres2);
+    auto tres = team.tryRunEC(pl, ec1).wait();
+    TEST(tres);
+
+    MLOG_INFO(mlog::app, "test_EC: create sl");
+    // create new signal listener
+    res = sl.create(pl, kmem).wait();
+    TEST(res);
+
+    res = sl.bind(pl,
+        ec.cap(),
+        mythos::protocol::ExecutionContext::TRAP_PAGEFAULT,
+        mythos_get_pthread_ec_self()).wait();
   }
 
   for (volatile int i=0; i<100000; i++) {
@@ -354,14 +355,94 @@ void test_ExecutionContext()
   }
 
   MLOG_INFO(mlog::app, "sending notifications");
-  mythos::syscall_signal(ec1.cap());
-  mythos::syscall_signal(ec2.cap());
+  mythos::syscall_signal(ec.cap());
+
+  MLOG_INFO(mlog::app, "waiting for trap");
+  sl.wait(); 
+
+  MLOG_INFO(mlog::app, "free EC and signal listener");
   {
     mythos::PortalLock pl(portal); 
+    TEST(capAlloc.free(ec, pl));
+    TEST(capAlloc.free(sl, pl));
+  }
+  MLOG_INFO(mlog::app, "End Test ExecutionContext");
+}
+
+std::atomic<unsigned> prio_flag;
+
+void* prio_main(void* ctx)
+{
+  if(ctx != nullptr){
+      MLOG_INFO(mlog::app, "hello priority thread!", DVAR(ctx));
+      ASSERT(prio_flag.load() == 1);
+      prio_flag++;
+      for (volatile int i=0; i<100000; i++) {
+        for (volatile int j=0; j<1000; j++) {}
+      }
+      MLOG_INFO(mlog::app, "priority thread finished", DVAR(ctx));
+  }else{
+      MLOG_INFO(mlog::app, "hello normal thread!", DVAR(ctx));
+      ASSERT(prio_flag.load() == 0);
+      prio_flag++;
+      while(prio_flag.load() < 3);
+      MLOG_INFO(mlog::app, "normal thread finished", DVAR(ctx));
+  }
+  
+  prio_flag++;
+  return 0;
+}
+
+void test_PrioEC()
+{
+  MLOG_INFO(mlog::app, "Test ExecutionContext priority scheduling");
+  mythos::ExecutionContext ec1(capAlloc());
+  mythos::ExecutionContext ec2(capAlloc());
+
+  prio_flag.store(0);
+
+  {
+    MLOG_INFO(mlog::app, "test_EC: create ec");
+    mythos::PortalLock pl(portal); // future access will fail if the portal is in use already
+
+    // create new ec
+    auto tls1 = mythos::setupNewTLS();
+    auto tls2 = mythos::setupNewTLS();
+    ASSERT(tls1 != nullptr);
+    ASSERT(tls2 != nullptr);
+
+    auto sc = pa.alloc(pl).wait();
+    TEST(sc);
+
+    auto res = ec1.create(kmem).as(myAS).cs(myCS).sched(sc->cap)
+    .prepareStack(thread1stack_top).startFun(&prio_main, nullptr)
+    .suspended(true).fs(tls1)
+    .invokeVia(pl).wait();
+    TEST(res);
+
+    res = ec2.create(kmem).as(myAS).cs(myCS).sched(sc->cap)
+    .prepareStack(thread2stack_top).startFun(&prio_main, (void*)1)
+    .suspended(true).fs(tls2)
+    .invokeVia(pl).wait();
+    TEST(res);
+
+    ec2.setPriority(pl, true).wait();
+    
+    ec1.resume(pl).wait();
+
+    MLOG_INFO(mlog::app, "wait for EC1 to start");
+    while(prio_flag.load() == 0);
+
+    ec2.resume(pl).wait();
+
+    MLOG_INFO(mlog::app, "wait for ECs to finish execution");
+    while(prio_flag < 4);
+
+    MLOG_INFO(mlog::app, "free ECs");
     TEST(capAlloc.free(ec1, pl));
     TEST(capAlloc.free(ec2, pl));
   }
-  MLOG_INFO(mlog::app, "End Test ExecutionContext");
+  MLOG_INFO(mlog::app, "End Test ExecutionContext priority scheduling");
 }
 
 void test_InterruptControl() {
@@ -627,6 +708,19 @@ void test_scalability(){
   MLOG_INFO(mlog::app, "Finished scalability test");
 }
 
+void testCapMapDeletion(){
+  MLOG_INFO(mlog::app, "Test CapMap deletion");
+
+  mythos::PortalLock pl(portal);
+  mythos::CapMap cs(capAlloc());
+
+  auto res = cs.create(pl, kmem, CapPtrDepth(12), CapPtrDepth(20), CapPtr(0)).wait();
+  ASSERT(res);
+  
+  capAlloc.free(cs.cap(), pl);
+  MLOG_INFO(mlog::app, "Test CapMap deletion finished");
+}
+
 int main()
 {
   char const str[] = "Hello world!";
@@ -646,9 +740,11 @@ int main()
   //test_pthreads();
   //test_Rapl();
   //test_TBB();
+  test_PrioEC();
   test_scalability();
   //test_process();
   //test_CgaScreen();
+  testCapMapDeletion();
 
   char const end[] = "bye, cruel world!";
   mythos::syscall_debug(end, sizeof(end)-1);

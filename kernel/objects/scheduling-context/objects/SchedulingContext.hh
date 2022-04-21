@@ -127,6 +127,7 @@ namespace mythos {
   private:
     async::Place* home = nullptr;
     list_t readyQueue; //< the ready list of waiting execution contexts
+    list_t priorityQueue; //< the ready list of waiting execution contexts with high priority
     std::atomic<handle_t*> current_handle = {nullptr}; //< the currently selected execution context
 
     std::atomic<INotifyIdle*> myNI;

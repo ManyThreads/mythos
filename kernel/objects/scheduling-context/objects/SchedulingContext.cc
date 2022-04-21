@@ -44,6 +44,7 @@ namespace mythos {
         ASSERT(ec != nullptr);
         MLOG_INFO(mlog::sched, "unbind", DVAR(ec->get()));
         readyQueue.remove(ec);
+        priorityQueue.remove(ec);
         current_handle.store(nullptr);
         if(readyQueue.empty()){
           MLOG_INFO(mlog::sched, "call idleSC");
@@ -53,7 +54,6 @@ namespace mythos {
           }else{
             MLOG_WARN(mlog::sched, "No IdleNotify registered!");
           }
-
         }else{
           MLOG_INFO(mlog::sched, "ready queue not empty!");
         }   
@@ -72,7 +72,12 @@ namespace mythos {
         
         // add to the ready queue
         readyQueue.remove(ec); /// @todo do not need to remove if already on the queue, just do nothing then. This needs additional information in handle_t of LinkedList
-        readyQueue.push(ec);
+        priorityQueue.remove(ec); /// @todo do not need to remove if already on the queue, just do nothing then. This needs additional information in handle_t of LinkedList
+        if(ec->get()->hasPriority()){
+          priorityQueue.push(ec);
+          home->preempt(); // trigger reschedule to run priority ec 
+        }else{
+          readyQueue.push(ec);
 
         // wake up the hardware thread if it has no execution context running
 	// or if if current ec got ready in case of race condition
@@ -91,24 +96,39 @@ namespace mythos {
         while (true) {
             auto current = current_handle.load();
             if (current != nullptr) {
-                MLOG_DETAIL(mlog::sched, "try current", current, DVAR(current->get()));
-                auto loaded = current_ec->load();
-                if (loaded != current->get()) {
-                    if (loaded != nullptr) loaded->saveState();
-                    current->get()->loadState();
+                if(current->get()->hasPriority() || priorityQueue.empty()){
+                    MLOG_DETAIL(mlog::sched, "try current", current, DVAR(current->get()));
+                    auto loaded = current_ec->load();
+                    if (loaded != current->get()) {
+                        if (loaded != nullptr) loaded->saveState();
+                        current->get()->loadState();
+                    }
+                    current->get()->resume(); // if it returns, the ec is blocked
+                    current_handle.store(nullptr);
+                }else{
+                    MLOG_DETAIL(mlog::sched, "try switching to priority EC from non-prio EC ", current, DVAR(current->get()));
+                    readyQueue.push(current);
+                    current_handle.store(nullptr);
                 }
-                current->get()->resume(); // if it returns, the ec is blocked
-                current_handle.store(nullptr);
             }
-            MLOG_DETAIL(mlog::sched, "try from ready list");
-            // something on the ready list?
+
+            MLOG_DETAIL(mlog::sched, "try from priority list");
             sleepFlag.store(true);
-            auto next = readyQueue.pull();
-            while (next != nullptr && !next->get()->isReady()) next = readyQueue.pull();
+            auto next = priorityQueue.pull();
+            while (next != nullptr && !next->get()->isReady()) next = priorityQueue.pull();
             if (next == nullptr) {
-                // go sleeping because we don't have anything to run
-                return;
-            }
+                MLOG_DETAIL(mlog::sched, "empty priority list, try ready list");
+                // something on the ready list?
+                next = readyQueue.pull();
+                while (next != nullptr && !next->get()->isReady()) next = readyQueue.pull();
+                if (next == nullptr) {
+                    // go sleeping because we don't have anything to run
+                    MLOG_DETAIL(mlog::sched, "empty ready list, going to sleep");
+                    return;
+                }
+            }else{
+                MLOG_DETAIL(mlog::sched, "found priority EC", next, DVAR(next->get()));
+            } 
             current_handle.store(next);
             // now retry
         }

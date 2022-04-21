@@ -1,4 +1,4 @@
-/* -*- mode:C++; indent-tabs-mode:nil; -*- */
+/* -*- mode:C++; -*- */
 /* MIT License -- MyThOS: The Many-Threads Operating System
  *
  * Permission is hereby granted, free of charge, to any person
@@ -21,25 +21,36 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  *
- * Copyright 2016 Randolf Rotta, Robert Kuban, and contributors, BTU Cottbus-Senftenberg
+ * Copyright 2021 Randolf Rotta, Robert Kuban, and contributors, BTU Cottbus-Senftenberg
  */
 #pragma once
 
-#include "util/LinkedList.hh"
-#include "objects/INotification.hh"
+#include <cstdint>
 
 namespace mythos {
 
-  class INotifiable
-  {
-  public:
-    virtual ~INotifiable() {}
 
-    typedef LinkedList<INotification*> list_t;
-    typedef typename list_t::Queueable handle_t;
+// see I/O Completion Ports like in WinNT, or the Event Completion Framework in Solaris
+// and https://people.freebsd.org/~jlemon/papers/kqueue.pdf
+struct KEvent
+{
+    typedef uintptr_t Context;
+    typedef uint64_t Value;
 
-    virtual void notify(handle_t*) = 0;
-    virtual void denotify(handle_t*) = 0;
-  };
-  
+    KEvent() : user(0), state(0) {}
+    KEvent(Context user, Value state) : user(user), state(state) {}
+
+    /** A user defined value that identifies the event source.
+     * It may, for example, point to a user-space handler object.
+     * This value is configured when creating kernel objects that can issue notifications.
+     * Passed in register %rax when returning from a system call.
+     */
+    Context user;
+
+    /** The status or error code that is returned as event.
+     * Passed in register %rdx when returning from a system call.
+     */
+    Value state;
+};
+
 } // namespace mythos
