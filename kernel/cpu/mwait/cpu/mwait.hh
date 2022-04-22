@@ -36,14 +36,10 @@ namespace mythos {
     inline unsigned mwaitSmallestLineSize() { return bits(x86::cpuid(5).eax, 15, 0); }
     inline unsigned mwaitLargestLineSize() { return bits(x86::cpuid(5).ebx, 15, 0); }
 
-    static inline void clflush(volatile void *p) {
-      asm volatile("clflush %0" : "+m" (*(volatile char*)p));
-    }
+    //static inline void clflush(volatile void *p) {
+      //asm volatile("clflush %0" : "+m" (*(volatile char*)p));
+    //}
     
-    static inline void wbinvd() {
-      asm volatile("wbinvd": : :"memory");
-    }
-
     static inline void barrier() {
       asm volatile("" ::: "memory");
     }

@@ -336,7 +336,7 @@ void test_ExecutionContext()
     .invokeVia(pl).wait();
     TEST(res);
 
-    auto tres = team.tryRunEC(pl, ec1).wait();
+    auto tres = team.tryRunEC(pl, ec).wait();
     TEST(tres);
 
     MLOG_INFO(mlog::app, "test_EC: create sl");
@@ -393,6 +393,7 @@ void* prio_main(void* ctx)
   return 0;
 }
 
+/*
 void test_PrioEC()
 {
   MLOG_INFO(mlog::app, "Test ExecutionContext priority scheduling");
@@ -444,6 +445,7 @@ void test_PrioEC()
   }
   MLOG_INFO(mlog::app, "End Test ExecutionContext priority scheduling");
 }
+*/
 
 void test_InterruptControl() {
   MLOG_INFO(mlog::app, "test_InterruptControl start");
@@ -740,7 +742,7 @@ int main()
   //test_pthreads();
   //test_Rapl();
   //test_TBB();
-  test_PrioEC();
+  //test_PrioEC();
   test_scalability();
   //test_process();
   //test_CgaScreen();

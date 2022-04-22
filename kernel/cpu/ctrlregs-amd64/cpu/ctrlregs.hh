@@ -366,7 +366,7 @@ namespace mythos {
       //Allows a variety of processor functions to
       //be enabled and disabled.
       //(performance monitoring/ speedstep / monitor&mwait )
-      IA32_MISC_ENABLE = 0x1A0,
+      /*IA32_MISC_ENABLE = 0x1A0,*/ //already declared above
 
       //Offcore Response Event Select Register (R/W)
       //scope: module 

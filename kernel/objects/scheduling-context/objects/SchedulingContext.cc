@@ -79,14 +79,15 @@ namespace mythos {
         }else{
           readyQueue.push(ec);
 
-        // wake up the hardware thread if it has no execution context running
-	// or if if current ec got ready in case of race condition
-        //if (current == nullptr || current == ec) home->preempt();
-        if (current == nullptr || current == ec){
-          //MLOG_ERROR(mlog::sched, "wake SC");
-          //home->preempt();
-          wake();
-        } 
+          // wake up the hardware thread if it has no execution context running
+    // or if if current ec got ready in case of race condition
+          //if (current == nullptr || current == ec) home->preempt();
+          if (current == nullptr || current == ec){
+            //MLOG_ERROR(mlog::sched, "wake SC");
+            //home->preempt();
+            wake();
+          } 
+        }
     }
 
     void SchedulingContext::tryRunUser()
