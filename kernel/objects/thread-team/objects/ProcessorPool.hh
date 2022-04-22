@@ -125,7 +125,7 @@ using namespace topology;
           numResources -= THREADS_PER_CORE;
           numCores--;
         }
-        MLOG_DETAIL(mlog::pm, __func__, "merged");
+        //MLOG_ERROR(mlog::pm, __func__, "merged");
         pushTile(tile);
       }
     }

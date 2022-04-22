@@ -75,7 +75,7 @@ class ProcessorAllocator
 
   /* IResourceOwner */
     void notifyIdleThread(Tasklet* t, topology::IThread* thread) override {
-      MLOG_ERROR(mlog::pm, "Free thread notified idle...", DVARhex(t), DVARhex(thread));
+      MLOG_INFO(mlog::pm, "Free thread notified idle...", DVARhex(t), DVARhex(thread));
     } 
 
     SleepMode getSleepMode() override { return DEEPSLEEP; }

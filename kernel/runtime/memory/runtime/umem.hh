@@ -31,6 +31,8 @@ extern "C" void free(void *ptr);
 extern "C" void *malloc(size_t size);
 extern "C" void *realloc(void *ptr, size_t size);
 
+//#define USE_SEQUENTIAL_HEAP
+
 #ifndef USE_SEQUENTIAL_HEAP
 namespace mythos {
     extern SequentialHeap<uintptr_t> heap;

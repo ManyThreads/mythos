@@ -80,7 +80,7 @@ namespace mythos {
         });
       } 
 
-      SleepMode getSleepMode() override { return SPINNING; }
+      SleepMode getSleepMode() override { return HALT; }
 
       // only for init EC
       bool tryRun(ExecutionContext* ec);
@@ -101,7 +101,7 @@ namespace mythos {
 
       void reclaimResources(Tasklet* t, IResult<topology::Resource*>* r){
         monitor.request(t,[=](Tasklet*){
-          MLOG_INFO(mlog::pm, __func__);
+          MLOG_ERROR(mlog::pm, __func__);
           ASSERT(r);
           auto c = freePool.getCore();
           if(!c){
@@ -117,7 +117,6 @@ namespace mythos {
       }
 
       bool balancePools(Tasklet* t){
-        MLOG_INFO(mlog::pm, __func__, DVARhex(t));
         //monitor.request(t,[=](Tasklet*){
           ASSERT(MIN_FREE_THREADS_IN_TEAM <= TARGET_NUM_THREADS_IN_TEAM);
           ASSERT(TARGET_NUM_THREADS_IN_TEAM <= MAX_FREE_THREADS_IN_TEAM);
@@ -125,12 +124,15 @@ namespace mythos {
           auto free = freePool.numThreads();
           auto cached = cachedPool.numThreads();
           auto sum = free + cached;
+          MLOG_INFO(mlog::pm, __func__, DVARhex(t), DVAR(free), DVAR(cached), DVAR(sum));
           if(sum < MIN_FREE_THREADS_IN_TEAM){
             //alloc
             //auto nAlloc = TARGET_NUM_THREADS_IN_TEAM - sum;
+            MLOG_INFO(mlog::pm, __func__, "too few threads", DVAR(sum));
             pa->prealloc(t, this);
             return true;
           }else if(sum > MAX_FREE_THREADS_IN_TEAM){
+              MLOG_INFO(mlog::pm, __func__, "too much threads", DVAR(sum));
             //free
             //auto nfree = sum - TARGET_NUM_THREADS_IN_TEAM;
             auto c = freePool.getCore();

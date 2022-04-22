@@ -133,52 +133,72 @@ class ThreadPool{
 
 ThreadPool<2048> threadPool;
 
-struct PthreadCleaner{
-  PthreadCleaner()
-    : flag(FREE)
-  {
-    MLOG_DETAIL(mlog::app, "PthreadCleaner");
-  }
+//struct PthreadCleaner{
+  //PthreadCleaner()
+    //: flag(FREE)
+  //{
+    //MLOG_DETAIL(mlog::app, "PthreadCleaner");
+  //}
 
-  enum state{
-    UNKNOWN = 0, // invalid
-    FREE = 1, // initial state
-    EXITED = 2 // target pthread has exited and it is now save to free its memory and EC
-    // otherwise it holds the waiters EC pointer
-  };
+  //enum state{
+    //UNKNOWN = 0, // invalid
+    //FREE = 1, // initial state
+    //EXITED = 2 // target pthread has exited and it is now save to free its memory and EC
+    //// otherwise it holds the waiters EC pointer
+  //};
 
-  // marks the target pthread as finished (does not access its memory/stack anymore)
-  // called by the finished pthread after pthread_exit and just before syscall_exit
-  void exit(){
-    //MLOG_DETAIL(mlog::app, "PthreadCleaner exit", DVARhex(this), DVARhex(pthread_self()));
-    auto ec = flag.exchange(EXITED);
-    if(ec != FREE){
-      ASSERT(ec!=UNKNOWN);
-      // wake waiter EC
-      mythos::syscall_signal(ec);
-    }
-  }
+  //// marks the target pthread as finished (does not access its memory/stack anymore)
+  //// called by the finished pthread after pthread_exit and just before syscall_exit
+  //[[ noreturn ]] inline void exit(){
+    ////MLOG_INFO(mlog::app, "PthreadCleaner exit", DVARhex(this), DVARhex(pthread_self()));
+    //[>auto ec = flag.exchange(EXITED);
+    //if(ec != FREE){
+      //ASSERT(ec!=UNKNOWN);
+      //// wake waiter EC
+      //mythos::syscall_signal(ec);
+      //asm volatile ("syscall" : : "D"(0), "S"(0) : "memory");
+    //}*/
+      //flag.store(EXITED);
+      //do{asm volatile ("syscall" : : "D"(0), "S"(0) : "memory");}while(1);
+      //PANIC(false);
+  //}
 
-  // wait until pthread t has finished (called exit())
-  // when returning from this function, it is save to free the target pthreads memory and EC
-  void wait(pthread_t t){
-    auto pcs = reinterpret_cast<PthreadCleaner* >(t - (pthread_self() - reinterpret_cast<uintptr_t>(this)));
-    //MLOG_DETAIL(mlog::app, "PthreadCleaner wait", DVARhex(pcs), DVARhex(this), DVARhex(pthread_self()), DVARhex(t));
-    while(pcs->flag.load() != EXITED){
-      mythos::CapPtr exp = FREE;
-      // try to register as waiter
-      if(pcs->flag.compare_exchange_weak(exp, mythos_get_pthread_ec_self())){
-        //MLOG_DETAIL(mlog::app, "PthreadCleaner going to wait");
-        mythos_wait();
-      }
-    }
-  }
+  //// wait until pthread t has finished (called exit())
+  //// when returning from this function, it is save to free the target pthreads memory and EC
+  //void wait(pthread_t t){
+    //auto pcs = reinterpret_cast<PthreadCleaner* >(t - (pthread_self() - reinterpret_cast<uintptr_t>(this)));
+    ////MLOG_DETAIL(mlog::app, "PthreadCleaner wait", DVARhex(pcs), DVARhex(this), DVARhex(pthread_self()), DVARhex(t));
+    //while(pcs->flag.load() != EXITED);
+    //[>{
+      //mythos::CapPtr exp = FREE;
+      //// try to register as waiter
+      //if(pcs->flag.compare_exchange_weak(exp, mythos_get_pthread_ec_self())){
+        ////MLOG_DETAIL(mlog::app, "PthreadCleaner going to wait");
+        //mythos_wait();
+      //}
+    //}*/
+  //}
   
-  // lock
-  std::atomic<mythos::CapPtr> flag;
-};
+  //// lock
+  //std::atomic<mythos::CapPtr> flag;
+//};
 
-static thread_local PthreadCleaner pthreadCleaner;
+static thread_local std::atomic<int> exit_flag(0);
+
+static inline __attribute__((noreturn)) void thread_exit(){
+      exit_flag.store(2);
+      do{asm volatile ("syscall" : : "D"(0), "S"(0) : "memory");}while(1);
+}
+
+static inline void thread_exit_wait(pthread_t t){
+    auto flag = reinterpret_cast<std::atomic<int> * >(t - (pthread_self() - reinterpret_cast<uintptr_t>(&exit_flag)));
+    while(flag->load() != 2){
+      asm volatile ("pause" : : : "memory");
+      
+    }
+}
+
+//static thread_local PthreadCleaner pthreadCleaner;
 
 extern "C" [[noreturn]] void __assert_fail (const char *expr, const char *file, int line, const char *func)
 {
@@ -293,16 +313,22 @@ extern "C" long mythos_musl_syscall(
         //MLOG_ERROR(mlog::app, "syscall sched_yield NYI");
         return 0;
     case 28:  //madvise
-        MLOG_WARN(mlog::app, "syscall madvise NYI");
+        //a1 = ptr, a2 = size, a3 = operation
+        if(a2 > 208435456){
+        MLOG_INFO(mlog::app, "syscall madvise NYI", DVAR(a1), DVAR(a2), DVAR(a3), DVAR(a4), DVAR(a5), DVAR(a6));
+        }
         return 0;
     case 39: // getpid
         MLOG_DETAIL(mlog::app, "syscall getpid NYI");
         //todo: use proper process identification
         return 4711;
     case 60: // exit(exit_code)
-        MLOG_DETAIL(mlog::app, "syscall exit", DVAR(a1));
-        pthreadCleaner.exit();        
-        asm volatile ("syscall" : : "D"(0), "S"(a1) : "memory");
+        {
+          //MLOG_INFO(mlog::app, "syscall exit", DVAR(a1));
+          //pthreadCleaner.exit();        
+          thread_exit();
+          do{ asm volatile ("syscall" : : "D"(0), "S"(a1) : "memory"); }while(1);
+        }
         return 0;
     case 186: // gettid
         return mythos_get_pthread_tid(pthread_self());
@@ -331,25 +357,62 @@ extern "C" long mythos_musl_syscall(
 	clock_gettime(a1, reinterpret_cast<struct timespec *>(a2));
         return 0;
     case 231: // exit_group for all pthreads 
-        MLOG_WARN(mlog::app, "syscall exit_group ");
+        MLOG_INFO(mlog::app, "syscall exit_group ");
         mythosExit();
         return 0;
     case 302: // prlimit64
         //MLOG_WARN(mlog::app, "syscall prlimit64 NYI", DVAR(a1), DVAR(a2), DVAR(a3), DVAR(a4), DVAR(a5), DVAR(a6));
         return 1;
     default:
-        MLOG_ERROR(mlog::app, "Error: mythos_musl_syscall NYI", DVAR(num), 
+        MLOG_DETAIL(mlog::app, "Error: mythos_musl_syscall NYI", DVAR(num), 
             DVAR(a1), DVAR(a2), DVAR(a3),
             DVAR(a4), DVAR(a5), DVAR(a6));
     }
     return -1;
 }
 
+
+#ifdef MIMALLOC_PRESENT
+
+uintptr_t mimalloc_vaddr = 0;
+size_t mimalloc_num_hpages = 0;
+std::atomic<size_t> mimalloc_curr(0);
+
+std::atomic<int> num_regions(0);
+
 extern "C" void * mmap(void *start, size_t len, int prot, int flags, int fd, off_t off)
 {
-    // dummy implementation
-    MLOG_DETAIL(mlog::app, "mmap", DVAR(start), DVAR(len), DVAR(prot), DVAR(prot), DVAR(flags), DVAR(fd), DVAR(off));
-    auto tmp = mythos::heap.alloc(mythos::round_up(len, mythos::align4K), mythos::align4K);
+
+    PANIC(fd == -1);
+    PANIC(off == 0);
+    PANIC(!(flags & MAP_FIXED));
+
+    if(len == mythos::align1G){
+    //MLOG_ERROR(mlog::app, "mmap mimalloc", DVAR(start), DVAR(len), DVAR(prot), DVAR(MAP_FIXED), DVAR(flags & MAP_FIXED), DVAR(flags), DVAR(fd), DVAR(off));
+      PANIC(mimalloc_vaddr != 0);
+      PANIC(mythos::is_aligned(mimalloc_vaddr, mythos::align1G));
+      PANIC(mimalloc_curr < mimalloc_num_hpages);
+
+      if (mimalloc_curr >= mimalloc_num_hpages){ 
+        errno = ENOMEM;
+        return MAP_FAILED;
+      }
+
+      auto addr = mimalloc_vaddr + (mimalloc_curr++ * mythos::align1G); 
+      PANIC(mythos::is_aligned(addr, mythos::align1G));
+
+      auto ret = reinterpret_cast<void*>(addr);
+
+      //MLOG_ERROR(mlog::app, "mmap mimalloc return", DVAR(ret));
+      return ret;
+    }
+    if(len >  3*mythos::align2M){
+      MLOG_ERROR(mlog::app, "mmap", DVAR(++num_regions), DVAR(start), DVAR(len), DVAR(prot), DVAR(MAP_FIXED), DVAR(flags & MAP_FIXED), DVAR(flags), DVAR(fd), DVAR(off));
+    }
+
+    auto align = len >= mythos::align2M ? 2*mythos::align2M : mythos::align4K;
+    auto tmp = mythos::heap.alloc(len, align);
+
     if (!tmp){ 
 	    errno = ENOMEM;
 	    return MAP_FAILED;
@@ -357,18 +420,70 @@ extern "C" void * mmap(void *start, size_t len, int prot, int flags, int fd, off
 
     if (flags & MAP_ANONYMOUS)  {
         memset(reinterpret_cast<void*>(*tmp), 0, len);
+        asm volatile("mfence": : :"memory");
+    }else{
+      MLOG_WARN(mlog::app, "mmap not ANON", DVAR(start), DVAR(len), DVAR(prot), DVAR(flags), DVAR(fd), DVAR(off));
+    }
+    void* ret = reinterpret_cast<void*>(*tmp);
+    //MLOG_ERROR(mlog::app, "mmap return", DVAR(ret));
+    return ret;
+}
+
+
+extern "C" int munmap(void *start, size_t len)
+{
+    // dummy implementation
+    if(len == mythos::align1G){
+      //MLOG_ERROR(mlog::app, "munmap mimalloc NYI", DVAR(start), DVAR(len));
+    }else{
+      if(len > 3*mythos::align2M){
+        MLOG_WARN(mlog::app, "munmap", DVAR(--num_regions), DVAR(start), DVAR(len));
+      }
+      mythos::heap.free(reinterpret_cast<unsigned long>(start));
+    }
+    return 0;
+}
+
+#else
+extern "C" void * mmap(void *start, size_t len, int prot, int flags, int fd, off_t off)
+{
+    //MLOG_ERROR(mlog::app, "mmap", DVAR(start), DVAR(len), DVAR(prot), DVAR(MAP_FIXED), DVAR(flags & MAP_FIXED), DVAR(flags), DVAR(fd), DVAR(off));
+
+
+    // dummy implementation
+    PANIC(fd == -1);
+    PANIC(off == 0);
+    PANIC(!(flags & MAP_FIXED));
+    //PANIC(start == nullptr);
+    auto align = len >= mythos::align2M ? 2*mythos::align2M : mythos::align4K;
+    auto tmp = mythos::heap.alloc(len, align);
+    //auto tmp = mythos::heap.alloc(mythos::round_up(len, mythos::align4K), align);
+    //auto tmp = mythos::heap.alloc(mythos::round_up(len, align), align);
+    //auto tmp = mythos::heap.alloc(mythos::round_up(len, 2*mythos::align2M), 2*mythos::align2M);
+    //auto tmp = mythos::heap.alloc(mythos::round_up(len, mythos::align4K), mythos::align4K);
+    if (!tmp){ 
+	    errno = ENOMEM;
+	    return MAP_FAILED;
     }
 
-    return reinterpret_cast<void*>(*tmp);
+    if (flags & MAP_ANONYMOUS)  {
+        memset(reinterpret_cast<void*>(*tmp), 0, len);
+    }else{
+      MLOG_WARN(mlog::app, "mmap not ANON", DVAR(start), DVAR(len), DVAR(prot), DVAR(flags), DVAR(fd), DVAR(off));
+    }
+    void* ret = reinterpret_cast<void*>(*tmp);
+    //MLOG_ERROR(mlog::app, "mmap return", DVAR(ret));
+    return ret;
 }
 
 extern "C" int munmap(void *start, size_t len)
 {
     // dummy implementation
-    MLOG_DETAIL(mlog::app, "munmap", DVAR(start), DVAR(len));
+    //MLOG_ERROR(mlog::app, "munmap", DVAR(start), DVAR(len));
     mythos::heap.free(reinterpret_cast<unsigned long>(start));
     return 0;
 }
+#endif
 
 void *unmap_base;
 char shared_stack[4096];
@@ -386,7 +501,7 @@ void do_unmap [[ noreturn]] (){
 extern "C" int unmapself(void *start, size_t len)
 {
     // see pthread_exit: another pthread might reuse the memory before unmapped  thread exited
-    MLOG_DETAIL(mlog::app, __func__,  DVARhex(start), DVAR(len));
+    //MLOG_INFO(mlog::app, __func__,  DVARhex(start), DVAR(len));
     unmapLock.lock();
     //MLOG_INFO(mlog::app, "locked");
     unmap_base = start; 
@@ -508,7 +623,8 @@ extern "C" int clone(int (*func)(void *), void *stack, int flags, void *arg, ...
 extern "C" void mythos_pthread_cleanup(pthread_t t){
     MLOG_DETAIL(mlog::app, "mythos_pthread_cleanup", mythos_get_pthread_ec(t));
     // wait for target pthread to exit
-    pthreadCleaner.wait(t);
+    //pthreadCleaner.wait(t);
+    thread_exit_wait(t);
     // delete EC of target pthread
     auto ec = mythos_get_pthread_ec(t);
     auto portal = getRemotePortalPtr(t);

@@ -93,6 +93,7 @@ env CC=$REALGCC CFLAGS="-nostdinc" \
 ../configure $MUSLTARGET --prefix="$DSTDIR/usr" \
     --disable-shared \
     --enable-wrapper=all \
+    --with-malloc=oldmalloc \
     && make -j`nproc` && make install || fail
 cd ../..
 

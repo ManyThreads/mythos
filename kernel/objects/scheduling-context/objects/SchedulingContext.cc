@@ -137,8 +137,8 @@ namespace mythos {
 
     void SchedulingContext::sleep(){
         //MLOG_ERROR(mlog::sched, "empty ready list, going to sleep");
-        //SleepMode sm = HALT;
-        SleepMode sm = SPINNING;
+        SleepMode sm = HALT;
+        //SleepMode sm = SPINNING;
         auto ni = myNI.load();
         if(ni != nullptr){
           sm = ni->getSleepMode();

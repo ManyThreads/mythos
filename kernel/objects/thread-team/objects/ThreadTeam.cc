@@ -111,7 +111,7 @@ namespace mythos {
       ASSERT(ece);
 
       if(r && *r){
-        MLOG_DETAIL(mlog::pm, DVARhex(*r));
+        MLOG_INFO(mlog::pm, __func__, DVARhex(*r));
         r->setOwner(this);
         r->moveToPool(&freePool);
         auto thread = getFree();
@@ -131,7 +131,7 @@ namespace mythos {
 
       if(data.allocType == protocol::ThreadTeam::DEMAND){
         if(enqueueDemand(*ece)){
-          MLOG_ERROR(mlog::pm, "enqueued to demand list", DVARhex(*ece));
+          MLOG_INFO(mlog::pm, "enqueued to demand list", DVARhex(*ece));
           ret->setResponse(protocol::ThreadTeam::RetTryRunEC::DEMANDED);
         }else{
           ret->setResponse(protocol::ThreadTeam::RetTryRunEC::FAILED);

@@ -127,6 +127,8 @@ namespace mythos {
   void ProcessorAllocator::free(Tasklet* t, topology::Resource* r, IResult<topology::ICore*>* result){
     monitor.request(t,[=](Tasklet*){
       ASSERT(r);
+        MLOG_INFO(mlog::pm, __func__, "free core to PA", DVAR(r));
+      r->setOwner(this);
       r->moveToPool(&pool);
       result->response(t, optional<topology::ICore*>());
       monitor.requestDone();
