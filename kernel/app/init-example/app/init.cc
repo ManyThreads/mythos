@@ -521,6 +521,53 @@ void test_process(){
   MLOG_INFO(mlog::app, "Test process finished");
 }
 
+void pageMapPageFault(){
+  MLOG_INFO(mlog::app, "Trigger PageMap page fault");
+
+  mythos::PortalLock pl(portal);
+
+  mythos::PageMap pm4(capAlloc());
+
+  auto res = pm4.create(pl, kmem, 4).wait();
+  ASSERT(res);
+
+  MLOG_INFO(mlog::app, "Try to delete pm4 -> page fault");
+
+  capAlloc.free(pm4.cap(), pl);
+  
+  MLOG_INFO(mlog::app, "If you can read this, you might have fixed the page fault?!");
+}
+
+void pageMapDeadlock(){
+  MLOG_INFO(mlog::app, "Trigger PageMap deadlock");
+
+  mythos::PortalLock pl(portal);
+
+  mythos::PageMap pm4(capAlloc());
+  mythos::PageMap pm3(capAlloc());
+  mythos::PageMap pm2(capAlloc());
+
+  auto res = pm4.create(pl, kmem, 4).wait();
+  ASSERT(res);
+  res = pm3.create(pl, kmem, 3).wait();
+  ASSERT(res);
+  res = pm2.create(pl, kmem, 2).wait();
+  ASSERT(res);
+
+  uintptr_t vaddr = 0x4000000;
+
+  pm4.installMap(pl, pm3, ((vaddr >> 39) & 0x1FF) << 39, 4,
+      mythos::protocol::PageMap::MapFlags().writable(true).configurable(true)).wait();
+  pm3.installMap(pl, pm2, ((vaddr >> 30) & 0x1FF) << 30, 3,
+      mythos::protocol::PageMap::MapFlags().writable(true).configurable(true)).wait();
+
+  MLOG_INFO(mlog::app, "Try to delete pm3 -> deadlock");
+
+  capAlloc.free(pm3.cap(), pl);
+  
+  MLOG_INFO(mlog::app, "If you can read this, you might have fixed the deadlock?!");
+}
+
 void testCapMapDeletion(){
   MLOG_INFO(mlog::app, "Test CapMap deletion");
 
@@ -540,21 +587,23 @@ int main()
   mythos::syscall_debug(str, sizeof(str)-1);
   MLOG_ERROR(mlog::app, "application is starting :)", DVARhex(info_ptr), DVARhex(initstack_top));
 
-  test_float();
-  test_Example();
-  test_Portal();
+  //test_float();
+  //test_Example();
+  //test_Portal();
   test_heap(); // heap must be initialized for tls test
-  test_tls();
-  test_exceptions();
+  //test_tls();
+  //test_exceptions();
   //test_InterruptControl();
   //test_HostChannel(portal, 24*1024*1024, 2*1024*1024);
   test_ExecutionContext();
-  test_pthreads();
-  test_Rapl();
-  test_processor_allocator();
+  //test_pthreads();
+  //test_Rapl();
+  //test_processor_allocator();
   //test_process();
   //test_CgaScreen();
   testCapMapDeletion();
+  pageMapPageFault();
+  pageMapDeadlock();
 
   char const end[] = "bye, cruel world!";
   mythos::syscall_debug(end, sizeof(end)-1);
